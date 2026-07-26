@@ -14,14 +14,17 @@ namespace gaia {
 			//! \return True when every escape sequence is valid.
 			inline bool runtime_patch_decode_token(ser::json_str_view encoded, util::str& token) {
 				token.clear();
+
 				GAIA_FOR(encoded.size()) {
 					const auto ch = encoded.data()[i];
 					if (ch != '~') {
 						token.append(ch);
 						continue;
 					}
+
 					if (i + 1 >= encoded.size())
 						return false;
+
 					const auto escaped = encoded.data()[++i];
 					if (escaped == '0')
 						token.append('~');
@@ -30,6 +33,7 @@ namespace gaia {
 					else
 						return false;
 				}
+
 				return true;
 			}
 
@@ -40,6 +44,7 @@ namespace gaia {
 			inline bool runtime_patch_parse_index(util::str_view token, uint32_t& index) {
 				if (token.empty())
 					return false;
+
 				uint64_t value = 0;
 				GAIA_FOR(token.size()) {
 					const auto ch = token.data()[i];
@@ -49,6 +54,7 @@ namespace gaia {
 					if (value > UINT32_MAX)
 						return false;
 				}
+
 				index = (uint32_t)value;
 				return true;
 			}
@@ -66,6 +72,7 @@ namespace gaia {
 			runtime_patch_numeric_value_as(Entity type, Entity expectedType, const void* data, uint32_t size, double& value) {
 				if (type != expectedType || data == nullptr || size != sizeof(T))
 					return false;
+
 				T result{};
 				memcpy(&result, data, sizeof(result));
 				value = (double)result;
@@ -84,6 +91,7 @@ namespace gaia {
 				if (pType != nullptr &&
 						(pType->typeKind == RuntimeTypeKind::Enum || pType->typeKind == RuntimeTypeKind::Bitmask))
 					type = pType->underlyingType;
+
 				return runtime_patch_numeric_value_as<int8_t>(type, S8, data, size, value) ||
 							 runtime_patch_numeric_value_as<uint8_t>(type, U8, data, size, value) ||
 							 runtime_patch_numeric_value_as<int16_t>(type, S16, data, size, value) ||
@@ -108,6 +116,7 @@ namespace gaia {
 
 			if (expectedRuntimeSchemaHash != 0 && expectedRuntimeSchemaHash != runtime_schema_hash())
 				return error(ser::JsonDiagReason::StaleSchema, "Runtime schema hash does not match the current manifest.");
+
 			const auto* pRoot = component.pair() ? m_compCache.find_pair_payload(component) : m_compCache.find(component);
 			if (pRoot == nullptr)
 				return error(ser::JsonDiagReason::UnknownComponent, "Component patch target is not registered.");
@@ -127,6 +136,7 @@ namespace gaia {
 				uint32_t end = pos;
 				while (end < pointer.size() && pointer.data()[end] != '/')
 					++end;
+
 				util::str token;
 				if (!detail::runtime_patch_decode_token(ser::json_str_view(pointer.data() + pos, end - pos), token) ||
 						token.empty())
@@ -135,6 +145,7 @@ namespace gaia {
 				const ComponentCacheItem* pFieldOwner = pCurrent;
 				if (pFieldOwner != nullptr && pFieldOwner->typeKind == RuntimeTypeKind::Opaque)
 					pFieldOwner = m_compCache.find(pFieldOwner->opaque_as_type());
+
 				if (pFieldOwner != nullptr && pFieldOwner->typeKind == RuntimeTypeKind::Struct) {
 					const auto* pField = pFieldOwner->field(util::str_view(token.data(), token.size()));
 					if (pField == nullptr)
@@ -145,6 +156,7 @@ namespace gaia {
 						return error(ser::JsonDiagReason::HiddenField, "Component patch field is hidden.");
 					if (!cursor.field(util::str_view(token.data(), token.size())))
 						return error(ser::JsonDiagReason::InvalidPatchPath, "Component patch field cannot be traversed.");
+
 					pSelectedField = pField;
 					pCurrent = m_compCache.find(pField->type);
 				} else {
@@ -152,41 +164,52 @@ namespace gaia {
 					if (!detail::runtime_patch_parse_index(util::str_view(token.data(), token.size()), index) ||
 							!cursor.elem(index))
 						return error(ser::JsonDiagReason::InvalidPatchPath, "Component patch sequence index is invalid.");
+
 					pCurrent = m_compCache.find(cursor.type());
 				}
+
 				pos = end + 1;
 			}
 
 			const auto count = cursor.count();
 			const bool charBuffer = pSelectedField != nullptr && cursor.type() == Char8 && count.ok() && count.value > 1;
+
 			if (pCurrent == nullptr || !detail::runtime_json_leaf_editable(*pCurrent) ||
 					(count.ok() && count.value > 1 && !charBuffer))
 				return error(
 						ser::JsonDiagReason::UnsupportedPatchValue, "Component patch endpoint must be a supported reflected leaf.");
 
+			// Work on a copy so a failed patch does not change the component.
 			cnt::darray<uint8_t> original;
 			original.resize(cursor.size());
 			if (!cursor.get_raw(original.data(), (uint32_t)original.size()))
 				return error(ser::JsonDiagReason::UnsupportedPatchValue, "Component patch endpoint cannot be read.");
+
 			cnt::darray<uint8_t> bytes;
 			bytes.resize(original.size());
 			memcpy(bytes.data(), original.data(), original.size());
+
 			ser::ser_json reader(value.data(), value.size());
 			bool valueOk = true;
+			detail::RuntimeJsonReadContext ctx{&m_compCache, reader, diagnostics, policy, valueOk};
+
 			if (cursor.type() == Char8 && cursor.size() == sizeof(char)) {
+				// One Char8 value is written as a one-character JSON string.
 				ser::json_str_view text;
 				if (!reader.parse_string_view(text) || text.size() != 1)
 					return error(ser::JsonDiagReason::InvalidJson, "Component patch character value must contain one character.");
+
 				bytes[0] = (uint8_t)text.data()[0];
 			} else if (!detail::read_runtime_json_value(
-										 &m_compCache, pCurrent, cursor.type(), bytes.data(), (uint32_t)bytes.size(), reader, diagnostics,
-										 pointer, policy, 0, valueOk)) {
+										 ctx, pCurrent, cursor.type(), bytes.data(), (uint32_t)bytes.size(), pointer, 0)) {
 				return error(
 						ser::JsonDiagReason::InvalidJson, "Component patch value is not valid JSON for the selected field.");
 			}
+
 			reader.ws();
 			if (!reader.eof())
 				return error(ser::JsonDiagReason::InvalidJson, "Component patch value contains trailing JSON.");
+
 			if (!valueOk)
 				return error(
 						ser::JsonDiagReason::UnsupportedPatchValue,
@@ -198,6 +221,7 @@ namespace gaia {
 				if (!detail::runtime_patch_numeric_value(pCurrent, cursor.type(), bytes.data(), cursor.size(), number))
 					return error(
 							ser::JsonDiagReason::UnsupportedPatchValue, "Component patch range applies to a non-numeric field.");
+
 				if (((pSelectedField->flags & RuntimeFieldFlag_HasMinimum) != 0 && number < pSelectedField->minimum) ||
 						((pSelectedField->flags & RuntimeFieldFlag_HasMaximum) != 0 && number > pSelectedField->maximum))
 					return error(
@@ -205,10 +229,12 @@ namespace gaia {
 			}
 
 			if (!cursor.set_raw(bytes.data(), (uint32_t)bytes.size())) {
+				// The write may be incomplete, so put the original value back.
 				(void)cursor.set_raw(original.data(), (uint32_t)original.size(), false);
 				return error(
 						ser::JsonDiagReason::UnsupportedPatchValue, "Component patch could not commit the selected field.");
 			}
+
 			return true;
 		}
 

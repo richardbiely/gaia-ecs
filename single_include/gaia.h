@@ -80667,23 +80667,63 @@ namespace gaia {
 				return ser::detail::write_runtime_field_json(writer, pData, type, valueSize);
 			}
 
+			//! Values shared while reading nested JSON.
+			struct RuntimeJsonReadContext final {
+				//! Component type information, when available.
+				const ComponentCache* pCache;
+				//! JSON reader at the current value.
+				ser::ser_json& reader;
+				//! Warnings reported while values are read.
+				ser::JsonDiagnostics& diagnostics;
+				//! Controls whether enum and bitmask names are accepted.
+				const ser::RuntimeJsonPolicy& policy;
+				//! Becomes false when the JSON is valid but cannot be applied.
+				bool& ok;
+			};
+
 			//! Reads one reflected runtime value recursively.
-			//! \param pCache Optional component metadata cache.
+			//! \param ctx Shared import state.
 			//! \param pType Optional registered type metadata.
 			//! \param typeEntity Reflected destination type.
 			//! \param pData Destination value storage.
 			//! \param valueSize Size of \a pData in bytes.
-			//! \param reader JSON reader positioned at the value.
-			//! \param diagnostics Receives semantic import warnings.
 			//! \param path Logical value path used in diagnostics.
-			//! \param policy Runtime enum and bitmask import policy.
 			//! \param depth Current recursive type depth.
-			//! \param ok Set to false when a well-formed value cannot be applied exactly.
 			//! \return False only when the JSON value is malformed for the expected shape.
 			inline bool read_runtime_json_value(
-					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
-					uint32_t valueSize, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
-					const ser::RuntimeJsonPolicy& policy, uint32_t depth, bool& ok);
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
+					uint32_t valueSize, ser::json_str_view path, uint32_t depth);
+
+			//! Reads a fixed number of contiguous reflected values from a JSON array.
+			//! \param ctx Shared import state.
+			//! \param pType Optional registered type metadata shared by all elements.
+			//! \param typeEntity Reflected element type.
+			//! \param pData Storage for the first element.
+			//! \param elemSize Size of each element in bytes.
+			//! \param elemCount Number of elements required.
+			//! \param path Logical array path used in diagnostics.
+			//! \param depth Current recursive type depth.
+			//! \return False only when the JSON value is malformed for the expected array shape.
+			inline bool read_runtime_json_elements(
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
+					uint32_t elemSize, uint32_t elemCount, ser::json_str_view path, uint32_t depth) {
+				auto& reader = ctx.reader;
+				if (!reader.expect('['))
+					return false;
+
+				GAIA_FOR(elemCount) {
+					if (i > 0 && !reader.expect(','))
+						return false;
+
+					const auto elemPath = make_runtime_json_element_path(path, i);
+					auto* pElemData = pData + (uintptr_t)elemSize * i;
+
+					if (!read_runtime_json_value(ctx, pType, typeEntity, pElemData, elemSize, elemPath, depth))
+						return false;
+				}
+
+				return reader.expect(']');
+			}
 
 			//! Adds one runtime JSON warning to diagnostics.
 			//! \param diagnostics Diagnostic collection receiving the warning.
@@ -80696,89 +80736,72 @@ namespace gaia {
 			}
 
 			//! Reads one field into a reflected struct value.
-			//! \param pCache Optional component metadata cache.
+			//! \param ctx Shared import state.
 			//! \param owner Registered struct metadata.
 			//! \param field Registered field metadata.
 			//! \param pBase Destination struct storage.
-			//! \param reader JSON reader positioned at the field value.
-			//! \param diagnostics Receives semantic import warnings.
 			//! \param path Logical field path used in diagnostics.
-			//! \param policy Runtime enum and bitmask import policy.
 			//! \param depth Current recursive type depth.
-			//! \param ok Set to false when a well-formed value cannot be applied exactly.
 			//! \return False only when the JSON value is malformed for the expected field shape.
 			inline bool read_runtime_json_field(
-					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeFieldDesc& field, uint8_t* pBase,
-					ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
-					const ser::RuntimeJsonPolicy& policy, uint32_t depth, bool& ok) {
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem& owner, const RuntimeFieldDesc& field, uint8_t* pBase,
+					ser::json_str_view path, uint32_t depth) {
+				auto& reader = ctx.reader;
 				RuntimeJsonFieldLayout layout{};
-				if (!resolve_runtime_json_field_layout(pCache, field, layout)) {
-					ok = false;
+
+				if (!resolve_runtime_json_field_layout(ctx.pCache, field, layout)) {
+					ctx.ok = false;
 					warn_runtime_json(
-							diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
 							"Runtime field uses an unknown reflected type.");
 					return reader.skip_value();
 				}
 
 				const auto fieldSize64 = (uint64_t)layout.elemSize * (uint64_t)layout.elemCount;
 				const auto end = (uint64_t)field.offset + fieldSize64;
+
 				if (layout.elemSize == 0 || fieldSize64 > UINT32_MAX || end > owner.comp.size()) {
-					ok = false;
+					ctx.ok = false;
 					warn_runtime_json(
-							diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
 							"Runtime field points outside component size or uses an unsupported type.");
 					return reader.skip_value();
 				}
 
 				auto* pFieldData = pBase + field.offset;
+
 				if (layout.elemCount == 1 || field.jsonEncoding == RuntimeJsonEncoding::Utf8String ||
 						runtime_json_is_char8_type(layout.pType, layout.type))
 					return read_runtime_json_value(
-							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, reader, diagnostics, path, policy,
-							depth + 1, ok);
+							ctx, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, path, depth + 1);
 
-				if (!reader.expect('['))
-					return false;
-
-				GAIA_FOR(layout.elemCount) {
-					if (i > 0 && !reader.expect(','))
-						return false;
-					const auto elemPath = make_runtime_json_element_path(path, i);
-					auto* pElemData = pFieldData + (uintptr_t)layout.elemSize * i;
-					if (!read_runtime_json_value(
-									pCache, layout.pType, layout.type, pElemData, layout.elemSize, reader, diagnostics, elemPath, policy,
-									depth + 1, ok))
-						return false;
-				}
-				return reader.expect(']');
+				return read_runtime_json_elements(
+						ctx, layout.pType, layout.type, pFieldData, layout.elemSize, layout.elemCount, path, depth + 1);
 			}
 
 			//! Reads a keyed JSON object into a reflected struct value.
-			//! \param pCache Optional component metadata cache.
+			//! \param ctx Shared import state.
 			//! \param item Registered struct metadata.
 			//! \param pData Destination struct storage.
-			//! \param reader JSON reader positioned at the object.
-			//! \param diagnostics Receives semantic import warnings.
 			//! \param path Logical object path used in diagnostics.
-			//! \param policy Runtime enum and bitmask import policy.
 			//! \param depth Current recursive type depth.
-			//! \param ok Set to false when a well-formed value cannot be applied exactly.
 			//! \return False only when the JSON value is malformed for the expected struct shape.
 			inline bool read_runtime_json_struct(
-					const ComponentCache* pCache, const ComponentCacheItem& item, uint8_t* pData, ser::ser_json& reader,
-					ser::JsonDiagnostics& diagnostics, ser::json_str_view path, const ser::RuntimeJsonPolicy& policy,
-					uint32_t depth, bool& ok) {
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem& item, uint8_t* pData, ser::json_str_view path,
+					uint32_t depth) {
+				auto& reader = ctx.reader;
+
 				if (depth >= RuntimeJsonMaxDepth) {
-					ok = false;
+					ctx.ok = false;
 					warn_runtime_json(
-							diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime JSON nesting is too deep.");
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime JSON nesting is too deep.");
 					return reader.skip_value();
 				}
 
 				if (reader.parse_null()) {
-					ok = false;
+					ctx.ok = false;
 					warn_runtime_json(
-							diagnostics, ser::JsonDiagReason::NullComponentPayload, path, "Runtime object payload is null.");
+							ctx.diagnostics, ser::JsonDiagReason::NullComponentPayload, path, "Runtime object payload is null.");
 					return true;
 				}
 
@@ -80794,23 +80817,26 @@ namespace gaia {
 					bool keyFromScratch = false;
 					if (!reader.parse_string_view(key, &keyFromScratch))
 						return false;
+
+					// Escaped names are temporary, so keep a copy while reading the field value.
 					ser::json_str keyStorage;
 					if (keyFromScratch) {
 						keyStorage.assign(key.data(), key.size());
 						key = keyStorage;
 					}
+
 					if (!reader.expect(':'))
 						return false;
 
 					const auto* pField = item.field(util::str_view(key.data(), (uint32_t)key.size()));
 					const auto fieldPath = make_runtime_json_child_path(path, key);
+
 					if (pField == nullptr) {
-						ok = false;
-						warn_runtime_json(diagnostics, ser::JsonDiagReason::UnknownField, fieldPath, "Unknown runtime field.");
+						ctx.ok = false;
+						warn_runtime_json(ctx.diagnostics, ser::JsonDiagReason::UnknownField, fieldPath, "Unknown runtime field.");
 						if (!reader.skip_value())
 							return false;
-					} else if (!read_runtime_json_field(
-												 pCache, item, *pField, pData, reader, diagnostics, fieldPath, policy, depth + 1, ok))
+					} else if (!read_runtime_json_field(ctx, item, *pField, pData, fieldPath, depth + 1))
 						return false;
 
 					reader.ws();
@@ -80824,283 +80850,405 @@ namespace gaia {
 				return true;
 			}
 
-			inline bool read_runtime_json_value(
-					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
-					uint32_t valueSize, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
-					const ser::RuntimeJsonPolicy& policy, uint32_t depth, bool& ok) {
-				if (depth >= RuntimeJsonMaxDepth) {
-					ok = false;
+			//! Reads one reflected fixed-size array.
+			//! \param ctx Shared import state.
+			//! \param item Registered array metadata.
+			//! \param pData Destination array storage.
+			//! \param valueSize Size of the destination array in bytes.
+			//! \param path Logical array path used in diagnostics.
+			//! \param depth Current recursive type depth.
+			//! \return False only when the JSON value is malformed for the expected array shape.
+			inline bool read_runtime_json_array(
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem& item, uint8_t* pData, uint32_t valueSize,
+					ser::json_str_view path, uint32_t depth) {
+				const auto elemCount = item.element_count();
+				const auto elementType = item.element_type();
+				const auto* pElementType = find_runtime_json_type(ctx.pCache, elementType);
+				uint32_t elemSize = 0;
+
+				if (elemCount == 0 || !runtime_json_type_size(pElementType, elementType, elemSize) ||
+						(uint64_t)elemSize * elemCount != valueSize) {
+					ctx.ok = false;
 					warn_runtime_json(
-							diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime JSON nesting is too deep.");
-					return reader.skip_value();
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							"Runtime array payload uses an invalid reflected element type.");
+					return ctx.reader.skip_value();
 				}
 
-				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Array) {
-					const auto elemCount = pType->element_count();
-					const auto elementType = pType->element_type();
-					const auto* pElementType = find_runtime_json_type(pCache, elementType);
-					uint32_t elemSize = 0;
-					if (elemCount == 0 || !runtime_json_type_size(pElementType, elementType, elemSize) ||
-							(uint64_t)elemSize * elemCount != valueSize) {
-						ok = false;
+				return read_runtime_json_elements(ctx, pElementType, elementType, pData, elemSize, elemCount, path, depth + 1);
+			}
+
+			//! Reads a UTF-8 string through a reflected sequence adapter.
+			//! \param ctx Shared import state.
+			//! \param item Registered vector metadata.
+			//! \param typeEntity Reflected vector type.
+			//! \param pData Destination vector storage.
+			//! \param valueSize Size of the destination vector object in bytes.
+			//! \param path Logical value path used in diagnostics.
+			//! \return False when the value is not a JSON string or the required adapter entry points are unavailable.
+			inline bool read_runtime_json_utf8_vector(
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem& item, Entity typeEntity, uint8_t* pData,
+					uint32_t valueSize, ser::json_str_view path) {
+				const auto* adapter = item.sequence_adapter();
+				ser::json_str_view text;
+
+				if (item.element_type() != Char8 || adapter == nullptr || adapter->resize == nullptr ||
+						adapter->element == nullptr || !ctx.reader.parse_string_view(text)) {
+					ctx.ok = false;
+					warn_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							"Runtime UTF-8 string cannot be resized or traversed.");
+					return false;
+				}
+
+				RuntimeSequenceScope sequence{typeEntity, pData, pData, valueSize};
+
+				if (!adapter->resize(adapter->ctx, sequence, text.size())) {
+					ctx.ok = false;
+					warn_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							"Runtime UTF-8 string adapter rejected the requested byte count.");
+					return true;
+				}
+
+				// Escaped text is temporary, so copy its bytes before reading anything else.
+				// Each byte is stored as one Char8 element.
+				GAIA_FOR(text.size()) {
+					RuntimeSequenceElement element{};
+					element.type = Char8;
+
+					if (!adapter->element(adapter->ctx, sequence, i, element) || element.mutData == nullptr ||
+							element.size != sizeof(char) || (element.type != EntityBad && element.type != Char8)) {
+						ctx.ok = false;
 						warn_runtime_json(
-								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-								"Runtime array payload uses an invalid reflected element type.");
-						return reader.skip_value();
-					}
-
-					if (!reader.expect('['))
-						return false;
-
-					GAIA_FOR(elemCount) {
-						if (i > 0 && !reader.expect(','))
-							return false;
-						const auto elemPath = make_runtime_json_element_path(path, i);
-						auto* pElemData = pData + (uintptr_t)elemSize * i;
-						if (!read_runtime_json_value(
-										pCache, pElementType, elementType, pElemData, elemSize, reader, diagnostics, elemPath, policy,
-										depth + 1, ok))
-							return false;
-					}
-					return reader.expect(']');
-				}
-
-				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Vector) {
-					const auto* adapter = pType->sequence_adapter();
-					const auto elementType = pType->element_type();
-					const auto* pElementType = find_runtime_json_type(pCache, elementType);
-					if (pType->jsonEncoding == RuntimeJsonEncoding::Utf8String) {
-						ser::json_str_view text;
-						bool fromScratch = false;
-						if (elementType != Char8 || adapter == nullptr || adapter->resize == nullptr ||
-								adapter->element == nullptr || !reader.parse_string_view(text, &fromScratch)) {
-							ok = false;
-							warn_runtime_json(
-									diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-									"Runtime UTF-8 string cannot be resized or traversed.");
-							return false;
-						}
-
-						RuntimeSequenceScope sequence{typeEntity, pData, pData, valueSize};
-						if (!adapter->resize(adapter->ctx, sequence, text.size())) {
-							ok = false;
-							warn_runtime_json(
-									diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-									"Runtime UTF-8 string adapter rejected the requested byte count.");
-							return true;
-						}
-
-						GAIA_FOR(text.size()) {
-							RuntimeSequenceElement element{};
-							element.type = elementType;
-							if (!adapter->element(adapter->ctx, sequence, i, element) || element.mutData == nullptr ||
-									element.size != sizeof(char) || (element.type != EntityBad && element.type != Char8)) {
-								ok = false;
-								warn_runtime_json(
-										diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-										"Runtime UTF-8 string adapter rejected an element.");
-								return true;
-							}
-							*(char*)element.mutData = text.data()[i];
-							if (adapter->commitElement != nullptr && !adapter->commitElement(adapter->ctx, sequence, element)) {
-								ok = false;
-								warn_runtime_json(
-										diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-										"Runtime UTF-8 string adapter rejected element commit.");
-								return true;
-							}
-						}
-						(void)fromScratch;
+								ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime UTF-8 string adapter rejected an element.");
 						return true;
 					}
-					uint32_t elemCount = 0;
-					if (adapter == nullptr || adapter->resize == nullptr || adapter->element == nullptr ||
-							!count_runtime_json_array_elements(reader, elemCount)) {
-						ok = false;
-						warn_runtime_json(
-								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-								"Runtime vector payload cannot be resized or traversed.");
-						return reader.skip_value();
-					}
 
-					RuntimeSequenceScope sequence{typeEntity, pData, pData, valueSize};
-					if (!adapter->resize(adapter->ctx, sequence, elemCount)) {
-						ok = false;
-						warn_runtime_json(
-								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-								"Runtime vector adapter rejected the requested element count.");
-						return reader.skip_value();
-					}
+					*(char*)element.mutData = text.data()[i];
 
-					if (!reader.expect('['))
+					if (adapter->commitElement != nullptr && !adapter->commitElement(adapter->ctx, sequence, element)) {
+						ctx.ok = false;
+						warn_runtime_json(
+								ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime UTF-8 string adapter rejected element commit.");
+						return true;
+					}
+				}
+
+				return true;
+			}
+
+			//! Reads one reflected variable-size sequence.
+			//! \param ctx Shared import state.
+			//! \param item Registered vector metadata.
+			//! \param typeEntity Reflected vector type.
+			//! \param pData Destination vector storage.
+			//! \param valueSize Size of the destination vector object in bytes.
+			//! \param path Logical value path used in diagnostics.
+			//! \param depth Current recursive type depth.
+			//! \return False only when the JSON array or one of its nested values is malformed.
+			inline bool read_runtime_json_vector(
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem& item, Entity typeEntity, uint8_t* pData,
+					uint32_t valueSize, ser::json_str_view path, uint32_t depth) {
+				if (item.jsonEncoding == RuntimeJsonEncoding::Utf8String)
+					return read_runtime_json_utf8_vector(ctx, item, typeEntity, pData, valueSize, path);
+
+				const auto* adapter = item.sequence_adapter();
+				const auto elementType = item.element_type();
+				const auto* pElementType = find_runtime_json_type(ctx.pCache, elementType);
+				uint32_t elemCount = 0;
+
+				// Count first because the adapter must resize the sequence before it can return its elements.
+				if (adapter == nullptr || adapter->resize == nullptr || adapter->element == nullptr ||
+						!count_runtime_json_array_elements(ctx.reader, elemCount)) {
+					ctx.ok = false;
+					warn_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							"Runtime vector payload cannot be resized or traversed.");
+					return ctx.reader.skip_value();
+				}
+
+				RuntimeSequenceScope sequence{typeEntity, pData, pData, valueSize};
+
+				if (!adapter->resize(adapter->ctx, sequence, elemCount)) {
+					ctx.ok = false;
+					warn_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							"Runtime vector adapter rejected the requested element count.");
+					return ctx.reader.skip_value();
+				}
+
+				if (!ctx.reader.expect('['))
+					return false;
+
+				GAIA_FOR(elemCount) {
+					if (i > 0 && !ctx.reader.expect(','))
 						return false;
-					GAIA_FOR(elemCount) {
-						if (i > 0 && !reader.expect(','))
-							return false;
-						RuntimeSequenceElement element{};
+
+					RuntimeSequenceElement element{};
+					element.type = elementType;
+
+					if (!adapter->element(adapter->ctx, sequence, i, element) || element.mutData == nullptr) {
+						ctx.ok = false;
+						warn_runtime_json(
+								ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime vector adapter rejected an element.");
+						return ctx.reader.skip_value();
+					}
+
+					if (element.type == EntityBad)
 						element.type = elementType;
-						if (!adapter->element(adapter->ctx, sequence, i, element) || element.mutData == nullptr) {
-							ok = false;
-							warn_runtime_json(
-									diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-									"Runtime vector adapter rejected an element.");
-							return reader.skip_value();
-						}
-						if (element.type == EntityBad)
-							element.type = elementType;
-						const auto elemPath = make_runtime_json_element_path(path, i);
-						if (!read_runtime_json_value(
-										pCache, pElementType, element.type, (uint8_t*)element.mutData, element.size, reader, diagnostics,
-										elemPath, policy, depth + 1, ok))
-							return false;
-					}
-					return reader.expect(']');
+
+					const auto elemPath = make_runtime_json_element_path(path, i);
+
+					if (!read_runtime_json_value(
+									ctx, pElementType, element.type, (uint8_t*)element.mutData, element.size, elemPath, depth + 1))
+						return false;
 				}
 
-				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Opaque) {
-					const auto* adapter = pType->opaque_adapter();
-					const auto semanticType = pType->opaque_as_type();
-					const auto* pSemanticType = find_runtime_json_type(pCache, semanticType);
-					if (adapter == nullptr || adapter->project == nullptr || pSemanticType == nullptr) {
-						ok = false;
-						warn_runtime_json(
-								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-								"Runtime opaque payload cannot be projected.");
-						return reader.skip_value();
-					}
-					RuntimeOpaqueScope opaque{typeEntity, pData, pData, valueSize};
-					RuntimeOpaqueValue projected{};
+				return ctx.reader.expect(']');
+			}
+
+			//! Reads one reflected opaque value through its semantic adapter.
+			//! \param ctx Shared import state.
+			//! \param item Registered opaque type metadata.
+			//! \param typeEntity Reflected opaque type.
+			//! \param pData Destination opaque storage.
+			//! \param valueSize Size of the destination opaque value in bytes.
+			//! \param path Logical value path used in diagnostics.
+			//! \param depth Current recursive type depth.
+			//! \return False only when the projected JSON value is malformed.
+			inline bool read_runtime_json_opaque(
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem& item, Entity typeEntity, uint8_t* pData,
+					uint32_t valueSize, ser::json_str_view path, uint32_t depth) {
+				const auto* adapter = item.opaque_adapter();
+				const auto semanticType = item.opaque_as_type();
+				const auto* pSemanticType = find_runtime_json_type(ctx.pCache, semanticType);
+
+				if (adapter == nullptr || adapter->project == nullptr || pSemanticType == nullptr) {
+					ctx.ok = false;
+					warn_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							"Runtime opaque payload cannot be projected.");
+					return ctx.reader.skip_value();
+				}
+
+				RuntimeOpaqueScope opaque{typeEntity, pData, pData, valueSize};
+				RuntimeOpaqueValue projected{};
+				projected.type = semanticType;
+
+				if (!adapter->project(adapter->ctx, opaque, projected) || projected.mutData == nullptr) {
+					ctx.ok = false;
+					warn_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							"Runtime opaque adapter rejected projection.");
+					return ctx.reader.skip_value();
+				}
+
+				// EntityBad means "use the type from the schema."
+				if (projected.type == EntityBad)
 					projected.type = semanticType;
-					if (!adapter->project(adapter->ctx, opaque, projected) || projected.mutData == nullptr) {
-						ok = false;
-						warn_runtime_json(
-								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-								"Runtime opaque adapter rejected projection.");
-						return reader.skip_value();
-					}
-					if (projected.type == EntityBad)
-						projected.type = semanticType;
-					if (projected.type != semanticType) {
-						ok = false;
-						warn_runtime_json(
-								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-								"Runtime opaque adapter projected an unexpected semantic type.");
-						return reader.skip_value();
-					}
-					const bool parsed = read_runtime_json_value(
-							pCache, pSemanticType, projected.type, (uint8_t*)projected.mutData, projected.size, reader, diagnostics,
-							path, policy, depth + 1, ok);
-					if (parsed && adapter->commit != nullptr && ok) {
-						if (!adapter->commit(adapter->ctx, opaque, projected)) {
-							ok = false;
-							warn_runtime_json(
-									diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime opaque adapter rejected commit.");
-						}
-					}
-					return parsed;
+
+				if (projected.type != semanticType) {
+					ctx.ok = false;
+					warn_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							"Runtime opaque adapter projected an unexpected semantic type.");
+					return ctx.reader.skip_value();
 				}
 
-				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
-					return read_runtime_json_struct(pCache, *pType, pData, reader, diagnostics, path, policy, depth + 1, ok);
+				const bool parsed = read_runtime_json_value(
+						ctx, pSemanticType, projected.type, (uint8_t*)projected.mutData, projected.size, path, depth + 1);
 
-				ser::serialization_type_id type = ser::serialization_type_id::ignore;
-				if (pType != nullptr) {
-					if (!runtime_type_json_type(*pType, type)) {
-						ok = false;
-						warn_runtime_json(
-								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-								"Runtime field uses an unsupported reflected type.");
-						return reader.skip_value();
-					}
-				} else if (!runtime_primitive_serialization_type(typeEntity, type)) {
-					ok = false;
-					warn_runtime_json(diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime field type is unknown.");
-					return reader.skip_value();
+				// The adapter may be using a temporary value. Commit it only if the whole read succeeded.
+				if (parsed && adapter->commit != nullptr && ctx.ok && !adapter->commit(adapter->ctx, opaque, projected)) {
+					ctx.ok = false;
+					warn_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime opaque adapter rejected commit.");
 				}
+
+				return parsed;
+			}
+
+			//! Reads one symbolic enum name.
+			//! \param ctx Shared import state.
+			//! \param item Registered enum metadata.
+			//! \param type Underlying integer storage type.
+			//! \param pData Destination enum storage.
+			//! \param valueSize Size of the destination enum in bytes.
+			//! \param path Logical value path used in diagnostics.
+			//! \return False only when the JSON value is not a valid string token.
+			inline bool read_runtime_json_enum_symbol(
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem& item, ser::serialization_type_id type, uint8_t* pData,
+					uint32_t valueSize, ser::json_str_view path) {
+				ser::json_str_view symbol;
+				if (!ctx.reader.parse_string_view(symbol))
+					return false;
+
+				const auto* pConstant = item.constant(util::str_view(symbol.data(), (uint32_t)symbol.size()));
+				uint64_t constantBits = 0;
+
+				if (pConstant == nullptr || !runtime_json_constant_bits(type, pConstant->value, constantBits) ||
+						!runtime_json_write_integer_bits(pData, type, valueSize, constantBits)) {
+					ctx.ok = false;
+					warn_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::UnknownRuntimeConstant, path,
+							"Runtime enum symbol is unknown or incompatible with its underlying type.");
+				}
+
+				return true;
+			}
+
+			//! Reads one array of symbolic bitmask flags.
+			//! \param ctx Shared import state.
+			//! \param item Registered bitmask metadata.
+			//! \param type Underlying integer storage type.
+			//! \param pData Destination bitmask storage.
+			//! \param valueSize Size of the destination bitmask in bytes.
+			//! \param path Logical value path used in diagnostics.
+			//! \return False only when the JSON value is not a well-formed array of strings.
+			inline bool read_runtime_json_bitmask_symbols(
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem& item, ser::serialization_type_id type, uint8_t* pData,
+					uint32_t valueSize, ser::json_str_view path) {
+				auto& reader = ctx.reader;
+
+				if (!reader.expect('['))
+					return false;
+
+				uint64_t valueBits = 0;
+				bool symbolsOk = true;
 
 				reader.ws();
-				if (pType != nullptr && policy.symbolicEnums && pType->typeKind == RuntimeTypeKind::Enum && !reader.eof() &&
-						reader.peek() == '"') {
-					ser::json_str_view symbol;
-					if (!reader.parse_string_view(symbol))
-						return false;
-
-					const auto* pConstant = pType->constant(util::str_view(symbol.data(), (uint32_t)symbol.size()));
-					uint64_t constantBits = 0;
-					if (pConstant == nullptr || !runtime_json_constant_bits(type, pConstant->value, constantBits) ||
-							!runtime_json_write_integer_bits(pData, type, valueSize, constantBits)) {
-						ok = false;
-						warn_runtime_json(
-								diagnostics, ser::JsonDiagReason::UnknownRuntimeConstant, path,
-								"Runtime enum symbol is unknown or incompatible with its underlying type.");
-					}
-					return true;
-				}
-
-				if (pType != nullptr && policy.symbolicBitmasks && pType->typeKind == RuntimeTypeKind::Bitmask &&
-						!reader.eof() && reader.peek() == '[') {
-					if (!reader.expect('['))
-						return false;
-
-					uint64_t valueBits = 0;
-					bool symbolsOk = true;
-					reader.ws();
-					if (!reader.consume(']')) {
-						while (true) {
-							ser::json_str_view symbol;
-							if (!reader.parse_string_view(symbol))
-								return false;
-
-							if (symbolsOk) {
-								const auto* pConstant = pType->constant(util::str_view(symbol.data(), (uint32_t)symbol.size()));
-								uint64_t flagBits = 0;
-								if (pConstant == nullptr) {
-									symbolsOk = false;
-									ok = false;
-									warn_runtime_json(
-											diagnostics, ser::JsonDiagReason::UnknownRuntimeConstant, path,
-											"Runtime bitmask symbol is unknown.");
-								} else if (
-										!runtime_json_constant_bits(type, pConstant->value, flagBits) || flagBits == 0 ||
-										(flagBits & (flagBits - 1)) != 0 || (valueBits & flagBits) != 0) {
-									symbolsOk = false;
-									ok = false;
-									warn_runtime_json(
-											diagnostics, ser::JsonDiagReason::InvalidRuntimeConstant, path,
-											"Runtime bitmask symbol is not a distinct one-bit flag.");
-								} else {
-									valueBits |= flagBits;
-								}
-							}
-
-							reader.ws();
-							if (reader.consume(','))
-								continue;
-							if (reader.consume(']'))
-								break;
+				if (!reader.consume(']')) {
+					while (true) {
+						ser::json_str_view symbol;
+						if (!reader.parse_string_view(symbol))
 							return false;
-						}
-					}
 
-					if (symbolsOk && !runtime_json_write_integer_bits(pData, type, valueSize, valueBits)) {
-						ok = false;
-						warn_runtime_json(
-								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
-								"Runtime bitmask symbols are incompatible with the underlying field size.");
+						// Keep reading after a bad name so the next JSON value starts in the right place.
+						if (symbolsOk) {
+							const auto* pConstant = item.constant(util::str_view(symbol.data(), (uint32_t)symbol.size()));
+							uint64_t flagBits = 0;
+
+							if (pConstant == nullptr) {
+								symbolsOk = false;
+								ctx.ok = false;
+								warn_runtime_json(
+										ctx.diagnostics, ser::JsonDiagReason::UnknownRuntimeConstant, path,
+										"Runtime bitmask symbol is unknown.");
+							} else if (
+									!runtime_json_constant_bits(type, pConstant->value, flagBits) || flagBits == 0 ||
+									(flagBits & (flagBits - 1)) != 0 || (valueBits & flagBits) != 0) {
+								symbolsOk = false;
+								ctx.ok = false;
+								warn_runtime_json(
+										ctx.diagnostics, ser::JsonDiagReason::InvalidRuntimeConstant, path,
+										"Runtime bitmask symbol is not a distinct one-bit flag.");
+							} else {
+								valueBits |= flagBits;
+							}
+						}
+
+						reader.ws();
+						if (reader.consume(','))
+							continue;
+						if (reader.consume(']'))
+							break;
+						return false;
 					}
-					return true;
 				}
 
-				bool fieldOk = true;
-				if (!ser::detail::read_runtime_field_json(reader, pData, type, valueSize, fieldOk))
-					return false;
-				if (!fieldOk) {
-					ok = false;
+				// Leave the old value alone if any name is invalid.
+				if (symbolsOk && !runtime_json_write_integer_bits(pData, type, valueSize, valueBits)) {
+					ctx.ok = false;
 					warn_runtime_json(
-							diagnostics, ser::JsonDiagReason::FieldValueAdjusted, path,
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							"Runtime bitmask symbols are incompatible with the underlying field size.");
+				}
+
+				return true;
+			}
+
+			//! Reads one primitive, enum, or bitmask runtime value.
+			//! \param ctx Shared import state.
+			//! \param pType Optional registered type metadata.
+			//! \param typeEntity Reflected destination type.
+			//! \param pData Destination value storage.
+			//! \param valueSize Size of the destination value in bytes.
+			//! \param path Logical value path used in diagnostics.
+			//! \return False only when the JSON value is malformed for the destination type.
+			inline bool read_runtime_json_scalar(
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
+					uint32_t valueSize, ser::json_str_view path) {
+				ser::serialization_type_id type = ser::serialization_type_id::ignore;
+
+				if (pType != nullptr) {
+					if (!runtime_type_json_type(*pType, type)) {
+						ctx.ok = false;
+						warn_runtime_json(
+								ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime field uses an unsupported reflected type.");
+						return ctx.reader.skip_value();
+					}
+				} else if (!runtime_primitive_serialization_type(typeEntity, type)) {
+					ctx.ok = false;
+					warn_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime field type is unknown.");
+					return ctx.reader.skip_value();
+				}
+
+				ctx.reader.ws();
+				// Names are optional. Numbers still work for enum and bitmask values.
+				if (pType != nullptr && ctx.policy.symbolicEnums && pType->typeKind == RuntimeTypeKind::Enum &&
+						!ctx.reader.eof() && ctx.reader.peek() == '"')
+					return read_runtime_json_enum_symbol(ctx, *pType, type, pData, valueSize, path);
+				if (pType != nullptr && ctx.policy.symbolicBitmasks && pType->typeKind == RuntimeTypeKind::Bitmask &&
+						!ctx.reader.eof() && ctx.reader.peek() == '[')
+					return read_runtime_json_bitmask_symbols(ctx, *pType, type, pData, valueSize, path);
+
+				// Valid JSON can still lose data when it is converted to the field's type.
+				bool fieldOk = true;
+				if (!ser::detail::read_runtime_field_json(ctx.reader, pData, type, valueSize, fieldOk))
+					return false;
+
+				if (!fieldOk) {
+					ctx.ok = false;
+					warn_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::FieldValueAdjusted, path,
 							"Field value was lossy, truncated, or unsupported for the target runtime field type.");
 				}
+
 				return true;
+			}
+
+			inline bool read_runtime_json_value(
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
+					uint32_t valueSize, ser::json_str_view path, uint32_t depth) {
+				if (depth >= RuntimeJsonMaxDepth) {
+					ctx.ok = false;
+					warn_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime JSON nesting is too deep.");
+					return ctx.reader.skip_value();
+				}
+
+				if (pType != nullptr) {
+					switch (pType->typeKind) {
+						case RuntimeTypeKind::Array:
+							return read_runtime_json_array(ctx, *pType, pData, valueSize, path, depth);
+						case RuntimeTypeKind::Vector:
+							return read_runtime_json_vector(ctx, *pType, typeEntity, pData, valueSize, path, depth);
+						case RuntimeTypeKind::Opaque:
+							return read_runtime_json_opaque(ctx, *pType, typeEntity, pData, valueSize, path, depth);
+						case RuntimeTypeKind::Struct:
+							return read_runtime_json_struct(ctx, *pType, pData, path, depth + 1);
+						default:
+							break;
+					}
+				}
+
+				return read_runtime_json_scalar(ctx, pType, typeEntity, pData, valueSize, path);
 			}
 		} // namespace detail
 		//! \endcond
@@ -81158,14 +81306,17 @@ namespace gaia {
 
 			if (detail::runtime_json_is_direct_value(item)) {
 				bool ok = true;
+				detail::RuntimeJsonReadContext ctx{item.owner_cache(), reader, diagnostics, policy, ok};
+
 				return detail::read_runtime_json_value(
-						item.owner_cache(), &item, item.entity, reinterpret_cast<uint8_t*>(pComponentData), item.comp.size(),
-						reader, diagnostics, componentPath, policy, 0, ok);
+						ctx, &item, item.entity, reinterpret_cast<uint8_t*>(pComponentData), item.comp.size(), componentPath, 0);
 			}
 
 			bool rawFound = false;
 			bool fieldFound = false;
 			bool ok = true;
+
+			detail::RuntimeJsonReadContext ctx{item.owner_cache(), reader, diagnostics, policy, ok};
 			ser::ser_buffer_binary rawPayload;
 			auto* pBase = reinterpret_cast<uint8_t*>(pComponentData);
 
@@ -81185,15 +81336,19 @@ namespace gaia {
 				bool keyFromScratch = false;
 				if (!reader.parse_string_view(key, &keyFromScratch))
 					return false;
+
+				// Escaped names are temporary, so keep a copy while reading the component value.
 				ser::json_str keyStorage;
 				if (keyFromScratch) {
 					keyStorage.assign(key.data(), key.size());
 					key = keyStorage;
 				}
+
 				if (!reader.expect(':'))
 					return false;
 
 				const auto fieldPath = detail::make_runtime_json_child_path(componentPath, key);
+
 				if (key == "$raw") {
 					rawFound = true;
 					if (!ser::detail::parse_json_byte_array(reader, rawPayload))
@@ -81208,8 +81363,7 @@ namespace gaia {
 							return false;
 					} else {
 						fieldFound = true;
-						if (!detail::read_runtime_json_field(
-										item.owner_cache(), item, *pField, pBase, reader, diagnostics, fieldPath, policy, 0, ok))
+						if (!detail::read_runtime_json_field(ctx, item, *pField, pBase, fieldPath, 0))
 							return false;
 					}
 				} else {
@@ -81238,6 +81392,7 @@ namespace gaia {
 					return true;
 				}
 
+				// Apply $raw last. If both forms are present, $raw wins regardless of key order.
 				auto s = ser::make_serializer(rawPayload);
 				s.seek(0);
 				item.load(s, pBase, 0, 1, 1);
@@ -81248,7 +81403,6 @@ namespace gaia {
 						diagnostics, ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, componentPath,
 						"Component payload contains neither recognized runtime fields nor $raw data.");
 
-			(void)ok;
 			return true;
 		}
 
@@ -81262,6 +81416,7 @@ namespace gaia {
 		json_to_component(const ComponentCacheItem& item, void* pComponentData, ser::ser_json& reader, bool& ok) {
 			ser::JsonDiagnostics diagnostics;
 			const bool parsed = json_to_component(item, pComponentData, reader, diagnostics);
+
 			ok = !diagnostics.has_issues();
 			return parsed;
 		}
@@ -81617,8 +81772,10 @@ namespace gaia {
 				}
 
 				auto* pRowData = loc.pBase + (uintptr_t)item.comp.size() * loc.row;
+
 				if (!ecs::json_to_component(item, pRowData, jp, diagnostics, policy, compPath))
 					return false;
+
 				return true;
 			};
 
@@ -81673,27 +81830,33 @@ namespace gaia {
 					bool compNameFromScratch = false;
 					if (!jp.parse_string_view(compName, &compNameFromScratch))
 						return false;
+
+					// Escaped names are temporary, so keep a copy while reading the component value.
 					ser::json_str compNameStorage;
 					if (compNameFromScratch) {
 						compNameStorage.assign(compName.data(), compName.size());
 						compName = compNameStorage;
 					}
+
 					if (!jp.expect(':'))
 						return false;
 
 					const auto componentName = util::str_view(compName.data(), compName.size());
 					const bool nameIsInternal = ComponentCache::is_internal_symbol(componentName);
 					const auto componentEntity = nameIsInternal ? EntityBad : name_to_entity({compName.data(), compName.size()});
+
 					const ComponentCacheItem* pItem = nullptr;
 					if (componentEntity.pair())
 						pItem = comp_cache().find_pair_payload(componentEntity);
 					else if (componentEntity != EntityBad)
 						pItem = comp_cache().find(componentEntity);
+
 					const auto itemName = pItem != nullptr ? comp_cache().symbol_name(*pItem) : util::str_view{};
 					const bool itemIsInternal = ComponentCache::is_internal_symbol(itemName);
 					const auto relationName =
 							componentEntity.pair() ? symbol(pair_rel(*this, componentEntity)) : util::str_view{};
 					const bool relationIsInternal = ComponentCache::is_internal_symbol(relationName);
+
 					if (isPair || nameIsInternal || itemIsInternal || relationIsInternal) {
 						if (!jp.skip_value())
 							return false;
@@ -81715,6 +81878,7 @@ namespace gaia {
 							if (!created) {
 								entity = add();
 								created = true;
+
 								if (!entityName.empty()) {
 									const auto existing = get(entityName.data(), (uint32_t)entityName.size());
 									if (existing == EntityBad)
@@ -81924,14 +82088,17 @@ namespace gaia {
 			//! \return True when every escape sequence is valid.
 			inline bool runtime_patch_decode_token(ser::json_str_view encoded, util::str& token) {
 				token.clear();
+
 				GAIA_FOR(encoded.size()) {
 					const auto ch = encoded.data()[i];
 					if (ch != '~') {
 						token.append(ch);
 						continue;
 					}
+
 					if (i + 1 >= encoded.size())
 						return false;
+
 					const auto escaped = encoded.data()[++i];
 					if (escaped == '0')
 						token.append('~');
@@ -81940,6 +82107,7 @@ namespace gaia {
 					else
 						return false;
 				}
+
 				return true;
 			}
 
@@ -81950,6 +82118,7 @@ namespace gaia {
 			inline bool runtime_patch_parse_index(util::str_view token, uint32_t& index) {
 				if (token.empty())
 					return false;
+
 				uint64_t value = 0;
 				GAIA_FOR(token.size()) {
 					const auto ch = token.data()[i];
@@ -81959,6 +82128,7 @@ namespace gaia {
 					if (value > UINT32_MAX)
 						return false;
 				}
+
 				index = (uint32_t)value;
 				return true;
 			}
@@ -81976,6 +82146,7 @@ namespace gaia {
 			runtime_patch_numeric_value_as(Entity type, Entity expectedType, const void* data, uint32_t size, double& value) {
 				if (type != expectedType || data == nullptr || size != sizeof(T))
 					return false;
+
 				T result{};
 				memcpy(&result, data, sizeof(result));
 				value = (double)result;
@@ -81994,6 +82165,7 @@ namespace gaia {
 				if (pType != nullptr &&
 						(pType->typeKind == RuntimeTypeKind::Enum || pType->typeKind == RuntimeTypeKind::Bitmask))
 					type = pType->underlyingType;
+
 				return runtime_patch_numeric_value_as<int8_t>(type, S8, data, size, value) ||
 							 runtime_patch_numeric_value_as<uint8_t>(type, U8, data, size, value) ||
 							 runtime_patch_numeric_value_as<int16_t>(type, S16, data, size, value) ||
@@ -82018,6 +82190,7 @@ namespace gaia {
 
 			if (expectedRuntimeSchemaHash != 0 && expectedRuntimeSchemaHash != runtime_schema_hash())
 				return error(ser::JsonDiagReason::StaleSchema, "Runtime schema hash does not match the current manifest.");
+
 			const auto* pRoot = component.pair() ? m_compCache.find_pair_payload(component) : m_compCache.find(component);
 			if (pRoot == nullptr)
 				return error(ser::JsonDiagReason::UnknownComponent, "Component patch target is not registered.");
@@ -82025,6 +82198,7 @@ namespace gaia {
 			auto cursor = cursor_mut(entity, component);
 			if (!cursor.valid() || cursor.size() == 0)
 				return error(ser::JsonDiagReason::MissingComponentStorage, "Component patch payload is unavailable.");
+
 			if (!pointer.empty() && pointer.data()[0] != '/')
 				return error(ser::JsonDiagReason::InvalidPatchPath, "Component patch path must be an RFC 6901 JSON Pointer.");
 			if (!pointer.empty() && (pointer.size() == 1 || pointer.data()[pointer.size() - 1] == '/'))
@@ -82037,6 +82211,7 @@ namespace gaia {
 				uint32_t end = pos;
 				while (end < pointer.size() && pointer.data()[end] != '/')
 					++end;
+
 				util::str token;
 				if (!detail::runtime_patch_decode_token(ser::json_str_view(pointer.data() + pos, end - pos), token) ||
 						token.empty())
@@ -82045,6 +82220,7 @@ namespace gaia {
 				const ComponentCacheItem* pFieldOwner = pCurrent;
 				if (pFieldOwner != nullptr && pFieldOwner->typeKind == RuntimeTypeKind::Opaque)
 					pFieldOwner = m_compCache.find(pFieldOwner->opaque_as_type());
+
 				if (pFieldOwner != nullptr && pFieldOwner->typeKind == RuntimeTypeKind::Struct) {
 					const auto* pField = pFieldOwner->field(util::str_view(token.data(), token.size()));
 					if (pField == nullptr)
@@ -82055,6 +82231,7 @@ namespace gaia {
 						return error(ser::JsonDiagReason::HiddenField, "Component patch field is hidden.");
 					if (!cursor.field(util::str_view(token.data(), token.size())))
 						return error(ser::JsonDiagReason::InvalidPatchPath, "Component patch field cannot be traversed.");
+
 					pSelectedField = pField;
 					pCurrent = m_compCache.find(pField->type);
 				} else {
@@ -82062,41 +82239,52 @@ namespace gaia {
 					if (!detail::runtime_patch_parse_index(util::str_view(token.data(), token.size()), index) ||
 							!cursor.elem(index))
 						return error(ser::JsonDiagReason::InvalidPatchPath, "Component patch sequence index is invalid.");
+
 					pCurrent = m_compCache.find(cursor.type());
 				}
+
 				pos = end + 1;
 			}
 
 			const auto count = cursor.count();
 			const bool charBuffer = pSelectedField != nullptr && cursor.type() == Char8 && count.ok() && count.value > 1;
+
 			if (pCurrent == nullptr || !detail::runtime_json_leaf_editable(*pCurrent) ||
 					(count.ok() && count.value > 1 && !charBuffer))
 				return error(
 						ser::JsonDiagReason::UnsupportedPatchValue, "Component patch endpoint must be a supported reflected leaf.");
 
+			// Work on a copy so a failed patch does not change the component.
 			cnt::darray<uint8_t> original;
 			original.resize(cursor.size());
 			if (!cursor.get_raw(original.data(), (uint32_t)original.size()))
 				return error(ser::JsonDiagReason::UnsupportedPatchValue, "Component patch endpoint cannot be read.");
+
 			cnt::darray<uint8_t> bytes;
 			bytes.resize(original.size());
 			memcpy(bytes.data(), original.data(), original.size());
+
 			ser::ser_json reader(value.data(), value.size());
 			bool valueOk = true;
+			detail::RuntimeJsonReadContext ctx{&m_compCache, reader, diagnostics, policy, valueOk};
+
 			if (cursor.type() == Char8 && cursor.size() == sizeof(char)) {
+				// One Char8 value is written as a one-character JSON string.
 				ser::json_str_view text;
 				if (!reader.parse_string_view(text) || text.size() != 1)
 					return error(ser::JsonDiagReason::InvalidJson, "Component patch character value must contain one character.");
+
 				bytes[0] = (uint8_t)text.data()[0];
 			} else if (!detail::read_runtime_json_value(
-										 &m_compCache, pCurrent, cursor.type(), bytes.data(), (uint32_t)bytes.size(), reader, diagnostics,
-										 pointer, policy, 0, valueOk)) {
+										 ctx, pCurrent, cursor.type(), bytes.data(), (uint32_t)bytes.size(), pointer, 0)) {
 				return error(
 						ser::JsonDiagReason::InvalidJson, "Component patch value is not valid JSON for the selected field.");
 			}
+
 			reader.ws();
 			if (!reader.eof())
 				return error(ser::JsonDiagReason::InvalidJson, "Component patch value contains trailing JSON.");
+
 			if (!valueOk)
 				return error(
 						ser::JsonDiagReason::UnsupportedPatchValue,
@@ -82108,6 +82296,7 @@ namespace gaia {
 				if (!detail::runtime_patch_numeric_value(pCurrent, cursor.type(), bytes.data(), cursor.size(), number))
 					return error(
 							ser::JsonDiagReason::UnsupportedPatchValue, "Component patch range applies to a non-numeric field.");
+
 				if (((pSelectedField->flags & RuntimeFieldFlag_HasMinimum) != 0 && number < pSelectedField->minimum) ||
 						((pSelectedField->flags & RuntimeFieldFlag_HasMaximum) != 0 && number > pSelectedField->maximum))
 					return error(
@@ -82115,10 +82304,12 @@ namespace gaia {
 			}
 
 			if (!cursor.set_raw(bytes.data(), (uint32_t)bytes.size())) {
+				// The write may be incomplete, so put the original value back.
 				(void)cursor.set_raw(original.data(), (uint32_t)original.size(), false);
 				return error(
 						ser::JsonDiagReason::UnsupportedPatchValue, "Component patch could not commit the selected field.");
 			}
+
 			return true;
 		}
 
