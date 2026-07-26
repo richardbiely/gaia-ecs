@@ -3106,7 +3106,8 @@ World serialization</h3>
 <div class="line"><span class="comment">// Load contents of a buffer into our second world</span></div>
 <div class="line">world1.set_serializer(world0.get_serializer());</div>
 <div class="line">world1.load();</div>
-</div><!-- fragment --><h2><a class="anchor" id="runtime-components"></a>
+</div><!-- fragment --><p>JSON support is enabled by default. Define <code>GAIA_JSON_ENABLED</code> as <code>0</code> before including Gaia headers, or pass <code>-DGAIA_JSON_ENABLED=0</code> to the compiler, to omit JSON serialization, runtime schema manifests, and JSON component patches.</p>
+<h2><a class="anchor" id="runtime-components"></a>
 Runtime components</h2>
 <p>Runtime schemas give component fields stable names and reflected types. Generic APIs use this information to inspect, edit, and serialize component values without knowing their C++ type at the call site.</p>
 <p>Each component has one runtime schema. Register it before the component's first use. The schema then stays fixed for that component.</p>

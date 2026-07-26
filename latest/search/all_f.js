@@ -5,7 +5,7 @@ var searchData=
   ['observers_20for_20relation_20pairs_2',['Observers for relation pairs',['../index.html#observers-for-relation-pairs',1,'']]],
   ['of_20contents_3',['Table of Contents',['../index.html#table-of-contents',1,'']]],
   ['offset_4',['offset',['../structgaia_1_1ecs_1_1RuntimeFieldMeta.html#ae762cf9d87a7820f6ce4400936963df1',1,'gaia::ecs::RuntimeFieldMeta']]],
-  ['ok_5',['ok',['../structgaia_1_1ecs_1_1CursorResult_3_01void_01_4.html#ae89f6f21c523391fb7d08f37fc19aad5',1,'gaia::ecs::CursorResult&lt; void &gt;::ok()'],['../classgaia_1_1ecs_1_1QueryInfo.html#a33e537aa04091a4466391190e2dd5e0daa60852f204ed8028c1c58808b746d115',1,'gaia::ecs::QueryInfo::Ok'],['../structgaia_1_1ecs_1_1CursorResult.html#ab58acb7e521355c7da0ab55890973cad',1,'gaia::ecs::CursorResult::ok()']]],
+  ['ok_5',['ok',['../classgaia_1_1ecs_1_1QueryInfo.html#a33e537aa04091a4466391190e2dd5e0daa60852f204ed8028c1c58808b746d115',1,'gaia::ecs::QueryInfo::Ok'],['../structgaia_1_1ecs_1_1CursorResult.html#ab58acb7e521355c7da0ab55890973cad',1,'gaia::ecs::CursorResult::ok()'],['../structgaia_1_1ecs_1_1CursorResult_3_01void_01_4.html#ae89f6f21c523391fb7d08f37fc19aad5',1,'gaia::ecs::CursorResult&lt; void &gt;::ok()']]],
   ['on_20runtime_20relationships_6',['Data on runtime relationships',['../index.html#data-on-runtime-relationships',1,'']]],
   ['ondelete_5f_7',['OnDelete_',['../structgaia_1_1ecs_1_1OnDelete__.html',1,'gaia::ecs']]],
   ['ondeletetarget_5f_8',['OnDeleteTarget_',['../structgaia_1_1ecs_1_1OnDeleteTarget__.html',1,'gaia::ecs']]],

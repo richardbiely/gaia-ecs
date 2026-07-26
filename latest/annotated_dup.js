@@ -275,12 +275,8 @@ var annotated_dup =
         [ "is_flt_kind_id", "structgaia_1_1ser_1_1is__flt__kind__id.html", null ],
         [ "is_int_kind_id", "structgaia_1_1ser_1_1is__int__kind__id.html", null ],
         [ "is_trivially_serializable", "structgaia_1_1ser_1_1is__trivially__serializable.html", "structgaia_1_1ser_1_1is__trivially__serializable" ],
-        [ "JsonDiagnostic", "structgaia_1_1ser_1_1JsonDiagnostic.html", "structgaia_1_1ser_1_1JsonDiagnostic" ],
-        [ "JsonDiagnostics", "structgaia_1_1ser_1_1JsonDiagnostics.html", "structgaia_1_1ser_1_1JsonDiagnostics" ],
-        [ "RuntimeJsonPolicy", "structgaia_1_1ser_1_1RuntimeJsonPolicy.html", "structgaia_1_1ser_1_1RuntimeJsonPolicy" ],
         [ "ser_buffer_binary", "classgaia_1_1ser_1_1ser__buffer__binary.html", null ],
         [ "ser_buffer_binary_dyn", "classgaia_1_1ser_1_1ser__buffer__binary__dyn.html", null ],
-        [ "ser_json", "classgaia_1_1ser_1_1ser__json.html", "classgaia_1_1ser_1_1ser__json" ],
         [ "serializer", "structgaia_1_1ser_1_1serializer.html", "structgaia_1_1ser_1_1serializer" ],
         [ "serializer_ctx", "structgaia_1_1ser_1_1serializer__ctx.html", "structgaia_1_1ser_1_1serializer__ctx" ]
       ] ],

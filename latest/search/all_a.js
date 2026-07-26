@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['job_0',['job',['../structgaia_1_1mt_1_1Job.html',1,'gaia::mt::Job'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2d88fc8023ce3388ede3788316d33306',1,'gaia::ecs::detail::QueryImpl::job()'],['../structgaia_1_1ecs_1_1detail_1_1PendingSystemJob.html#a5bf97548f10d1f3269b5e335bd94b3cd',1,'gaia::ecs::detail::PendingSystemJob::job']]],
+  ['job_0',['job',['../structgaia_1_1ecs_1_1detail_1_1PendingSystemJob.html#a5bf97548f10d1f3269b5e335bd94b3cd',1,'gaia::ecs::detail::PendingSystemJob::job'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2d88fc8023ce3388ede3788316d33306',1,'gaia::ecs::detail::QueryImpl::job()'],['../structgaia_1_1mt_1_1Job.html',1,'gaia::mt::Job']]],
   ['job_20behavior_1',['Job behavior',['../index.html#job-behavior',1,'']]],
   ['job_20dependencies_2',['Job dependencies',['../index.html#job-dependencies',1,'']]],
   ['joballocctx_3',['JobAllocCtx',['../structgaia_1_1mt_1_1JobAllocCtx.html',1,'gaia::mt']]],
@@ -12,8 +12,5 @@ var searchData=
   ['jobparallelref_9',['JobParallelRef',['../structgaia_1_1mt_1_1JobParallelRef.html',1,'gaia::mt']]],
   ['jobqueue_10',['jobQueue',['../structgaia_1_1mt_1_1ThreadCtx.html#afd02a09d14111d025256fe343310b3b3',1,'gaia::mt::ThreadCtx']]],
   ['jobs_11',['jobs',['../index.html#background-jobs',1,'Background jobs'],['../index.html#jobs',1,'Jobs'],['../index.html#system-jobs',1,'System jobs']]],
-  ['jobsizetype_12',['JobSizeType',['../structgaia_1_1mt_1_1JobHandle.html#af9d5f68f44a42147f73d3f175ce9e81d',1,'gaia::mt::JobHandle']]],
-  ['jsondiagnostic_13',['JsonDiagnostic',['../structgaia_1_1ser_1_1JsonDiagnostic.html',1,'gaia::ser']]],
-  ['jsondiagnostics_14',['JsonDiagnostics',['../structgaia_1_1ser_1_1JsonDiagnostics.html',1,'gaia::ser']]],
-  ['jsonencoding_15',['jsonencoding',['../structgaia_1_1ecs_1_1RuntimeFieldMeta.html#ab978c5a5093d708f8263191cd880096d',1,'gaia::ecs::RuntimeFieldMeta::jsonEncoding'],['../structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a0d47373052f98e2171e538ee04720a2e',1,'gaia::ecs::RuntimeTypeDesc::jsonEncoding']]]
+  ['jobsizetype_12',['JobSizeType',['../structgaia_1_1mt_1_1JobHandle.html#af9d5f68f44a42147f73d3f175ce9e81d',1,'gaia::mt::JobHandle']]]
 ];

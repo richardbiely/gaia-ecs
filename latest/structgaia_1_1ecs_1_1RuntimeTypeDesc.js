@@ -6,7 +6,6 @@ var structgaia_1_1ecs_1_1RuntimeTypeDesc =
     [ "elementType", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a7e77ce3c4b1c0ec1992b7605dbf330b7", null ],
     [ "fieldCount", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a784baec47b5f9ebb0572834400f49c40", null ],
     [ "fields", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a3f917453607024c3b6ef935fe4749891", null ],
-    [ "jsonEncoding", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a0d47373052f98e2171e538ee04720a2e", null ],
     [ "opaqueAdapter", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a3067d362f2025819dd0f29d4c85b6de1", null ],
     [ "opaqueAsType", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#ad6a12ba45b12a612389c3082d17d4787", null ],
     [ "semantic", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a0a625cc77ceb526b22d141a957708345", null ],

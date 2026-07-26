@@ -8,12 +8,11 @@ var searchData=
   ['reverse_5fiterator_5ftag_5',['reverse_iterator_tag',['../structgaia_1_1core_1_1reverse__iterator__tag.html',1,'gaia::core']]],
   ['runtimeconstantmeta_6',['RuntimeConstantMeta',['../structgaia_1_1ecs_1_1RuntimeConstantMeta.html',1,'gaia::ecs']]],
   ['runtimefieldmeta_7',['RuntimeFieldMeta',['../structgaia_1_1ecs_1_1RuntimeFieldMeta.html',1,'gaia::ecs']]],
-  ['runtimejsonpolicy_8',['RuntimeJsonPolicy',['../structgaia_1_1ser_1_1RuntimeJsonPolicy.html',1,'gaia::ser']]],
-  ['runtimeopaqueadapter_9',['RuntimeOpaqueAdapter',['../structgaia_1_1ecs_1_1RuntimeOpaqueAdapter.html',1,'gaia::ecs']]],
-  ['runtimeopaquescope_10',['RuntimeOpaqueScope',['../structgaia_1_1ecs_1_1RuntimeOpaqueScope.html',1,'gaia::ecs']]],
-  ['runtimeopaquevalue_11',['RuntimeOpaqueValue',['../structgaia_1_1ecs_1_1RuntimeOpaqueValue.html',1,'gaia::ecs']]],
-  ['runtimesequenceadapter_12',['RuntimeSequenceAdapter',['../structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html',1,'gaia::ecs']]],
-  ['runtimesequenceelement_13',['RuntimeSequenceElement',['../structgaia_1_1ecs_1_1RuntimeSequenceElement.html',1,'gaia::ecs']]],
-  ['runtimesequencescope_14',['RuntimeSequenceScope',['../structgaia_1_1ecs_1_1RuntimeSequenceScope.html',1,'gaia::ecs']]],
-  ['runtimetypedesc_15',['RuntimeTypeDesc',['../structgaia_1_1ecs_1_1RuntimeTypeDesc.html',1,'gaia::ecs']]]
+  ['runtimeopaqueadapter_8',['RuntimeOpaqueAdapter',['../structgaia_1_1ecs_1_1RuntimeOpaqueAdapter.html',1,'gaia::ecs']]],
+  ['runtimeopaquescope_9',['RuntimeOpaqueScope',['../structgaia_1_1ecs_1_1RuntimeOpaqueScope.html',1,'gaia::ecs']]],
+  ['runtimeopaquevalue_10',['RuntimeOpaqueValue',['../structgaia_1_1ecs_1_1RuntimeOpaqueValue.html',1,'gaia::ecs']]],
+  ['runtimesequenceadapter_11',['RuntimeSequenceAdapter',['../structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html',1,'gaia::ecs']]],
+  ['runtimesequenceelement_12',['RuntimeSequenceElement',['../structgaia_1_1ecs_1_1RuntimeSequenceElement.html',1,'gaia::ecs']]],
+  ['runtimesequencescope_13',['RuntimeSequenceScope',['../structgaia_1_1ecs_1_1RuntimeSequenceScope.html',1,'gaia::ecs']]],
+  ['runtimetypedesc_14',['RuntimeTypeDesc',['../structgaia_1_1ecs_1_1RuntimeTypeDesc.html',1,'gaia::ecs']]]
 ];
