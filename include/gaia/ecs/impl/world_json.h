@@ -10,8 +10,13 @@ namespace gaia {
 	namespace ecs {
 		//! \cond INTERNAL
 		namespace detail {
+			//! Maximum supported nesting depth for reflected runtime JSON values.
 			static constexpr uint32_t RuntimeJsonMaxDepth = 32;
 
+			//! Resolves the primitive JSON serialization type for registered runtime metadata.
+			//! \param typeItem Registered runtime type metadata.
+			//! \param out Receives the primitive serialization type.
+			//! \return True when the metadata resolves to a supported primitive type.
 			GAIA_NODISCARD inline bool
 			runtime_type_json_type(const ComponentCacheItem& typeItem, ser::serialization_type_id& out) noexcept {
 				const auto primitiveType = typeItem.primitive_type();
@@ -21,6 +26,10 @@ namespace gaia {
 				return false;
 			}
 
+			//! Checks whether reflected metadata represents an 8-bit character value.
+			//! \param pType Optional registered runtime type metadata.
+			//! \param typeEntity Primitive type entity used when \a pType is null.
+			//! \return True when the resolved type is `Char8`.
 			GAIA_NODISCARD inline bool
 			runtime_json_is_char8_type(const ComponentCacheItem* pType, Entity typeEntity) noexcept {
 				ser::serialization_type_id type = ser::serialization_type_id::ignore;
@@ -29,11 +38,20 @@ namespace gaia {
 				return runtime_primitive_serialization_type(typeEntity, type) && type == ser::serialization_type_id::c8;
 			}
 
+			//! Finds registered runtime metadata for a reflected type.
+			//! \param pCache Optional component metadata cache.
+			//! \param typeEntity Reflected type entity.
+			//! \return Registered type metadata or null when unavailable.
 			GAIA_NODISCARD inline const ComponentCacheItem*
 			find_runtime_json_type(const ComponentCache* pCache, Entity typeEntity) noexcept {
 				return pCache != nullptr ? pCache->find(typeEntity) : nullptr;
 			}
 
+			//! Resolves the storage size of a registered or primitive runtime type.
+			//! \param pType Optional registered runtime type metadata.
+			//! \param typeEntity Primitive type entity used when \a pType is null.
+			//! \param outSize Receives the storage size in bytes.
+			//! \return True when the type has a known non-zero size.
 			GAIA_NODISCARD inline bool
 			runtime_json_type_size(const ComponentCacheItem* pType, Entity typeEntity, uint32_t& outSize) noexcept {
 				if (pType != nullptr) {
@@ -44,13 +62,23 @@ namespace gaia {
 				return outSize != 0;
 			}
 
+			//! Resolved storage layout for one registered runtime field.
 			struct RuntimeJsonFieldLayout final {
+				//! Registered element type metadata when available.
 				const ComponentCacheItem* pType = nullptr;
+				//! Reflected element type entity.
 				Entity type = EntityBad;
+				//! Element size in bytes.
 				uint32_t elemSize = 0;
+				//! Number of elements represented by the field.
 				uint32_t elemCount = 0;
 			};
 
+			//! Resolves the effective element type, size, and count for a runtime field.
+			//! \param pCache Optional component metadata cache.
+			//! \param field Registered field metadata.
+			//! \param out Receives the resolved field layout.
+			//! \return True when the field has a valid non-empty layout.
 			GAIA_NODISCARD inline bool resolve_runtime_json_field_layout(
 					const ComponentCache* pCache, const RuntimeFieldDesc& field, RuntimeJsonFieldLayout& out) noexcept {
 				out = {};
@@ -213,7 +241,9 @@ namespace gaia {
 				}
 			}
 
-			//! \return Whether \a item is represented by one direct semantic JSON value rather than a keyed field object.
+			//! Checks whether a registered type is represented by one direct semantic JSON value.
+			//! \param item Registered runtime type metadata.
+			//! \return True when the value is not represented as a keyed field object.
 			GAIA_NODISCARD inline bool runtime_json_is_direct_value(const ComponentCacheItem& item) noexcept {
 				switch (item.typeKind) {
 					case RuntimeTypeKind::Primitive:
@@ -229,11 +259,18 @@ namespace gaia {
 				}
 			}
 
+			//! Checks whether a registered type can be edited as one runtime JSON leaf.
+			//! \param item Registered runtime type metadata.
+			//! \return True for supported primitive, enum, and bitmask values.
 			GAIA_NODISCARD inline bool runtime_json_leaf_editable(const ComponentCacheItem& item) noexcept {
 				return item.typeKind == RuntimeTypeKind::Primitive || item.typeKind == RuntimeTypeKind::Enum ||
 							 item.typeKind == RuntimeTypeKind::Bitmask;
 			}
 
+			//! Builds a diagnostic path for a named child field.
+			//! \param parent Parent diagnostic path.
+			//! \param child Child field name.
+			//! \return Dot-separated child path.
 			GAIA_NODISCARD inline ser::json_str
 			make_runtime_json_child_path(ser::json_str_view parent, ser::json_str_view child) {
 				if (parent.empty())
@@ -249,6 +286,10 @@ namespace gaia {
 				return path;
 			}
 
+			//! Builds a diagnostic path for a sequence element.
+			//! \param parent Parent diagnostic path.
+			//! \param index Sequence element index.
+			//! \return Parent path with an indexed suffix.
 			GAIA_NODISCARD inline ser::json_str make_runtime_json_element_path(ser::json_str_view parent, uint32_t index) {
 				ser::json_str path(parent);
 				path.append('[');
@@ -259,6 +300,10 @@ namespace gaia {
 				return path;
 			}
 
+			//! Counts elements in the JSON array at the reader's current position without consuming the reader.
+			//! \param reader JSON reader positioned at an array value.
+			//! \param outCount Receives the element count.
+			//! \return True when the current value is a valid JSON array.
 			GAIA_NODISCARD inline bool count_runtime_json_array_elements(ser::ser_json& reader, uint32_t& outCount) {
 				outCount = 0;
 				reader.ws();
@@ -284,10 +329,29 @@ namespace gaia {
 				}
 			}
 
+			//! Writes one reflected runtime value recursively.
+			//! \param pCache Optional component metadata cache.
+			//! \param pType Optional registered type metadata.
+			//! \param typeEntity Reflected value type.
+			//! \param pData Value storage.
+			//! \param valueSize Size of \a pData in bytes.
+			//! \param writer JSON writer receiving the value.
+			//! \param policy Runtime enum and bitmask presentation policy.
+			//! \param depth Current recursive type depth.
+			//! \return True when the complete value was serialized.
 			inline bool write_runtime_json_value(
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, const uint8_t* pData,
 					uint32_t valueSize, ser::ser_json& writer, const ser::RuntimeJsonPolicy& policy, uint32_t depth);
 
+			//! Writes one field from a reflected struct value.
+			//! \param pCache Optional component metadata cache.
+			//! \param owner Registered struct metadata.
+			//! \param field Registered field metadata.
+			//! \param pBase Struct value storage.
+			//! \param writer JSON writer receiving the field value.
+			//! \param policy Runtime enum and bitmask presentation policy.
+			//! \param depth Current recursive type depth.
+			//! \return True when the field was serialized completely.
 			inline bool write_runtime_json_field(
 					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeFieldDesc& field,
 					const uint8_t* pBase, ser::ser_json& writer, const ser::RuntimeJsonPolicy& policy, uint32_t depth) {
@@ -322,6 +386,14 @@ namespace gaia {
 				return ok;
 			}
 
+			//! Writes a reflected struct as a keyed JSON object.
+			//! \param pCache Optional component metadata cache.
+			//! \param item Registered struct metadata.
+			//! \param pData Struct value storage.
+			//! \param writer JSON writer receiving the object.
+			//! \param policy Runtime enum and bitmask presentation policy.
+			//! \param depth Current recursive type depth.
+			//! \return True when every field was serialized completely.
 			inline bool write_runtime_json_struct(
 					const ComponentCache* pCache, const ComponentCacheItem& item, const uint8_t* pData, ser::ser_json& writer,
 					const ser::RuntimeJsonPolicy& policy, uint32_t depth) {
@@ -521,16 +593,46 @@ namespace gaia {
 				return ser::detail::write_runtime_field_json(writer, pData, type, valueSize);
 			}
 
+			//! Reads one reflected runtime value recursively.
+			//! \param pCache Optional component metadata cache.
+			//! \param pType Optional registered type metadata.
+			//! \param typeEntity Reflected destination type.
+			//! \param pData Destination value storage.
+			//! \param valueSize Size of \a pData in bytes.
+			//! \param reader JSON reader positioned at the value.
+			//! \param diagnostics Receives semantic import warnings.
+			//! \param path Logical value path used in diagnostics.
+			//! \param policy Runtime enum and bitmask import policy.
+			//! \param depth Current recursive type depth.
+			//! \param ok Set to false when a well-formed value cannot be applied exactly.
+			//! \return False only when the JSON value is malformed for the expected shape.
 			inline bool read_runtime_json_value(
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
 					uint32_t valueSize, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
 					const ser::RuntimeJsonPolicy& policy, uint32_t depth, bool& ok);
 
+			//! Adds one runtime JSON warning to diagnostics.
+			//! \param diagnostics Diagnostic collection receiving the warning.
+			//! \param reason Machine-readable warning reason.
+			//! \param path Logical value path.
+			//! \param message Human-readable warning message.
 			inline void warn_runtime_json(
 					ser::JsonDiagnostics& diagnostics, ser::JsonDiagReason reason, ser::json_str_view path, const char* message) {
 				diagnostics.add(ser::JsonDiagSeverity::Warning, reason, path, message);
 			}
 
+			//! Reads one field into a reflected struct value.
+			//! \param pCache Optional component metadata cache.
+			//! \param owner Registered struct metadata.
+			//! \param field Registered field metadata.
+			//! \param pBase Destination struct storage.
+			//! \param reader JSON reader positioned at the field value.
+			//! \param diagnostics Receives semantic import warnings.
+			//! \param path Logical field path used in diagnostics.
+			//! \param policy Runtime enum and bitmask import policy.
+			//! \param depth Current recursive type depth.
+			//! \param ok Set to false when a well-formed value cannot be applied exactly.
+			//! \return False only when the JSON value is malformed for the expected field shape.
 			inline bool read_runtime_json_field(
 					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeFieldDesc& field, uint8_t* pBase,
 					ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
@@ -577,6 +679,17 @@ namespace gaia {
 				return reader.expect(']');
 			}
 
+			//! Reads a keyed JSON object into a reflected struct value.
+			//! \param pCache Optional component metadata cache.
+			//! \param item Registered struct metadata.
+			//! \param pData Destination struct storage.
+			//! \param reader JSON reader positioned at the object.
+			//! \param diagnostics Receives semantic import warnings.
+			//! \param path Logical object path used in diagnostics.
+			//! \param policy Runtime enum and bitmask import policy.
+			//! \param depth Current recursive type depth.
+			//! \param ok Set to false when a well-formed value cannot be applied exactly.
+			//! \return False only when the JSON value is malformed for the expected struct shape.
 			inline bool read_runtime_json_struct(
 					const ComponentCache* pCache, const ComponentCacheItem& item, uint8_t* pData, ser::ser_json& reader,
 					ser::JsonDiagnostics& diagnostics, ser::json_str_view path, const ser::RuntimeJsonPolicy& policy,
@@ -1079,10 +1192,6 @@ namespace gaia {
 			return parsed;
 		}
 
-		//! Serializes world state into a JSON document.
-		//! Components with runtime fields are emitted as structured JSON objects. Pair payload keys retain relation and
-		//! target. Components with no runtime fields fallback to raw serialized bytes. Returns false when some runtime
-		//! field types are unsupported (those fields are emitted as null).
 		inline bool
 		World::save_json(ser::ser_json& writer, ser::JsonSaveFlags flags, const ser::RuntimeJsonPolicy& policy) const {
 			auto write_component_key = [&](Entity component, const ComponentCacheItem& item) {
@@ -1265,14 +1374,12 @@ namespace gaia {
 			return ok;
 		}
 
-		//! Convenience overload returning JSON as a string.
 		inline ser::json_str World::save_json(bool& ok, ser::JsonSaveFlags flags) const {
 			ser::ser_json writer;
 			ok = save_json(writer, flags);
 			return writer.str();
 		}
 
-		//! Loads world state from JSON previously emitted by save_json().
 		inline bool World::load_json(
 				const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics, const ser::RuntimeJsonPolicy& policy) {
 			diagnostics.clear();

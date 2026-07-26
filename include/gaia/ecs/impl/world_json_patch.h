@@ -8,6 +8,10 @@ namespace gaia {
 	namespace ecs {
 		//! \cond INTERNAL
 		namespace detail {
+			//! Decodes one RFC 6901 JSON Pointer token.
+			//! \param encoded Encoded token text without the leading slash.
+			//! \param token Receives the decoded token.
+			//! \return True when every escape sequence is valid.
 			inline bool runtime_patch_decode_token(ser::json_str_view encoded, util::str& token) {
 				token.clear();
 				GAIA_FOR(encoded.size()) {
@@ -29,6 +33,10 @@ namespace gaia {
 				return true;
 			}
 
+			//! Parses a sequence index from one JSON Pointer token.
+			//! \param token Decimal index text.
+			//! \param index Receives the parsed index.
+			//! \return True when the token is a non-empty unsigned 32-bit integer.
 			inline bool runtime_patch_parse_index(util::str_view token, uint32_t& index) {
 				if (token.empty())
 					return false;
@@ -45,6 +53,14 @@ namespace gaia {
 				return true;
 			}
 
+			//! Reads one numeric value when its reflected type and storage size match \a T.
+			//! \tparam T Numeric storage type.
+			//! \param type Reflected type of the value.
+			//! \param expectedType Reflected type required for \a T.
+			//! \param data Value storage.
+			//! \param size Size of \a data in bytes.
+			//! \param value Receives the value converted to double.
+			//! \return True when the type and storage size match.
 			template <typename T>
 			inline bool
 			runtime_patch_numeric_value_as(Entity type, Entity expectedType, const void* data, uint32_t size, double& value) {
@@ -56,6 +72,13 @@ namespace gaia {
 				return true;
 			}
 
+			//! Reads a supported primitive, enum, or bitmask value as a double for range validation.
+			//! \param pType Optional registered type metadata.
+			//! \param type Reflected value type.
+			//! \param data Value storage.
+			//! \param size Size of \a data in bytes.
+			//! \param value Receives the converted value.
+			//! \return True when the value uses a supported numeric type.
 			inline bool runtime_patch_numeric_value(
 					const ComponentCacheItem* pType, Entity type, const void* data, uint32_t size, double& value) {
 				if (pType != nullptr &&

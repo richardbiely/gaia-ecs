@@ -1052,6 +1052,11 @@ namespace gaia {
 #endif
 			}
 
+			//! Writes the deterministic world-level runtime schema manifest.
+			//! \param writer JSON writer receiving the manifest.
+			//! \param schemaHash Optional precomputed hash text included in the manifest.
+			//! \param includeRuntimeEntities Whether to include world-local entity ids and generations.
+			//! \return True when the manifest was serialized.
 			bool write_runtime_schema_json(ser::ser_json& writer, const char* schemaHash, bool includeRuntimeEntities) const;
 
 			//! Finalizes a newly registered component entity after the cache record has been created.

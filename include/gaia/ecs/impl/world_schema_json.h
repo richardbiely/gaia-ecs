@@ -8,6 +8,9 @@ namespace gaia {
 	namespace ecs {
 		//! \cond INTERNAL
 		namespace detail {
+			//! Returns the stable manifest name for a runtime type kind.
+			//! \param kind Runtime type kind.
+			//! \return Static manifest name.
 			inline const char* runtime_schema_kind_name(RuntimeTypeKind kind) noexcept {
 				switch (kind) {
 					case RuntimeTypeKind::None:
@@ -30,14 +33,25 @@ namespace gaia {
 				return "none";
 			}
 
+			//! Returns the stable manifest name for a runtime JSON encoding.
+			//! \param encoding Runtime JSON encoding.
+			//! \return Static manifest name.
 			inline const char* runtime_schema_json_encoding_name(RuntimeJsonEncoding encoding) noexcept {
 				return encoding == RuntimeJsonEncoding::Utf8String ? "utf8-string" : "default";
 			}
 
+			//! Returns the stable manifest name for a component storage type.
+			//! \param storage Component storage type.
+			//! \return Static manifest name.
 			inline const char* runtime_schema_storage_name(DataStorageType storage) noexcept {
 				return storage == DataStorageType::Sparse ? "sparse" : "table";
 			}
 
+			//! Checks whether a registered type exposes at least one editable reflected leaf.
+			//! \param cache Component metadata cache used to resolve referenced types.
+			//! \param item Type metadata to inspect.
+			//! \param depth Current recursive type depth.
+			//! \return True when the type can be edited through the runtime JSON patch API.
 			inline bool
 			runtime_schema_type_editable(const ComponentCache& cache, const ComponentCacheItem& item, uint32_t depth = 0) {
 				if (depth >= RuntimeJsonMaxDepth)
@@ -81,6 +95,10 @@ namespace gaia {
 				return false;
 			}
 
+			//! Writes a stable manifest reference to a registered type.
+			//! \param writer JSON writer receiving the reference.
+			//! \param cache Component metadata cache used to resolve \a type.
+			//! \param type Reflected type entity.
 			inline void runtime_schema_write_type_ref(ser::ser_json& writer, const ComponentCache& cache, Entity type) {
 				const auto* pType = cache.find(type);
 				if (pType == nullptr) {
@@ -98,6 +116,12 @@ namespace gaia {
 				writer.end_object();
 			}
 
+			//! Builds the stable named path and hash for a semantic entity.
+			//! \param world World containing the semantic entity hierarchy.
+			//! \param semantic Named semantic entity.
+			//! \param out Receives the dot-separated path.
+			//! \param stableHash Receives the path-derived stable hash.
+			//! \return True when the entity and every parent have valid names.
 			GAIA_NODISCARD inline bool
 			runtime_schema_semantic_path(const World& world, Entity semantic, util::str& out, uint64_t& stableHash) {
 				out.clear();
@@ -135,6 +159,10 @@ namespace gaia {
 				return true;
 			}
 
+			//! Writes a stable manifest reference to a named semantic entity.
+			//! \param writer JSON writer receiving the reference.
+			//! \param world World containing the semantic entity hierarchy.
+			//! \param semantic Semantic entity to reference.
 			inline void runtime_schema_write_semantic_ref(ser::ser_json& writer, const World& world, Entity semantic) {
 				util::str path;
 				uint64_t stableHash = 0;
@@ -155,6 +183,12 @@ namespace gaia {
 				writer.end_object();
 			}
 
+			//! Writes one registered runtime field to the schema manifest.
+			//! \param writer JSON writer receiving the field object.
+			//! \param world World used to resolve semantic paths.
+			//! \param cache Component metadata cache used to resolve field types.
+			//! \param item Registered type that owns \a field.
+			//! \param field Registered field metadata.
 			inline void runtime_schema_write_field(
 					ser::ser_json& writer, const World& world, const ComponentCache& cache, const ComponentCacheItem& item,
 					const RuntimeFieldDesc& field) {
@@ -211,6 +245,13 @@ namespace gaia {
 				}
 				writer.end_object();
 			}
+
+			//! Writes one registered component or reflected type to the schema manifest.
+			//! \param writer JSON writer receiving the type object.
+			//! \param world World used to resolve semantic paths.
+			//! \param cache Component metadata cache used to resolve referenced types.
+			//! \param item Registered component or type metadata.
+			//! \param includeRuntimeEntity Whether to include the world-local entity id and generation.
 			inline void runtime_schema_write_item(
 					ser::ser_json& writer, const World& world, const ComponentCache& cache, const ComponentCacheItem& item,
 					bool includeRuntimeEntity) {
