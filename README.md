@@ -2506,8 +2506,6 @@ w.add(e, requiredTag);
 w.del(e, requiredTag); // does nothing
 ```
 
-Gaia uses this form for `ecs::Sparse` and `ecs::DontFragment`.
-
 Use `(Requires, target)` when one id depends on another. Adding the first id also adds its dependencies, and those dependencies cannot be removed while they are still needed.
 
 ```cpp

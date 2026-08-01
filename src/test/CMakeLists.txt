@@ -63,6 +63,22 @@ if(TARGET single_header)
 	add_dependencies(${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER} single_header)
 endif()
 
+set(PROJ_NAME_NO_SYSTEMS "gaia_test_no_systems")
+add_executable(${PROJ_NAME_NO_SYSTEMS} src/test_no_systems.cpp)
+target_link_libraries(${PROJ_NAME_NO_SYSTEMS} PRIVATE Threads::Threads)
+target_include_directories(${PROJ_NAME_NO_SYSTEMS} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_compile_definitions(${PROJ_NAME_NO_SYSTEMS} PRIVATE GAIA_SYSTEMS_ENABLED=0 GAIA_USE_SAFE_ENTITY=1)
+
+set(PROJ_NAME_NO_SYSTEMS_SINGLE_HEADER "gaia_test_no_systems_single_header")
+add_executable(${PROJ_NAME_NO_SYSTEMS_SINGLE_HEADER} src/test_no_systems.cpp)
+target_link_libraries(${PROJ_NAME_NO_SYSTEMS_SINGLE_HEADER} PRIVATE Threads::Threads)
+target_include_directories(${PROJ_NAME_NO_SYSTEMS_SINGLE_HEADER} PRIVATE ${PROJECT_SOURCE_DIR}/single_include)
+target_compile_definitions(
+	${PROJ_NAME_NO_SYSTEMS_SINGLE_HEADER} PRIVATE GAIA_SYSTEMS_ENABLED=0 GAIA_USE_SAFE_ENTITY=1)
+if(TARGET single_header)
+	add_dependencies(${PROJ_NAME_NO_SYSTEMS_SINGLE_HEADER} single_header)
+endif()
+
 set(PROJ_NAME_NO_JSON "gaia_test_no_json")
 add_executable(${PROJ_NAME_NO_JSON} src/test_no_json.cpp)
 target_link_libraries(${PROJ_NAME_NO_JSON} PRIVATE Threads::Threads)
@@ -86,5 +102,7 @@ add_test(
 add_test(NAME ${PROJ_NAME_NO_OBSERVERS} COMMAND $<TARGET_FILE:${PROJ_NAME_NO_OBSERVERS}>)
 add_test(
 	NAME ${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER} COMMAND $<TARGET_FILE:${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER}>)
+add_test(NAME ${PROJ_NAME_NO_SYSTEMS} COMMAND $<TARGET_FILE:${PROJ_NAME_NO_SYSTEMS}>)
+add_test(NAME ${PROJ_NAME_NO_SYSTEMS_SINGLE_HEADER} COMMAND $<TARGET_FILE:${PROJ_NAME_NO_SYSTEMS_SINGLE_HEADER}>)
 add_test(NAME ${PROJ_NAME_NO_JSON} COMMAND $<TARGET_FILE:${PROJ_NAME_NO_JSON}>)
 add_test(NAME ${PROJ_NAME_NO_JSON_SINGLE_HEADER} COMMAND $<TARGET_FILE:${PROJ_NAME_NO_JSON_SINGLE_HEADER}>)

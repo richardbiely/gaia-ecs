@@ -670,5 +670,10 @@ namespace gaia {
 } // namespace gaia
 
 	#include "gaia/ecs/system_typed.inl"
-
+#else
+namespace gaia {
+	namespace ecs {
+		struct System_ {};
+	} // namespace ecs
+} // namespace gaia
 #endif

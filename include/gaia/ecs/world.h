@@ -8156,8 +8156,8 @@ namespace gaia {
 
 			//! Runs systems and then finishes the current frame.
 			//!
-			//! This is the normal frame step. It executes registered systems through systems_run(), then calls
-			//! frame_cleanup() and frame_end().
+			//! This is the normal frame step. When systems are enabled, it executes registered systems through systems_run().
+			//! It then calls frame_cleanup() and frame_end(). With systems disabled, only the frame maintenance steps run.
 			//!
 			//! \warning Do not call this from an observer callback. Debug builds assert this contract.
 			//! \see systems_run()
@@ -8168,7 +8168,9 @@ namespace gaia {
 				GAIA_ASSERT(!observer_callback_active());
 #endif
 
+#if GAIA_SYSTEMS_ENABLED
 				systems_run();
+#endif
 				frame_cleanup();
 				frame_end();
 			}
