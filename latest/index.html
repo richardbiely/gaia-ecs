@@ -2172,8 +2172,7 @@ Entity dependencies</h3>
 <div class="line">w.add(requiredTag, ecs::Requires);</div>
 <div class="line">w.add(e, requiredTag);</div>
 <div class="line">w.del(e, requiredTag); <span class="comment">// does nothing</span></div>
-</div><!-- fragment --><p>Gaia uses this form for <code>ecs::Sparse</code> and <code>ecs::DontFragment</code>.</p>
-<p>Use <code>(Requires, target)</code> when one id depends on another. Adding the first id also adds its dependencies, and those dependencies cannot be removed while they are still needed.</p>
+</div><!-- fragment --><p>Use <code>(Requires, target)</code> when one id depends on another. Adding the first id also adds its dependencies, and those dependencies cannot be removed while they are still needed.</p>
 <div class="fragment"><div class="line">ecs::World w;</div>
 <div class="line">ecs::Entity rabbit = w.add();</div>
 <div class="line">ecs::Entity animal = w.add();</div>

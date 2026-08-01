@@ -360,6 +360,7 @@ var hierarchy =
     [ "gaia::core::StringLookupKey< MaxLen >", "structgaia_1_1core_1_1StringLookupKey.html", null ],
     [ "gaia::core::StringLookupKey< 256 >", "structgaia_1_1core_1_1StringLookupKey.html", null ],
     [ "gaia::ecs::SymbolId", "structgaia_1_1ecs_1_1SymbolId.html", null ],
+    [ "gaia::ecs::System_", "structgaia_1_1ecs_1_1System__.html", null ],
     [ "gaia::ecs::detail::SystemCollectCtx", "structgaia_1_1ecs_1_1detail_1_1SystemCollectCtx.html", null ],
     [ "gaia::ecs::detail::SystemPhaseScheduleItem", "structgaia_1_1ecs_1_1detail_1_1SystemPhaseScheduleItem.html", null ],
     [ "gaia::ecs::detail::SystemRunCtx", "structgaia_1_1ecs_1_1detail_1_1SystemRunCtx.html", null ],

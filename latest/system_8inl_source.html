@@ -506,11 +506,17 @@ $(document).ready(function(){initNavTree('system_8inl_source.html',''); initResi
 <div class="line"><a id="l00670" name="l00670"></a><span class="lineno">  670</span>} <span class="comment">// namespace gaia</span></div>
 <div class="line"><a id="l00671" name="l00671"></a><span class="lineno">  671</span> </div>
 <div class="line"><a id="l00672" name="l00672"></a><span class="lineno">  672</span><span class="preprocessor">  #include &quot;gaia/ecs/system_typed.inl&quot;</span></div>
-<div class="line"><a id="l00673" name="l00673"></a><span class="lineno">  673</span> </div>
-<div class="line"><a id="l00674" name="l00674"></a><span class="lineno">  674</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00673" name="l00673"></a><span class="lineno">  673</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00674" name="l00674"></a><span class="lineno">  674</span><span class="keyword">namespace </span>gaia {</div>
+<div class="line"><a id="l00675" name="l00675"></a><span class="lineno">  675</span>  <span class="keyword">namespace </span>ecs {</div>
+<div class="line"><a id="l00676" name="l00676"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1System__.html">  676</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1ecs_1_1System__.html">System_</a> {};</div>
+<div class="line"><a id="l00677" name="l00677"></a><span class="lineno">  677</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l00678" name="l00678"></a><span class="lineno">  678</span>} <span class="comment">// namespace gaia</span></div>
+<div class="line"><a id="l00679" name="l00679"></a><span class="lineno">  679</span><span class="preprocessor">#endif</span></div>
 <div class="ttc" id="aclassgaia_1_1mt_1_1ThreadPool_html_a8915adfb194f3a0af9b89d1a7d82ddfc"><div class="ttname"><a href="classgaia_1_1mt_1_1ThreadPool.html#a8915adfb194f3a0af9b89d1a7d82ddfc">gaia::mt::ThreadPool::get</a></div><div class="ttdeci">static ThreadPool &amp; get()</div><div class="ttdoc">Returns the process-wide thread-pool instance.</div><div class="ttdef"><b>Definition</b> threadpool.h:161</div></div>
 <div class="ttc" id="aser__ct_8h_html_a38848ea2003a76e33f2b4e56d355a7fa"><div class="ttname"><a href="ser__ct_8h.html#a38848ea2003a76e33f2b4e56d355a7fa">gaia::ser::load</a></div><div class="ttdeci">void load(Reader &amp;reader, T &amp;data)</div><div class="ttdoc">Read data using Reader at compile-time.</div><div class="ttdef"><b>Definition</b> ser_ct.h:112</div></div>
 <div class="ttc" id="aser__ct_8h_html_afea4e9db5adcb2f65534c527ff9ac204"><div class="ttname"><a href="ser__ct_8h.html#afea4e9db5adcb2f65534c527ff9ac204">gaia::ser::save</a></div><div class="ttdeci">void save(Writer &amp;writer, const T &amp;data)</div><div class="ttdoc">Write data using Writer at compile-time.</div><div class="ttdef"><b>Definition</b> ser_ct.h:101</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1System___html"><div class="ttname"><a href="structgaia_1_1ecs_1_1System__.html">gaia::ecs::System_</a></div><div class="ttdef"><b>Definition</b> system.inl:676</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

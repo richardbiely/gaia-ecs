@@ -188,6 +188,7 @@ var annotated_dup =
         [ "SingleArchetypeLookupItem", "structgaia_1_1ecs_1_1SingleArchetypeLookupItem.html", "structgaia_1_1ecs_1_1SingleArchetypeLookupItem" ],
         [ "Sparse_", "structgaia_1_1ecs_1_1Sparse__.html", null ],
         [ "SymbolId", "structgaia_1_1ecs_1_1SymbolId.html", "structgaia_1_1ecs_1_1SymbolId" ],
+        [ "System_", "structgaia_1_1ecs_1_1System__.html", null ],
         [ "Traversable_", "structgaia_1_1ecs_1_1Traversable__.html", null ],
         [ "uni", "structgaia_1_1ecs_1_1uni.html", "structgaia_1_1ecs_1_1uni" ],
         [ "World", "classgaia_1_1ecs_1_1World.html", "classgaia_1_1ecs_1_1World" ]
