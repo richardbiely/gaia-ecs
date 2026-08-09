@@ -1586,35 +1586,55 @@ Query string</h3>
 <li><code>$name</code> - query variable</li>
 <li><code>Id(src)</code> - source lookup, where <code>src</code> can be a variable or <code>$this</code> for the default source</li>
 </ul>
-<div class="fragment"><div class="line"><span class="comment">// Some context for the example</span></div>
-<div class="line"><span class="keyword">struct </span>Position {...};</div>
-<div class="line"><span class="keyword">struct </span>Velocity {...};</div>
-<div class="line"><span class="keyword">struct </span>RigidBody {...};</div>
-<div class="line"><span class="keyword">struct </span>Fuel {...};</div>
-<div class="line">ecs::Entity player = w.add();</div>
+<div class="fragment"><div class="line"><span class="keyword">struct </span>Position { <span class="keywordtype">float</span> x, y, z; };</div>
+<div class="line"><span class="keyword">struct </span>Velocity {};</div>
+<div class="line"><span class="keyword">struct </span>RigidBody {};</div>
+<div class="line"><span class="keyword">struct </span>Fuel {};</div>
+<div class="line"><span class="keyword">struct </span>ConnectedTo {};</div>
+<div class="line"><span class="keyword">struct </span>Device {};</div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// Create the query from a string expression.</span></div>
-<div class="line">ecs::Query q = w.query()</div>
-<div class="line">  .add(<span class="stringliteral">&quot;&amp;Position, !Velocity, ?RigidBody, (Fuel,*), %e&quot;</span>, player.value());</div>
-<div class="line"><span class="comment">// expected matches: player (RigidBody is optional)</span></div>
+<div class="line">ecs::World w;</div>
+<div class="line"><span class="keyword">const</span> ecs::Entity fuel = w.add&lt;Fuel&gt;().entity;</div>
+<div class="line"><span class="keyword">const</span> ecs::Entity connectedTo = w.add&lt;ConnectedTo&gt;().entity;</div>
+<div class="line"><span class="keyword">const</span> ecs::Entity device = w.add();</div>
+<div class="line"><span class="keyword">const</span> ecs::Entity selected = w.add();</div>
+<div class="line"><span class="keyword">const</span> ecs::Entity player = w.add();</div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// It does not matter how we split the expressions. This query is the same as the above.</span></div>
+<div class="line">w.add&lt;Device&gt;(device);</div>
+<div class="line">w.add&lt;Position&gt;(player, {0.0f, 0.0f, 0.0f});</div>
+<div class="line">w.add&lt;RigidBody&gt;(player);</div>
+<div class="line">w.add(player, ecs::Pair(fuel, device));</div>
+<div class="line">w.add(player, ecs::Pair(connectedTo, device));</div>
+<div class="line">w.add(player, selected);</div>
+<div class="line"> </div>
+<div class="line"><span class="comment">// Register Velocity so the string expression can resolve its name.</span></div>
+<div class="line">(void)w.add&lt;Velocity&gt;();</div>
+<div class="line"> </div>
+<div class="line"><span class="comment">// $device binds the ConnectedTo target. Device($device) then requires Device on that target.</span></div>
+<div class="line">ecs::Query q = w.query().add(</div>
+<div class="line">  <span class="stringliteral">&quot;&amp;Position, !Velocity, ?RigidBody, (Fuel,*), (ConnectedTo,$device), Device($device), %e&quot;</span>,</div>
+<div class="line">  selected.value());</div>
+<div class="line">q.count(); <span class="comment">// expected: 1 (player)</span></div>
+<div class="line"> </div>
+<div class="line"><span class="comment">// Expressions can also be added in parts.</span></div>
 <div class="line">ecs::Query q1 = w.query()</div>
-<div class="line">  .add(<span class="stringliteral">&quot;&amp;Position, !Velocity&quot;</span>)</div>
-<div class="line">  .add(<span class="stringliteral">&quot;?RigidBody, (Fuel,*)&quot;</span>)</div>
-<div class="line">  .add(<span class="stringliteral">&quot;%e&quot;</span>, player.value());</div>
+<div class="line">  .add(<span class="stringliteral">&quot;&amp;Position, !Velocity, ?RigidBody&quot;</span>)</div>
+<div class="line">  .add(<span class="stringliteral">&quot;(Fuel,*), (ConnectedTo,$device), Device($device)&quot;</span>)</div>
+<div class="line">  .add(<span class="stringliteral">&quot;%e&quot;</span>, selected.value());</div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// The queries above can be rewritten as following:</span></div>
+<div class="line"><span class="comment">// The same query using the fluent API.</span></div>
 <div class="line">ecs::Query q2 = w.query()</div>
 <div class="line">  .all&lt;Position&amp;&gt;()</div>
 <div class="line">  .no&lt;Velocity&gt;()</div>
 <div class="line">  .any&lt;RigidBody&gt;()</div>
-<div class="line">  .all(ecs::Pair(w.add&lt;Fuel&gt;().entity, All)&gt;()</div>
-<div class="line">  .all(player);</div>
+<div class="line">  .all(ecs::Pair(fuel, ecs::All))</div>
+<div class="line">  .all(ecs::Pair(connectedTo, ecs::Var0))</div>
+<div class="line">  .all&lt;Device&gt;(ecs::QueryTermOptions{}.src(ecs::Var0))</div>
+<div class="line">  .all(selected);</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// OR-chain:</span></div>
-<div class="line">ecs::Query q3 = w.query().add(<span class="stringliteral">&quot;Position, Velocity || Acceleration&quot;</span>);</div>
-<div class="line"><span class="comment">// expected matches: entities with Position and at least one of Velocity/Acceleration</span></div>
+<div class="line">ecs::Query q3 = w.query().add(<span class="stringliteral">&quot;Position, Velocity || RigidBody&quot;</span>);</div>
+<div class="line"><span class="comment">// expected matches: entities with Position and at least one of Velocity/RigidBody</span></div>
 </div><!-- fragment --><h3><a class="anchor" id="uncached-query"></a>
 Uncached query</h3>
 <p>Uncached query is a special kind of query that does not build or keep persistent match cache.</p>
