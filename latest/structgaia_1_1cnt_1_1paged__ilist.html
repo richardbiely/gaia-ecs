@@ -259,6 +259,12 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a9683dec1c41a8cdc998d63ce8d2e4bc2" id="r_a9683dec1c41a8cdc998d63ce8d2e4bc2"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#ad6e0920f6962523dc33686c0c9c17beb">const_reference</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a9683dec1c41a8cdc998d63ce8d2e4bc2">live_unsafe</a> (<a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a2261cda6d6933594543c3a126b578c55">size_type</a> index) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
 <tr class="memdesc:a9683dec1c41a8cdc998d63ce8d2e4bc2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a live payload slot without consulting list-wide size metadata.  <br /></td></tr>
 <tr class="separator:a9683dec1c41a8cdc998d63ce8d2e4bc2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8d8bec2fbf9606c279eed05c52f83284" id="r_a8d8bec2fbf9606c279eed05c52f83284"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a68cfaa7444a9bc3cc514fa9994ffa9e1">reference</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a8d8bec2fbf9606c279eed05c52f83284">payload_unsafe</a> (<a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a2261cda6d6933594543c3a126b578c55">size_type</a> index)</td></tr>
+<tr class="memdesc:a8d8bec2fbf9606c279eed05c52f83284"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a constructed payload slot without consulting shared liveness metadata.  <br /></td></tr>
+<tr class="separator:a8d8bec2fbf9606c279eed05c52f83284"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6970c9ac082e40bf6ac3d75f972cbbe1" id="r_a6970c9ac082e40bf6ac3d75f972cbbe1"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#ad6e0920f6962523dc33686c0c9c17beb">const_reference</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a6970c9ac082e40bf6ac3d75f972cbbe1">payload_unsafe</a> (<a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a2261cda6d6933594543c3a126b578c55">size_type</a> index) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memdesc:a6970c9ac082e40bf6ac3d75f972cbbe1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a constructed payload slot without consulting shared liveness metadata.  <br /></td></tr>
+<tr class="separator:a6970c9ac082e40bf6ac3d75f972cbbe1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a19c3f464fd206b54a3d4f3a90d06ddcf" id="r_a19c3f464fd206b54a3d4f3a90d06ddcf"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a7ba1514931effb80f12a0b0d1d61e646">pointer</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a19c3f464fd206b54a3d4f3a90d06ddcf">try_get</a> (<a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a2261cda6d6933594543c3a126b578c55">size_type</a> index) <a class="el" href="classgaia_1_1cnt_1_1darr.html">noexcept</a></td></tr>
 <tr class="memdesc:a19c3f464fd206b54a3d4f3a90d06ddcf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attempts to access a live payload.  <br /></td></tr>
 <tr class="separator:a19c3f464fd206b54a3d4f3a90d06ddcf"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -941,7 +947,7 @@ template&lt;<a class="el" href="classgaia_1_1cnt_1_1darr.html">typename</a> <a c
   </table>
   </dd>
 </dl>
-<dl class="section warning"><dt>Warning</dt><dd>The slot becomes part of the free-list even though its payload remains alive. Iteration and has(handle) treat it as released because the generation changes. Callers that inspect the payload afterward must use <a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a077bb965d1928ce4b34cd241c8b69c79" title="Returns a live payload slot without consulting list-wide size metadata.">live_unsafe()</a> and must guarantee the slot has not been reused. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>The slot becomes part of the free-list even though its payload remains alive. Iteration and has(handle) treat it as released because the generation changes. Callers that inspect the payload afterward must use <a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a8d8bec2fbf9606c279eed05c52f83284" title="Returns a constructed payload slot without consulting shared liveness metadata.">payload_unsafe()</a> and must guarantee the slot has not been reused. </dd></dl>
 <dl class="section note"><dt>Note</dt><dd>This is intended for systems that need released-state inspectability without moving page storage while other background work may still observe job data. </dd></dl>
 
 </div>
@@ -1472,6 +1478,82 @@ template&lt;<a class="el" href="classgaia_1_1cnt_1_1darr.html">typename</a> <a c
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Number of pages required for <em>slotCnt</em>. </dd></dl>
+
+</div>
+</div>
+<a id="a8d8bec2fbf9606c279eed05c52f83284" name="a8d8bec2fbf9606c279eed05c52f83284"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8d8bec2fbf9606c279eed05c52f83284">&#9670;&#160;</a></span>payload_unsafe() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;<a class="el" href="classgaia_1_1cnt_1_1darr.html">typename</a> <a class="el" href="classgaia_1_1cnt_1_1darr.html">TListItem</a> , <a class="el" href="classgaia_1_1cnt_1_1darr.html">typename</a> <a class="el" href="classgaia_1_1cnt_1_1darr.html">TItemHandle</a> , <a class="el" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a> MaxPages&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a68cfaa7444a9bc3cc514fa9994ffa9e1">reference</a> <a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html">gaia::cnt::paged_ilist</a>&lt; <a class="el" href="classgaia_1_1cnt_1_1darr.html">TListItem</a>, <a class="el" href="classgaia_1_1cnt_1_1darr.html">TItemHandle</a>, <a class="el" href="classgaia_1_1cnt_1_1darr.html">MaxPages</a> &gt;::payload_unsafe </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a2261cda6d6933594543c3a126b578c55">size_type</a>&#160;</td>
+          <td class="paramname"><em>index</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a constructed payload slot without consulting shared liveness metadata. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">index</td><td>Slot index to access. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable reference to the payload at <em>index</em>. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>The caller must guarantee that the page and payload are constructed and remain alive. </dd></dl>
+
+</div>
+</div>
+<a id="a6970c9ac082e40bf6ac3d75f972cbbe1" name="a6970c9ac082e40bf6ac3d75f972cbbe1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6970c9ac082e40bf6ac3d75f972cbbe1">&#9670;&#160;</a></span>payload_unsafe() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;<a class="el" href="classgaia_1_1cnt_1_1darr.html">typename</a> <a class="el" href="classgaia_1_1cnt_1_1darr.html">TListItem</a> , <a class="el" href="classgaia_1_1cnt_1_1darr.html">typename</a> <a class="el" href="classgaia_1_1cnt_1_1darr.html">TItemHandle</a> , <a class="el" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a> MaxPages&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#ad6e0920f6962523dc33686c0c9c17beb">const_reference</a> <a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html">gaia::cnt::paged_ilist</a>&lt; <a class="el" href="classgaia_1_1cnt_1_1darr.html">TListItem</a>, <a class="el" href="classgaia_1_1cnt_1_1darr.html">TItemHandle</a>, <a class="el" href="classgaia_1_1cnt_1_1darr.html">MaxPages</a> &gt;::payload_unsafe </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1cnt_1_1paged__ilist.html#a2261cda6d6933594543c3a126b578c55">size_type</a>&#160;</td>
+          <td class="paramname"><em>index</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a constructed payload slot without consulting shared liveness metadata. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">index</td><td>Slot index to access. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Immutable reference to the payload at <em>index</em>. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>The caller must guarantee that the page and payload are constructed and remain alive. </dd></dl>
 
 </div>
 </div>

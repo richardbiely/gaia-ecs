@@ -44,6 +44,8 @@ var structgaia_1_1cnt_1_1paged__ilist =
     [ "operator[]", "structgaia_1_1cnt_1_1paged__ilist.html#a4487b5bd13c2119d816e510c5cce429b", null ],
     [ "page_capacity", "structgaia_1_1cnt_1_1paged__ilist.html#a00ae5ad3d8f80da290c9ae3c3ec7552e", null ],
     [ "page_count_for_capacity", "structgaia_1_1cnt_1_1paged__ilist.html#a2403bde34aa50a4863a1b13f72b0d8d3", null ],
+    [ "payload_unsafe", "structgaia_1_1cnt_1_1paged__ilist.html#a8d8bec2fbf9606c279eed05c52f83284", null ],
+    [ "payload_unsafe", "structgaia_1_1cnt_1_1paged__ilist.html#a6970c9ac082e40bf6ac3d75f972cbbe1", null ],
     [ "reserve", "structgaia_1_1cnt_1_1paged__ilist.html#aa7991eb6e20b897e28b87c963a3b4d25", null ],
     [ "reserve_slot_table", "structgaia_1_1cnt_1_1paged__ilist.html#af6375783833b165f6c484822f6f2c0c7", null ],
     [ "size", "structgaia_1_1cnt_1_1paged__ilist.html#a06d102bee71e4cdcf6c978b2ededc6fa", null ],

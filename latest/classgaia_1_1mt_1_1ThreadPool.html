@@ -1317,10 +1317,11 @@ The pointed-to context must remain alive until the returned handle completes. </
 <p>Wait until a job associated with the jobHandle finishes executing. Cleans up any job allocations and dependencies associated with <em>jobHandle</em>. The calling thread participates in frame job processing until <em>jobHandle</em> is done. For background jobs, the calling thread only runs background work when no background workers are configured. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">jobHandle</td><td><a class="el" href="structgaia_1_1mt_1_1Job.html" title="Callable and scheduling options for a single job.">Job</a> handle to wait for </td></tr>
+    <tr><td class="paramname">jobHandle</td><td><a class="el" href="structgaia_1_1mt_1_1Job.html" title="Callable and scheduling options for a single job.">Job</a> handle to wait for. </td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section warning"><dt>Warning</dt><dd>Must be called from the effective main thread. </dd></dl>
 
 </div>
 </div>
