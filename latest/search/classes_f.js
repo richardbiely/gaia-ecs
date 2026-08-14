@@ -8,10 +8,12 @@ var searchData=
   ['pair_5',['pair',['../classgaia_1_1ecs_1_1pair.html',1,'gaia::ecs']]],
   ['pair_3c_20entity_2c_20entity_20_3e_6',['pair&lt; Entity, Entity &gt;',['../classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html',1,'gaia::ecs']]],
   ['paircountbucket_7',['PairCountBucket',['../structgaia_1_1ecs_1_1Archetype_1_1PairIndexData_1_1PairCountBucket.html',1,'gaia::ecs::Archetype::PairIndexData']]],
-  ['parent_5f_8',['Parent_',['../structgaia_1_1ecs_1_1Parent__.html',1,'gaia::ecs']]],
-  ['pendingsystemjob_9',['PendingSystemJob',['../structgaia_1_1ecs_1_1detail_1_1PendingSystemJob.html',1,'gaia::ecs::detail']]],
-  ['prefab_5f_10',['Prefab_',['../structgaia_1_1ecs_1_1Prefab__.html',1,'gaia::ecs']]],
-  ['prefabchildedge_11',['PrefabChildEdge',['../structgaia_1_1ecs_1_1detail_1_1PrefabChildEdge.html',1,'gaia::ecs::detail']]],
-  ['prefabinstantiateplannode_12',['PrefabInstantiatePlanNode',['../structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html',1,'gaia::ecs::detail']]],
-  ['properties_13',['Properties',['../structgaia_1_1ecs_1_1Archetype_1_1Properties.html',1,'gaia::ecs::Archetype']]]
+  ['parallelonsetscope_8',['ParallelOnSetScope',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['parallelonsetslot_9',['ParallelOnSetSlot',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['parent_5f_10',['Parent_',['../structgaia_1_1ecs_1_1Parent__.html',1,'gaia::ecs']]],
+  ['pendingsystemjob_11',['PendingSystemJob',['../structgaia_1_1ecs_1_1detail_1_1PendingSystemJob.html',1,'gaia::ecs::detail']]],
+  ['prefab_5f_12',['Prefab_',['../structgaia_1_1ecs_1_1Prefab__.html',1,'gaia::ecs']]],
+  ['prefabchildedge_13',['PrefabChildEdge',['../structgaia_1_1ecs_1_1detail_1_1PrefabChildEdge.html',1,'gaia::ecs::detail']]],
+  ['prefabinstantiateplannode_14',['PrefabInstantiatePlanNode',['../structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html',1,'gaia::ecs::detail']]],
+  ['properties_15',['Properties',['../structgaia_1_1ecs_1_1Archetype_1_1Properties.html',1,'gaia::ecs::Archetype']]]
 ];

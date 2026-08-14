@@ -4,6 +4,8 @@ var classgaia_1_1ecs_1_1detail_1_1QueryImpl =
     [ "IterModeDisabledOnly", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeDisabledOnly.html", null ],
     [ "IterModeEnabled", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeEnabled.html", null ],
     [ "OrderByTravView", "classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByTravView.html", "classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByTravView" ],
+    [ "ParallelOnSetScope", "classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope.html", null ],
+    [ "ParallelOnSetSlot", "classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot.html", null ],
     [ "QueryCacheRange", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryCacheRange.html", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryCacheRange" ],
     [ "QueryPlan", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan" ],
     [ "ExecPayloadKind", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a41a7406850a2bb116013e94605a78fbd", [

@@ -275,6 +275,8 @@ var hierarchy =
       [ "gaia::ecs::pair< Entity, Entity >", "classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html", null ]
     ] ],
     [ "gaia::ecs::Archetype::PairIndexData::PairCountBucket", "structgaia_1_1ecs_1_1Archetype_1_1PairIndexData_1_1PairCountBucket.html", null ],
+    [ "gaia::ecs::detail::QueryImpl::ParallelOnSetScope", "classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope.html", null ],
+    [ "gaia::ecs::detail::QueryImpl::ParallelOnSetSlot", "classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot.html", null ],
     [ "gaia::ecs::Parent_", "structgaia_1_1ecs_1_1Parent__.html", null ],
     [ "gaia::ecs::detail::PendingSystemJob", "structgaia_1_1ecs_1_1detail_1_1PendingSystemJob.html", null ],
     [ "gaia::ecs::Prefab_", "structgaia_1_1ecs_1_1Prefab__.html", null ],
