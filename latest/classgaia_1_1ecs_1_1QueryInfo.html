@@ -179,7 +179,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>invalidate_result</b>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>invalidate_sort</b> ()</td></tr>
 <tr class="memdesc:a5573c36133977320354b4f1fdb582293"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the cached sorted slices dirty without invalidating query membership. <br /></td></tr>
 <tr class="separator:a5573c36133977320354b4f1fdb582293"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7ed91ebda613826e2102b613b5874c11" id="r_a7ed91ebda613826e2102b613b5874c11"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a7ed91ebda613826e2102b613b5874c11">compile</a> (const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes)</td></tr>
+<tr class="memitem:a7ed91ebda613826e2102b613b5874c11" id="r_a7ed91ebda613826e2102b613b5874c11"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a7ed91ebda613826e2102b613b5874c11">compile</a> (const EntityToArchetypeMap &amp;entityToArchetypeMap, std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes)</td></tr>
 <tr class="memdesc:a7ed91ebda613826e2102b613b5874c11"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compile the query terms into a form we can easily process.  <br /></td></tr>
 <tr class="separator:a7ed91ebda613826e2102b613b5874c11"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2fb228ac3a845ca4b9e429ebc6c37f4f" id="r_a2fb228ac3a845ca4b9e429ebc6c37f4f"><td class="memItemLeft" align="right" valign="top"><a id="a2fb228ac3a845ca4b9e429ebc6c37f4f" name="a2fb228ac3a845ca4b9e429ebc6c37f4f"></a>
@@ -221,22 +221,22 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>recompile</b> ()</td>
 <tr class="memdesc:a37314d288bb6689d2ee9a4990e125e2b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compares this compiled plan with an authored query context for inequality.  <br /></td></tr>
 <tr class="separator:a37314d288bb6689d2ee9a4990e125e2b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7b53fad34cbe4a065927f8aaa2c97024" id="r_a7b53fad34cbe4a065927f8aaa2c97024"><td class="memTemplParams" colspan="2">template&lt;typename ArchetypeLookup &gt; </td></tr>
-<tr class="memitem:a7b53fad34cbe4a065927f8aaa2c97024"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a7b53fad34cbe4a065927f8aaa2c97024">match</a> (const ArchetypeLookup &amp;entityToArchetypeMap, std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> *pEntityToArchetypeMapVersions, ArchetypeId archetypeLastId, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
+<tr class="memitem:a7b53fad34cbe4a065927f8aaa2c97024"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a7b53fad34cbe4a065927f8aaa2c97024">match</a> (const ArchetypeLookup &amp;entityToArchetypeMap, std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, const EntityToArchetypeVersionMap *pEntityToArchetypeMapVersions, ArchetypeId archetypeLastId, const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
 <tr class="memdesc:a7b53fad34cbe4a065927f8aaa2c97024"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tries to match the query against archetypes in <em>entityToArchetypeMap</em>. This is necessary so we do not iterate all chunks over and over again when running queries.  <br /></td></tr>
 <tr class="separator:a7b53fad34cbe4a065927f8aaa2c97024"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9e1b1478407080ec54edcf9e82389c5b" id="r_a9e1b1478407080ec54edcf9e82389c5b"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a9e1b1478407080ec54edcf9e82389c5b">match_one</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, EntitySpan targetEntities, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
+<tr class="memitem:a9e1b1478407080ec54edcf9e82389c5b" id="r_a9e1b1478407080ec54edcf9e82389c5b"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a9e1b1478407080ec54edcf9e82389c5b">match_one</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, EntitySpan targetEntities, const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
 <tr class="memdesc:a9e1b1478407080ec54edcf9e82389c5b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tries to match the query against the provided archetype. This is necessary so we do not iterate all chunks over and over again when running queries.  <br /></td></tr>
 <tr class="separator:a9e1b1478407080ec54edcf9e82389c5b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a231d6de795fa3177dff4bede43085263" id="r_a231d6de795fa3177dff4bede43085263"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a231d6de795fa3177dff4bede43085263">ensure_matches</a> (const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> &amp;entityToArchetypeMapVersions, ArchetypeId archetypeLastId, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
+<tr class="memitem:a231d6de795fa3177dff4bede43085263" id="r_a231d6de795fa3177dff4bede43085263"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a231d6de795fa3177dff4bede43085263">ensure_matches</a> (const EntityToArchetypeMap &amp;entityToArchetypeMap, std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, const EntityToArchetypeVersionMap &amp;entityToArchetypeMapVersions, ArchetypeId archetypeLastId, const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
 <tr class="memdesc:a231d6de795fa3177dff4bede43085263"><td class="mdescLeft">&#160;</td><td class="mdescRight">Refreshes persistent query matches when cache state or world archetypes changed.  <br /></td></tr>
 <tr class="separator:a231d6de795fa3177dff4bede43085263"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad1e749a3315789b7507674b8f6416be9" id="r_ad1e749a3315789b7507674b8f6416be9"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#ad1e749a3315789b7507674b8f6416be9">ensure_matches_transient</a> (const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> &amp;entityToArchetypeMapVersions, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
+<tr class="memitem:ad1e749a3315789b7507674b8f6416be9" id="r_ad1e749a3315789b7507674b8f6416be9"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#ad1e749a3315789b7507674b8f6416be9">ensure_matches_transient</a> (const EntityToArchetypeMap &amp;entityToArchetypeMap, std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, const EntityToArchetypeVersionMap &amp;entityToArchetypeMapVersions, const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
 <tr class="memdesc:ad1e749a3315789b7507674b8f6416be9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Rebuilds transient result membership without retaining persistent seed-cache state.  <br /></td></tr>
 <tr class="separator:ad1e749a3315789b7507674b8f6416be9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a20a174ce3f809b986874468e469589c3" id="r_a20a174ce3f809b986874468e469589c3"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a20a174ce3f809b986874468e469589c3">ensure_matches_one</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, EntitySpan targetEntities, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
+<tr class="memitem:a20a174ce3f809b986874468e469589c3" id="r_a20a174ce3f809b986874468e469589c3"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a20a174ce3f809b986874468e469589c3">ensure_matches_one</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, EntitySpan targetEntities, const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
 <tr class="memdesc:a20a174ce3f809b986874468e469589c3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Ensures persistent result membership for one target archetype.  <br /></td></tr>
 <tr class="separator:a20a174ce3f809b986874468e469589c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a12384ea1d54f1c480fc7ca47596af4a9" id="r_a12384ea1d54f1c480fc7ca47596af4a9"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a12384ea1d54f1c480fc7ca47596af4a9">ensure_matches_one_transient</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, EntitySpan targetEntities, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
+<tr class="memitem:a12384ea1d54f1c480fc7ca47596af4a9" id="r_a12384ea1d54f1c480fc7ca47596af4a9"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a12384ea1d54f1c480fc7ca47596af4a9">ensure_matches_one_transient</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, EntitySpan targetEntities, const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
 <tr class="memdesc:a12384ea1d54f1c480fc7ca47596af4a9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Rebuilds transient result membership by evaluating one target archetype.  <br /></td></tr>
 <tr class="separator:a12384ea1d54f1c480fc7ca47596af4a9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5fc33144c73bf6ac47ff1e37fe8d42a3" id="r_a5fc33144c73bf6ac47ff1e37fe8d42a3"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a5fc33144c73bf6ac47ff1e37fe8d42a3">register_archetype</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> matchedSelector=EntityBad, bool assumeNew=false)</td></tr>
@@ -496,7 +496,7 @@ GAIA_NODISCARD std::span&lt; const GroupData &gt;&#160;</td><td class="memItemRi
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:afce2e6ee06d022001549d165ab1c822d" id="r_afce2e6ee06d022001549d165ab1c822d"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#afce2e6ee06d022001549d165ab1c822d">create</a> (QueryId id, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a> &amp;&amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#abf56f2bf70bb2a3e18b6908e4c8bc57a">ctx</a>, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes)</td></tr>
+<tr class="memitem:afce2e6ee06d022001549d165ab1c822d" id="r_afce2e6ee06d022001549d165ab1c822d"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#afce2e6ee06d022001549d165ab1c822d">create</a> (QueryId id, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a> &amp;&amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#abf56f2bf70bb2a3e18b6908e4c8bc57a">ctx</a>, const EntityToArchetypeMap &amp;entityToArchetypeMap, std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes)</td></tr>
 <tr class="memdesc:afce2e6ee06d022001549d165ab1c822d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates and compiles a query info object from a moved query context.  <br /></td></tr>
 <tr class="separator:afce2e6ee06d022001549d165ab1c822d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3dcb6dc9e094ee1ecd63a8a973015edd" id="r_a3dcb6dc9e094ee1ecd63a8a973015edd"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a3dcb6dc9e094ee1ecd63a8a973015edd">create</a> (uint32_t <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a6ad7587f5f8d2c175efcdfd53b05d439">idx</a>, uint32_t <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#aa5870206ae6754218d9f7e86332560e8">gen</a>, void *pCtx)</td></tr>
@@ -995,7 +995,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
         <tr>
           <td class="memname">void gaia::ecs::QueryInfo::compile </td>
           <td>(</td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;&#160;</td>
+          <td class="paramtype">const EntityToArchetypeMap &amp;&#160;</td>
           <td class="paramname"><em>entityToArchetypeMap</em>, </td>
         </tr>
         <tr>
@@ -1052,7 +1052,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;&#160;</td>
+          <td class="paramtype">const EntityToArchetypeMap &amp;&#160;</td>
           <td class="paramname"><em>entityToArchetypeMap</em>, </td>
         </tr>
         <tr>
@@ -1478,7 +1478,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
         <tr>
           <td class="memname">void gaia::ecs::QueryInfo::ensure_matches </td>
           <td>(</td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;&#160;</td>
+          <td class="paramtype">const EntityToArchetypeMap &amp;&#160;</td>
           <td class="paramname"><em>entityToArchetypeMap</em>, </td>
         </tr>
         <tr>
@@ -1490,7 +1490,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> &amp;&#160;</td>
+          <td class="paramtype">const EntityToArchetypeVersionMap &amp;&#160;</td>
           <td class="paramname"><em>entityToArchetypeMapVersions</em>, </td>
         </tr>
         <tr>
@@ -1502,7 +1502,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
           <td class="paramname"><em>runtimeVarBindings</em>, </td>
         </tr>
         <tr>
@@ -1563,7 +1563,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
           <td class="paramname"><em>runtimeVarBindings</em>, </td>
         </tr>
         <tr>
@@ -1623,7 +1623,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
           <td class="paramname"><em>runtimeVarBindings</em>, </td>
         </tr>
         <tr>
@@ -1671,7 +1671,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
         <tr>
           <td class="memname">void gaia::ecs::QueryInfo::ensure_matches_transient </td>
           <td>(</td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;&#160;</td>
+          <td class="paramtype">const EntityToArchetypeMap &amp;&#160;</td>
           <td class="paramname"><em>entityToArchetypeMap</em>, </td>
         </tr>
         <tr>
@@ -1683,13 +1683,13 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> &amp;&#160;</td>
+          <td class="paramtype">const EntityToArchetypeVersionMap &amp;&#160;</td>
           <td class="paramname"><em>entityToArchetypeMapVersions</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
           <td class="paramname"><em>runtimeVarBindings</em>, </td>
         </tr>
         <tr>
@@ -2156,7 +2156,7 @@ template&lt;typename ArchetypeLookup &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> *&#160;</td>
+          <td class="paramtype">const EntityToArchetypeVersionMap *&#160;</td>
           <td class="paramname"><em>pEntityToArchetypeMapVersions</em>, </td>
         </tr>
         <tr>
@@ -2168,7 +2168,7 @@ template&lt;typename ArchetypeLookup &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
           <td class="paramname"><em>runtimeVarBindings</em>, </td>
         </tr>
         <tr>
@@ -2236,7 +2236,7 @@ template&lt;typename ArchetypeLookup &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
           <td class="paramname"><em>runtimeVarBindings</em>, </td>
         </tr>
         <tr>
