@@ -132,6 +132,7 @@ var annotated_dup =
         [ "Core_", "structgaia_1_1ecs_1_1Core__.html", null ],
         [ "CursorResult", "structgaia_1_1ecs_1_1CursorResult.html", "structgaia_1_1ecs_1_1CursorResult" ],
         [ "CursorResult< void >", "structgaia_1_1ecs_1_1CursorResult_3_01void_01_4.html", "structgaia_1_1ecs_1_1CursorResult_3_01void_01_4" ],
+        [ "DeferSlotScope", "classgaia_1_1ecs_1_1DeferSlotScope.html", null ],
         [ "Delete_", "structgaia_1_1ecs_1_1Delete__.html", null ],
         [ "DependsOn_", "structgaia_1_1ecs_1_1DependsOn__.html", null ],
         [ "DirectChunkEntry", "structgaia_1_1ecs_1_1DirectChunkEntry.html", "structgaia_1_1ecs_1_1DirectChunkEntry" ],

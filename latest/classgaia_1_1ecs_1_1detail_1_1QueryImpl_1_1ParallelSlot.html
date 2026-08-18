@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Gaia-ECS: gaia::ecs::detail::QueryImpl::ParallelOnSetSlot Class Reference</title>
+<title>Gaia-ECS: gaia::ecs::detail::QueryImpl::ParallelSlot Class Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -81,7 +81,7 @@ $(function() {
 </div>
 <script type="text/javascript">
 /* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot.html',''); initResizable(); });
+$(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelSlot.html',''); initResizable(); });
 /* @license-end */
 </script>
 <div id="doc-content">
@@ -109,36 +109,36 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1detail_1_1QueryImp
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
-<a href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot-members.html">List of all members</a>  </div>
-  <div class="headertitle"><div class="title">gaia::ecs::detail::QueryImpl::ParallelOnSetSlot Class Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
+<a href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelSlot-members.html">List of all members</a>  </div>
+  <div class="headertitle"><div class="title">gaia::ecs::detail::QueryImpl::ParallelSlot Class Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
 </div><!--header-->
 <div class="contents">
 
-<p>Binds a parallel work-item range to its deferred-notification slot for the lifetime of the scope. Work items are distributed in disjoint ranges, so the first item of a range identifies a queue no other thread writes to.  
- <a href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot.html#details">More...</a></p>
+<p>Binds a parallel work-item range to its shared deferred-notification slot for the lifetime of the scope. Work items are distributed in disjoint ranges, so the first item of a range identifies a queue no other thread writes to. Both the observer (<code>OnSet</code>) and sorted-query-invalidation deferral channels read this same slot, so a single binding serves both.  
+ <a href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelSlot.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="query_8h_source.html">query.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a0247c90f09121cd9c5deca9282b808b8" id="r_a0247c90f09121cd9c5deca9282b808b8"><td class="memItemLeft" align="right" valign="top"><a id="a0247c90f09121cd9c5deca9282b808b8" name="a0247c90f09121cd9c5deca9282b808b8"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>ParallelOnSetSlot</b> (uint32_t idxStart)</td></tr>
-<tr class="separator:a0247c90f09121cd9c5deca9282b808b8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3ccfb90f6090caae5d660a768680ddd7" id="r_a3ccfb90f6090caae5d660a768680ddd7"><td class="memItemLeft" align="right" valign="top"><a id="a3ccfb90f6090caae5d660a768680ddd7" name="a3ccfb90f6090caae5d660a768680ddd7"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>ParallelOnSetSlot</b> (<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot.html">ParallelOnSetSlot</a> &amp;&amp;)=delete</td></tr>
-<tr class="separator:a3ccfb90f6090caae5d660a768680ddd7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1ac1c22e98c061207549475e14181665" id="r_a1ac1c22e98c061207549475e14181665"><td class="memItemLeft" align="right" valign="top"><a id="a1ac1c22e98c061207549475e14181665" name="a1ac1c22e98c061207549475e14181665"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>ParallelOnSetSlot</b> (const <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot.html">ParallelOnSetSlot</a> &amp;)=delete</td></tr>
-<tr class="separator:a1ac1c22e98c061207549475e14181665"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8cadd81a501cdddf7c16a7f3c2b124b9" id="r_a8cadd81a501cdddf7c16a7f3c2b124b9"><td class="memItemLeft" align="right" valign="top"><a id="a8cadd81a501cdddf7c16a7f3c2b124b9" name="a8cadd81a501cdddf7c16a7f3c2b124b9"></a>
-<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot.html">ParallelOnSetSlot</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot.html">ParallelOnSetSlot</a> &amp;&amp;)=delete</td></tr>
-<tr class="separator:a8cadd81a501cdddf7c16a7f3c2b124b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0f5eab5caa3da62d8bb4e53691779d36" id="r_a0f5eab5caa3da62d8bb4e53691779d36"><td class="memItemLeft" align="right" valign="top"><a id="a0f5eab5caa3da62d8bb4e53691779d36" name="a0f5eab5caa3da62d8bb4e53691779d36"></a>
-<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot.html">ParallelOnSetSlot</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot.html">ParallelOnSetSlot</a> &amp;)=delete</td></tr>
-<tr class="separator:a0f5eab5caa3da62d8bb4e53691779d36"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9cbb0b9fb5c75f2db3e9c9a09979a58d" id="r_a9cbb0b9fb5c75f2db3e9c9a09979a58d"><td class="memItemLeft" align="right" valign="top"><a id="a9cbb0b9fb5c75f2db3e9c9a09979a58d" name="a9cbb0b9fb5c75f2db3e9c9a09979a58d"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>ParallelSlot</b> (uint32_t idxStart)</td></tr>
+<tr class="separator:a9cbb0b9fb5c75f2db3e9c9a09979a58d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac1d34e7fe5e0ef74ecbd41471ae05663" id="r_ac1d34e7fe5e0ef74ecbd41471ae05663"><td class="memItemLeft" align="right" valign="top"><a id="ac1d34e7fe5e0ef74ecbd41471ae05663" name="ac1d34e7fe5e0ef74ecbd41471ae05663"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>ParallelSlot</b> (<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelSlot.html">ParallelSlot</a> &amp;&amp;)=delete</td></tr>
+<tr class="separator:ac1d34e7fe5e0ef74ecbd41471ae05663"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8171d6a40ab4d5be0052e24081ac0fce" id="r_a8171d6a40ab4d5be0052e24081ac0fce"><td class="memItemLeft" align="right" valign="top"><a id="a8171d6a40ab4d5be0052e24081ac0fce" name="a8171d6a40ab4d5be0052e24081ac0fce"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>ParallelSlot</b> (const <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelSlot.html">ParallelSlot</a> &amp;)=delete</td></tr>
+<tr class="separator:a8171d6a40ab4d5be0052e24081ac0fce"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afcca280c17f83450d110101198a34fc5" id="r_afcca280c17f83450d110101198a34fc5"><td class="memItemLeft" align="right" valign="top"><a id="afcca280c17f83450d110101198a34fc5" name="afcca280c17f83450d110101198a34fc5"></a>
+<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelSlot.html">ParallelSlot</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelSlot.html">ParallelSlot</a> &amp;&amp;)=delete</td></tr>
+<tr class="separator:afcca280c17f83450d110101198a34fc5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a804b0dddebac9ae3db64817c2cdbbbb3" id="r_a804b0dddebac9ae3db64817c2cdbbbb3"><td class="memItemLeft" align="right" valign="top"><a id="a804b0dddebac9ae3db64817c2cdbbbb3" name="a804b0dddebac9ae3db64817c2cdbbbb3"></a>
+<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelSlot.html">ParallelSlot</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelSlot.html">ParallelSlot</a> &amp;)=delete</td></tr>
+<tr class="separator:a804b0dddebac9ae3db64817c2cdbbbb3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>Binds a parallel work-item range to its deferred-notification slot for the lifetime of the scope. Work items are distributed in disjoint ranges, so the first item of a range identifies a queue no other thread writes to. </p>
+<div class="textblock"><p>Binds a parallel work-item range to its shared deferred-notification slot for the lifetime of the scope. Work items are distributed in disjoint ranges, so the first item of a range identifies a queue no other thread writes to. Both the observer (<code>OnSet</code>) and sorted-query-invalidation deferral channels read this same slot, so a single binding serves both. </p>
 </div><hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query_8h_source.html">query.h</a></li>
 </ul>
@@ -147,7 +147,7 @@ Public Member Functions</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>detail</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetSlot.html">ParallelOnSetSlot</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>detail</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelSlot.html">ParallelSlot</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

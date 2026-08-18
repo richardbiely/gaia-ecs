@@ -1,5 +1,12 @@
 var NAVTREEINDEX13 =
 {
+"structgaia_1_1mem_1_1data__view__policy__set_3_01DataLayout_1_1SoA8_00_01ValueType_01_4.html":[9,0,0,3,24],
+"structgaia_1_1mem_1_1data__view__policy__set_3_01DataLayout_1_1SoA_00_01ValueType_01_4.html":[9,0,0,3,22],
+"structgaia_1_1mem_1_1data__view__policy__set__idx.html":[9,0,0,3,25],
+"structgaia_1_1mem_1_1data__view__policy__soa.html":[9,0,0,3,26],
+"structgaia_1_1mem_1_1data__view__policy__soa.html#a132e00b9c29ba3c9468d64154a578984":[9,0,0,3,26,7],
+"structgaia_1_1mem_1_1data__view__policy__soa.html#a1349a36a0b8db438e32d899545f03404":[9,0,0,3,26,12],
+"structgaia_1_1mem_1_1data__view__policy__soa.html#a31f687fdab677be24a18d9740c089aa3":[9,0,0,3,26,10],
 "structgaia_1_1mem_1_1data__view__policy__soa.html#a549fdd179a58b1f691bdb35df3c98c58":[9,0,0,3,26,2],
 "structgaia_1_1mem_1_1data__view__policy__soa.html#a55b7c3aa351544cd9026e9044296c841":[9,0,0,3,26,17],
 "structgaia_1_1mem_1_1data__view__policy__soa.html#a6486743f54a86b5a3210fb4bd5127451":[9,0,0,3,26,16],

@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Gaia-ECS: gaia::ecs::detail::QueryImpl::ParallelOnSetScope Class Reference</title>
+<title>Gaia-ECS: gaia::ecs::DeferSlotScope Class Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -81,7 +81,7 @@ $(function() {
 </div>
 <script type="text/javascript">
 /* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope.html',''); initResizable(); });
+$(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1DeferSlotScope.html',''); initResizable(); });
 /* @license-end */
 </script>
 <div id="doc-content">
@@ -109,45 +109,45 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1detail_1_1QueryImp
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
-<a href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope-members.html">List of all members</a>  </div>
-  <div class="headertitle"><div class="title">gaia::ecs::detail::QueryImpl::ParallelOnSetScope Class Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
+<a href="classgaia_1_1ecs_1_1DeferSlotScope-members.html">List of all members</a>  </div>
+  <div class="headertitle"><div class="title">gaia::ecs::DeferSlotScope Class Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
 </div><!--header-->
 <div class="contents">
 
-<p>Records <code>OnSet</code> notifications produced by a parallel region instead of dispatching them from worker threads, and delivers them on the coordinator thread once the region joins. Observers therefore always run on the thread that started the query, in work-item order, exactly like the serial path.  
- <a href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope.html#details">More...</a></p>
+<p>Binds the calling thread to a work-item deferral slot for the lifetime of the scope.  
+ <a href="classgaia_1_1ecs_1_1DeferSlotScope.html#details">More...</a></p>
 
-<p><code>#include &lt;<a class="el" href="query_8h_source.html">query.h</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="api_8h_source.html">api.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a0c5f6fb68ee87d8711a0d056e2f8b559" id="r_a0c5f6fb68ee87d8711a0d056e2f8b559"><td class="memItemLeft" align="right" valign="top"><a id="a0c5f6fb68ee87d8711a0d056e2f8b559" name="a0c5f6fb68ee87d8711a0d056e2f8b559"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>ParallelOnSetScope</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, uint32_t itemCount)</td></tr>
-<tr class="separator:a0c5f6fb68ee87d8711a0d056e2f8b559"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa4ef43f8652fde201006468d43e4c5b6" id="r_aa4ef43f8652fde201006468d43e4c5b6"><td class="memItemLeft" align="right" valign="top"><a id="aa4ef43f8652fde201006468d43e4c5b6" name="aa4ef43f8652fde201006468d43e4c5b6"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>ParallelOnSetScope</b> (<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope.html">ParallelOnSetScope</a> &amp;&amp;)=delete</td></tr>
-<tr class="separator:aa4ef43f8652fde201006468d43e4c5b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6fecd3c80a027a3feaf6f630fff91516" id="r_a6fecd3c80a027a3feaf6f630fff91516"><td class="memItemLeft" align="right" valign="top"><a id="a6fecd3c80a027a3feaf6f630fff91516" name="a6fecd3c80a027a3feaf6f630fff91516"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>ParallelOnSetScope</b> (const <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope.html">ParallelOnSetScope</a> &amp;)=delete</td></tr>
-<tr class="separator:a6fecd3c80a027a3feaf6f630fff91516"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a343a810024517c954f8df2ea93624538" id="r_a343a810024517c954f8df2ea93624538"><td class="memItemLeft" align="right" valign="top"><a id="a343a810024517c954f8df2ea93624538" name="a343a810024517c954f8df2ea93624538"></a>
-<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope.html">ParallelOnSetScope</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope.html">ParallelOnSetScope</a> &amp;&amp;)=delete</td></tr>
-<tr class="separator:a343a810024517c954f8df2ea93624538"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6e423d97955db6a9b7d803629e2a73a1" id="r_a6e423d97955db6a9b7d803629e2a73a1"><td class="memItemLeft" align="right" valign="top"><a id="a6e423d97955db6a9b7d803629e2a73a1" name="a6e423d97955db6a9b7d803629e2a73a1"></a>
-<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope.html">ParallelOnSetScope</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope.html">ParallelOnSetScope</a> &amp;)=delete</td></tr>
-<tr class="separator:a6e423d97955db6a9b7d803629e2a73a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4e0c8a2d0285b0f0eaddc71d149fc2bb" id="r_a4e0c8a2d0285b0f0eaddc71d149fc2bb"><td class="memItemLeft" align="right" valign="top"><a id="a4e0c8a2d0285b0f0eaddc71d149fc2bb" name="a4e0c8a2d0285b0f0eaddc71d149fc2bb"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>DeferSlotScope</b> (uint32_t slot)</td></tr>
+<tr class="separator:a4e0c8a2d0285b0f0eaddc71d149fc2bb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a19403a1feafda2b49ebe637140db27eb" id="r_a19403a1feafda2b49ebe637140db27eb"><td class="memItemLeft" align="right" valign="top"><a id="a19403a1feafda2b49ebe637140db27eb" name="a19403a1feafda2b49ebe637140db27eb"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>DeferSlotScope</b> (<a class="el" href="classgaia_1_1ecs_1_1DeferSlotScope.html">DeferSlotScope</a> &amp;&amp;)=delete</td></tr>
+<tr class="separator:a19403a1feafda2b49ebe637140db27eb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adcd6bcf5d62155ef0ca43292d0e3b50e" id="r_adcd6bcf5d62155ef0ca43292d0e3b50e"><td class="memItemLeft" align="right" valign="top"><a id="adcd6bcf5d62155ef0ca43292d0e3b50e" name="adcd6bcf5d62155ef0ca43292d0e3b50e"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>DeferSlotScope</b> (const <a class="el" href="classgaia_1_1ecs_1_1DeferSlotScope.html">DeferSlotScope</a> &amp;)=delete</td></tr>
+<tr class="separator:adcd6bcf5d62155ef0ca43292d0e3b50e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9672e2f9adaa4ad45fdc34e3bf6991a2" id="r_a9672e2f9adaa4ad45fdc34e3bf6991a2"><td class="memItemLeft" align="right" valign="top"><a id="a9672e2f9adaa4ad45fdc34e3bf6991a2" name="a9672e2f9adaa4ad45fdc34e3bf6991a2"></a>
+<a class="el" href="classgaia_1_1ecs_1_1DeferSlotScope.html">DeferSlotScope</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (<a class="el" href="classgaia_1_1ecs_1_1DeferSlotScope.html">DeferSlotScope</a> &amp;&amp;)=delete</td></tr>
+<tr class="separator:a9672e2f9adaa4ad45fdc34e3bf6991a2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5aa842aad1cbe505aa19f6af14f3a3bd" id="r_a5aa842aad1cbe505aa19f6af14f3a3bd"><td class="memItemLeft" align="right" valign="top"><a id="a5aa842aad1cbe505aa19f6af14f3a3bd" name="a5aa842aad1cbe505aa19f6af14f3a3bd"></a>
+<a class="el" href="classgaia_1_1ecs_1_1DeferSlotScope.html">DeferSlotScope</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classgaia_1_1ecs_1_1DeferSlotScope.html">DeferSlotScope</a> &amp;)=delete</td></tr>
+<tr class="separator:a5aa842aad1cbe505aa19f6af14f3a3bd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>Records <code>OnSet</code> notifications produced by a parallel region instead of dispatching them from worker threads, and delivers them on the coordinator thread once the region joins. Observers therefore always run on the thread that started the query, in work-item order, exactly like the serial path. </p>
+<div class="textblock"><p>Binds the calling thread to a work-item deferral slot for the lifetime of the scope. </p>
 </div><hr/>The documentation for this class was generated from the following file:<ul>
-<li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query_8h_source.html">query.h</a></li>
+<li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="api_8h_source.html">api.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>detail</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1ParallelOnSetScope.html">ParallelOnSetScope</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1DeferSlotScope.html">DeferSlotScope</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>
