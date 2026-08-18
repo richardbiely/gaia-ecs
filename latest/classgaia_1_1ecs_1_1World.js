@@ -231,6 +231,7 @@ var classgaia_1_1ecs_1_1World =
     [ "uquery", "classgaia_1_1ecs_1_1World.html#a2480d7b1ee9a23319a60f31574e491cb", null ],
     [ "uses_compile_time_sparse_storage", "classgaia_1_1ecs_1_1World.html#a621c6bb4aca38024f18f3345a7bd6548", null ],
     [ "valid", "classgaia_1_1ecs_1_1World.html#a7f38da2b090f678111ea544b54c5f9a8", null ],
+    [ "validate_runtime_semantics", "classgaia_1_1ecs_1_1World.html#a46fa1191b329e7997572f48f7a2a3a74", null ],
     [ "world_version", "classgaia_1_1ecs_1_1World.html#a0314449dbd8740cb1c450b901ea93b37", null ],
     [ "query_match_scratch_acquire", "classgaia_1_1ecs_1_1World.html#a8508e415c773be8243636601be0ef18c", null ],
     [ "query_match_scratch_release", "classgaia_1_1ecs_1_1World.html#acc79620ba3ce9f17215fb6ea32889ffe", null ],

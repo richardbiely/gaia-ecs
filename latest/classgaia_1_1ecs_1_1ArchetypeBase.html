@@ -114,6 +114,11 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1ArchetypeBase.html
   <div class="headertitle"><div class="title">gaia::ecs::ArchetypeBase Class Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Base shared by archetype lookups and concrete archetypes, carrying the archetype id.  
+ <a href="classgaia_1_1ecs_1_1ArchetypeBase.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="archetype_8h_source.html">archetype.h</a>&gt;</code></p>
 <div id="dynsection-0" onclick="return toggleVisibility(this)" class="dynheader closed" style="cursor:pointer;">
   <img id="dynsection-0-trigger" src="closed.png" alt="+"/> Inheritance diagram for gaia::ecs::ArchetypeBase:</div>
 <div id="dynsection-0-summary" class="dynsummary" style="display:block;">
@@ -122,24 +127,55 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1ArchetypeBase.html
  <div class="center">
   <img src="classgaia_1_1ecs_1_1ArchetypeBase.png" usemap="#gaia::ecs::ArchetypeBase_map" alt=""/>
   <map id="gaia::ecs::ArchetypeBase_map" name="gaia::ecs::ArchetypeBase_map">
-<area href="classgaia_1_1ecs_1_1Archetype.html" alt="gaia::ecs::Archetype" shape="rect" coords="0,56,216,80"/>
-<area href="classgaia_1_1ecs_1_1ArchetypeLookupChecker.html" alt="gaia::ecs::ArchetypeLookupChecker" shape="rect" coords="226,56,442,80"/>
+<area href="classgaia_1_1ecs_1_1Archetype.html" title="Fixed-shape group of chunks storing entities that share the same component layout...." alt="gaia::ecs::Archetype" shape="rect" coords="0,56,216,80"/>
+<area href="classgaia_1_1ecs_1_1ArchetypeLookupChecker.html" title="Archetype lookup key that compares against a component term span instead of a full archetype id." alt="gaia::ecs::ArchetypeLookupChecker" shape="rect" coords="226,56,442,80"/>
   </map>
 </div></div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:ac2462d26735249bc19d806466b9300c7" id="r_ac2462d26735249bc19d806466b9300c7"><td class="memItemLeft" align="right" valign="top"><a id="ac2462d26735249bc19d806466b9300c7" name="ac2462d26735249bc19d806466b9300c7"></a>
-GAIA_NODISCARD ArchetypeId&#160;</td><td class="memItemRight" valign="bottom"><b>id</b> () const</td></tr>
+<tr class="memitem:ac2462d26735249bc19d806466b9300c7" id="r_ac2462d26735249bc19d806466b9300c7"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD ArchetypeId&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ArchetypeBase.html#ac2462d26735249bc19d806466b9300c7">id</a> () const</td></tr>
+<tr class="memdesc:ac2462d26735249bc19d806466b9300c7"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html" title="Fixed-shape group of chunks storing entities that share the same component layout....">Archetype</a> id used to address the archetype in the world list.  <br /></td></tr>
 <tr class="separator:ac2462d26735249bc19d806466b9300c7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pro-attribs" name="pro-attribs"></a>
 Protected Attributes</h2></td></tr>
 <tr class="memitem:ab801a073b1930a5ce4962bc9cd637664" id="r_ab801a073b1930a5ce4962bc9cd637664"><td class="memItemLeft" align="right" valign="top"><a id="ab801a073b1930a5ce4962bc9cd637664" name="ab801a073b1930a5ce4962bc9cd637664"></a>
 ArchetypeId&#160;</td><td class="memItemRight" valign="bottom"><b>m_archetypeId</b> = ArchetypeIdBad</td></tr>
-<tr class="memdesc:ab801a073b1930a5ce4962bc9cd637664"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> ID - used to address the archetype directly in the world's list or archetypes. <br /></td></tr>
+<tr class="memdesc:ab801a073b1930a5ce4962bc9cd637664"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html" title="Fixed-shape group of chunks storing entities that share the same component layout....">Archetype</a> ID - used to address the archetype directly in the world's list or archetypes. <br /></td></tr>
 <tr class="separator:ab801a073b1930a5ce4962bc9cd637664"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Base shared by archetype lookups and concrete archetypes, carrying the archetype id. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="ac2462d26735249bc19d806466b9300c7" name="ac2462d26735249bc19d806466b9300c7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac2462d26735249bc19d806466b9300c7">&#9670;&#160;</a></span>id()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD ArchetypeId gaia::ecs::ArchetypeBase::id </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p><a class="el" href="classgaia_1_1ecs_1_1Archetype.html" title="Fixed-shape group of chunks storing entities that share the same component layout....">Archetype</a> id used to address the archetype in the world list. </p>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Archetype.html" title="Fixed-shape group of chunks storing entities that share the same component layout....">Archetype</a> id. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="archetype_8h_source.html">archetype.h</a></li>
 </ul>

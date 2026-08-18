@@ -482,11 +482,11 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l00427" name="l00427"></a><span class="lineno">  427</span> </div>
 <div class="line"><a id="l00428" name="l00428"></a><span class="lineno">  428</span>        GAIA_NODISCARD <span class="keyword">inline</span> uint8_t bound_match_id_cost(Entity queryId) {</div>
 <div class="line"><a id="l00429" name="l00429"></a><span class="lineno">  429</span>          <span class="keywordflow">if</span> (!queryId.pair())</div>
-<div class="line"><a id="l00430" name="l00430"></a><span class="lineno">  430</span>            <span class="keywordflow">return</span> (!is_variable(queryId) &amp;&amp; queryId.id() != All.id()) ? 1u : 3u;</div>
+<div class="line"><a id="l00430" name="l00430"></a><span class="lineno">  430</span>            <span class="keywordflow">return</span> (!is_variable(queryId) &amp;&amp; queryId.id() != All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()) ? 1u : 3u;</div>
 <div class="line"><a id="l00431" name="l00431"></a><span class="lineno">  431</span> </div>
 <div class="line"><a id="l00432" name="l00432"></a><span class="lineno">  432</span>          uint8_t cost = 0;</div>
-<div class="line"><a id="l00433" name="l00433"></a><span class="lineno">  433</span>          cost += (!is_variable((EntityId)queryId.id()) &amp;&amp; queryId.id() != All.id()) ? 1u : 3u;</div>
-<div class="line"><a id="l00434" name="l00434"></a><span class="lineno">  434</span>          cost += (!is_variable((EntityId)queryId.gen()) &amp;&amp; queryId.gen() != All.id()) ? 1u : 3u;</div>
+<div class="line"><a id="l00433" name="l00433"></a><span class="lineno">  433</span>          cost += (!is_variable((EntityId)queryId.id()) &amp;&amp; queryId.id() != All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()) ? 1u : 3u;</div>
+<div class="line"><a id="l00434" name="l00434"></a><span class="lineno">  434</span>          cost += (!is_variable((EntityId)queryId.gen()) &amp;&amp; queryId.gen() != All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()) ? 1u : 3u;</div>
 <div class="line"><a id="l00435" name="l00435"></a><span class="lineno">  435</span>          <span class="keywordflow">return</span> cost;</div>
 <div class="line"><a id="l00436" name="l00436"></a><span class="lineno">  436</span>        }</div>
 <div class="line"><a id="l00437" name="l00437"></a><span class="lineno">  437</span> </div>
@@ -723,7 +723,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l00676" name="l00676"></a><span class="lineno">  676</span>            <span class="keyword">const</span> <span class="keyword">auto</span> idInQuery = queryIds[indices[0]];</div>
 <div class="line"><a id="l00677" name="l00677"></a><span class="lineno">  677</span> </div>
 <div class="line"><a id="l00678" name="l00678"></a><span class="lineno">  678</span>            <span class="comment">// For * and transitive ids we have to search from the start.</span></div>
-<div class="line"><a id="l00679" name="l00679"></a><span class="lineno">  679</span>            <span class="keywordflow">if</span> (idInQuery == All || idInQuery.id() == Is.id())</div>
+<div class="line"><a id="l00679" name="l00679"></a><span class="lineno">  679</span>            <span class="keywordflow">if</span> (idInQuery == All || idInQuery.id() == Is.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>())</div>
 <div class="line"><a id="l00680" name="l00680"></a><span class="lineno">  680</span>              indices[1] = 0;</div>
 <div class="line"><a id="l00681" name="l00681"></a><span class="lineno">  681</span> </div>
 <div class="line"><a id="l00682" name="l00682"></a><span class="lineno">  682</span>            uint32_t queryIdMatches = 0;</div>
@@ -785,7 +785,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l00738" name="l00738"></a><span class="lineno">  738</span>            <span class="comment">//   X, BBB</span></div>
 <div class="line"><a id="l00739" name="l00739"></a><span class="lineno">  739</span>            <span class="comment">//   ...</span></div>
 <div class="line"><a id="l00740" name="l00740"></a><span class="lineno">  740</span>            <span class="comment">//   X, ZZZ</span></div>
-<div class="line"><a id="l00741" name="l00741"></a><span class="lineno">  741</span>            <span class="keywordflow">if</span> (idInQuery.gen() == All.id())</div>
+<div class="line"><a id="l00741" name="l00741"></a><span class="lineno">  741</span>            <span class="keywordflow">if</span> (idInQuery.gen() == All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>())</div>
 <div class="line"><a id="l00742" name="l00742"></a><span class="lineno">  742</span>              <span class="keywordflow">return</span> {idInQuery.id() == idInArchetype.id()};</div>
 <div class="line"><a id="l00743" name="l00743"></a><span class="lineno">  743</span> </div>
 <div class="line"><a id="l00744" name="l00744"></a><span class="lineno">  744</span>            <span class="comment">// all(Pair&lt;All, X&gt;):</span></div>
@@ -793,7 +793,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l00746" name="l00746"></a><span class="lineno">  746</span>            <span class="comment">//   BBB, X</span></div>
 <div class="line"><a id="l00747" name="l00747"></a><span class="lineno">  747</span>            <span class="comment">//   ...</span></div>
 <div class="line"><a id="l00748" name="l00748"></a><span class="lineno">  748</span>            <span class="comment">//   ZZZ, X</span></div>
-<div class="line"><a id="l00749" name="l00749"></a><span class="lineno">  749</span>            <span class="keywordflow">if</span> (idInQuery.id() == All.id())</div>
+<div class="line"><a id="l00749" name="l00749"></a><span class="lineno">  749</span>            <span class="keywordflow">if</span> (idInQuery.id() == All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>())</div>
 <div class="line"><a id="l00750" name="l00750"></a><span class="lineno">  750</span>              <span class="keywordflow">return</span> {idInQuery.gen() == idInArchetype.gen()};</div>
 <div class="line"><a id="l00751" name="l00751"></a><span class="lineno">  751</span>          }</div>
 <div class="line"><a id="l00752" name="l00752"></a><span class="lineno">  752</span> </div>
@@ -804,7 +804,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l00757" name="l00757"></a><span class="lineno">  757</span>        GAIA_NODISCARD <span class="keyword">inline</span> IdCmpResult</div>
 <div class="line"><a id="l00758" name="l00758"></a><span class="lineno">  758</span>        cmp_ids_is(<span class="keyword">const</span> World&amp; w, <span class="keyword">const</span> Archetype&amp; archetype, Entity idInQuery, Entity idInArchetype) {</div>
 <div class="line"><a id="l00759" name="l00759"></a><span class="lineno">  759</span>          <span class="comment">// all(Pair&lt;Is, X&gt;)</span></div>
-<div class="line"><a id="l00760" name="l00760"></a><span class="lineno">  760</span>          <span class="keywordflow">if</span> (idInQuery.pair() &amp;&amp; idInQuery.id() == Is.id()) {</div>
+<div class="line"><a id="l00760" name="l00760"></a><span class="lineno">  760</span>          <span class="keywordflow">if</span> (idInQuery.pair() &amp;&amp; idInQuery.id() == Is.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()) {</div>
 <div class="line"><a id="l00761" name="l00761"></a><span class="lineno">  761</span>            <span class="keyword">auto</span> archetypeIds = archetype.ids_view();</div>
 <div class="line"><a id="l00762" name="l00762"></a><span class="lineno">  762</span>            <span class="keywordflow">return</span> {</div>
 <div class="line"><a id="l00763" name="l00763"></a><span class="lineno">  763</span>                idInQuery.gen() == idInArchetype.id() || <span class="comment">// X vs Id</span></div>
@@ -827,7 +827,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l00780" name="l00780"></a><span class="lineno">  780</span>              <span class="keywordflow">return</span> {<span class="keyword">true</span>};</div>
 <div class="line"><a id="l00781" name="l00781"></a><span class="lineno">  781</span> </div>
 <div class="line"><a id="l00782" name="l00782"></a><span class="lineno">  782</span>            <span class="comment">// all(Pair&lt;Is, X&gt;)</span></div>
-<div class="line"><a id="l00783" name="l00783"></a><span class="lineno">  783</span>            <span class="keywordflow">if</span> (idInQuery.id() == Is.id()) {</div>
+<div class="line"><a id="l00783" name="l00783"></a><span class="lineno">  783</span>            <span class="keywordflow">if</span> (idInQuery.id() == Is.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()) {</div>
 <div class="line"><a id="l00784" name="l00784"></a><span class="lineno">  784</span>              <span class="comment">// (Is, X) in archetype == (Is, X) in query</span></div>
 <div class="line"><a id="l00785" name="l00785"></a><span class="lineno">  785</span>              <span class="keywordflow">if</span> (idInArchetype == idInQuery)</div>
 <div class="line"><a id="l00786" name="l00786"></a><span class="lineno">  786</span>                <span class="keywordflow">return</span> {<span class="keyword">true</span>};</div>
@@ -838,7 +838,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l00791" name="l00791"></a><span class="lineno">  791</span> </div>
 <div class="line"><a id="l00792" name="l00792"></a><span class="lineno">  792</span>              <span class="comment">// If the archetype entity is an (Is, X) pair treat Is as X and try matching it with</span></div>
 <div class="line"><a id="l00793" name="l00793"></a><span class="lineno">  793</span>              <span class="comment">// entities inheriting from e.</span></div>
-<div class="line"><a id="l00794" name="l00794"></a><span class="lineno">  794</span>              <span class="keywordflow">if</span> (idInArchetype.id() == Is.id()) {</div>
+<div class="line"><a id="l00794" name="l00794"></a><span class="lineno">  794</span>              <span class="keywordflow">if</span> (idInArchetype.id() == Is.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()) {</div>
 <div class="line"><a id="l00795" name="l00795"></a><span class="lineno">  795</span>                <span class="keyword">const</span> <span class="keyword">auto</span> eA = pair_tgt(w, idInArchetype);</div>
 <div class="line"><a id="l00796" name="l00796"></a><span class="lineno">  796</span>                <span class="keywordflow">if</span> (eA == eQ)</div>
 <div class="line"><a id="l00797" name="l00797"></a><span class="lineno">  797</span>                  <span class="keywordflow">return</span> {<span class="keyword">true</span>};</div>
@@ -864,7 +864,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l00817" name="l00817"></a><span class="lineno">  817</span>            <span class="comment">//   BBB, X</span></div>
 <div class="line"><a id="l00818" name="l00818"></a><span class="lineno">  818</span>            <span class="comment">//   ...</span></div>
 <div class="line"><a id="l00819" name="l00819"></a><span class="lineno">  819</span>            <span class="comment">//   ZZZ, X</span></div>
-<div class="line"><a id="l00820" name="l00820"></a><span class="lineno">  820</span>            <span class="keywordflow">if</span> (idInQuery.id() == All.id()) {</div>
+<div class="line"><a id="l00820" name="l00820"></a><span class="lineno">  820</span>            <span class="keywordflow">if</span> (idInQuery.id() == All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()) {</div>
 <div class="line"><a id="l00821" name="l00821"></a><span class="lineno">  821</span>              <span class="keywordflow">if</span> (idInQuery.gen() == idInArchetype.gen())</div>
 <div class="line"><a id="l00822" name="l00822"></a><span class="lineno">  822</span>                <span class="keywordflow">return</span> {<span class="keyword">true</span>};</div>
 <div class="line"><a id="l00823" name="l00823"></a><span class="lineno">  823</span> </div>
@@ -891,7 +891,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l00844" name="l00844"></a><span class="lineno">  844</span>            <span class="comment">//   X, BBB</span></div>
 <div class="line"><a id="l00845" name="l00845"></a><span class="lineno">  845</span>            <span class="comment">//   ...</span></div>
 <div class="line"><a id="l00846" name="l00846"></a><span class="lineno">  846</span>            <span class="comment">//   X, ZZZ</span></div>
-<div class="line"><a id="l00847" name="l00847"></a><span class="lineno">  847</span>            <span class="keywordflow">if</span> (idInQuery.gen() == All.id()) {</div>
+<div class="line"><a id="l00847" name="l00847"></a><span class="lineno">  847</span>            <span class="keywordflow">if</span> (idInQuery.gen() == All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()) {</div>
 <div class="line"><a id="l00848" name="l00848"></a><span class="lineno">  848</span>              <span class="keywordflow">return</span> {idInQuery.id() == idInArchetype.id()};</div>
 <div class="line"><a id="l00849" name="l00849"></a><span class="lineno">  849</span>            }</div>
 <div class="line"><a id="l00850" name="l00850"></a><span class="lineno">  850</span>          }</div>
@@ -1248,7 +1248,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01213" name="l01213"></a><span class="lineno"> 1213</span> </div>
 <div class="line"><a id="l01214" name="l01214"></a><span class="lineno"> 1214</span>        GAIA_NODISCARD <span class="keyword">inline</span> uint32_t var_index(Entity varEntity) {</div>
 <div class="line"><a id="l01215" name="l01215"></a><span class="lineno"> 1215</span>          GAIA_ASSERT(is_var_entity(varEntity));</div>
-<div class="line"><a id="l01216" name="l01216"></a><span class="lineno"> 1216</span>          <span class="keywordflow">return</span> (uint32_t)(varEntity.id() - Var0.id());</div>
+<div class="line"><a id="l01216" name="l01216"></a><span class="lineno"> 1216</span>          <span class="keywordflow">return</span> (uint32_t)(varEntity.id() - Var0.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>());</div>
 <div class="line"><a id="l01217" name="l01217"></a><span class="lineno"> 1217</span>        }</div>
 <div class="line"><a id="l01218" name="l01218"></a><span class="lineno"> 1218</span> </div>
 <div class="line"><a id="l01219" name="l01219"></a><span class="lineno"> 1219</span>        GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> var_is_bound(<span class="keyword">const</span> VarBindings&amp; vars, Entity varEntity) {</div>
@@ -1268,7 +1268,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01233" name="l01233"></a><span class="lineno"> 1233</span>        }</div>
 <div class="line"><a id="l01234" name="l01234"></a><span class="lineno"> 1234</span> </div>
 <div class="line"><a id="l01235" name="l01235"></a><span class="lineno"> 1235</span>        GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> match_token(VarBindings&amp; vars, Entity token, Entity value, <span class="keywordtype">bool</span> pairSide) {</div>
-<div class="line"><a id="l01236" name="l01236"></a><span class="lineno"> 1236</span>          <span class="keywordflow">if</span> (pairSide &amp;&amp; token.id() == All.id())</div>
+<div class="line"><a id="l01236" name="l01236"></a><span class="lineno"> 1236</span>          <span class="keywordflow">if</span> (pairSide &amp;&amp; token.id() == All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>())</div>
 <div class="line"><a id="l01237" name="l01237"></a><span class="lineno"> 1237</span>            <span class="keywordflow">return</span> <span class="keyword">true</span>;</div>
 <div class="line"><a id="l01238" name="l01238"></a><span class="lineno"> 1238</span> </div>
 <div class="line"><a id="l01239" name="l01239"></a><span class="lineno"> 1239</span>          <span class="keywordflow">if</span> (!is_var_entity(token))</div>
@@ -1305,11 +1305,11 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01270" name="l01270"></a><span class="lineno"> 1270</span>            }</div>
 <div class="line"><a id="l01271" name="l01271"></a><span class="lineno"> 1271</span> </div>
 <div class="line"><a id="l01272" name="l01272"></a><span class="lineno"> 1272</span>            out.matchValue = vars.values[var_index(queryToken)];</div>
-<div class="line"><a id="l01273" name="l01273"></a><span class="lineno"> 1273</span>            out.concrete = out.matchValue.id() != All.id();</div>
+<div class="line"><a id="l01273" name="l01273"></a><span class="lineno"> 1273</span>            out.concrete = out.matchValue.id() != All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>();</div>
 <div class="line"><a id="l01274" name="l01274"></a><span class="lineno"> 1274</span>            <span class="keywordflow">return</span> out;</div>
 <div class="line"><a id="l01275" name="l01275"></a><span class="lineno"> 1275</span>          }</div>
 <div class="line"><a id="l01276" name="l01276"></a><span class="lineno"> 1276</span> </div>
-<div class="line"><a id="l01277" name="l01277"></a><span class="lineno"> 1277</span>          <span class="keywordflow">if</span> (queryToken.id() == All.id())</div>
+<div class="line"><a id="l01277" name="l01277"></a><span class="lineno"> 1277</span>          <span class="keywordflow">if</span> (queryToken.id() == All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>())</div>
 <div class="line"><a id="l01278" name="l01278"></a><span class="lineno"> 1278</span>            <span class="keywordflow">return</span> out;</div>
 <div class="line"><a id="l01279" name="l01279"></a><span class="lineno"> 1279</span> </div>
 <div class="line"><a id="l01280" name="l01280"></a><span class="lineno"> 1280</span>          out.matchValue = queryToken;</div>
@@ -1320,7 +1320,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01287" name="l01287"></a><span class="lineno"> 1287</span>        GAIA_NODISCARD <span class="keyword">inline</span> RawMatchToken resolve_raw_pair_match_token(Entity queryToken, <span class="keyword">const</span> VarBindings&amp; vars) {</div>
 <div class="line"><a id="l01288" name="l01288"></a><span class="lineno"> 1288</span>          RawMatchToken out{};</div>
 <div class="line"><a id="l01289" name="l01289"></a><span class="lineno"> 1289</span> </div>
-<div class="line"><a id="l01290" name="l01290"></a><span class="lineno"> 1290</span>          <span class="keywordflow">if</span> (queryToken == EntityBad || queryToken.id() == All.id())</div>
+<div class="line"><a id="l01290" name="l01290"></a><span class="lineno"> 1290</span>          <span class="keywordflow">if</span> (queryToken == EntityBad || queryToken.id() == All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>())</div>
 <div class="line"><a id="l01291" name="l01291"></a><span class="lineno"> 1291</span>            <span class="keywordflow">return</span> out;</div>
 <div class="line"><a id="l01292" name="l01292"></a><span class="lineno"> 1292</span> </div>
 <div class="line"><a id="l01293" name="l01293"></a><span class="lineno"> 1293</span>          <span class="keywordflow">if</span> (is_var_entity(queryToken)) {</div>
@@ -1331,7 +1331,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01298" name="l01298"></a><span class="lineno"> 1298</span>            }</div>
 <div class="line"><a id="l01299" name="l01299"></a><span class="lineno"> 1299</span> </div>
 <div class="line"><a id="l01300" name="l01300"></a><span class="lineno"> 1300</span>            out.matchId = vars.values[out.bindVarIdx].id();</div>
-<div class="line"><a id="l01301" name="l01301"></a><span class="lineno"> 1301</span>            out.concrete = out.matchId != All.id();</div>
+<div class="line"><a id="l01301" name="l01301"></a><span class="lineno"> 1301</span>            out.concrete = out.matchId != All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>();</div>
 <div class="line"><a id="l01302" name="l01302"></a><span class="lineno"> 1302</span>            <span class="keywordflow">return</span> out;</div>
 <div class="line"><a id="l01303" name="l01303"></a><span class="lineno"> 1303</span>          }</div>
 <div class="line"><a id="l01304" name="l01304"></a><span class="lineno"> 1304</span> </div>
@@ -1529,10 +1529,10 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01496" name="l01496"></a><span class="lineno"> 1496</span> </div>
 <div class="line"><a id="l01497" name="l01497"></a><span class="lineno"> 1497</span>        GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> has_concrete_match_id(Entity queryId) {</div>
 <div class="line"><a id="l01498" name="l01498"></a><span class="lineno"> 1498</span>          <span class="keywordflow">if</span> (!queryId.pair())</div>
-<div class="line"><a id="l01499" name="l01499"></a><span class="lineno"> 1499</span>            <span class="keywordflow">return</span> !is_variable(queryId) &amp;&amp; queryId.id() != All.id();</div>
+<div class="line"><a id="l01499" name="l01499"></a><span class="lineno"> 1499</span>            <span class="keywordflow">return</span> !is_variable(queryId) &amp;&amp; queryId.id() != All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>();</div>
 <div class="line"><a id="l01500" name="l01500"></a><span class="lineno"> 1500</span> </div>
-<div class="line"><a id="l01501" name="l01501"></a><span class="lineno"> 1501</span>          <span class="keywordflow">return</span> !is_variable((EntityId)queryId.id()) &amp;&amp; queryId.id() != All.id() &amp;&amp;</div>
-<div class="line"><a id="l01502" name="l01502"></a><span class="lineno"> 1502</span>                 !is_variable((EntityId)queryId.gen()) &amp;&amp; queryId.gen() != All.id();</div>
+<div class="line"><a id="l01501" name="l01501"></a><span class="lineno"> 1501</span>          <span class="keywordflow">return</span> !is_variable((EntityId)queryId.id()) &amp;&amp; queryId.id() != All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>() &amp;&amp;</div>
+<div class="line"><a id="l01502" name="l01502"></a><span class="lineno"> 1502</span>                 !is_variable((EntityId)queryId.gen()) &amp;&amp; queryId.gen() != All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>();</div>
 <div class="line"><a id="l01503" name="l01503"></a><span class="lineno"> 1503</span>        }</div>
 <div class="line"><a id="l01504" name="l01504"></a><span class="lineno"> 1504</span> </div>
 <div class="line"><a id="l01505" name="l01505"></a><span class="lineno"> 1505</span>        GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span></div>
@@ -1582,8 +1582,8 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01549" name="l01549"></a><span class="lineno"> 1549</span>            queryTgt = vars.values[var_index(queryTgt)];</div>
 <div class="line"><a id="l01550" name="l01550"></a><span class="lineno"> 1550</span>          }</div>
 <div class="line"><a id="l01551" name="l01551"></a><span class="lineno"> 1551</span> </div>
-<div class="line"><a id="l01552" name="l01552"></a><span class="lineno"> 1552</span>          <span class="keyword">const</span> <span class="keywordtype">bool</span> relIsConcrete = queryRel.id() != All.id();</div>
-<div class="line"><a id="l01553" name="l01553"></a><span class="lineno"> 1553</span>          <span class="keyword">const</span> <span class="keywordtype">bool</span> tgtIsConcrete = queryTgt.id() != All.id();</div>
+<div class="line"><a id="l01552" name="l01552"></a><span class="lineno"> 1552</span>          <span class="keyword">const</span> <span class="keywordtype">bool</span> relIsConcrete = queryRel.id() != All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>();</div>
+<div class="line"><a id="l01553" name="l01553"></a><span class="lineno"> 1553</span>          <span class="keyword">const</span> <span class="keywordtype">bool</span> tgtIsConcrete = queryTgt.id() != All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>();</div>
 <div class="line"><a id="l01554" name="l01554"></a><span class="lineno"> 1554</span> </div>
 <div class="line"><a id="l01555" name="l01555"></a><span class="lineno"> 1555</span>          <span class="keywordflow">if</span> (relIsConcrete || tgtIsConcrete) {</div>
 <div class="line"><a id="l01556" name="l01556"></a><span class="lineno"> 1556</span>            <span class="keyword">const</span> <span class="keyword">auto</span> count =</div>
@@ -2135,7 +2135,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l02102" name="l02102"></a><span class="lineno"> 2102</span>          <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (Style == MatchingStyle::Complex) {</div>
 <div class="line"><a id="l02103" name="l02103"></a><span class="lineno"> 2103</span>            <span class="comment">// For ALL we need all the archetypes to match. We start by checking</span></div>
 <div class="line"><a id="l02104" name="l02104"></a><span class="lineno"> 2104</span>            <span class="comment">// if the first one is registered in the world at all.</span></div>
-<div class="line"><a id="l02105" name="l02105"></a><span class="lineno"> 2105</span>            <span class="keywordflow">if</span> (ctx.ent.id() == Is.id()) {</div>
+<div class="line"><a id="l02105" name="l02105"></a><span class="lineno"> 2105</span>            <span class="keywordflow">if</span> (ctx.ent.id() == Is.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()) {</div>
 <div class="line"><a id="l02106" name="l02106"></a><span class="lineno"> 2106</span>              ctx.ent = EntityBad;</div>
 <div class="line"><a id="l02107" name="l02107"></a><span class="lineno"> 2107</span>              match_archetype_inter&lt;OpAll, Style&gt;(ctx, EntityBadLookupKey, ctx.allArchetypes);</div>
 <div class="line"><a id="l02108" name="l02108"></a><span class="lineno"> 2108</span>            } <span class="keywordflow">else</span> {</div>
@@ -2180,7 +2180,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l02147" name="l02147"></a><span class="lineno"> 2147</span>          <span class="comment">// For OR we need at least one archetype to match.</span></div>
 <div class="line"><a id="l02148" name="l02148"></a><span class="lineno"> 2148</span>          <span class="comment">// However, because any of them can match, we need to check them all.</span></div>
 <div class="line"><a id="l02149" name="l02149"></a><span class="lineno"> 2149</span>          <span class="comment">// Iterating all of them is caller&#39;s responsibility.</span></div>
-<div class="line"><a id="l02150" name="l02150"></a><span class="lineno"> 2150</span>          <span class="keywordflow">if</span> (ctx.ent.id() == Is.id()) {</div>
+<div class="line"><a id="l02150" name="l02150"></a><span class="lineno"> 2150</span>          <span class="keywordflow">if</span> (ctx.ent.id() == Is.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()) {</div>
 <div class="line"><a id="l02151" name="l02151"></a><span class="lineno"> 2151</span>            ctx.ent = EntityBad;</div>
 <div class="line"><a id="l02152" name="l02152"></a><span class="lineno"> 2152</span>            match_archetype_inter&lt;OpOr, MatchingStyle::Complex&gt;(ctx, entityKey, ctx.allArchetypes);</div>
 <div class="line"><a id="l02153" name="l02153"></a><span class="lineno"> 2153</span>          } <span class="keywordflow">else</span> {</div>
@@ -2450,11 +2450,11 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l02420" name="l02420"></a><span class="lineno"> 2420</span>        <span class="keyword">static</span> <span class="keywordtype">void</span> add_id_expr(<a class="code hl_struct" href="structgaia_1_1util_1_1str.html">util::str</a>&amp; out, <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1World.html">World</a>&amp; world, EntityId <span class="keywordtype">id</span>) {</div>
 <div class="line"><a id="l02421" name="l02421"></a><span class="lineno"> 2421</span>          <span class="keywordflow">if</span> (is_variable(<span class="keywordtype">id</span>)) {</div>
 <div class="line"><a id="l02422" name="l02422"></a><span class="lineno"> 2422</span>            out.<a class="code hl_function" href="structgaia_1_1util_1_1str.html#a5466f59245d69ee7bbc1422577ce5e8e">append</a>(<span class="charliteral">&#39;$&#39;</span>);</div>
-<div class="line"><a id="l02423" name="l02423"></a><span class="lineno"> 2423</span>            add_uint(out, (uint32_t)(<span class="keywordtype">id</span> - Var0.id()));</div>
+<div class="line"><a id="l02423" name="l02423"></a><span class="lineno"> 2423</span>            add_uint(out, (uint32_t)(<span class="keywordtype">id</span> - Var0.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()));</div>
 <div class="line"><a id="l02424" name="l02424"></a><span class="lineno"> 2424</span>            <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l02425" name="l02425"></a><span class="lineno"> 2425</span>          }</div>
 <div class="line"><a id="l02426" name="l02426"></a><span class="lineno"> 2426</span> </div>
-<div class="line"><a id="l02427" name="l02427"></a><span class="lineno"> 2427</span>          <span class="keywordflow">if</span> (<span class="keywordtype">id</span> == All.id()) {</div>
+<div class="line"><a id="l02427" name="l02427"></a><span class="lineno"> 2427</span>          <span class="keywordflow">if</span> (<span class="keywordtype">id</span> == All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()) {</div>
 <div class="line"><a id="l02428" name="l02428"></a><span class="lineno"> 2428</span>            out.<a class="code hl_function" href="structgaia_1_1util_1_1str.html#a5466f59245d69ee7bbc1422577ce5e8e">append</a>(<span class="charliteral">&#39;*&#39;</span>);</div>
 <div class="line"><a id="l02429" name="l02429"></a><span class="lineno"> 2429</span>            <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l02430" name="l02430"></a><span class="lineno"> 2430</span>          }</div>
@@ -2474,22 +2474,22 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l02444" name="l02444"></a><span class="lineno"> 2444</span>            <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l02445" name="l02445"></a><span class="lineno"> 2445</span>          }</div>
 <div class="line"><a id="l02446" name="l02446"></a><span class="lineno"> 2446</span> </div>
-<div class="line"><a id="l02447" name="l02447"></a><span class="lineno"> 2447</span>          <span class="keywordflow">if</span> (entity.pair()) {</div>
+<div class="line"><a id="l02447" name="l02447"></a><span class="lineno"> 2447</span>          <span class="keywordflow">if</span> (entity.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a81c22c361f2b5e63dfae4f629c3f7cbd">pair</a>()) {</div>
 <div class="line"><a id="l02448" name="l02448"></a><span class="lineno"> 2448</span>            out.<a class="code hl_function" href="structgaia_1_1util_1_1str.html#a5466f59245d69ee7bbc1422577ce5e8e">append</a>(<span class="charliteral">&#39;(&#39;</span>);</div>
-<div class="line"><a id="l02449" name="l02449"></a><span class="lineno"> 2449</span>            add_id_expr(out, world, (EntityId)entity.id());</div>
+<div class="line"><a id="l02449" name="l02449"></a><span class="lineno"> 2449</span>            add_id_expr(out, world, (EntityId)entity.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>());</div>
 <div class="line"><a id="l02450" name="l02450"></a><span class="lineno"> 2450</span>            out.<a class="code hl_function" href="structgaia_1_1util_1_1str.html#a5466f59245d69ee7bbc1422577ce5e8e">append</a>(<span class="charliteral">&#39;,&#39;</span>);</div>
-<div class="line"><a id="l02451" name="l02451"></a><span class="lineno"> 2451</span>            add_id_expr(out, world, (EntityId)entity.gen());</div>
+<div class="line"><a id="l02451" name="l02451"></a><span class="lineno"> 2451</span>            add_id_expr(out, world, (EntityId)entity.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a0c17cbcab5ecb6067fb5d37ea13b66a0">gen</a>());</div>
 <div class="line"><a id="l02452" name="l02452"></a><span class="lineno"> 2452</span>            out.<a class="code hl_function" href="structgaia_1_1util_1_1str.html#a5466f59245d69ee7bbc1422577ce5e8e">append</a>(<span class="charliteral">&#39;)&#39;</span>);</div>
 <div class="line"><a id="l02453" name="l02453"></a><span class="lineno"> 2453</span>            <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l02454" name="l02454"></a><span class="lineno"> 2454</span>          }</div>
 <div class="line"><a id="l02455" name="l02455"></a><span class="lineno"> 2455</span> </div>
-<div class="line"><a id="l02456" name="l02456"></a><span class="lineno"> 2456</span>          <span class="keywordflow">if</span> (is_variable(EntityId(entity.id()))) {</div>
+<div class="line"><a id="l02456" name="l02456"></a><span class="lineno"> 2456</span>          <span class="keywordflow">if</span> (is_variable(EntityId(entity.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()))) {</div>
 <div class="line"><a id="l02457" name="l02457"></a><span class="lineno"> 2457</span>            out.<a class="code hl_function" href="structgaia_1_1util_1_1str.html#a5466f59245d69ee7bbc1422577ce5e8e">append</a>(<span class="charliteral">&#39;$&#39;</span>);</div>
-<div class="line"><a id="l02458" name="l02458"></a><span class="lineno"> 2458</span>            add_uint(out, (uint32_t)(entity.id() - Var0.id()));</div>
+<div class="line"><a id="l02458" name="l02458"></a><span class="lineno"> 2458</span>            add_uint(out, (uint32_t)(entity.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>() - Var0.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()));</div>
 <div class="line"><a id="l02459" name="l02459"></a><span class="lineno"> 2459</span>            <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l02460" name="l02460"></a><span class="lineno"> 2460</span>          }</div>
 <div class="line"><a id="l02461" name="l02461"></a><span class="lineno"> 2461</span> </div>
-<div class="line"><a id="l02462" name="l02462"></a><span class="lineno"> 2462</span>          <span class="keywordflow">if</span> (entity.id() == All.id()) {</div>
+<div class="line"><a id="l02462" name="l02462"></a><span class="lineno"> 2462</span>          <span class="keywordflow">if</span> (entity.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>() == All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>()) {</div>
 <div class="line"><a id="l02463" name="l02463"></a><span class="lineno"> 2463</span>            out.<a class="code hl_function" href="structgaia_1_1util_1_1str.html#a5466f59245d69ee7bbc1422577ce5e8e">append</a>(<span class="charliteral">&#39;*&#39;</span>);</div>
 <div class="line"><a id="l02464" name="l02464"></a><span class="lineno"> 2464</span>            <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l02465" name="l02465"></a><span class="lineno"> 2465</span>          }</div>
@@ -2500,9 +2500,9 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l02470" name="l02470"></a><span class="lineno"> 2470</span>            <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l02471" name="l02471"></a><span class="lineno"> 2471</span>          }</div>
 <div class="line"><a id="l02472" name="l02472"></a><span class="lineno"> 2472</span> </div>
-<div class="line"><a id="l02473" name="l02473"></a><span class="lineno"> 2473</span>          add_uint(out, entity.id());</div>
+<div class="line"><a id="l02473" name="l02473"></a><span class="lineno"> 2473</span>          add_uint(out, entity.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>());</div>
 <div class="line"><a id="l02474" name="l02474"></a><span class="lineno"> 2474</span>          out.<a class="code hl_function" href="structgaia_1_1util_1_1str.html#a5466f59245d69ee7bbc1422577ce5e8e">append</a>(<span class="charliteral">&#39;.&#39;</span>);</div>
-<div class="line"><a id="l02475" name="l02475"></a><span class="lineno"> 2475</span>          add_uint(out, entity.gen());</div>
+<div class="line"><a id="l02475" name="l02475"></a><span class="lineno"> 2475</span>          add_uint(out, entity.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a0c17cbcab5ecb6067fb5d37ea13b66a0">gen</a>());</div>
 <div class="line"><a id="l02476" name="l02476"></a><span class="lineno"> 2476</span>        }</div>
 <div class="line"><a id="l02477" name="l02477"></a><span class="lineno"> 2477</span> </div>
 <div class="line"><a id="l02478" name="l02478"></a><span class="lineno"> 2478</span>        <span class="keyword">static</span> <span class="keywordtype">void</span> add_term_expr(<a class="code hl_struct" href="structgaia_1_1util_1_1str.html">util::str</a>&amp; out, <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1World.html">World</a>&amp; world, <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a>&amp; term) {</div>
@@ -2692,7 +2692,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l02662" name="l02662"></a><span class="lineno"> 2662</span>          <span class="keywordflow">if</span> (detail::is_var_entity(term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#ad4d95431ac470c8746a084d66325aba8">src</a>) &amp;&amp; !detail::var_is_bound(vars, term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#ad4d95431ac470c8746a084d66325aba8">src</a>))</div>
 <div class="line"><a id="l02663" name="l02663"></a><span class="lineno"> 2663</span>            mask |= (uint8_t(1) &lt;&lt; detail::var_index(term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#ad4d95431ac470c8746a084d66325aba8">src</a>));</div>
 <div class="line"><a id="l02664" name="l02664"></a><span class="lineno"> 2664</span> </div>
-<div class="line"><a id="l02665" name="l02665"></a><span class="lineno"> 2665</span>          <span class="keywordflow">if</span> (!term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#a160bc37210e7f6967fb65fb1dc699888">id</a>.pair()) {</div>
+<div class="line"><a id="l02665" name="l02665"></a><span class="lineno"> 2665</span>          <span class="keywordflow">if</span> (!term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#a160bc37210e7f6967fb65fb1dc699888">id</a>.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a81c22c361f2b5e63dfae4f629c3f7cbd">pair</a>()) {</div>
 <div class="line"><a id="l02666" name="l02666"></a><span class="lineno"> 2666</span>            <span class="keyword">const</span> <span class="keyword">auto</span> idEnt = id_entity(world, term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#a160bc37210e7f6967fb65fb1dc699888">id</a>);</div>
 <div class="line"><a id="l02667" name="l02667"></a><span class="lineno"> 2667</span>            <span class="keywordflow">if</span> (detail::is_var_entity(idEnt) &amp;&amp; !detail::var_is_bound(vars, idEnt))</div>
 <div class="line"><a id="l02668" name="l02668"></a><span class="lineno"> 2668</span>              mask |= (uint8_t(1) &lt;&lt; detail::var_index(idEnt));</div>
@@ -4214,9 +4214,9 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_ad484d16336501853a8256c842ed77fb6"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#ad484d16336501853a8256c842ed77fb6">gaia::cnt::darr::empty</a></div><div class="ttdeci">GAIA_NODISCARD bool empty() const noexcept</div><div class="ttdoc">Checks whether the container has no elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:510</div></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_aecd14fa8022bda57c55d79344386c03a"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#aecd14fa8022bda57c55d79344386c03a">gaia::cnt::darr::data</a></div><div class="ttdeci">GAIA_NODISCARD pointer data() noexcept</div><div class="ttdoc">Returns a pointer to the element storage.</div><div class="ttdef"><b>Definition</b> darray_impl.h:193</div></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_aedbe48d997d5322d37ae60522bac9449"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#aedbe48d997d5322d37ae60522bac9449">gaia::cnt::darr::push_back</a></div><div class="ttdeci">void push_back(const T &amp;arg)</div><div class="ttdoc">Appends an element.</div><div class="ttdef"><b>Definition</b> darray_impl.h:309</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1Archetype_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1Archetype.html">gaia::ecs::Archetype</a></div><div class="ttdef"><b>Definition</b> archetype.h:85</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1Archetype_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1Archetype.html">gaia::ecs::Archetype</a></div><div class="ttdoc">Fixed-shape group of chunks storing entities that share the same component layout....</div><div class="ttdef"><b>Definition</b> archetype.h:97</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1World_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html">gaia::ecs::World</a></div><div class="ttdoc">Owns entities, components, archetypes, queries, observers, and systems.</div><div class="ttdef"><b>Definition</b> world.h:80</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1pair_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair.html">gaia::ecs::pair</a></div><div class="ttdoc">Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it...</div><div class="ttdef"><b>Definition</b> id.h:233</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1pair_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair.html">gaia::ecs::pair</a></div><div class="ttdoc">Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it...</div><div class="ttdef"><b>Definition</b> id.h:262</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1vm_1_1VirtualMachine_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html">gaia::ecs::vm::VirtualMachine</a></div><div class="ttdoc">Compiles query terms into matching bytecode and evaluates that bytecode against archetypes....</div><div class="ttdef"><b>Definition</b> vm.h:2343</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1vm_1_1VirtualMachine_html_a363eef8986af8364ba8cc210f1bf72cd"><div class="ttname"><a href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#a363eef8986af8364ba8cc210f1bf72cd">gaia::ecs::vm::VirtualMachine::is_compiled</a></div><div class="ttdeci">GAIA_NODISCARD bool is_compiled() const</div><div class="ttdoc">Returns whether this VM contains compiled executable opcodes.</div><div class="ttdef"><b>Definition</b> vm.h:4131</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1vm_1_1VirtualMachine_html_a4dedd43671f1bb6747a34c49d456c989"><div class="ttname"><a href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#a4dedd43671f1bb6747a34c49d456c989">gaia::ecs::vm::VirtualMachine::exec</a></div><div class="ttdeci">void exec(MatchingCtx &amp;ctx)</div><div class="ttdoc">Executes compiled query-matching opcodes.</div><div class="ttdef"><b>Definition</b> vm.h:4160</div></div>
@@ -4224,8 +4224,11 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="ttc" id="aclassgaia_1_1ecs_1_1vm_1_1VirtualMachine_html_abb025a2e27da97b44a3b315f7fbc71da"><div class="ttname"><a href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#abb025a2e27da97b44a3b315f7fbc71da">gaia::ecs::vm::VirtualMachine::op_signature</a></div><div class="ttdeci">GAIA_NODISCARD uint64_t op_signature() const</div><div class="ttdoc">Computes a stable signature of the compiled opcode stream.</div><div class="ttdef"><b>Definition</b> vm.h:4143</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1vm_1_1VirtualMachine_html_ad4319abd299ddfabfcadc1d8fad4ceab"><div class="ttname"><a href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#ad4319abd299ddfabfcadc1d8fad4ceab">gaia::ecs::vm::VirtualMachine::compile</a></div><div class="ttdeci">void compile(const EntityToArchetypeMap &amp;entityToArchetypeMap, std::span&lt; const Archetype * &gt; allArchetypes, QueryCtx &amp;queryCtx)</div><div class="ttdoc">Transforms inputs into virtual machine opcodes.</div><div class="ttdef"><b>Definition</b> vm.h:3673</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1vm_1_1VirtualMachine_html_ae2df4564300608e65486ff1d6453f441"><div class="ttname"><a href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#ae2df4564300608e65486ff1d6453f441">gaia::ecs::vm::VirtualMachine::bytecode</a></div><div class="ttdeci">GAIA_NODISCARD util::str bytecode(const World &amp;world) const</div><div class="ttdoc">Formats the compiled query bytecode for diagnostics.</div><div class="ttdef"><b>Definition</b> vm.h:3622</div></div>
-<div class="ttc" id="astructgaia_1_1ecs_1_1EntityLookupKey_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityLookupKey.html">gaia::ecs::EntityLookupKey</a></div><div class="ttdoc">Hashmap lookup structure used for Entity.</div><div class="ttdef"><b>Definition</b> id.h:479</div></div>
-<div class="ttc" id="astructgaia_1_1ecs_1_1Entity_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1Entity.html">gaia::ecs::Entity</a></div><div class="ttdef"><b>Definition</b> id.h:256</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1EntityLookupKey_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityLookupKey.html">gaia::ecs::EntityLookupKey</a></div><div class="ttdoc">Hashmap lookup structure used for Entity.</div><div class="ttdef"><b>Definition</b> id.h:543</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1Entity_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1Entity.html">gaia::ecs::Entity</a></div><div class="ttdoc">Identifier of an entity or component instance in the world. Packs the entity index,...</div><div class="ttdef"><b>Definition</b> id.h:296</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1Entity_html_a0c17cbcab5ecb6067fb5d37ea13b66a0"><div class="ttname"><a href="structgaia_1_1ecs_1_1Entity.html#a0c17cbcab5ecb6067fb5d37ea13b66a0">gaia::ecs::Entity::gen</a></div><div class="ttdeci">GAIA_NODISCARD constexpr auto gen() const noexcept</div><div class="ttdoc">Generation index of the entity.</div><div class="ttdef"><b>Definition</b> id.h:365</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1Entity_html_a81c22c361f2b5e63dfae4f629c3f7cbd"><div class="ttname"><a href="structgaia_1_1ecs_1_1Entity.html#a81c22c361f2b5e63dfae4f629c3f7cbd">gaia::ecs::Entity::pair</a></div><div class="ttdeci">GAIA_NODISCARD constexpr bool pair() const noexcept</div><div class="ttdoc">Whether this id refers to a relationship pair.</div><div class="ttdef"><b>Definition</b> id.h:377</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1Entity_html_a98b011ff18f3b75836f45254a8f3d546"><div class="ttname"><a href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">gaia::ecs::Entity::id</a></div><div class="ttdeci">GAIA_NODISCARD constexpr auto id() const noexcept</div><div class="ttdoc">Entity index in the entity array.</div><div class="ttdef"><b>Definition</b> id.h:359</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies_html_a27f3e613a6ea4b86a3d29fad77e1bf67"><div class="ttname"><a href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#a27f3e613a6ea4b86a3d29fad77e1bf67">gaia::ecs::QueryCtx::Data::Dependencies::has_dep_flag</a></div><div class="ttdeci">GAIA_NODISCARD bool has_dep_flag(DependencyFlags dependency) const</div><div class="ttdoc">Tests whether a dependency fact was recorded.</div><div class="ttdef"><b>Definition</b> query_common.h:1065</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1QueryCtx_1_1Data_html_a1c1a2a9791df0cd9cc0cf7c69d4ee161"><div class="ttname"><a href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a1c1a2a9791df0cd9cc0cf7c69d4ee161">gaia::ecs::QueryCtx::Data::as_mask_0</a></div><div class="ttdeci">uint32_t as_mask_0</div><div class="ttdoc">Mask for items with Is relationship pair. If the id is a pair, the first part (id) is written here.</div><div class="ttdef"><b>Definition</b> query_common.h:1138</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1QueryCtx_1_1Data_html_a4c123a9fdea7d3cf1685c1929aa92ec3"><div class="ttname"><a href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a4c123a9fdea7d3cf1685c1929aa92ec3">gaia::ecs::QueryCtx::Data::as_mask_1</a></div><div class="ttdeci">uint32_t as_mask_1</div><div class="ttdoc">Mask for items with Is relationship pair. If the id is a pair, the second part (gen) is written here.</div><div class="ttdef"><b>Definition</b> query_common.h:1141</div></div>

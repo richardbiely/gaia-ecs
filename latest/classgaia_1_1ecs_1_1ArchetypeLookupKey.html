@@ -114,17 +114,22 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1ArchetypeLookupKey
   <div class="headertitle"><div class="title">gaia::ecs::ArchetypeLookupKey Class Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Hashmap key for archetype lookup, combining a hash with the archetype base pointer. Hash collisions fall back to component-span comparison when no archetype id is set.  
+ <a href="classgaia_1_1ecs_1_1ArchetypeLookupKey.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="archetype_8h_source.html">archetype.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr class="memitem:a75974bcd8295423d695f78693cdff139" id="r_a75974bcd8295423d695f78693cdff139"><td class="memItemLeft" align="right" valign="top"><a id="a75974bcd8295423d695f78693cdff139" name="a75974bcd8295423d695f78693cdff139"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>ArchetypeLookupKey</b> (<a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">Archetype::LookupHash</a> hash, const <a class="el" href="classgaia_1_1ecs_1_1ArchetypeBase.html">ArchetypeBase</a> *pArchetypeBase)</td></tr>
+&#160;</td><td class="memItemRight" valign="bottom"><b>ArchetypeLookupKey</b> (<a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a31295537be9653a054c79b43a04545a7">Archetype::LookupHash</a> <a class="el" href="classgaia_1_1ecs_1_1ArchetypeLookupKey.html#ab137b074caca7c4600937c56c5696ae0">hash</a>, const <a class="el" href="classgaia_1_1ecs_1_1ArchetypeBase.html">ArchetypeBase</a> *pArchetypeBase)</td></tr>
 <tr class="separator:a75974bcd8295423d695f78693cdff139"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab137b074caca7c4600937c56c5696ae0" id="r_ab137b074caca7c4600937c56c5696ae0"><td class="memItemLeft" align="right" valign="top"><a id="ab137b074caca7c4600937c56c5696ae0" name="ab137b074caca7c4600937c56c5696ae0"></a>
-GAIA_NODISCARD size_t&#160;</td><td class="memItemRight" valign="bottom"><b>hash</b> () const</td></tr>
+<tr class="memitem:ab137b074caca7c4600937c56c5696ae0" id="r_ab137b074caca7c4600937c56c5696ae0"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ArchetypeLookupKey.html#ab137b074caca7c4600937c56c5696ae0">hash</a> () const</td></tr>
+<tr class="memdesc:ab137b074caca7c4600937c56c5696ae0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Hash of the archetype lookup value.  <br /></td></tr>
 <tr class="separator:ab137b074caca7c4600937c56c5696ae0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac5aade95bf27507fcc03f63e3f97a6a6" id="r_ac5aade95bf27507fcc03f63e3f97a6a6"><td class="memItemLeft" align="right" valign="top"><a id="ac5aade95bf27507fcc03f63e3f97a6a6" name="ac5aade95bf27507fcc03f63e3f97a6a6"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>archetype</b> () const</td></tr>
+<tr class="memitem:ac5aade95bf27507fcc03f63e3f97a6a6" id="r_ac5aade95bf27507fcc03f63e3f97a6a6"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ArchetypeLookupKey.html#ac5aade95bf27507fcc03f63e3f97a6a6">archetype</a> () const</td></tr>
+<tr class="memdesc:ac5aade95bf27507fcc03f63e3f97a6a6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resolves the lookup key to its concrete archetype.  <br /></td></tr>
 <tr class="separator:ac5aade95bf27507fcc03f63e3f97a6a6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a595b03f7f7ac765c919b9415916c4aea" id="r_a595b03f7f7ac765c919b9415916c4aea"><td class="memItemLeft" align="right" valign="top"><a id="a595b03f7f7ac765c919b9415916c4aea" name="a595b03f7f7ac765c919b9415916c4aea"></a>
 GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator==</b> (const <a class="el" href="classgaia_1_1ecs_1_1ArchetypeLookupKey.html">ArchetypeLookupKey</a> &amp;other) const</td></tr>
@@ -134,8 +139,68 @@ GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>operat
 Static Public Attributes</h2></td></tr>
 <tr class="memitem:a03b4b8f674a7f4beef3fd5068b333967" id="r_a03b4b8f674a7f4beef3fd5068b333967"><td class="memItemLeft" align="right" valign="top"><a id="a03b4b8f674a7f4beef3fd5068b333967" name="a03b4b8f674a7f4beef3fd5068b333967"></a>
 static constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>IsDirectHashKey</b> = true</td></tr>
+<tr class="memdesc:a03b4b8f674a7f4beef3fd5068b333967"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks this key as a direct hash key. <br /></td></tr>
 <tr class="separator:a03b4b8f674a7f4beef3fd5068b333967"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Hashmap key for archetype lookup, combining a hash with the archetype base pointer. Hash collisions fall back to component-span comparison when no archetype id is set. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="ac5aade95bf27507fcc03f63e3f97a6a6" name="ac5aade95bf27507fcc03f63e3f97a6a6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac5aade95bf27507fcc03f63e3f97a6a6">&#9670;&#160;</a></span>archetype()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * gaia::ecs::ArchetypeLookupKey::archetype </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Resolves the lookup key to its concrete archetype. </p>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Archetype.html" title="Fixed-shape group of chunks storing entities that share the same component layout....">Archetype</a> pointer, or null when the key holds no archetype. </dd></dl>
+
+</div>
+</div>
+<a id="ab137b074caca7c4600937c56c5696ae0" name="ab137b074caca7c4600937c56c5696ae0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab137b074caca7c4600937c56c5696ae0">&#9670;&#160;</a></span>hash()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD size_t gaia::ecs::ArchetypeLookupKey::hash </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Hash of the archetype lookup value. </p>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Archetype.html" title="Fixed-shape group of chunks storing entities that share the same component layout....">Archetype</a> hash. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="archetype_8h_source.html">archetype.h</a></li>
 </ul>

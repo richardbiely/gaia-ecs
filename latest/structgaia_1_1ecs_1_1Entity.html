@@ -116,46 +116,52 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1Entity.html','');
   <div class="headertitle"><div class="title">gaia::ecs::Entity Struct Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Identifier of an entity or component instance in the world. Packs the entity index, generation, kind and flags into one 64-bit value.  
+ <a href="structgaia_1_1ecs_1_1Entity.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="id_8h_source.html">id.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1Entity_1_1InternalData.html">InternalData</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Bit-packed storage layout of an entity identifier.  <a href="structgaia_1_1ecs_1_1Entity_1_1InternalData.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr class="memitem:ad33c147aeba2ddfb983917c22495b8f7" id="r_ad33c147aeba2ddfb983917c22495b8f7"><td class="memTemplParams" colspan="2"><a id="ad33c147aeba2ddfb983917c22495b8f7" name="ad33c147aeba2ddfb983917c22495b8f7"></a>
 template&lt;typename T , typename  = std::enable_if_t&lt;std::is_same_v&lt;T, Identifier&gt;&gt;&gt; </td></tr>
-<tr class="memitem:ad33c147aeba2ddfb983917c22495b8f7"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><b>Entity</b> (T value) noexcept</td></tr>
-<tr class="memdesc:ad33c147aeba2ddfb983917c22495b8f7"><td class="mdescLeft">&#160;</td><td class="mdescRight">We need the entity to be braces-constructible and at the same type prevent it from getting constructed accidentally from an int (e.g .Entity::id()). Therefore, only allow Entity(Identifier) to be used. <br /></td></tr>
+<tr class="memitem:ad33c147aeba2ddfb983917c22495b8f7"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><b>Entity</b> (T <a class="el" href="structgaia_1_1ecs_1_1Entity.html#a0dddfbb22ef66ba267e3724ed1120b8b">value</a>) noexcept</td></tr>
+<tr class="memdesc:ad33c147aeba2ddfb983917c22495b8f7"><td class="mdescLeft">&#160;</td><td class="mdescRight">We need the entity to be braces-constructible and at the same type prevent it from getting constructed accidentally from an int (e.g .<a class="el" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546" title="Entity index in the entity array.">Entity::id()</a>). Therefore, only allow Entity(Identifier) to be used. <br /></td></tr>
 <tr class="separator:ad33c147aeba2ddfb983917c22495b8f7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaae9666c04c358536a89baff5e65b7b2" id="r_aaae9666c04c358536a89baff5e65b7b2"><td class="memItemLeft" align="right" valign="top"><a id="aaae9666c04c358536a89baff5e65b7b2" name="aaae9666c04c358536a89baff5e65b7b2"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>Entity</b> (EntityId id, IdentifierData gen) noexcept</td></tr>
+&#160;</td><td class="memItemRight" valign="bottom"><b>Entity</b> (EntityId <a class="el" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>, IdentifierData <a class="el" href="structgaia_1_1ecs_1_1Entity.html#a0c17cbcab5ecb6067fb5d37ea13b66a0">gen</a>) noexcept</td></tr>
 <tr class="memdesc:aaae9666c04c358536a89baff5e65b7b2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Special constructor for <a class="el" href="structgaia_1_1cnt_1_1ilist.html" title="Implicit list. Rather than with pointers, items.">cnt::ilist</a>. <br /></td></tr>
 <tr class="separator:aaae9666c04c358536a89baff5e65b7b2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac354a48d0f03070b0f720bfe5edb4663" id="r_ac354a48d0f03070b0f720bfe5edb4663"><td class="memItemLeft" align="right" valign="top"><a id="ac354a48d0f03070b0f720bfe5edb4663" name="ac354a48d0f03070b0f720bfe5edb4663"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>Entity</b> (EntityId id, IdentifierData gen, bool isEntity, bool isPair, EntityKind kind) noexcept</td></tr>
+&#160;</td><td class="memItemRight" valign="bottom"><b>Entity</b> (EntityId <a class="el" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>, IdentifierData <a class="el" href="structgaia_1_1ecs_1_1Entity.html#a0c17cbcab5ecb6067fb5d37ea13b66a0">gen</a>, bool isEntity, bool isPair, EntityKind <a class="el" href="structgaia_1_1ecs_1_1Entity.html#a8d6666d61c12c4adf7b035f7420b89de">kind</a>) noexcept</td></tr>
 <tr class="separator:ac354a48d0f03070b0f720bfe5edb4663"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a98b011ff18f3b75836f45254a8f3d546" id="r_a98b011ff18f3b75836f45254a8f3d546"><td class="memItemLeft" align="right" valign="top"><a id="a98b011ff18f3b75836f45254a8f3d546" name="a98b011ff18f3b75836f45254a8f3d546"></a>
-GAIA_NODISCARD constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>id</b> () const noexcept</td></tr>
+<tr class="memitem:a98b011ff18f3b75836f45254a8f3d546" id="r_a98b011ff18f3b75836f45254a8f3d546"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a> () const noexcept</td></tr>
+<tr class="memdesc:a98b011ff18f3b75836f45254a8f3d546"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> index in the entity array.  <br /></td></tr>
 <tr class="separator:a98b011ff18f3b75836f45254a8f3d546"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0c17cbcab5ecb6067fb5d37ea13b66a0" id="r_a0c17cbcab5ecb6067fb5d37ea13b66a0"><td class="memItemLeft" align="right" valign="top"><a id="a0c17cbcab5ecb6067fb5d37ea13b66a0" name="a0c17cbcab5ecb6067fb5d37ea13b66a0"></a>
-GAIA_NODISCARD constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> () const noexcept</td></tr>
+<tr class="memitem:a0c17cbcab5ecb6067fb5d37ea13b66a0" id="r_a0c17cbcab5ecb6067fb5d37ea13b66a0"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1Entity.html#a0c17cbcab5ecb6067fb5d37ea13b66a0">gen</a> () const noexcept</td></tr>
+<tr class="memdesc:a0c17cbcab5ecb6067fb5d37ea13b66a0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Generation index of the entity.  <br /></td></tr>
 <tr class="separator:a0c17cbcab5ecb6067fb5d37ea13b66a0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aee3b81ec316abf8f8e549d929604e39e" id="r_aee3b81ec316abf8f8e549d929604e39e"><td class="memItemLeft" align="right" valign="top"><a id="aee3b81ec316abf8f8e549d929604e39e" name="aee3b81ec316abf8f8e549d929604e39e"></a>
-GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>entity</b> () const noexcept</td></tr>
+<tr class="memitem:aee3b81ec316abf8f8e549d929604e39e" id="r_aee3b81ec316abf8f8e549d929604e39e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1Entity.html#aee3b81ec316abf8f8e549d929604e39e">entity</a> () const noexcept</td></tr>
+<tr class="memdesc:aee3b81ec316abf8f8e549d929604e39e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether this id refers to an entity.  <br /></td></tr>
 <tr class="separator:aee3b81ec316abf8f8e549d929604e39e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a81c22c361f2b5e63dfae4f629c3f7cbd" id="r_a81c22c361f2b5e63dfae4f629c3f7cbd"><td class="memItemLeft" align="right" valign="top"><a id="a81c22c361f2b5e63dfae4f629c3f7cbd" name="a81c22c361f2b5e63dfae4f629c3f7cbd"></a>
-GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>pair</b> () const noexcept</td></tr>
+<tr class="memitem:a81c22c361f2b5e63dfae4f629c3f7cbd" id="r_a81c22c361f2b5e63dfae4f629c3f7cbd"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1Entity.html#a81c22c361f2b5e63dfae4f629c3f7cbd">pair</a> () const noexcept</td></tr>
+<tr class="memdesc:a81c22c361f2b5e63dfae4f629c3f7cbd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether this id refers to a relationship pair.  <br /></td></tr>
 <tr class="separator:a81c22c361f2b5e63dfae4f629c3f7cbd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1d80790212680c84b01554678af14e40" id="r_a1d80790212680c84b01554678af14e40"><td class="memItemLeft" align="right" valign="top"><a id="a1d80790212680c84b01554678af14e40" name="a1d80790212680c84b01554678af14e40"></a>
-GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>comp</b> () const noexcept</td></tr>
+<tr class="memitem:a1d80790212680c84b01554678af14e40" id="r_a1d80790212680c84b01554678af14e40"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1Entity.html#a1d80790212680c84b01554678af14e40">comp</a> () const noexcept</td></tr>
+<tr class="memdesc:a1d80790212680c84b01554678af14e40"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether this id refers to a component.  <br /></td></tr>
 <tr class="separator:a1d80790212680c84b01554678af14e40"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8d6666d61c12c4adf7b035f7420b89de" id="r_a8d6666d61c12c4adf7b035f7420b89de"><td class="memItemLeft" align="right" valign="top"><a id="a8d6666d61c12c4adf7b035f7420b89de" name="a8d6666d61c12c4adf7b035f7420b89de"></a>
-GAIA_NODISCARD constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>kind</b> () const noexcept</td></tr>
+<tr class="memitem:a8d6666d61c12c4adf7b035f7420b89de" id="r_a8d6666d61c12c4adf7b035f7420b89de"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1Entity.html#a8d6666d61c12c4adf7b035f7420b89de">kind</a> () const noexcept</td></tr>
+<tr class="memdesc:a8d6666d61c12c4adf7b035f7420b89de"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> kind of this id.  <br /></td></tr>
 <tr class="separator:a8d6666d61c12c4adf7b035f7420b89de"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0dddfbb22ef66ba267e3724ed1120b8b" id="r_a0dddfbb22ef66ba267e3724ed1120b8b"><td class="memItemLeft" align="right" valign="top"><a id="a0dddfbb22ef66ba267e3724ed1120b8b" name="a0dddfbb22ef66ba267e3724ed1120b8b"></a>
-GAIA_NODISCARD constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>value</b> () const noexcept</td></tr>
+<tr class="memitem:a0dddfbb22ef66ba267e3724ed1120b8b" id="r_a0dddfbb22ef66ba267e3724ed1120b8b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1Entity.html#a0dddfbb22ef66ba267e3724ed1120b8b">value</a> () const noexcept</td></tr>
+<tr class="memdesc:a0dddfbb22ef66ba267e3724ed1120b8b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Raw identifier value.  <br /></td></tr>
 <tr class="separator:a0dddfbb22ef66ba267e3724ed1120b8b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a32816c9822f0f7caed262cdcfd4ec8a1" id="r_a32816c9822f0f7caed262cdcfd4ec8a1"><td class="memItemLeft" align="right" valign="top"><a id="a32816c9822f0f7caed262cdcfd4ec8a1" name="a32816c9822f0f7caed262cdcfd4ec8a1"></a>
 GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator==</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> other) const noexcept</td></tr>
@@ -175,13 +181,13 @@ GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"
 <tr class="memitem:aac849a264b0dea2ba3bae8f0f989f268" id="r_aac849a264b0dea2ba3bae8f0f989f268"><td class="memItemLeft" align="right" valign="top"><a id="aac849a264b0dea2ba3bae8f0f989f268" name="aac849a264b0dea2ba3bae8f0f989f268"></a>
 GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator&gt;=</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> other) const noexcept</td></tr>
 <tr class="separator:aac849a264b0dea2ba3bae8f0f989f268"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a313aaaa9eb05c2bbfb27e6f1c4af0e70" id="r_a313aaaa9eb05c2bbfb27e6f1c4af0e70"><td class="memTemplParams" colspan="2"><a id="a313aaaa9eb05c2bbfb27e6f1c4af0e70" name="a313aaaa9eb05c2bbfb27e6f1c4af0e70"></a>
-template&lt;typename Serializer &gt; </td></tr>
-<tr class="memitem:a313aaaa9eb05c2bbfb27e6f1c4af0e70"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>save</b> (Serializer &amp;s) const</td></tr>
+<tr class="memitem:a313aaaa9eb05c2bbfb27e6f1c4af0e70" id="r_a313aaaa9eb05c2bbfb27e6f1c4af0e70"><td class="memTemplParams" colspan="2">template&lt;typename Serializer &gt; </td></tr>
+<tr class="memitem:a313aaaa9eb05c2bbfb27e6f1c4af0e70"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1Entity.html#a313aaaa9eb05c2bbfb27e6f1c4af0e70">save</a> (Serializer &amp;s) const</td></tr>
+<tr class="memdesc:a313aaaa9eb05c2bbfb27e6f1c4af0e70"><td class="mdescLeft">&#160;</td><td class="mdescRight">Serializes the entity id.  <br /></td></tr>
 <tr class="separator:a313aaaa9eb05c2bbfb27e6f1c4af0e70"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a009183dea1af1ee1c16d4e3f3a3873ba" id="r_a009183dea1af1ee1c16d4e3f3a3873ba"><td class="memTemplParams" colspan="2"><a id="a009183dea1af1ee1c16d4e3f3a3873ba" name="a009183dea1af1ee1c16d4e3f3a3873ba"></a>
-template&lt;typename Serializer &gt; </td></tr>
-<tr class="memitem:a009183dea1af1ee1c16d4e3f3a3873ba"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>load</b> (Serializer &amp;s)</td></tr>
+<tr class="memitem:a009183dea1af1ee1c16d4e3f3a3873ba" id="r_a009183dea1af1ee1c16d4e3f3a3873ba"><td class="memTemplParams" colspan="2">template&lt;typename Serializer &gt; </td></tr>
+<tr class="memitem:a009183dea1af1ee1c16d4e3f3a3873ba"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1Entity.html#a009183dea1af1ee1c16d4e3f3a3873ba">load</a> (Serializer &amp;s)</td></tr>
+<tr class="memdesc:a009183dea1af1ee1c16d4e3f3a3873ba"><td class="mdescLeft">&#160;</td><td class="mdescRight">Deserializes the entity id, remapping it to the current world.  <br /></td></tr>
 <tr class="separator:a009183dea1af1ee1c16d4e3f3a3873ba"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
@@ -191,9 +197,11 @@ union {&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7604443d1e8e1a88cdf7bb298d049c44" id="r_a7604443d1e8e1a88cdf7bb298d049c44"><td class="memItemLeft" >
 &#160;&#160;&#160;<a class="el" href="structgaia_1_1ecs_1_1Entity_1_1InternalData.html">InternalData</a>&#160;&#160;&#160;<b>data</b>&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
+<tr class="memdesc:a7604443d1e8e1a88cdf7bb298d049c44"><td class="mdescLeft">&#160;</td><td class="mdescRight">Structured view of the packed value. <br /></td></tr>
 <tr class="separator:a7604443d1e8e1a88cdf7bb298d049c44"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ace42033842030f5fbda708b46d24b603" id="r_ace42033842030f5fbda708b46d24b603"><td class="memItemLeft" >
 &#160;&#160;&#160;Identifier&#160;&#160;&#160;<b>val</b>&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
+<tr class="memdesc:ace42033842030f5fbda708b46d24b603"><td class="mdescLeft">&#160;</td><td class="mdescRight">Raw 64-bit value. <br /></td></tr>
 <tr class="separator:ace42033842030f5fbda708b46d24b603"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abff1ca01f108b58a4db60348bc34ed06" id="r_abff1ca01f108b58a4db60348bc34ed06"><td class="memItemLeft" valign="top">};&#160;</td><td class="memItemRight" valign="bottom">&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
 <tr class="separator:abff1ca01f108b58a4db60348bc34ed06"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -202,8 +210,292 @@ union {&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
 Static Public Attributes</h2></td></tr>
 <tr class="memitem:a47d8e0e3cc318ab302771c2b6f389dd5" id="r_a47d8e0e3cc318ab302771c2b6f389dd5"><td class="memItemLeft" align="right" valign="top"><a id="a47d8e0e3cc318ab302771c2b6f389dd5" name="a47d8e0e3cc318ab302771c2b6f389dd5"></a>
 static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>IdMask</b> = IdentifierIdBad</td></tr>
+<tr class="memdesc:a47d8e0e3cc318ab302771c2b6f389dd5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Bit mask covering all valid entity indices. <br /></td></tr>
 <tr class="separator:a47d8e0e3cc318ab302771c2b6f389dd5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Identifier of an entity or component instance in the world. Packs the entity index, generation, kind and flags into one 64-bit value. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a1d80790212680c84b01554678af14e40" name="a1d80790212680c84b01554678af14e40"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1d80790212680c84b01554678af14e40">&#9670;&#160;</a></span>comp()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr bool gaia::ecs::Entity::comp </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Whether this id refers to a component. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when a component. </dd></dl>
+
+</div>
+</div>
+<a id="aee3b81ec316abf8f8e549d929604e39e" name="aee3b81ec316abf8f8e549d929604e39e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aee3b81ec316abf8f8e549d929604e39e">&#9670;&#160;</a></span>entity()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr bool gaia::ecs::Entity::entity </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Whether this id refers to an entity. </p>
+<dl class="section return"><dt>Returns</dt><dd>True for an entity, false for a component. </dd></dl>
+
+</div>
+</div>
+<a id="a0c17cbcab5ecb6067fb5d37ea13b66a0" name="a0c17cbcab5ecb6067fb5d37ea13b66a0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0c17cbcab5ecb6067fb5d37ea13b66a0">&#9670;&#160;</a></span>gen()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr auto gaia::ecs::Entity::gen </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Generation index of the entity. </p>
+<dl class="section return"><dt>Returns</dt><dd>Generation index. </dd></dl>
+
+</div>
+</div>
+<a id="a98b011ff18f3b75836f45254a8f3d546" name="a98b011ff18f3b75836f45254a8f3d546"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a98b011ff18f3b75836f45254a8f3d546">&#9670;&#160;</a></span>id()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr auto gaia::ecs::Entity::id </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> index in the entity array. </p>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> index. </dd></dl>
+
+</div>
+</div>
+<a id="a8d6666d61c12c4adf7b035f7420b89de" name="a8d6666d61c12c4adf7b035f7420b89de"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8d6666d61c12c4adf7b035f7420b89de">&#9670;&#160;</a></span>kind()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr auto gaia::ecs::Entity::kind </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> kind of this id. </p>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> kind. </dd></dl>
+
+</div>
+</div>
+<a id="a009183dea1af1ee1c16d4e3f3a3873ba" name="a009183dea1af1ee1c16d4e3f3a3873ba"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a009183dea1af1ee1c16d4e3f3a3873ba">&#9670;&#160;</a></span>load()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Serializer &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::Entity::load </td>
+          <td>(</td>
+          <td class="paramtype">Serializer &amp;&#160;</td>
+          <td class="paramname"><em>s</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Deserializes the entity id, remapping it to the current world. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Serializer</td><td>serializer type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">s</td><td>serializer to read from. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a81c22c361f2b5e63dfae4f629c3f7cbd" name="a81c22c361f2b5e63dfae4f629c3f7cbd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a81c22c361f2b5e63dfae4f629c3f7cbd">&#9670;&#160;</a></span>pair()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr bool gaia::ecs::Entity::pair </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Whether this id refers to a relationship pair. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when a pair. </dd></dl>
+
+</div>
+</div>
+<a id="a313aaaa9eb05c2bbfb27e6f1c4af0e70" name="a313aaaa9eb05c2bbfb27e6f1c4af0e70"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a313aaaa9eb05c2bbfb27e6f1c4af0e70">&#9670;&#160;</a></span>save()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Serializer &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::Entity::save </td>
+          <td>(</td>
+          <td class="paramtype">Serializer &amp;&#160;</td>
+          <td class="paramname"><em>s</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Serializes the entity id. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Serializer</td><td>serializer type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">s</td><td>serializer to write to. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a0dddfbb22ef66ba267e3724ed1120b8b" name="a0dddfbb22ef66ba267e3724ed1120b8b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0dddfbb22ef66ba267e3724ed1120b8b">&#9670;&#160;</a></span>value()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr auto gaia::ecs::Entity::value </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Raw identifier value. </p>
+<dl class="section return"><dt>Returns</dt><dd>Raw 64-bit value. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="id_8h_source.html">id.h</a></li>
 </ul>

@@ -186,16 +186,17 @@ var NAVTREEINDEX =
 "classgaia_1_1cnt_1_1darr__ext__soa.html#ae453cadf9f7867af6c5f14e01ededa28",
 "classgaia_1_1cnt_1_1sarr__ext.html#a60dde08a63bac6447929630d6f176d94",
 "classgaia_1_1cnt_1_1sringbuffer.html#a70dfca04bc4e14f188fd7df582a17f81",
-"classgaia_1_1ecs_1_1QueryInfo.html#a2dbea71a4eada5267f7f991d3e417944",
-"classgaia_1_1ecs_1_1World.html#a950a809f79f42dde23d9b82f7059a825",
-"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af79dfd39b5f4a2e4cb8c82419e0293c2",
-"functions_q.html",
-"structgaia_1_1cnt_1_1const__page__iterator.html#ad00ea97fa9df9fa376cce3782f316917",
-"structgaia_1_1cnt_1_1paged__ilist.html#aea5d92ea6731e8824dbdd9903a29ec45",
-"structgaia_1_1ecs_1_1ComponentDesc.html#af3d8be3e2e5bf412c14d1598ddba238b",
-"structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html#a64c91a5355cb8de8e723fc58935cb62e",
-"structgaia_1_1ecs_1_1detail_1_1CopyIterGroupState.html#a3f3d1fe39bd10ac05436657bd8fb43bf",
-"structgaia_1_1mem_1_1data__view__policy__set_3_01DataLayout_1_1SoA8_00_01ValueType_01_4.html"
+"classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a420693a01f863e02eb1959065562021f",
+"classgaia_1_1ecs_1_1World.html#a53b9360110c61a4b3364dafd6af98e4c",
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752",
+"component__setter_8h_source.html",
+"index.html#world-serialization",
+"structgaia_1_1cnt_1_1page__iterator.html#a22e14151de3169190abece33c9a66e07",
+"structgaia_1_1ecs_1_1Archetype_1_1Properties.html#a5b08265ce76c56e69408a1366678ada5",
+"structgaia_1_1ecs_1_1QueryCtx.html#a5c21e6754dd9afa669fecb6cb24f29e3a4f2a6736352141b1f504b54c12cd2060",
+"structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html#af8a8b7488b7f70959cb5b2896b749a92",
+"structgaia_1_1mem_1_1AllocHelper.html#a3ae41033a17974982dd0c147230b542f",
+"structgaia_1_1ser_1_1is__trivially__serializable.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

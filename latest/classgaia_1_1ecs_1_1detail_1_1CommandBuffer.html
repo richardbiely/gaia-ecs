@@ -215,7 +215,7 @@ template&lt;typename T &gt; </div>
 <p>Requests a component <em>T</em> to be added to <em>entity</em>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type. </td></tr>
   </table>
   </dd>
 </dl>
@@ -225,7 +225,7 @@ template&lt;typename T &gt; </div>
   </table>
   </dd>
 </dl>
-<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> <em>T</em> should be registered in the world before calling this function while the world is locked for iteration. Registering a new component type is a structural change. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> <em>T</em> should be registered in the world before calling this function while the world is locked for iteration. Registering a new component type is a structural change. </dd></dl>
 
 </div>
 </div>
@@ -316,7 +316,7 @@ template&lt;typename AccessContext &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td>Destination entity </td></tr>
-    <tr><td class="paramname">other</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to add to <em>entity</em> </td></tr>
+    <tr><td class="paramname">other</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to add to <em>entity</em> </td></tr>
   </table>
   </dd>
 </dl>
@@ -364,18 +364,18 @@ template&lt;typename T , std::enable_if_t&lt;!<a class="el" href="structgaia_1_1
 <p>Requests a component <em>T</em> to be added to entity. Also sets its value. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td>Destination entity </td></tr>
-    <tr><td class="paramname">value</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> value </td></tr>
+    <tr><td class="paramname">value</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> value </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> <em>T</em> should be registered in the world before calling this function while the world is locked for iteration. Registering a new component type is a structural change. If used in concurrent environment, race conditions may occur otherwise. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> <em>T</em> should be registered in the world before calling this function while the world is locked for iteration. Registering a new component type is a structural change. If used in concurrent environment, race conditions may occur otherwise. </dd></dl>
 
 </div>
 </div>
@@ -408,11 +408,11 @@ template&lt;typename AccessContext &gt; </div>
 <p>Requests a new entity to be created. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> kind. Generic entity by default. </td></tr>
+    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> kind. Generic entity by default. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> that will be created. The id is not usable right away. It will be filled with proper data after <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7031a0a1fc0707d1e0c9249c0af3dd24" title="Commits all queued changes.">commit()</a>. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> that will be created. The id is not usable right away. It will be filled with proper data after <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7031a0a1fc0707d1e0c9249c0af3dd24" title="Commits all queued changes.">commit()</a>. </dd></dl>
 
 </div>
 </div>
@@ -443,7 +443,7 @@ template&lt;typename AccessContext &gt; </div>
 </div><div class="memdoc">
 
 <p>Requests a new entity to be created by cloning an already existing entity. </p>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> that will be created. The id is not usable right away. It will be filled with proper data after <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7031a0a1fc0707d1e0c9249c0af3dd24" title="Commits all queued changes.">commit()</a> </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> that will be created. The id is not usable right away. It will be filled with proper data after <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7031a0a1fc0707d1e0c9249c0af3dd24" title="Commits all queued changes.">commit()</a> </dd></dl>
 
 </div>
 </div>
@@ -476,7 +476,7 @@ template&lt;typename AccessContext &gt; </div>
 <p>Requests an existing <em>entity</em> to be removed. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to remove </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to remove </td></tr>
   </table>
   </dd>
 </dl>
@@ -514,7 +514,7 @@ template&lt;typename T &gt; </div>
 <p>Requests removal of component <em>T</em> from <em>entity</em>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type </td></tr>
   </table>
   </dd>
 </dl>
@@ -524,7 +524,7 @@ template&lt;typename T &gt; </div>
   </table>
   </dd>
 </dl>
-<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> <em>T</em> must be registered in the world before calling this function. Calling del without a previous add of the component doesn't make sense. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> <em>T</em> must be registered in the world before calling this function. Calling del without a previous add of the component doesn't make sense. </dd></dl>
 
 </div>
 </div>
@@ -615,7 +615,7 @@ template&lt;typename AccessContext &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td>Source entity </td></tr>
-    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to remove </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to remove </td></tr>
   </table>
   </dd>
 </dl>
@@ -663,18 +663,18 @@ template&lt;typename T &gt; </div>
 <p>Requests component data to be set to given values for a given entity. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td>Destination entity </td></tr>
-    <tr><td class="paramname">value</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> value </td></tr>
+    <tr><td class="paramname">value</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> value </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> <em>T</em> must be registered in the world before calling this function. Calling set without a previous add of the component doesn't make sense. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> <em>T</em> must be registered in the world before calling this function. Calling set without a previous add of the component doesn't make sense. </dd></dl>
 
 </div>
 </div>

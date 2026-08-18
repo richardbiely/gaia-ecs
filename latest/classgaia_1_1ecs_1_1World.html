@@ -208,13 +208,13 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</t
 <tr class="memdesc:a79a6215b3bd5e02bec6f980830e83d29"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether copying a sparse payload must also add its id to the destination entity.  <br /></td></tr>
 <tr class="separator:a79a6215b3bd5e02bec6f980830e83d29"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0d2437c803eca9c87c8e17c9329bb606" id="r_a0d2437c803eca9c87c8e17c9329bb606"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a0d2437c803eca9c87c8e17c9329bb606">sync_component_record</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> comp)</td></tr>
-<tr class="memdesc:a0d2437c803eca9c87c8e17c9329bb606"><td class="mdescLeft">&#160;</td><td class="mdescRight">Updates the cached component metadata in both the component cache and the core <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> storage.  <br /></td></tr>
+<tr class="memdesc:a0d2437c803eca9c87c8e17c9329bb606"><td class="mdescLeft">&#160;</td><td class="mdescRight">Updates the cached component metadata in both the component cache and the core <a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> storage.  <br /></td></tr>
 <tr class="separator:a0d2437c803eca9c87c8e17c9329bb606"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a46fa1191b329e7997572f48f7a2a3a74" id="r_a46fa1191b329e7997572f48f7a2a3a74"><td class="memItemLeft" align="right" valign="top"><a id="a46fa1191b329e7997572f48f7a2a3a74" name="a46fa1191b329e7997572f48f7a2a3a74"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>validate_runtime_semantics</b> (const <a class="el" href="structgaia_1_1ecs_1_1RuntimeTypeDesc.html">RuntimeTypeDesc</a> &amp;runtimeType) const</td></tr>
+<tr class="memitem:a46fa1191b329e7997572f48f7a2a3a74" id="r_a46fa1191b329e7997572f48f7a2a3a74"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a46fa1191b329e7997572f48f7a2a3a74">validate_runtime_semantics</a> (const <a class="el" href="structgaia_1_1ecs_1_1RuntimeTypeDesc.html">RuntimeTypeDesc</a> &amp;runtimeType) const</td></tr>
+<tr class="memdesc:a46fa1191b329e7997572f48f7a2a3a74"><td class="mdescLeft">&#160;</td><td class="mdescRight">Validates runtime-reflection state against the live scope graph in debug builds. Verifies that every semantic entity referenced by <em>runtimeType</em> resolves to a reachable scope path. All checks are compiled out when assertions are disabled.  <br /></td></tr>
 <tr class="separator:a46fa1191b329e7997572f48f7a2a3a74"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a40a8cd2a1d17aca1d603eeca337c8e74" id="r_a40a8cd2a1d17aca1d603eeca337c8e74"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a40a8cd2a1d17aca1d603eeca337c8e74">finalize_component_registration</a> (const ComponentCacheItem &amp;item, bool addSparseTrait)</td></tr>
-<tr class="memdesc:a40a8cd2a1d17aca1d603eeca337c8e74"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finalizes a newly registered component entity after the cache record has been created. This synchronizes the core <code><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a></code> value stored on the component entity, registers the default symbol through the normal naming path, and optionally latches the <code>Sparse</code> trait.  <br /></td></tr>
+<tr class="memdesc:a40a8cd2a1d17aca1d603eeca337c8e74"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finalizes a newly registered component entity after the cache record has been created. This synchronizes the core <code><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a></code> value stored on the component entity, registers the default symbol through the normal naming path, and optionally latches the <code>Sparse</code> trait.  <br /></td></tr>
 <tr class="separator:a40a8cd2a1d17aca1d603eeca337c8e74"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa1b43fe3cceb52592d06d0cd22f45aed" id="r_aa1b43fe3cceb52592d06d0cd22f45aed"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aa1b43fe3cceb52592d06d0cd22f45aed">set_component_dont_fragment</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, EntityContainer &amp;ec)</td></tr>
 <tr class="memdesc:aa1b43fe3cceb52592d06d0cd22f45aed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latches DontFragment on a component entity record. This first moves the payload out of chunks, then removes the id from archetype identity.  <br /></td></tr>
@@ -622,7 +622,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memdesc:a40de737e5b264336cb63a00566ece3e5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the entity name assigned to <em>entityId</em>.  <br /></td></tr>
 <tr class="separator:a40de737e5b264336cb63a00566ece3e5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaa9e9ed9220dadfa56dea13f8d2610d2" id="r_aaa9e9ed9220dadfa56dea13f8d2610d2"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aaa9e9ed9220dadfa56dea13f8d2610d2">resolve</a> (const char *<a class="el" href="classgaia_1_1ecs_1_1World.html#a718e9d4f33c080d04b575c18fed3085e">name</a>, uint32_t len=0) const</td></tr>
-<tr class="memdesc:aaa9e9ed9220dadfa56dea13f8d2610d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resolves <em>name</em> in the world naming system. <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> names and hierarchical entity paths are attempted first. If they do not match, component lookup uses the current scope, then the lookup path, then global component symbol, path and alias lookup.  <br /></td></tr>
+<tr class="memdesc:aaa9e9ed9220dadfa56dea13f8d2610d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resolves <em>name</em> in the world naming system. <a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> names and hierarchical entity paths are attempted first. If they do not match, component lookup uses the current scope, then the lookup path, then global component symbol, path and alias lookup.  <br /></td></tr>
 <tr class="separator:aaa9e9ed9220dadfa56dea13f8d2610d2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a715aba59218167cfe58af80f29ccb58e" id="r_a715aba59218167cfe58af80f29ccb58e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a715aba59218167cfe58af80f29ccb58e">resolve</a> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; &amp;out, const char *<a class="el" href="classgaia_1_1ecs_1_1World.html#a718e9d4f33c080d04b575c18fed3085e">name</a>, uint32_t len=0) const</td></tr>
 <tr class="memdesc:a715aba59218167cfe58af80f29ccb58e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Collects every entity and component entity that matches <em>name</em>. This is useful for diagnostics when a short lookup could refer to multiple scoped components.  <br /></td></tr>
@@ -753,9 +753,8 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 void&#160;</td><td class="memItemRight" valign="bottom"><b>defer_sort_inv_end</b> ()</td></tr>
 <tr class="memdesc:a03dcd33524f0472c27c87135146a6a4c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stops recording sorted-query invalidations and applies everything recorded since the matching <a class="el" href="classgaia_1_1ecs_1_1World.html#a629af867a5c82fd46d8a1378b31ae6ff" title="Starts recording sorted-query invalidations instead of applying them right away. Called by the coordi...">defer_sort_inv_begin()</a>. Invalidation runs on the calling thread, which is the coordinator once the parallel region joins. <br /></td></tr>
 <tr class="separator:a03dcd33524f0472c27c87135146a6a4c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a53b9360110c61a4b3364dafd6af98e4c" id="r_a53b9360110c61a4b3364dafd6af98e4c"><td class="memItemLeft" align="right" valign="top"><a id="a53b9360110c61a4b3364dafd6af98e4c" name="a53b9360110c61a4b3364dafd6af98e4c"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>defer_sort_inv_active</b> () const</td></tr>
-<tr class="memdesc:a53b9360110c61a4b3364dafd6af98e4c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether sorted-query invalidations are currently being recorded. <br /></td></tr>
+<tr class="memitem:a53b9360110c61a4b3364dafd6af98e4c" id="r_a53b9360110c61a4b3364dafd6af98e4c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a53b9360110c61a4b3364dafd6af98e4c">defer_sort_inv_active</a> () const</td></tr>
+<tr class="memdesc:a53b9360110c61a4b3364dafd6af98e4c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether sorted-query invalidations are currently being recorded.  <br /></td></tr>
 <tr class="separator:a53b9360110c61a4b3364dafd6af98e4c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5dd5902b850b601d6c3bcd79705e4e6c" id="r_a5dd5902b850b601d6c3bcd79705e4e6c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a5dd5902b850b601d6c3bcd79705e4e6c">defer_sort_inv_record</a> (uint32_t slot, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a5dd5902b850b601d6c3bcd79705e4e6c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Records a sorted-query invalidation for later application.  <br /></td></tr>
@@ -887,7 +886,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>invalidate_sorted_que
 <tr class="memdesc:af8a42faa4442c3d9738cae368caa22d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invalidates all cached sorted queries after row-order changes. <br /></td></tr>
 <tr class="separator:af8a42faa4442c3d9738cae368caa22d2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a62975158dc46eff695e88beb730d9fa3" id="r_a62975158dc46eff695e88beb730d9fa3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a62975158dc46eff695e88beb730d9fa3">invalidate_queries_for_entity</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> <a class="el" href="structgaia_1_1ecs_1_1is__pair.html">is_pair</a>)</td></tr>
-<tr class="memdesc:a62975158dc46eff695e88beb730d9fa3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invalidates semantic <code>Is</code> queries affected by removing or changing <em><a class="el" href="structgaia_1_1ecs_1_1is__pair.html">is_pair</a></em>.  <br /></td></tr>
+<tr class="memdesc:a62975158dc46eff695e88beb730d9fa3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invalidates semantic <code>Is</code> queries affected by removing or changing <em><a class="el" href="structgaia_1_1ecs_1_1is__pair.html" title="Detects whether a type is a relationship pair.">is_pair</a></em>.  <br /></td></tr>
 <tr class="separator:a62975158dc46eff695e88beb730d9fa3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac8a6f659bf3a611c9b0cbf6ca1d8bd61" id="r_ac8a6f659bf3a611c9b0cbf6ca1d8bd61"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ac8a6f659bf3a611c9b0cbf6ca1d8bd61">name_to_entity</a> (std::span&lt; const char &gt; exprRaw) const</td></tr>
 <tr class="memdesc:ac8a6f659bf3a611c9b0cbf6ca1d8bd61"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resolves a textual id expression to an entity. Supports names, aliases, wildcard <code>*</code>, and pair expressions like <code>(Rel, Target)</code>.  <br /></td></tr>
@@ -1008,7 +1007,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>unlock</b> (<a class=
 <p>Starts a bulk get operation on an entity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -1046,7 +1045,7 @@ Undefined behavior if entity changes archetype after <a class="el" href="structg
 <p>Starts a bulk set operation on <em>entity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -1085,11 +1084,11 @@ template&lt;typename T &gt; </div>
 <p>Creates a new component if not found already. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> cache item of the component </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> cache item of the component </dd></dl>
 
 </div>
 </div>
@@ -1130,8 +1129,8 @@ template&lt;typename T &gt; </div>
 <p>Creates a new runtime component from a plain component descriptor if not found already. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">desc</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> registration descriptor. </td></tr>
-    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> kind assigned to the new component entity. </td></tr>
+    <tr><td class="paramname">desc</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> registration descriptor. </td></tr>
+    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> kind assigned to the new component entity. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1168,7 +1167,7 @@ template&lt;typename T &gt; </div>
 <p>Registers a compile-time component with explicit runtime type metadata. Metadata is applied only during first registration. Existing component metadata remains immutable. Runtime metadata does not change typed storage, lifecycle callbacks, or the component symbol. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type to register. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type to register. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1211,13 +1210,13 @@ template&lt;typename T &gt; </div>
 <p>Attaches a new component <em>T</em> to <em>entity</em>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -1319,7 +1318,7 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">object</td><td>Object </td></tr>
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
     <tr><td class="paramname">value</td><td>Value to set for the object </td></tr>
   </table>
   </dd>
@@ -1417,13 +1416,13 @@ template&lt;typename T , typename U  = typename actual_type_t&lt;T&gt;::Type&gt;
 <p>Attaches a new component <em>T</em> to <em>entity</em>. Also sets its value. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
     <tr><td class="paramname">value</td><td>Value to set for the component </td></tr>
   </table>
   </dd>
@@ -1461,7 +1460,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Creates a new empty entity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> kind. Generic entity by default. </td></tr>
+    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> kind. Generic entity by default. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1620,7 +1619,7 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 <p>Adds an AoS component and initializes its raw payload before <code>OnAdd</code> observers run. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the component. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> receiving the component. </td></tr>
     <tr><td class="paramname">component</td><td>Runtime component entity or exact relationship pair. </td></tr>
     <tr><td class="paramname">data</td><td>Payload bytes. Must be non-null when the component size is non-zero. </td></tr>
     <tr><td class="paramname">size</td><td>Payload byte count. Must match the registered component size. </td></tr>
@@ -1704,7 +1703,7 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 <p>Returns the alias assigned to an entity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a>. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1755,7 +1754,7 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 <p>Assigns an alias name to an entity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a>. </td></tr>
     <tr><td class="paramname">alias</td><td>Alias to assign. Pass nullptr to clear the current alias. </td></tr>
     <tr><td class="paramname">len</td><td>String length. If zero, the length is calculated. </td></tr>
   </table>
@@ -1808,7 +1807,7 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 <p>Assigns an alias name to an entity without copying the string. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a>. </td></tr>
     <tr><td class="paramname">alias</td><td>Alias to assign. Pass nullptr to clear the current alias. </td></tr>
     <tr><td class="paramname">len</td><td>String length. If zero, the length is calculated. </td></tr>
   </table>
@@ -1842,7 +1841,7 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 </div><div class="memdoc">
 
 <p>Returns the version that changes when archetype deletion visibility changes. </p>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> deletion-request version. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Archetype.html" title="Fixed-shape group of chunks storing entities that share the same component layout....">Archetype</a> deletion-request version. </dd></dl>
 
 </div>
 </div>
@@ -1883,7 +1882,7 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 <p>Shortcut for add(entity, Pair(Is, entityBase)). </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the inheritance pair. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> receiving the inheritance pair. </td></tr>
     <tr><td class="paramname">entityBase</td><td>Base entity to inherit from. </td></tr>
   </table>
   </dd>
@@ -2180,7 +2179,7 @@ template&lt;typename Func &gt; </div>
 <p>Starts a bulk add/remove operation on <em>entity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -2216,7 +2215,7 @@ template&lt;typename Func &gt; </div>
 <p>Returns whether a runtime storage trait can be attached to <em>component</em>. Compile-time component storage is authoritative. Runtime component descriptors remain mutable. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity. </td></tr>
   </table>
   </dd>
 </dl>
@@ -2253,13 +2252,13 @@ template&lt;typename T &gt; </div>
 <p>Returns whether <em>object</em> is a usable sparse storage target for component type <em>T</em>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type to validate against. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type to validate against. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity to inspect. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity to inspect. </td></tr>
   </table>
   </dd>
 </dl>
@@ -2304,7 +2303,7 @@ template&lt;typename T &gt; </div>
 <p>Shortcut for add(entity, Pair(ChildOf, parent)). </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the ChildOf pair. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> receiving the ChildOf pair. </td></tr>
     <tr><td class="paramname">parent</td><td>Parent target of the ChildOf pair. </td></tr>
   </table>
   </dd>
@@ -2349,7 +2348,7 @@ template&lt;typename T &gt; </div>
 <p>Checks whether <em>entity</em> has a <code>ChildOf</code> relationship to <em>parent</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to inspect. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to inspect. </td></tr>
     <tr><td class="paramname">parent</td><td>Candidate parent entity. </td></tr>
   </table>
   </dd>
@@ -2385,7 +2384,7 @@ template&lt;typename T &gt; </div>
 <p>Removes any component or entity attached to <em>entity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> we want to remove any attached component or entity from </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> we want to remove any attached component or entity from </td></tr>
   </table>
   </dd>
 </dl>
@@ -2565,7 +2564,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div><div class="memdoc">
 
 <p>Returns read-only access to the world component cache. </p>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> cache owned by this world. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> cache owned by this world. </dd></dl>
 
 </div>
 </div>
@@ -2593,7 +2592,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div><div class="memdoc">
 
 <p>Returns mutable access to the world component cache. </p>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> cache owned by this world. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> cache owned by this world. </dd></dl>
 
 </div>
 </div>
@@ -2659,7 +2658,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Returns whether <em>component</em> is non-fragmenting. Non-fragmenting components do not participate in archetype identity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity to inspect. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity to inspect. </td></tr>
   </table>
   </dd>
 </dl>
@@ -2694,7 +2693,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Returns whether <em>component</em> stores instance data in sparse storage instead of archetype chunks. This is currently the storage path used for sparse plain generic AoS components. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity to inspect. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity to inspect. </td></tr>
   </table>
   </dd>
 </dl>
@@ -2745,7 +2744,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Checks whether an inter-world copy includes a non-fragmenting sparse payload. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">comp</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being copied. </td></tr>
+    <tr><td class="paramname">comp</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity being copied. </td></tr>
     <tr><td class="paramname">srcEntity</td><td>Source entity in <code>store</code>. </td></tr>
     <tr><td class="paramname">store</td><td>Type-erased sparse store containing the source payload. </td></tr>
   </table>
@@ -2798,7 +2797,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Checks whether an inter-world copy includes a sparse component payload. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">comp</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being copied. </td></tr>
+    <tr><td class="paramname">comp</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity being copied. </td></tr>
     <tr><td class="paramname">srcEntity</td><td>Source entity in <code>store</code>. </td></tr>
     <tr><td class="paramname">store</td><td>Type-erased sparse store containing the source payload. </td></tr>
   </table>
@@ -2835,7 +2834,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Creates a new entity by cloning an already existing one. Does not trigger observers. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">srcEntity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to clone </td></tr>
+    <tr><td class="paramname">srcEntity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to clone </td></tr>
   </table>
   </dd>
 </dl>
@@ -2891,7 +2890,7 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 <p>Creates <em>count</em> new entities by cloning an already existing one. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to clone </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to clone </td></tr>
     <tr><td class="paramname">count</td><td>Number of clones to make </td></tr>
     <tr><td class="paramname">func</td><td>Functor executed every time a copy is created. It can be either void(ecs::Entity) or void(ecs::CopyIter&amp;). </td></tr>
   </table>
@@ -3010,8 +3009,8 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 <p>Creates a read-only cursor over a runtime component on <em>entity</em>. Inherited ids resolve like <a class="el" href="classgaia_1_1ecs_1_1World.html#a6a639ee981edef57b4c783bc37dce52c" title="Returns raw read-only bytes for an AoS component or exact pair payload on entity. Inherited ids resol...">get_raw()</a>. SoA roots expose fields without pretending the root is contiguous. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being read. </td></tr>
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity or exact relationship pair being read. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> being read. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity or exact relationship pair being read. </td></tr>
   </table>
   </dd>
 </dl>
@@ -3056,12 +3055,40 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 <p>Creates a mutable cursor over a directly owned runtime component on <em>entity</em>. Direct writes through mut_ptr() are silent and must be paired with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side...">modify_raw()</a>. Writes through <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#ae5d954df5878702e0e223d2b24048772" title="Writes exact bytes to the current cursor position.">ComponentCursor::set_raw()</a> finishes the root component write automatically. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being mutated. </td></tr>
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity or exact relationship pair being mutated. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> being mutated. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity or exact relationship pair being mutated. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Cursor positioned at the root component payload, or invalid cursor when unavailable. </dd></dl>
+
+</div>
+</div>
+<a id="a53b9360110c61a4b3364dafd6af98e4c" name="a53b9360110c61a4b3364dafd6af98e4c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a53b9360110c61a4b3364dafd6af98e4c">&#9670;&#160;</a></span>defer_sort_inv_active()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::defer_sort_inv_active </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether sorted-query invalidations are currently being recorded. </p>
+<dl class="section return"><dt>Returns</dt><dd>True while deferred sorted-query invalidation is active. </dd></dl>
 
 </div>
 </div>
@@ -3137,7 +3164,7 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">slot</td><td>Work-item slot owned exclusively by the calling thread. </td></tr>
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity whose version was bumped by a write. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity whose version was bumped by a write. </td></tr>
   </table>
   </dd>
 </dl>
@@ -3205,7 +3232,7 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 <p>Removes an entity along with all data associated with it. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to delete </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to delete </td></tr>
   </table>
   </dd>
 </dl>
@@ -3241,13 +3268,13 @@ template&lt;typename T &gt; </div>
 <p>Removes a component <em>T</em> from <em>entity</em>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -3294,8 +3321,8 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Removes an <em>object</em> from <em>entity</em> if possible. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to delete from </td></tr>
-    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to delete </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to delete from </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to delete </td></tr>
   </table>
   </dd>
 </dl>
@@ -3444,7 +3471,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Deletes the sparse component store associated with <em>component</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity identifying the store. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity identifying the store. </td></tr>
   </table>
   </dd>
 </dl>
@@ -3478,7 +3505,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Removes all sparse component instances owned by <em>entity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -3558,7 +3585,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Returns the preferred display name for a entity. This is intended for diagnostics and other pretty output, not as a stable identity key. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a>. </td></tr>
   </table>
   </dd>
 </dl>
@@ -3603,7 +3630,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Enables or disables an entire entity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
     <tr><td class="paramname">enable</td><td>Enable or disable the entity </td></tr>
   </table>
   </dd>
@@ -3639,7 +3666,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Checks if an entity is enabled. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">ec</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> container of the entity </td></tr>
+    <tr><td class="paramname">ec</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> container of the entity </td></tr>
   </table>
   </dd>
 </dl>
@@ -3674,7 +3701,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Checks if an entity is enabled. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -3720,7 +3747,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Checks whether an entity is enabled together with all of its ancestors reachable through <code>relation</code>. This keeps direct enabled state separate from hierarchy-aware gating. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose effective enabled state is requested. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> whose effective enabled state is requested. </td></tr>
     <tr><td class="paramname">relation</td><td>Relation defining the ancestor chain. </td></tr>
   </table>
   </dd>
@@ -3830,7 +3857,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Returns the internal record for <em>entity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> or exact pair record. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record. </td></tr>
   </table>
   </dd>
 </dl>
@@ -3865,7 +3892,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Returns the internal record for <em>entity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> or exact pair record. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record. </td></tr>
   </table>
   </dd>
 </dl>
@@ -3907,7 +3934,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </table>
 </div><div class="memdoc">
 
-<p>Finalizes a newly registered component entity after the cache record has been created. This synchronizes the core <code><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a></code> value stored on the component entity, registers the default symbol through the normal naming path, and optionally latches the <code>Sparse</code> trait. </p>
+<p>Finalizes a newly registered component entity after the cache record has been created. This synchronizes the core <code><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a></code> value stored on the component entity, registers the default symbol through the normal naming path, and optionally latches the <code>Sparse</code> trait. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">item</td><td>Registered component cache item. </td></tr>
@@ -4007,8 +4034,8 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Finishes adding a sparse component after its payload has been created. Fragmenting components also add the id directly to the entity archetype. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the component. </td></tr>
-    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being added. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> receiving the component. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity being added. </td></tr>
     <tr><td class="paramname">mode</td><td>Sparse storage mode for the component. </td></tr>
   </table>
   </dd>
@@ -4220,11 +4247,11 @@ template&lt;typename T &gt; </div>
 <p>Returns the entity registered for component type <em>T</em>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity. </dd></dl>
 
 </div>
 </div>
@@ -4303,13 +4330,13 @@ template&lt;typename T &gt; </div>
 <p>Returns the value stored in the component T on entity. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -4361,14 +4388,14 @@ template&lt;typename T &gt; </div>
 <p>Returns the value stored in the component associated with <code>object</code> on <code>entity</code>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type represented by <code>object</code>. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type represented by <code>object</code>. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to read, resolving inherited ownership when necessary. </td></tr>
-    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity selecting the payload. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to read, resolving inherited ownership when necessary. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity selecting the payload. </td></tr>
   </table>
   </dd>
 </dl>
@@ -4403,11 +4430,11 @@ template&lt;typename T &gt; </div>
 <p>Returns the entity located at the index <em>id</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">id</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> id </td></tr>
+    <tr><td class="paramname">id</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> id </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </dd></dl>
 
 </div>
 </div>
@@ -4438,11 +4465,11 @@ template&lt;typename T &gt; </div>
 <p>Returns a chunk containing the <em>entity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> or nullptr if not found. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Chunk.html" title="Fixed-capacity archetype storage unit holding entities and their component columns.">Chunk</a> or nullptr if not found. </dd></dl>
 
 </div>
 </div>
@@ -4483,12 +4510,12 @@ template&lt;typename T &gt; </div>
 <p>Returns a chunk containing the <em>entity</em>. Index of the entity is stored in <em>row</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramdir"></td><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramdir"></td><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
     <tr><td class="paramdir">[out]</td><td class="paramname">row</td><td>Row of <em>entity</em> within chunk </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> or nullptr if not found </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Chunk.html" title="Fixed-capacity archetype storage unit holding entities and their component columns.">Chunk</a> or nullptr if not found </dd></dl>
 
 </div>
 </div>
@@ -4529,8 +4556,8 @@ template&lt;typename T &gt; </div>
 <p>Returns raw read-only bytes for an AoS component or exact pair payload on <em>entity</em>. Inherited ids resolve to the owning entity. SoA and unsupported components return an invalid view. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being read. </td></tr>
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity or exact relationship pair being read. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> being read. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity or exact relationship pair being read. </td></tr>
   </table>
   </dd>
 </dl>
@@ -4581,7 +4608,7 @@ template&lt;typename T &gt; </div>
 <p>Returns one read-only field value from a directly addressed SoA field array. The field index follows the registered SoA field order. Inherited ids resolve to the owning entity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being read. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> being read. </td></tr>
     <tr><td class="paramname">component</td><td>Runtime component entity being read. </td></tr>
     <tr><td class="paramname">fieldIdx</td><td>SoA field array index. </td></tr>
   </table>
@@ -4646,7 +4673,7 @@ template&lt;typename T &gt; </div>
 <p>Checks if entity is currently used by the world. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a>. </td></tr>
   </table>
   </dd>
 </dl>
@@ -4683,13 +4710,13 @@ template&lt;typename T &gt; </div>
 <p>Checks if <em>entity</em> contains the component <em>T</em>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -4737,7 +4764,7 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 <p>Checks if <em>entity</em> contains the entity <em>object</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
     <tr><td class="paramname">object</td><td>Tested entity </td></tr>
   </table>
   </dd>
@@ -4786,7 +4813,7 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 <p>Checks if <em>entity</em> contains <em>pair</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
     <tr><td class="paramname">pair</td><td>Tested pair </td></tr>
   </table>
   </dd>
@@ -4870,7 +4897,7 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 <p>Checks if <em>entity</em> directly contains the entity <em>object</em>, without semantic inheritance expansion. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
     <tr><td class="paramname">object</td><td>Tested entity </td></tr>
   </table>
   </dd>
@@ -4916,7 +4943,7 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 <p>Checks if <code>entity</code> directly contains <code>pair</code>, without semantic inheritance expansion. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to inspect. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to inspect. </td></tr>
     <tr><td class="paramname">pair</td><td>Exact or wildcard pair to test. </td></tr>
   </table>
   </dd>
@@ -5072,7 +5099,7 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 <p>Checks whether any cached sorted query depends on <em>entity</em> being written. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a>. </td></tr>
   </table>
   </dd>
 </dl>
@@ -5117,7 +5144,7 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 <p>Checks if <em>entity</em> is located in <em>entityBase</em>. This is almost the same as "is" with the exception that false is returned if <em>entity</em> matches <em>entityBase</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
     <tr><td class="paramname">entityBase</td><td>Base entity </td></tr>
   </table>
   </dd>
@@ -5199,7 +5226,7 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">prefabEntity</td><td>Prefab entity to instantiate. </td></tr>
-    <tr><td class="paramname">parentInstance</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the spawned root through Parent. </td></tr>
+    <tr><td class="paramname">parentInstance</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> receiving the spawned root through Parent. </td></tr>
   </table>
   </dd>
 </dl>
@@ -5413,10 +5440,10 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 </table>
 </div><div class="memdoc">
 
-<p>Invalidates semantic <code>Is</code> queries affected by removing or changing <em><a class="el" href="structgaia_1_1ecs_1_1is__pair.html">is_pair</a></em>. </p>
+<p>Invalidates semantic <code>Is</code> queries affected by removing or changing <em><a class="el" href="structgaia_1_1ecs_1_1is__pair.html" title="Detects whether a type is a relationship pair.">is_pair</a></em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname"><a class="el" href="structgaia_1_1ecs_1_1is__pair.html">is_pair</a></td><td><code>Is</code> pair </td></tr>
+    <tr><td class="paramname"><a class="el" href="structgaia_1_1ecs_1_1is__pair.html" title="Detects whether a type is a relationship pair.">is_pair</a></td><td><code>Is</code> pair </td></tr>
   </table>
   </dd>
 </dl>
@@ -5484,7 +5511,7 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 <p>Invalidates cached sorted queries whose row ordering depends on <em>entity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a>. </td></tr>
   </table>
   </dd>
 </dl>
@@ -5528,7 +5555,7 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 <p>Checks if <em>entity</em> inherits from <em>entityBase</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
     <tr><td class="paramname">entityBase</td><td>Base entity </td></tr>
   </table>
   </dd>
@@ -5599,7 +5626,7 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 <p>Returns whether <em>entity</em> is marked DontFragment. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -5634,7 +5661,7 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 <p>Returns whether the record is already in delete-requested state. Covers both explicit per-entity deletion and archetype-level forced teardown. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">ec</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> container record </td></tr>
+    <tr><td class="paramname">ec</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> container record </td></tr>
   </table>
   </dd>
 </dl>
@@ -5834,14 +5861,14 @@ template&lt;typename T &gt; </div>
 <p>Marks the component type <code>T</code> as modified. Best used with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae5686e2e275daafb210921672546dd3c" title="Starts a bulk set operation on entity.">acc_mut()</a>.<a class="el" href="classgaia_1_1ecs_1_1World.html#a48e2c009944e302c23fc92899e39f1fa" title="Returns silent mutable access to component type T on entity. This is a silent write and does not trig...">sset()</a> or <a class="el" href="classgaia_1_1ecs_1_1World.html#ab9a2b4c5fb90fb3c16f9b1777d05420b" title="Returns a write-back proxy for the component T on entity. The proxy copies the current value,...">set()</a> to manually trigger an update at user's whim. If <code>TriggerSetEffects</code> is true, also triggers the component's set side effects: set hooks and <code>OnSet</code> observers. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type </td></tr>
     <tr><td class="paramname">TriggerSetEffects</td><td>Triggers set side effects if true </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose component version is updated. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> whose component version is updated. </td></tr>
   </table>
   </dd>
 </dl>
@@ -5887,15 +5914,15 @@ template&lt;typename T &gt; </div>
 <p>Marks the component associated with <code>object</code> as modified on <code>entity</code>. Best used with <code>mut&lt;T&gt;(entity, object)</code> or <code>sset&lt;T&gt;(entity, object)</code> to manually trigger an update at user's whim. If <code>TriggerSetEffects</code> is true, also triggers the component's set side effects: set hooks and <code>OnSet</code> observers. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type </td></tr>
     <tr><td class="paramname">TriggerSetEffects</td><td>Triggers set side effects if true </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose component version is updated. </td></tr>
-    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity associated with <code>T</code>. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> whose component version is updated. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity associated with <code>T</code>. </td></tr>
   </table>
   </dd>
 </dl>
@@ -5939,7 +5966,7 @@ template&lt;typename T &gt; </div>
 <p>Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side effects. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose raw component payload was mutated. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> whose raw component payload was mutated. </td></tr>
     <tr><td class="paramname">component</td><td>Runtime component entity previously passed to <a class="el" href="classgaia_1_1ecs_1_1World.html#ad5846aed1543b377ffba04f97d546055" title="Returns raw mutable bytes for a directly owned AoS component or exact pair payload....">mut_raw()</a>. </td></tr>
   </table>
   </dd>
@@ -6023,13 +6050,13 @@ template&lt;typename T &gt; </div>
 <p>Returns a mutable reference or proxy to the component on <em>entity</em> without triggering a world version update. This is a silent raw write path. Call <code>modify&lt;T, true&gt;(entity)</code> when you need hooks or <code>OnSet</code>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -6081,14 +6108,14 @@ template&lt;typename T &gt; </div>
 <p>Returns a mutable reference or proxy to the component associated with <code>object</code> on <code>entity</code>. This is a silent raw write path. Call <code>modify&lt;T, true&gt;(entity, object)</code> when you need hooks or <code>OnSet</code>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type represented by <code>object</code>. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type represented by <code>object</code>. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the component. </td></tr>
-    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity selecting the payload. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> owning the component. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity selecting the payload. </td></tr>
   </table>
   </dd>
 </dl>
@@ -6133,8 +6160,8 @@ template&lt;typename T &gt; </div>
 <p>Returns raw mutable bytes for a directly owned AoS component or exact pair payload. This is a silent write path. Pair with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side...">modify_raw()</a> to emit set hooks and <code>OnSet</code> observers. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being mutated. </td></tr>
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity or exact relationship pair being mutated. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> being mutated. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity or exact relationship pair being mutated. </td></tr>
   </table>
   </dd>
 </dl>
@@ -6185,7 +6212,7 @@ template&lt;typename T &gt; </div>
 <p>Returns one mutable field value from a directly owned SoA field array. This is a silent write path. Pair with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side...">modify_raw()</a> to emit set hooks and <code>OnSet</code> observers. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being mutated. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> being mutated. </td></tr>
     <tr><td class="paramname">component</td><td>Runtime component entity being mutated. </td></tr>
     <tr><td class="paramname">fieldIdx</td><td>SoA field array index. </td></tr>
   </table>
@@ -6222,7 +6249,7 @@ template&lt;typename T &gt; </div>
 <p>Returns the name assigned to <em>entity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -6274,7 +6301,7 @@ template&lt;typename T &gt; </div>
 <p>Assigns a <em>name</em> to <em>entity</em>. Ignored if used with pair. The string is copied and kept internally. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
     <tr><td class="paramname">name</td><td>A null-terminated string </td></tr>
     <tr><td class="paramname">len</td><td>String length. If zero, the length is calculated </td></tr>
   </table>
@@ -6367,7 +6394,7 @@ The name can't contain the character '.'. This character is reserved for hierarc
 <p>Assigns a <em>name</em> to <em>entity</em>. Ignored if used with pair. The string is NOT copied. Your are responsible for its lifetime. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
     <tr><td class="paramname">name</td><td>Pointer to a stable null-terminated string </td></tr>
     <tr><td class="paramname">len</td><td>String length. If zero, the length is calculated </td></tr>
   </table>
@@ -6681,13 +6708,13 @@ template&lt;typename T &gt; </div>
 <p>Materializes an inherited typed component as directly owned storage on <code>entity</code>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type to materialize. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type to materialize. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the local override. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> receiving the local override. </td></tr>
   </table>
   </dd>
 </dl>
@@ -6732,7 +6759,7 @@ template&lt;typename T &gt; </div>
 <p>Materializes an inherited id as directly owned storage on <code>entity</code>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the local override. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> receiving the local override. </td></tr>
     <tr><td class="paramname">object</td><td>Inherited component or pair id to materialize. </td></tr>
   </table>
   </dd>
@@ -6780,13 +6807,13 @@ template&lt;typename T &gt; </div>
 <p>Materializes an inherited typed component associated with <code>object</code> on <code>entity</code>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type represented by <code>object</code>. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type represented by <code>object</code>. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the local override. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> receiving the local override. </td></tr>
     <tr><td class="paramname">object</td><td>Inherited component entity to materialize. </td></tr>
   </table>
   </dd>
@@ -6832,7 +6859,7 @@ template&lt;typename T &gt; </div>
 <p>Materializes an inherited pair as directly owned storage on <code>entity</code>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the local override. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> receiving the local override. </td></tr>
     <tr><td class="paramname">pair</td><td>Inherited pair to materialize. </td></tr>
   </table>
   </dd>
@@ -6913,7 +6940,7 @@ template&lt;typename T &gt; </div>
 <p>Adds a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. The relationship is non-fragmenting and does not participate in archetype identity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to inspect. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to inspect. </td></tr>
     <tr><td class="paramname">parentEntity</td><td>Candidate parent entity. </td></tr>
   </table>
   </dd>
@@ -6958,7 +6985,7 @@ template&lt;typename T &gt; </div>
 <p>Checks whether <em>entity</em> has a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to inspect. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to inspect. </td></tr>
     <tr><td class="paramname">parentEntity</td><td>Candidate parent entity. </td></tr>
   </table>
   </dd>
@@ -7040,7 +7067,7 @@ template&lt;typename T &gt; </div>
 <p>Returns the scoped path name for a component entity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity. </td></tr>
   </table>
   </dd>
 </dl>
@@ -7091,7 +7118,7 @@ template&lt;typename T &gt; </div>
 <p>Assigns a scoped path name to a component entity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity. </td></tr>
     <tr><td class="paramname">path</td><td>Path to assign. Pass nullptr to clear the current path. </td></tr>
     <tr><td class="paramname">len</td><td>String length. If zero, the length is calculated. </td></tr>
   </table>
@@ -7128,7 +7155,7 @@ template&lt;typename T &gt; </div>
 <p>Creates a new prefab entity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> kind. Generic entity by default. </td></tr>
+    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> kind. Generic entity by default. </td></tr>
   </table>
   </dd>
 </dl>
@@ -7261,11 +7288,11 @@ template&lt;typename T &gt; </div>
 <p>Returns the registered component cache item for <em>T</em>, auto-registering it when enabled. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> cache item for <em>T</em>. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> cache item for <em>T</em>. </dd></dl>
 
 </div>
 </div>
@@ -7862,7 +7889,7 @@ template&lt;typename Func &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Resolves <em>name</em> in the world naming system. <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> names and hierarchical entity paths are attempted first. If they do not match, component lookup uses the current scope, then the lookup path, then global component symbol, path and alias lookup. </p>
+<p>Resolves <em>name</em> in the world naming system. <a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> names and hierarchical entity paths are attempted first. If they do not match, component lookup uses the current scope, then the lookup path, then global component symbol, path and alias lookup. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">name</td><td>Pointer to a stable null-terminated string </td></tr>
@@ -8100,13 +8127,13 @@ template&lt;typename T &gt; </div>
 <p>Returns a write-back proxy for the component <em>T</em> on <em>entity</em>. The proxy copies the current value, lets the caller mutate it, then writes it back at the end of the full expression or scope. <code>OnSet</code> observers and chunk-backed set hooks are triggered only after the write-back completes. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -8158,14 +8185,14 @@ template&lt;typename T &gt; </div>
 <p>Returns a write-back proxy for the component associated with <em>object</em> on <em>entity</em>. The proxy copies the current value, lets the caller mutate it, then writes it back at the end of the full expression or scope. <code>OnSet</code> observers and chunk-backed set hooks are triggered only after the write-back completes. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
-    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity </td></tr>
   </table>
   </dd>
 </dl>
@@ -8215,8 +8242,8 @@ Undefined behavior if <em>entity</em> changes archetype before the proxy writes 
 <p>Latches DontFragment on a component entity record. This first moves the payload out of chunks, then removes the id from archetype identity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity. </td></tr>
-    <tr><td class="paramname">ec</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity container. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity. </td></tr>
+    <tr><td class="paramname">ec</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity container. </td></tr>
   </table>
   </dd>
 </dl>
@@ -8250,7 +8277,7 @@ Undefined behavior if <em>entity</em> changes archetype before the proxy writes 
 <p>Latches Sparse storage on a component entity before any instances exist. This moves the payload out of chunks while keeping the id in archetype identity. Only plain generic AoS components are supported. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity. </td></tr>
   </table>
   </dd>
 </dl>
@@ -8294,7 +8321,7 @@ Undefined behavior if <em>entity</em> changes archetype before the proxy writes 
 <p>Sets maximal lifespan of an archetype <em>entity</em> belongs to. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
     <tr><td class="paramname">lifespan</td><td>How many world updates an empty archetype is kept. If zero, the archetype it kept indefinitely. </td></tr>
   </table>
   </dd>
@@ -8351,7 +8378,7 @@ Undefined behavior if <em>entity</em> changes archetype before the proxy writes 
 <p>Replaces raw bytes for a directly owned AoS component and finishes the write. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose component is being replaced. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> whose component is being replaced. </td></tr>
     <tr><td class="paramname">component</td><td>Runtime component entity or exact relationship pair. </td></tr>
     <tr><td class="paramname">data</td><td>Payload bytes. Must be non-null when the component size is non-zero. </td></tr>
     <tr><td class="paramname">size</td><td>Payload byte count. Must match the registered component size. </td></tr>
@@ -8490,7 +8517,7 @@ template&lt;typename TSerializer &gt; </div>
 </div><div class="memdoc">
 
 <p>Returns the number of active entities. </p>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </dd></dl>
 
 </div>
 </div>
@@ -8576,7 +8603,7 @@ template&lt;typename Func &gt; </div>
 <p>Returns the cached deduped direct sources for wildcard source traversal on <code>target</code>. The cache is keyed by <code>target</code> and cleared whenever a pair edge changes. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">target</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose direct pair sources are requested. </td></tr>
+    <tr><td class="paramname">target</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> whose direct pair sources are requested. </td></tr>
   </table>
   </dd>
 </dl>
@@ -8840,7 +8867,7 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">component</td><td>Sparse component entity. </td></tr>
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the value. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> owning the value. </td></tr>
   </table>
   </dd>
 </dl>
@@ -8894,7 +8921,7 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">component</td><td>Sparse component entity. </td></tr>
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the value. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> owning the value. </td></tr>
   </table>
   </dd>
 </dl>
@@ -8948,7 +8975,7 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">component</td><td>Sparse component entity. </td></tr>
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the value. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> owning the value. </td></tr>
   </table>
   </dd>
 </dl>
@@ -8985,13 +9012,13 @@ template&lt;typename T &gt; </div>
 <p>Returns the sparse component store for <em>component</em>, or nullptr if it does not exist. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> payload type stored in the sparse store. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> payload type stored in the sparse store. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity identifying the store. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity identifying the store. </td></tr>
   </table>
   </dd>
 </dl>
@@ -9028,13 +9055,13 @@ template&lt;typename T &gt; </div>
 <p>Returns the sparse component store for <em>component</em>, or nullptr if it does not exist. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> payload type stored in the sparse store. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> payload type stored in the sparse store. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity identifying the store. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity identifying the store. </td></tr>
   </table>
   </dd>
 </dl>
@@ -9152,13 +9179,13 @@ template&lt;typename T &gt; </div>
 <p>Returns the sparse component store for <em>component</em>, creating it if needed. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> payload type stored in the sparse store. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> payload type stored in the sparse store. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity identifying the store. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity identifying the store. </td></tr>
   </table>
   </dd>
 </dl>
@@ -9228,7 +9255,7 @@ template&lt;typename T &gt; </div>
 <p>Returns the sparse storage mode used by a component. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity to inspect. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity to inspect. </td></tr>
   </table>
   </dd>
 </dl>
@@ -9265,13 +9292,13 @@ template&lt;typename T &gt; </div>
 <p>Returns silent mutable access to component type <code>T</code> on <code>entity</code>. This is a silent write and does not trigger set hooks or <code>OnSet</code> observers. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
   </table>
   </dd>
 </dl>
@@ -9323,14 +9350,14 @@ template&lt;typename T &gt; </div>
 <p>Sets the value of the component associated with <code>object</code> on <code>entity</code> without updating world version. This is a silent write and does not trigger set hooks or <code>OnSet</code> observers. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type represented by <code>object</code>. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type represented by <code>object</code>. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the component. </td></tr>
-    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity selecting the payload. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> owning the component. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity selecting the payload. </td></tr>
   </table>
   </dd>
 </dl>
@@ -9366,7 +9393,7 @@ template&lt;typename T &gt; </div>
 <p>Sparse storage currently supports only plain generic components. Pairs, unique components and SoA layouts stay on the normal archetype path. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type to inspect. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type to inspect. </td></tr>
   </table>
   </dd>
 </dl>
@@ -9447,7 +9474,7 @@ template&lt;typename T &gt; </div>
 <p>Returns the registered symbol name for a component entity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity. </td></tr>
   </table>
   </dd>
 </dl>
@@ -9524,10 +9551,10 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Updates the cached component metadata in both the component cache and the core <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> storage. </p>
+<p>Updates the cached component metadata in both the component cache and the core <a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> storage. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity. </td></tr>
     <tr><td class="paramname">comp</td><td>New component descriptor value. </td></tr>
   </table>
   </dd>
@@ -9700,7 +9727,7 @@ template&lt;typename Func &gt; </div>
 <p>Returns the cached deduped direct targets for wildcard target traversal on <code>source</code>. The cache is keyed by <code>source</code> and cleared whenever a pair edge changes. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">source</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose direct pair targets are requested. </td></tr>
+    <tr><td class="paramname">source</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> whose direct pair targets are requested. </td></tr>
   </table>
   </dd>
 </dl>
@@ -9815,7 +9842,7 @@ template&lt;typename Func &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">relation</td><td>Relation defining each upward edge. </td></tr>
-    <tr><td class="paramname">source</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> where traversal starts. </td></tr>
+    <tr><td class="paramname">source</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> where traversal starts. </td></tr>
     <tr><td class="paramname">func</td><td>Callable invoked for each enabled target. </td></tr>
   </table>
   </dd>
@@ -9861,7 +9888,7 @@ template&lt;typename Func &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">relation</td><td>Relation defining each upward edge. </td></tr>
-    <tr><td class="paramname">source</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> where traversal starts. </td></tr>
+    <tr><td class="paramname">source</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> where traversal starts. </td></tr>
   </table>
   </dd>
 </dl>
@@ -9921,7 +9948,7 @@ template&lt;typename Func &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">relation</td><td>Relation defining each upward edge. </td></tr>
-    <tr><td class="paramname">source</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> where traversal starts. </td></tr>
+    <tr><td class="paramname">source</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> where traversal starts. </td></tr>
     <tr><td class="paramname">func</td><td>Callable invoked for each enabled target. Returning false stops traversal. </td></tr>
   </table>
   </dd>
@@ -9985,7 +10012,7 @@ template&lt;typename Func &gt; </div>
 <p>Returns the entity for <code>id</code> when it is still live, or EntityBad for stale cleanup-time ids. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">id</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> id to resolve. </td></tr>
+    <tr><td class="paramname">id</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> id to resolve. </td></tr>
   </table>
   </dd>
 </dl>
@@ -10117,7 +10144,7 @@ template&lt;typename T &gt; </div>
 <p>Returns whether <em>T</em> has compile-time sparse payload storage. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type to inspect. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type to inspect. </td></tr>
   </table>
   </dd>
 </dl>
@@ -10157,6 +10184,40 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>True if the entity is valid. False otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a46fa1191b329e7997572f48f7a2a3a74" name="a46fa1191b329e7997572f48f7a2a3a74"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a46fa1191b329e7997572f48f7a2a3a74">&#9670;&#160;</a></span>validate_runtime_semantics()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::validate_runtime_semantics </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1RuntimeTypeDesc.html">RuntimeTypeDesc</a> &amp;&#160;</td>
+          <td class="paramname"><em>runtimeType</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Validates runtime-reflection state against the live scope graph in debug builds. Verifies that every semantic entity referenced by <em>runtimeType</em> resolves to a reachable scope path. All checks are compiled out when assertions are disabled. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">runtimeType</td><td>Runtime descriptor whose semantic entities are validated. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
@@ -10394,12 +10455,12 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> to query. </td></tr>
-    <tr><td class="paramname">archetype</td><td><a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> to inspect. </td></tr>
+    <tr><td class="paramname">archetype</td><td><a class="el" href="classgaia_1_1ecs_1_1Archetype.html" title="Fixed-shape group of chunks storing entities that share the same component layout....">Archetype</a> to inspect. </td></tr>
     <tr><td class="paramname">term</td><td>Term to inspect. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> index, or BadIndex if unavailable. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> index, or BadIndex if unavailable. </dd></dl>
 
 </div>
 </div>
@@ -10447,7 +10508,7 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> to query. </td></tr>
-    <tr><td class="paramname">archetype</td><td><a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> to inspect. </td></tr>
+    <tr><td class="paramname">archetype</td><td><a class="el" href="classgaia_1_1ecs_1_1Archetype.html" title="Fixed-shape group of chunks storing entities that share the same component layout....">Archetype</a> to inspect. </td></tr>
     <tr><td class="paramname">term</td><td>Term to inspect. </td></tr>
   </table>
   </dd>
@@ -10502,7 +10563,7 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> to query. </td></tr>
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to read or mutate. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to read or mutate. </td></tr>
   </table>
   </dd>
 </dl>
@@ -10556,7 +10617,7 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> to query. </td></tr>
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to read or mutate. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to read or mutate. </td></tr>
   </table>
   </dd>
 </dl>
@@ -10656,7 +10717,7 @@ template&lt;typename T &gt; </div>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> owning the component value. </td></tr>
     <tr><td class="paramname">term</td><td>Written component or relationship id. </td></tr>
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the written value. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> owning the written value. </td></tr>
   </table>
   </dd>
 </dl>
@@ -10715,7 +10776,7 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> to query. </td></tr>
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to read or mutate. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to read or mutate. </td></tr>
     <tr><td class="paramname">id</td><td>Explicit component or pair id, or EntityBad to derive it from <em>T</em>. </td></tr>
   </table>
   </dd>
@@ -10776,7 +10837,7 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> to query. </td></tr>
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to read or mutate. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to read or mutate. </td></tr>
     <tr><td class="paramname">id</td><td>Explicit component or pair id, or EntityBad to derive it from <em>T</em>. </td></tr>
   </table>
   </dd>

@@ -114,23 +114,33 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1AccessContextMT.h
   <div class="headertitle"><div class="title">gaia::ecs::AccessContextMT Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Multi-threaded command-buffer access guard backed by a spin lock.  
+ <a href="structgaia_1_1ecs_1_1AccessContextMT.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="command__buffer_8h_source.html">command_buffer.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr class="memitem:ac99950766e04155938741b84551280a1" id="r_ac99950766e04155938741b84551280a1"><td class="memItemLeft" align="right" valign="top"><a id="ac99950766e04155938741b84551280a1" name="ac99950766e04155938741b84551280a1"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>lock</b> ()</td></tr>
+<tr class="memdesc:ac99950766e04155938741b84551280a1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Acquires the access guard. <br /></td></tr>
 <tr class="separator:ac99950766e04155938741b84551280a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af5c8331efa706baf3c126a8d2427d6ed" id="r_af5c8331efa706baf3c126a8d2427d6ed"><td class="memItemLeft" align="right" valign="top"><a id="af5c8331efa706baf3c126a8d2427d6ed" name="af5c8331efa706baf3c126a8d2427d6ed"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>unlock</b> ()</td></tr>
+<tr class="memdesc:af5c8331efa706baf3c126a8d2427d6ed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Releases the access guard. <br /></td></tr>
 <tr class="separator:af5c8331efa706baf3c126a8d2427d6ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a83ff6cea13b35929088415e661224379" id="r_a83ff6cea13b35929088415e661224379"><td class="memItemLeft" align="right" valign="top"><a id="a83ff6cea13b35929088415e661224379" name="a83ff6cea13b35929088415e661224379"></a>
 <a class="el" href="classgaia_1_1mt_1_1SpinLock.html">mt::SpinLock</a>&#160;</td><td class="memItemRight" valign="bottom"><b>m_lock</b></td></tr>
+<tr class="memdesc:a83ff6cea13b35929088415e661224379"><td class="mdescLeft">&#160;</td><td class="mdescRight">Spin lock serializing command-buffer access across worker threads. <br /></td></tr>
 <tr class="separator:a83ff6cea13b35929088415e661224379"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<hr/>The documentation for this struct was generated from the following file:<ul>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Multi-threaded command-buffer access guard backed by a spin lock. </p>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="command__buffer_8h_source.html">command_buffer.h</a></li>
 </ul>
 </div><!-- contents -->

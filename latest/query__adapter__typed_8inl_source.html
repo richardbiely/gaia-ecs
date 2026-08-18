@@ -182,7 +182,7 @@ $(document).ready(function(){initNavTree('query__adapter__typed_8inl_source.html
 <div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>        <span class="keywordflow">return</span> TypedQueryArgMeta{EntityBad, isWrite, <span class="keyword">true</span>, <span class="keyword">false</span>, <span class="keyword">false</span>};</div>
 <div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>      <span class="keywordflow">else</span> {</div>
 <div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>        <span class="keyword">using </span>FT = <span class="keyword">typename</span> component_type_t&lt;Arg&gt;::TypeFull;</div>
-<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>        <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (is_pair&lt;FT&gt;::value)</div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>        <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (<a class="code hl_variable" href="structgaia_1_1ecs_1_1is__pair.html#af9eb048f9cabc4eab895c669a13fbad0">is_pair&lt;FT&gt;::value</a>)</div>
 <div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>          <span class="keywordflow">return</span> TypedQueryArgMeta{EntityBad, isWrite, <span class="keyword">false</span>, <span class="keyword">true</span>, <span class="keyword">false</span>};</div>
 <div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span>        <span class="keywordflow">else</span> {</div>
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span>          <span class="keyword">const</span> <span class="keyword">auto</span> termId = world_query_arg_id&lt;Arg&gt;(world);</div>
@@ -283,6 +283,7 @@ $(document).ready(function(){initNavTree('query__adapter__typed_8inl_source.html
 <div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span>    }</div>
 <div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span>  } <span class="comment">// namespace ecs</span></div>
 <div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>} <span class="comment">// namespace gaia</span></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1is__pair_html_af9eb048f9cabc4eab895c669a13fbad0"><div class="ttname"><a href="structgaia_1_1ecs_1_1is__pair.html#af9eb048f9cabc4eab895c669a13fbad0">gaia::ecs::is_pair::value</a></div><div class="ttdeci">static constexpr bool value</div><div class="ttdoc">True when the type derives from the pair base.</div><div class="ttdef"><b>Definition</b> id.h:287</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

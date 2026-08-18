@@ -890,7 +890,7 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>SystemBuilder</b></t
 <p>Expression is a string between separators. Spaces are trimmed automatically.</p>
 <p>Supported modifiers: "," - separates expressions "||" - query::or_(OR chain with at least two OR terms) "?" - query::any (optional) "!" - query::none "&amp;" - read-write access "%e" - entity value "(rel,tgt)" - relationship pair, a wildcard character in either rel or tgt is translated into All "$name" - query variable (<code>$this</code> is reserved) "Id(src)" - source lookup (src can be a variable, e.g. Planet($planet), or $this for default source)</p>
 <p>Example: struct Position {...}; struct Velocity {...}; struct RigidBody {...}; struct Fuel {...}; auto player = w.add(); w.query().add("&amp;Position, !Velocity, ?RigidBody, (Fuel,*), %e", player.value()); Translates into: w.query() .<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a50c530c703d95463e2a09c11ceac6c58" title="Adds a required typed term.">all&lt;Position&amp;&gt;()</a> .<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ab46d739b1ffa87544e639b6cb082956d" title="Adds an excluded typed term.">no&lt;Velocity&gt;()</a> .<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a44aceb299d8832301d7637fd7e0e2a0e" title="Adds an optional typed term.">any&lt;RigidBody&gt;()</a> .all(Pair(w.add&lt;Fuel&gt;().entity, All)&gt;() .all(Player);</p>
-<p>Adds one or more query terms described by a string expression. <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> names are resolved immediately while the expression is parsed and the resulting component ids are baked into the query terms. Later scope, path or alias changes do not rewrite an already parsed query. Names in <em>str</em> are resolved while add(...) parses the expression and the resulting ids are baked into the query. Active component scope and lookup-path state affect parsing only at that moment and do not rewrite the query later. </p><dl class="params"><dt>Parameters</dt><dd>
+<p>Adds one or more query terms described by a string expression. <a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> names are resolved immediately while the expression is parsed and the resulting component ids are baked into the query terms. Later scope, path or alias changes do not rewrite an already parsed query. Names in <em>str</em> are resolved while add(...) parses the expression and the resulting ids are baked into the query. Active component scope and lookup-path state affect parsing only at that moment and do not rewrite the query later. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">str</td><td>Null-terminated string with the query expression. </td></tr>
     <tr><td class="paramname">...</td><td>Optional varargs consumed by <code>e</code> substitutions inside <em>str</em>. </td></tr>
@@ -956,7 +956,7 @@ template&lt;typename T &gt; </div>
 <p>Adds a required typed term. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> or pair type. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair type. </td></tr>
   </table>
   </dd>
 </dl>
@@ -985,7 +985,7 @@ template&lt;typename T &gt; </div>
 <p>Adds a required typed term. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> or pair type. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair type. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1065,7 +1065,7 @@ template&lt;typename T &gt; </div>
 <p>Adds an optional typed term. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> or pair type. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair type. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1094,7 +1094,7 @@ template&lt;typename T &gt; </div>
 <p>Adds an optional typed term. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> or pair type. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair type. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1479,7 +1479,7 @@ template&lt;typename T &gt; </div>
 <p>Marks a typed term for <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aca61ae31f97ef9503ff11c032601e82e" title="Marks a typed term for changed() filtering.">changed()</a> filtering. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> or pair type. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair type. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1514,7 +1514,7 @@ template&lt;typename T &gt; </div>
 <p>Marks a runtime component or pair for <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aca61ae31f97ef9503ff11c032601e82e" title="Marks a typed term for changed() filtering.">changed()</a> filtering. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> or pair id to monitor. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair id to monitor. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1583,7 +1583,7 @@ template&lt;typename T &gt; </div>
 <p>Calculates the row range of a chunk after applying row constraints and depth-order barrier state. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">pChunk</td><td><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> to inspect. </td></tr>
+    <tr><td class="paramname">pChunk</td><td><a class="el" href="classgaia_1_1ecs_1_1Chunk.html" title="Fixed-capacity archetype storage unit holding entities and their component columns.">Chunk</a> to inspect. </td></tr>
     <tr><td class="paramname">constraints</td><td>Entity-row subset exposed to the callback. </td></tr>
     <tr><td class="paramname">needsBarrierCache</td><td>True when barrier state participates in row selection. </td></tr>
     <tr><td class="paramname">barrierPasses</td><td>Cached barrier result for the archetype containing the chunk. </td></tr>
@@ -2973,7 +2973,7 @@ template&lt;typename T &gt; </div>
 <p>Organizes matching archetypes into groups according to the grouping function. Does not order iteration by group id. Use group_id(...) to filter one group. Use depth_order(...) or sort_by(...) when iteration order matters. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> to group by. It is registered if it hasn't been registered yet. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> to group by. It is registered if it hasn't been registered yet. </td></tr>
   </table>
   </dd>
 </dl>
@@ -3106,7 +3106,7 @@ template&lt;typename T &gt; </div>
 <p>Selects the group to iterate over. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> to treat as a group to iterate over. It is registered if it hasn't been registered yet. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> to treat as a group to iterate over. It is registered if it hasn't been registered yet. </td></tr>
   </table>
   </dd>
 </dl>
@@ -3873,7 +3873,7 @@ template&lt;typename Func &gt; </div>
 <p>Returns whether a chunk passes the query's changed filters. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">chunk</td><td><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> being evaluated. </td></tr>
+    <tr><td class="paramname">chunk</td><td><a class="el" href="classgaia_1_1ecs_1_1Chunk.html" title="Fixed-capacity archetype storage unit holding entities and their component columns.">Chunk</a> being evaluated. </td></tr>
     <tr><td class="paramname">queryInfo</td><td>Query metadata containing changed-filter terms. </td></tr>
     <tr><td class="paramname">changedWorldVersion</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> version captured by the previous query pass. </td></tr>
   </table>
@@ -3932,7 +3932,7 @@ template&lt;typename Func &gt; </div>
 <p>Returns whether a chunk passes the query's changed filters. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">chunk</td><td><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> being evaluated. </td></tr>
+    <tr><td class="paramname">chunk</td><td><a class="el" href="classgaia_1_1ecs_1_1Chunk.html" title="Fixed-capacity archetype storage unit holding entities and their component columns.">Chunk</a> being evaluated. </td></tr>
     <tr><td class="paramname">queryInfo</td><td>Query metadata containing changed-filter terms. </td></tr>
     <tr><td class="paramname">changedWorldVersion</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> version captured by the previous query pass. </td></tr>
     <tr><td class="paramname">compIndices</td><td>Per-archetype mapping from query term index to chunk component column. </td></tr>
@@ -3987,7 +3987,7 @@ template&lt;typename Func &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">queryInfo</td><td>Query info </td></tr>
-    <tr><td class="paramname">archetype</td><td><a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> </td></tr>
+    <tr><td class="paramname">archetype</td><td><a class="el" href="classgaia_1_1ecs_1_1Archetype.html" title="Fixed-shape group of chunks storing entities that share the same component layout....">Archetype</a> </td></tr>
     <tr><td class="paramname">targetEntities</td><td>Optional target-entity filter </td></tr>
   </table>
   </dd>
@@ -4068,7 +4068,7 @@ template&lt;typename Func &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">queryInfo</td><td>Query info </td></tr>
-    <tr><td class="paramname">archetype</td><td><a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> </td></tr>
+    <tr><td class="paramname">archetype</td><td><a class="el" href="classgaia_1_1ecs_1_1Archetype.html" title="Fixed-shape group of chunks storing entities that share the same component layout....">Archetype</a> </td></tr>
     <tr><td class="paramname">targetEntities</td><td>Candidate target entities </td></tr>
   </table>
   </dd>
@@ -4143,7 +4143,7 @@ template&lt;typename T &gt; </div>
 <p>Adds an excluded typed term. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> or pair type. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair type. </td></tr>
   </table>
   </dd>
 </dl>
@@ -4172,7 +4172,7 @@ template&lt;typename T &gt; </div>
 <p>Adds an excluded typed term. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> or pair type. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair type. </td></tr>
   </table>
   </dd>
 </dl>
@@ -4223,7 +4223,7 @@ template&lt;typename T &gt; </div>
 <p>Adds an excluded entity or pair term. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> or pair id that must not match. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or pair id that must not match. </td></tr>
     <tr><td class="paramname">options</td><td>Term options. </td></tr>
   </table>
   </dd>
@@ -4252,7 +4252,7 @@ template&lt;typename T &gt; </div>
 <p>Adds an OR typed term. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> or pair type. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair type. </td></tr>
   </table>
   </dd>
 </dl>
@@ -4281,7 +4281,7 @@ template&lt;typename T &gt; </div>
 <p>Adds an OR typed term. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> or pair type. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair type. </td></tr>
   </table>
   </dd>
 </dl>
@@ -4332,7 +4332,7 @@ template&lt;typename T &gt; </div>
 <p>OR terms (at least one has to match). A single OR term is canonicalized to ALL during query normalization. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> or pair id. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or pair id. </td></tr>
     <tr><td class="paramname">options</td><td>Term options. </td></tr>
   </table>
   </dd>
@@ -4562,7 +4562,7 @@ template&lt;typename T &gt; </div>
 <p>Declares an additional component or pair type read by this query callback. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a>, entity type, or pair type to mark as read. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a>, entity type, or pair type to mark as read. </td></tr>
   </table>
   </dd>
 </dl>
@@ -4970,7 +4970,7 @@ template&lt;bool HasFilters, bool HasGroups, typename Func &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">name</td><td>Null-terminated variable name previously assigned by var_name(...). </td></tr>
-    <tr><td class="paramname">value</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> value to bind. </td></tr>
+    <tr><td class="paramname">value</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> value to bind. </td></tr>
   </table>
   </dd>
 </dl>
@@ -5016,7 +5016,7 @@ template&lt;bool HasFilters, bool HasGroups, typename Func &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">varEntity</td><td>Query variable entity (<code>Var0..Var7</code>) </td></tr>
-    <tr><td class="paramname">value</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> value to bind </td></tr>
+    <tr><td class="paramname">value</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> value to bind </td></tr>
   </table>
   </dd>
 </dl>
@@ -5062,7 +5062,7 @@ template&lt;bool HasFilters, bool HasGroups, typename Func &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">name</td><td>Variable name previously assigned by var_name(...) </td></tr>
-    <tr><td class="paramname">value</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> value to bind </td></tr>
+    <tr><td class="paramname">value</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> value to bind </td></tr>
   </table>
   </dd>
 </dl>
@@ -5568,7 +5568,7 @@ template&lt;typename T &gt; </div>
 <p>Declares an additional component or pair type written by this query callback. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a>, entity type, or pair type to mark as written. </td></tr>
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a>, entity type, or pair type to mark as written. </td></tr>
   </table>
   </dd>
 </dl>

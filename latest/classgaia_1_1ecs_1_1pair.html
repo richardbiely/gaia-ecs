@@ -131,24 +131,31 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1pair.html',''); in
 Public Types</h2></td></tr>
 <tr class="memitem:a0bf5c3553ed0a72c9821258afa149b83" id="r_a0bf5c3553ed0a72c9821258afa149b83"><td class="memItemLeft" align="right" valign="top"><a id="a0bf5c3553ed0a72c9821258afa149b83" name="a0bf5c3553ed0a72c9821258afa149b83"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>rel</b> = typename rel_comp_type::TypeFull</td></tr>
+<tr class="memdesc:a0bf5c3553ed0a72c9821258afa149b83"><td class="mdescLeft">&#160;</td><td class="mdescRight">Full relation type, either the relation or a <em>uni</em> wrapper. <br /></td></tr>
 <tr class="separator:a0bf5c3553ed0a72c9821258afa149b83"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5bceb7a70fe2e62b7bb97b18892b8202" id="r_a5bceb7a70fe2e62b7bb97b18892b8202"><td class="memItemLeft" align="right" valign="top"><a id="a5bceb7a70fe2e62b7bb97b18892b8202" name="a5bceb7a70fe2e62b7bb97b18892b8202"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>tgt</b> = typename tgt_comp_type::TypeFull</td></tr>
+<tr class="memdesc:a5bceb7a70fe2e62b7bb97b18892b8202"><td class="mdescLeft">&#160;</td><td class="mdescRight">Full target type, either the target or a <em>uni</em> wrapper. <br /></td></tr>
 <tr class="separator:a5bceb7a70fe2e62b7bb97b18892b8202"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acdb96fbc3786e9bb97349a4be57278d2" id="r_acdb96fbc3786e9bb97349a4be57278d2"><td class="memItemLeft" align="right" valign="top"><a id="acdb96fbc3786e9bb97349a4be57278d2" name="acdb96fbc3786e9bb97349a4be57278d2"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>rel_type</b> = typename rel_comp_type::Type</td></tr>
+<tr class="memdesc:acdb96fbc3786e9bb97349a4be57278d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Raw relation type. <br /></td></tr>
 <tr class="separator:acdb96fbc3786e9bb97349a4be57278d2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af2d44f82fb0407dcd7e68adf964a625f" id="r_af2d44f82fb0407dcd7e68adf964a625f"><td class="memItemLeft" align="right" valign="top"><a id="af2d44f82fb0407dcd7e68adf964a625f" name="af2d44f82fb0407dcd7e68adf964a625f"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>tgt_type</b> = typename tgt_comp_type::Type</td></tr>
+<tr class="memdesc:af2d44f82fb0407dcd7e68adf964a625f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Raw target type. <br /></td></tr>
 <tr class="separator:af2d44f82fb0407dcd7e68adf964a625f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a84c1043650d1f2646612806cffc94927" id="r_a84c1043650d1f2646612806cffc94927"><td class="memItemLeft" align="right" valign="top"><a id="a84c1043650d1f2646612806cffc94927" name="a84c1043650d1f2646612806cffc94927"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>rel_original</b> = typename rel_comp_type::TypeOriginal</td></tr>
+<tr class="memdesc:a84c1043650d1f2646612806cffc94927"><td class="mdescLeft">&#160;</td><td class="mdescRight">Original relation template type. <br /></td></tr>
 <tr class="separator:a84c1043650d1f2646612806cffc94927"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1a1baee2fb38151187cff7da15b28a13" id="r_a1a1baee2fb38151187cff7da15b28a13"><td class="memItemLeft" align="right" valign="top"><a id="a1a1baee2fb38151187cff7da15b28a13" name="a1a1baee2fb38151187cff7da15b28a13"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>tgt_original</b> = typename tgt_comp_type::TypeOriginal</td></tr>
+<tr class="memdesc:a1a1baee2fb38151187cff7da15b28a13"><td class="mdescLeft">&#160;</td><td class="mdescRight">Original target template type. <br /></td></tr>
 <tr class="separator:a1a1baee2fb38151187cff7da15b28a13"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7d582befe191374f2309ed98be230a6e" id="r_a7d582befe191374f2309ed98be230a6e"><td class="memItemLeft" align="right" valign="top"><a id="a7d582befe191374f2309ed98be230a6e" name="a7d582befe191374f2309ed98be230a6e"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>type</b> = std::conditional_t&lt;!std::is_empty_v&lt; rel_type &gt;||std::is_empty_v&lt; tgt_type &gt;, rel, tgt &gt;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>type</b> = std::conditional_t&lt;!std::is_empty_v&lt; <a class="el" href="classgaia_1_1ecs_1_1pair.html#acdb96fbc3786e9bb97349a4be57278d2">rel_type</a> &gt;||std::is_empty_v&lt; <a class="el" href="classgaia_1_1ecs_1_1pair.html#af2d44f82fb0407dcd7e68adf964a625f">tgt_type</a> &gt;, <a class="el" href="classgaia_1_1ecs_1_1pair.html#a0bf5c3553ed0a72c9821258afa149b83">rel</a>, <a class="el" href="classgaia_1_1ecs_1_1pair.html#a5bceb7a70fe2e62b7bb97b18892b8202">tgt</a> &gt;</td></tr>
+<tr class="memdesc:a7d582befe191374f2309ed98be230a6e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Storage type for the pair value. <br /></td></tr>
 <tr class="separator:a7d582befe191374f2309ed98be230a6e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>

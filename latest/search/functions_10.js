@@ -6,5 +6,6 @@ var searchData=
   ['queryhandle_3',['QueryHandle',['../structgaia_1_1ecs_1_1QueryHandle.html#ac8c6b445125ba0d4f2a03d4a8d019b53',1,'gaia::ecs::QueryHandle']]],
   ['queryhandlelookupkey_4',['QueryHandleLookupKey',['../structgaia_1_1ecs_1_1QueryHandleLookupKey.html#a49024b8cc0544d9002be09b7e2aeb9c7',1,'gaia::ecs::QueryHandleLookupKey']]],
   ['queryimpl_5',['QueryImpl',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af93e27dd334bc4c1f97b1ea708aa9daf',1,'gaia::ecs::detail::QueryImpl']]],
-  ['queued_5ffor_5fdeletion_6',['queued_for_deletion',['../classgaia_1_1ecs_1_1Chunk.html#ac71efa84d84a23a95176895046455e8e',1,'gaia::ecs::Chunk']]]
+  ['querymask_6',['queryMask',['../classgaia_1_1ecs_1_1Archetype.html#a01ef733a4df0b32e0decae231f560aeb',1,'gaia::ecs::Archetype']]],
+  ['queued_5ffor_5fdeletion_7',['queued_for_deletion',['../classgaia_1_1ecs_1_1Chunk.html#ac71efa84d84a23a95176895046455e8e',1,'gaia::ecs::Chunk']]]
 ];
