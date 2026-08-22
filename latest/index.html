@@ -3923,7 +3923,7 @@ Single-header</h3>
 <p>To generate the amalgamated header use the following command inside your root directory on Unix: </p><div class="fragment"><div class="line">./make_single_header.sh [--format|--no-format] [clang-format-executable]</div>
 </div><!-- fragment --><p>On Windows you can call: </p><div class="fragment"><div class="line">./make_single_header.bat [--format|--no-format] [clang-format-executable]</div>
 </div><!-- fragment --><p>Default behavior is to format the generated header when <code>clang-format</code> is available. Use <code>--no-format</code> to skip the formatting pass.</p>
-<p>Creation of the single header can be automated via <code>-DGAIA_GENERATE_SINGLE_HEADER=ON</code> (ON by default).</p>
+<p>Creation of the single header can be automated via <code>-DGAIA_GENERATE_SINGLE_HEADER=ON</code> (ON by default). The generator always reads and writes inside the Gaia source tree (<code>PROJECT_SOURCE_DIR</code>), so it still works when Gaia is added with FetchContent or <code>add_subdirectory</code>.</p>
 <p>Formatting is controlled by <code>-DGAIA_FORMAT_SINGLE_HEADER=ON/OFF</code> and defaults to <code>ON</code>. If formatting is enabled but <code>clang-format</code> is not available the header is still generated, it just skips the formatting pass.</p>
 <h2><a class="anchor" id="conan"></a>
 Conan</h2>
