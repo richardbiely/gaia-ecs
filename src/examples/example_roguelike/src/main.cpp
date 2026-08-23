@@ -1,1102 +1,460 @@
+//! \file
+//! \brief Terminal loop for the Gaia-ECS roguelike example.
+
 #ifdef _WIN32
 	#include <conio.h>
+	#include <cstdlib>
 #else
 	#include <fcntl.h>
 	#include <termios.h>
 	#include <unistd.h>
 #endif
-#include <cmath>
 #include <cstdio>
-#include <cstdlib>
+#include <cstring>
 
-#include <gaia.h>
+#include "roguelike_game.h"
 
 using namespace gaia;
 
-#define USE_PATHFINDING 0
-
-//----------------------------------------------------------------------
-// Platform-specific helpers
-//----------------------------------------------------------------------
-
 #ifndef _WIN32
-void enable_raw_mode(termios* old) {
-	if (tcgetattr(0, old) < 0)
+//! Enables one-character terminal input and saves the original terminal state.
+//! \param old Destination for the original terminal settings.
+//! \return True when raw mode was enabled.
+bool enable_raw_mode(termios* old) {
+	if (tcgetattr(0, old) < 0) {
 		perror("tcgetattr");
+		return false;
+	}
 
 	termios raw = *old;
 	raw.c_lflag &= ~(ICANON | ECHO);
 	raw.c_cc[VMIN] = 1;
 	raw.c_cc[VTIME] = 0;
 
-	if (tcsetattr(0, TCSANOW, &raw) < 0)
+	if (tcsetattr(0, TCSANOW, &raw) < 0) {
 		perror("tcsetattr raw");
+		return false;
+	}
+	return true;
 }
 
+//! Restores terminal settings saved by `enable_raw_mode`.
+//! \param old Original terminal settings.
 void disable_raw_mode(termios* old) {
 	if (tcsetattr(0, TCSADRAIN, old) < 0)
 		perror("tcsetattr restore");
 }
 
+//! Reads one character without waiting for a newline.
+//! \return Character read from standard input, or zero after a read failure.
 char get_char() {
 	char buf[2] = {};
 	termios old;
-	enable_raw_mode(&old);
+	const bool rawEnabled = enable_raw_mode(&old);
 
 	const auto n = read(0, buf, sizeof(buf) - 1);
 	if (n < 0)
 		perror("read");
 
-	disable_raw_mode(&old);
-
-	return buf[0];
+	if (rawEnabled)
+		disable_raw_mode(&old);
+	return n == 1 ? buf[0] : KEY_QUIT;
 }
 
-void clear_screen() {
-	auto res = system("clear");
-	(void)res;
+//! Clears the ANSI terminal display.
+void clear_screen_main() {
+	printf("\033[H\033[J");
+	fflush(stdout);
 }
 #else
+//! Reads one character from the Windows console.
+//! \return Character read from the console.
 char get_char() {
 	return (char)_getch();
 }
-void clear_screen() {
+//! Clears the Windows console display.
+void clear_screen_main() {
 	system("cls");
 }
 #endif
 
-//----------------------------------------------------------------------
-// Components
-//----------------------------------------------------------------------
-
-//! Coordinates in world-space
-struct Position {
-	int x, y;
-};
-bool operator==(const Position& a, const Position& b) {
-	return a.x == b.x && a.y == b.y;
-}
-namespace std {
-	template <>
-	struct hash<Position> {
-		size_t operator()(const Position& p) const noexcept {
-			const uint64_t h1 = core::calculate_hash64(p.x);
-			const uint64_t h2 = core::calculate_hash64(p.y);
-			return core::hash_combine(h1, h2);
-		}
-	};
-} // namespace std
-
-//! Direction in which an object faces
-struct Orientation {
-	int x, y;
-};
-//! Velocity
-struct Velocity {
-	int x, y;
-};
-//! Sprite used for rendering an object
-struct Sprite {
-	char value;
-};
-//! How much health does an object have
-struct Health {
-	int value;
-	int valueMax;
-};
-//! Various stats related to battle
-struct BattleStats {
-	int power;
-	int armor;
-};
-enum class ItemType : uint8_t { Poison, Potion, Arrow };
-//! Precise identification of items
-struct Item {
-	ItemType type;
-};
-//! Tag representing the player
-struct Player {};
-//! Tag representing physical objects that can interact with one-another
-struct RigidBody {};
-
-//----------------------------------------------------------------------
-
-constexpr uint32_t ScreenX = 40;
-constexpr uint32_t ScreenY = 15;
-
-constexpr char KEY_LEFT = 'a';
-constexpr char KEY_RIGHT = 'd';
-constexpr char KEY_UP = 'w';
-constexpr char KEY_DOWN = 's';
-constexpr char KEY_SHOOT = 'q';
-constexpr char KEY_QUIT = 'p';
-
-constexpr char TILE_WALL = '#';
-constexpr char TILE_FREE = ' ';
-constexpr char TILE_PLAYER = 'P';
-constexpr char TILE_ENEMY_GOBLIN = 'G';
-constexpr char TILE_ENEMY_ORC = 'O';
-constexpr char TILE_ARROW = '.';
-constexpr char TILE_POTION = 'h';
-constexpr char TILE_POISON = 'x';
-#if USE_PATHFINDING
-constexpr char TILE_PATH = 'W';
-#endif
-
-//----------------------------------------------------------------------
-// Path-finding
-//----------------------------------------------------------------------
-
-#if USE_PATHFINDING
-
-struct OpenNode {
-	float f;
-	uint32_t id;
-};
-
-class OpenSet {
-	cnt::darray<OpenNode> m_nodes;
-
-	void sift_up(uint32_t i) {
-		while (i > 0) {
-			const uint32_t p = (i - 1) / 2;
-			if (m_nodes[i].f >= m_nodes[p].f)
-				break;
-			core::swap(m_nodes[i], m_nodes[p]);
-			i = p;
-		}
-	}
-
-	void sift_down(uint32_t i) {
-		for (;;) {
-			const uint32_t l = i * 2 + 1;
-			const uint32_t r = l + 1;
-			uint32_t best = i;
-			if (l < m_nodes.size() && m_nodes[l].f < m_nodes[best].f)
-				best = l;
-			if (r < m_nodes.size() && m_nodes[r].f < m_nodes[best].f)
-				best = r;
-			if (best == i)
-				break;
-			core::swap(m_nodes[i], m_nodes[best]);
-			i = best;
-		}
-	}
-
-public:
-	void push(OpenNode n) {
-		m_nodes.push_back(n);
-		sift_up((uint32_t)m_nodes.size() - 1);
-	}
-
-	void pop() {
-		m_nodes[0] = m_nodes.back();
-		m_nodes.pop_back();
-		if (!m_nodes.empty())
-			sift_down(0);
-	}
-
-	const OpenNode& top() const {
-		return m_nodes[0];
-	}
-
-	bool empty() const {
-		return m_nodes.empty();
-	}
-
-	bool has_id(uint32_t id) const {
-		for (const auto& n: m_nodes) {
-			if (n.id == id)
-				return true;
-		}
-		return false;
-	}
-};
-
-class AStar {
-	static constexpr uint32_t MAX_NEIGHBORS = 4; // each node can have up to 4 neighbors
-
-	struct Score {
-		float g;
-		float f;
-	};
-
-public:
-	struct Node {
-	private:
-		//! ID of the node
-		uint32_t id;
-		//! Bitmask of neighbors in clockwise direction.
-		//! 0 - north, 1 - east, 2 - south, 3 - west
-		uint32_t neighbors : 4;
-		//! Cost. 2 bits per direction. With 4 directions 8 bits are necessary.
-		//! 0 - blocked
-		//! 1 - small cost
-		//! 2 - medium cost
-		//! 3 - big cost
-		uint32_t edge_costs : 8;
-
-	public:
-		Node() {
-			id = 0;
-			neighbors = 0;
-			edge_costs = 0;
-		}
-		Node(uint32_t value): id(value) {}
-
-		void InitIndex(uint32_t index, uint32_t cost) {
-			SetNeighbor(index, cost != 0);
-			SetEdgeCost(index, cost);
-		}
-
-		uint32_t comp_id() const {
-			return id;
-		}
-		bool HasNeighbor(uint32_t index) const {
-			return (((uint32_t)neighbors >> index) & 1U) != 0U;
-		}
-		uint32_t GetEdgeCost(uint32_t index) const {
-			return ((uint32_t)edge_costs >> (index * 2)) & 3U;
-		}
-
-	private:
-		void SetNeighbor(uint32_t index, bool value) {
-			const uint32_t mask = 1U << index;
-			neighbors = (neighbors & ~mask) | ((uint32_t)value << index);
-		}
-		void SetEdgeCost(uint32_t index, uint32_t cost) {
-			const uint32_t mask = (3U << (index * 2));
-			edge_costs = (edge_costs & ~mask) | ((cost & 3U) << (index * 2));
-		}
-	};
-
-	static constexpr uint32_t NodeIdToX(uint32_t id) {
-		return id % ScreenX;
-	}
-	static constexpr uint32_t NodeIdToY(uint32_t id) {
-		return id / ScreenX;
-	}
-	static constexpr uint32_t NodeIdFromXY(uint32_t x, uint32_t y) {
-		return y * ScreenX + x;
-	}
-
-	// Define a function to estimate the cost from a node to the end node (using Euclidean distance)
-	float HeuristicCostEstimate(const Node& current, const Node& goal) const {
-		const uint32_t cid = current.comp_id();
-		const uint32_t gid = goal.comp_id();
-		const uint32_t dx = NodeIdToX(cid) - NodeIdToX(gid);
-		const uint32_t dy = NodeIdToY(cid) - NodeIdToY(gid);
-		const uint32_t dxx = dx * dx;
-		const uint32_t dyy = dy * dy;
-		return sqrtf((float)dxx + (float)dyy); // Euclidean distance
-	}
-
-	cnt::darray<uint32_t> FindPath(const cnt::darray<Node>& graph, uint32_t start_id, uint32_t goal_id) {
-		cnt::map<uint32_t, uint32_t> parents; // key: ID, data: parentID
-		cnt::map<uint32_t, Score> scores; // key: ID, data: <g, f>
-		cnt::set<uint32_t> closed_set;
-		OpenSet open_set;
-
-		// Define the start and goal nodes
-		const Node& start_node = graph[start_id];
-		const Node& goal_node = graph[goal_id];
-
-		// Add the start node to the open set
-		open_set.push({0.f, start_id});
-
-		// Initialize the costs
-		scores[start_id] = {0.f, HeuristicCostEstimate(start_node, goal_node)};
-
-		// Run the A* algorithm
-		while (!open_set.empty()) {
-			// Get the node with the lowest f score from the open set
-			const uint32_t current_id = open_set.top().id;
-			open_set.pop();
-
-			// Check if we've reached the goal node
-			if (current_id == goal_id) {
-				cnt::darray<uint32_t> path;
-
-				// Reconstruct the path
-				uint32_t node_id = goal_id;
-				while (node_id != start_id) {
-					path.push_back(node_id);
-					node_id = parents[node_id];
-				}
-				path.push_back(start_id);
-
-				uint32_t a = 0;
-				uint32_t b = (uint32_t)path.size();
-				while (a + 1 < b) {
-					--b;
-					core::swap(path[a], path[b]);
-					++a;
-				}
-				return path;
-			}
-
-			// Mark the current node as closed
-			closed_set.emplace(current_id);
-
-			constexpr int neighborOffsets[MAX_NEIGHBORS] = {-(int)ScreenX, 1, ScreenX, -1};
-
-			// Iterate over the neighbors of the current node
-			const Node& current_node = graph[current_id];
-			GAIA_FOR(MAX_NEIGHBORS) {
-				// We need to have a neighbor
-				if (!current_node.HasNeighbor(i))
-					continue;
-
-				// The neighbor needs to be accessible
-				const auto neighborCost = (float)current_node.GetEdgeCost(i);
-				if (neighborCost <= 0.F)
-					continue;
-
-				// Skip this neighbor if it's already closed
-				const uint32_t neighbor_id = current_id + neighborOffsets[i]; // relative indexing
-				if (closed_set.find(neighbor_id) != closed_set.end())
-					continue;
-
-				const float tentative_g_score = scores[current_id].g + neighborCost;
-				if (tentative_g_score < scores[neighbor_id].g) {
-					// This is a better path to the neighbor node
-					const float f = tentative_g_score + HeuristicCostEstimate(graph[neighbor_id], goal_node);
-					parents[neighbor_id] = current_id;
-					scores[neighbor_id] = {tentative_g_score, f};
-					if (!open_set.has_id(neighbor_id))
-						open_set.push({f, neighbor_id});
-				} else if (!open_set.has_id(neighbor_id)) {
-					// Unchecked field, try it
-					const float f = tentative_g_score + HeuristicCostEstimate(graph[neighbor_id], goal_node);
-					parents[neighbor_id] = current_id;
-					scores[neighbor_id] = {tentative_g_score, f};
-					open_set.push({f, neighbor_id});
-				}
-			}
-		}
-
-		// If we get here, there's no path from start to goal
-		return {};
-	}
-};
-
-#endif
-
-//----------------------------------------------------------------------
-// Systems data
-//----------------------------------------------------------------------
-
-struct CollisionData {
-	//! Entity coll
-	ecs::Entity e1;
-	//! Entity being collided with
-	ecs::Entity e2;
-	//! Position of collision
-	Position p;
-	//! Velocity at the time of collision
-	Velocity v;
-};
-
-//----------------------------------------------------------------------
-// Game world
-//----------------------------------------------------------------------
-
-struct GameWorld {
-	ecs::World& w;
-	//! map tiles
-	char map[ScreenY][ScreenX]{};
-	//! tile content
-	cnt::map<Position, cnt::darray<ecs::Entity>> content;
-	//! collision data
-	cnt::darray<CollisionData> m_colliding;
-	//! quit the game when true
-	bool terminate = false;
-
-	explicit GameWorld(ecs::World& world): w(world) {}
-
-	void init() {
-		InitWorldMap();
-		CreatePlayer();
-		CreateEnemies();
-		CreateItems();
-	}
-
-	void InitWorldMap() {
-		// map
-		GAIA_FOR_(ScreenY, y) {
-			GAIA_FOR_(ScreenX, x) {
-				map[y][x] = TILE_FREE;
-			}
-		}
-
-		// edges
-		GAIA_FOR_(ScreenY, y) {
-			map[y][0] = TILE_WALL;
-			map[y][ScreenX - 1] = TILE_WALL;
-		}
-		GAIA_FOR_(ScreenX, x) {
-			map[0][x] = TILE_WALL;
-			map[ScreenY - 1][x] = TILE_WALL;
-		}
-		// random obstacles in the upper right part
-		srand(0);
-		GAIA_FOR2_(3, ScreenY / 2, y) {
-			GAIA_FOR2_(ScreenX / 2, ScreenX - 2, x) {
-				bool placeWall = (rand() % 4) == 0;
-				if (placeWall)
-					map[y][x] = TILE_WALL;
-			}
-		}
-
-#if USE_PATHFINDING
-		cnt::darray<AStar::Node> graph;
-		graph.reserve(ScreenX * ScreenY);
-		uint32_t index = 0;
-		GAIA_FOR_(ScreenY, y) {
-			GAIA_FOR_(ScreenX, x) {
-				AStar::Node node{index++};
-
-				if (y > 0)
-					node.InitIndex(0, map[y - 1][x] != TILE_WALL);
-				if (x < ScreenX - 1)
-					node.InitIndex(1, map[y][x + 1] != TILE_WALL);
-				if (y < ScreenY - 1)
-					node.InitIndex(2, map[y + 1][x] != TILE_WALL);
-				if (x > 0)
-					node.InitIndex(3, map[y][x - 1] != TILE_WALL);
-
-				graph.push_back(GAIA_MOV(node));
-			}
-		}
-
-		AStar astar;
-		auto path = astar.FindPath(graph, AStar::NodeIdFromXY(2, 2), AStar::NodeIdFromXY(30, 10));
-		for (auto id: path) {
-			const auto nx = AStar::NodeIdToX(id);
-			const auto ny = AStar::NodeIdToY(id);
-			map[ny][nx] = TILE_PATH;
-		}
-#endif
-	}
-
-	void CreatePlayer() {
-		auto player = w.add();
-		w.build(player) //
-				.add<Position>()
-				.add<Velocity>()
-				.add<RigidBody>()
-				.add<Orientation>()
-				.add<Sprite>()
-				.add<Health>()
-				.add<BattleStats>()
-				.add<Player>();
-		w.acc_mut(player) //
-				.set<Position>({5, 10})
-				.set<Velocity>({0, 0})
-				.set<Orientation>({1, 0})
-				.set<Sprite>({TILE_PLAYER})
-				.set<Health>({100, 100})
-				.set<BattleStats>({9, 5});
-	}
-
-	void CreateEnemies() {
-		cnt::sarray<ecs::Entity, 3> enemies;
-		GAIA_EACH(enemies) {
-			auto& e = enemies[i];
-			e = w.add();
-			w.build(e) //
-					.add<Position>()
-					.add<Velocity>()
-					.add<RigidBody>()
-					.add<Sprite>()
-					.add<Health>()
-					.add<BattleStats>();
-
-			const bool isOrc = (i % 2) != 0;
-			if (isOrc) {
-				w.acc_mut(e) //
-						.set<Sprite>({TILE_ENEMY_ORC})
-						.set<Health>({60, 60})
-						.set<BattleStats>({12, 7});
-			} else {
-				w.acc_mut(e) //
-						.set<Sprite>({TILE_ENEMY_GOBLIN})
-						.set<Health>({40, 40})
-						.set<BattleStats>({10, 5});
-			}
-		}
-		w.set<Position>(enemies[0]) = {8, 8};
-		w.set<Position>(enemies[1]) = {10, 10};
-		w.set<Position>(enemies[2]) = {12, 12};
-	}
-
-	void CreateItems() {
-		auto potion = w.add();
-		w.build(potion) //
-				.add<Position>()
-				.add<Sprite>()
-				.add<RigidBody>()
-				.add<Item>()
-				.add<BattleStats>();
-		w.acc_mut(potion) //
-				.set<Position>({5, 5})
-				.set<Sprite>({TILE_POTION})
-				.set<Item>({ItemType::Potion})
-				.set<BattleStats>({10, 0});
-
-		auto poison = w.add();
-		w.build(poison) //
-				.add<Position>()
-				.add<Sprite>()
-				.add<RigidBody>()
-				.add<Item>()
-				.add<BattleStats>();
-		w.acc_mut(poison) //
-				.set<Position>({15, 10})
-				.set<Sprite>({TILE_POISON})
-				.set<Item>({ItemType::Poison})
-				.set<BattleStats>({-10, 0});
-	}
-
-	void CreateArrow(Position p, Velocity v) {
-		auto e = w.add();
-		w.build(e) //
-				.add<Position>()
-				.add<Velocity>()
-				.add<Sprite>()
-				.add<RigidBody>()
-				.add<Item>()
-				.add<BattleStats>()
-				.add<Health>();
-		w.acc_mut(e) //
-				.set<Position>(GAIA_MOV(p))
-				.set<Velocity>(GAIA_MOV(v))
-				.set<Sprite>({TILE_ARROW})
-				.set<Item>({ItemType::Arrow})
-				.set<BattleStats>({10, 0})
-				.set<Health>({1, 1});
-	}
-};
-
-struct GameWorldComponent {
-	GameWorld* pGameWorld;
-};
-
-GameWorld* g_pGameWorld = nullptr;
-
-#define PRINT_SYSTEM_NAME 1
-
-int main() {
-	clear_screen();
+//! Prints the control sheet before the first turn.
+void print_welcome() {
 	printf(
-			"Welcome to the most rudimentary of rogue-likes driven by Gaia-ECS.\n"
+			"A Gaia-ECS dungeon.\n"
 			"\nControls:\n"
-			"  %c, %c, %c, %c - movement\n"
-			"  %c - shoot an arrow\n"
-			"     - for melee, apply movement in the direction of the enemy standing next to you\n"
-			"  %c - quit the game\n"
-			"\nLegend:\n"
-			"  %c - player\n"
-			"  %c - goblin, a small but terrifying monster\n"
-			"  %c - orc, a big run-on-sight monster\n"
-			"  %c - potion, replenishes health\n"
-			"  %c - poison, damages health\n"
-			"  %c - wall\n"
-			"\nPress any key to continue...\n",
-			KEY_UP, KEY_LEFT, KEY_DOWN, KEY_RIGHT, KEY_SHOOT, KEY_QUIT, TILE_PLAYER, TILE_ENEMY_GOBLIN, TILE_ENEMY_ORC,
-			TILE_POTION, TILE_POISON, TILE_WALL);
+			"  %c%c%c%c  move     space wait     %c shoot     %c quit\n"
+			"  walk into a monster to melee\n"
+			"  walk onto %c to descend\n"
+			"\nGlyphs:\n"
+			"  %c you   %c goblin   %c orc   %c potion   %c poison   %c gold   %c stairs\n"
+			"\nPress any key...\n",
+			KEY_UP, KEY_LEFT, KEY_DOWN, KEY_RIGHT, KEY_SHOOT, KEY_QUIT, TILE_STAIRS, TILE_PLAYER, TILE_ENEMY_GOBLIN,
+			TILE_ENEMY_ORC, TILE_POTION, TILE_POISON, TILE_GOLD, TILE_STAIRS);
+}
 
-	ecs::World w;
-	GameWorld g_world(w);
-	g_pGameWorld = &g_world;
-
-	auto entGW = w.add();
-	w.add<GameWorldComponent>(entGW, {&g_world});
-	w.name(entGW, "GameWorld");
-
-	auto groupPreSimulation = w.add();
-	auto groupSimulation = w.add();
-	auto groupPostSimulation = w.add();
-	w.name(groupPreSimulation, "PreSimulation");
-	w.name(groupSimulation, "Simulation");
-	w.name(groupPostSimulation, "PostSimulation");
-
-	// Pre-simulation step
-	{
-		// InputSystem
-		{
-			auto sb = w.system() //
-										.name("InputSystem")
-										.all<Velocity&>()
-										.all<Position>()
-										.all<Orientation>()
-										.all<Player>()
-										.on_each([](Velocity& v, const Position& p, const Orientation& o) {
-#if PRINT_SYSTEM_NAME
-											GAIA_LOG_D("1 - InputSystem");
-#endif
-											const char key = get_char();
-											g_pGameWorld->terminate = key == KEY_QUIT;
-
-											v = {0, 0};
-											if (key == KEY_UP) {
-												v = {0, -1};
-											} else if (key == KEY_DOWN) {
-												v = {0, 1};
-											} else if (key == KEY_LEFT) {
-												v = {-1, 0};
-											} else if (key == KEY_RIGHT) {
-												v = {1, 0};
-											} else if (key == KEY_SHOOT) {
-												g_pGameWorld->CreateArrow({p.x, p.y}, {o.x, o.y});
-											}
-										});
-			w.child(sb.entity(), groupPreSimulation);
-		}
-		// UpdateMapSystem
-		{
-			auto sb = w.system() //
-										.name("UpdateMapSystem")
-										.all<Position>()
-										.all<RigidBody>()
-										.on_each([](ecs::Iter& it) {
-#if PRINT_SYSTEM_NAME
-											GAIA_LOG_D("2 - UpdateMapSystem");
-#endif
-											auto ve = it.view<ecs::Entity>();
-											auto vp = it.view<Position>();
-											GAIA_EACH(it) {
-												g_pGameWorld->content[vp[i]].push_back(ve[i]);
-											}
-										});
-			w.child(sb.entity(), groupPreSimulation);
-		}
+//! Checks wall stop plus a planted-foe melee hit after `--smoke`.
+//! \param game World that just finished the smoke key sequence.
+//! \param foe Goblin planted east of the player.
+//! \return 0 on success. 1 when an invariant failed.
+int run_smoke(Game& game, ecs::Entity foe) {
+	if (!game.playerAlive || !game.world.valid(game.player)) {
+		printf("smoke: player is gone\n");
+		return 1;
 	}
-	// Simulation
-	{
-		// OrientationSystem
-		{
-			auto sb = w.system() //
-										.name("OrientationSystem")
-										.all<Orientation&>()
-										.all<Velocity>()
-										.on_each([](Orientation& o, const Velocity& v) {
-#if PRINT_SYSTEM_NAME
-											GAIA_LOG_D("3 - OrientationSystem");
-#endif
-											if (v.x != 0) {
-												o.x = v.x > 0 ? 1 : -1;
-												o.y = 0;
-											}
-											if (v.y != 0) {
-												o.x = 0;
-												o.y = v.y > 0 ? 1 : -1;
-											}
-										});
-			w.child(sb.entity(), groupSimulation);
-		}
-		// CollisionSystem
-		{
-			auto sb = w.system() //
-										.name("CollisionSystem")
-										.all<Velocity&>()
-										.all<Position>()
-										.all<RigidBody>()
-										.on_each([&](ecs::Iter& iter) {
-#if PRINT_SYSTEM_NAME
-											GAIA_LOG_D("4 - CollisionSystem");
-#endif
-											auto getSign = [](int val) {
-												return val < 0 ? -1 : 1;
-											};
-
-											auto& w = *iter.world();
-											auto ent = iter.view<ecs::Entity>();
-											auto vel = iter.view_mut<Velocity>();
-											auto pos = iter.view<Position>();
-
-											// Drop all previous collision records
-											auto& coll = g_pGameWorld->m_colliding;
-											coll.clear();
-
-											const auto cnt = iter.size();
-											GAIA_FOR(cnt) {
-												// Skip stationary objects
-												const auto& v = vel[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather
-																								// than const reference
-												if (v.x == 0 && v.y == 0)
-													return;
-
-												auto e = ent[i];
-												const auto& p = pos[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather
-																								// than const reference
-
-												// Traverse the path along the velocity vector.
-												// Normally this would be something like DDA algorithm or anything you like.
-												// However, for the sake of simplicity, because we only move horizontally or vertically,
-												// we are fine with traversing one axis exclusively.
-												const int ii = v.y != 0;
-												const int jj = (ii + 1) & 1;
-												const int dd[2] = {ii ? 0 : getSign(v.x), ii ? getSign(v.y) : 0};
-												int pp[2] = {p.x + dd[0], p.y + dd[1]};
-												const int vv[2] = {v.x, v.y};
-												const int pp_end = pp[ii] + vv[ii];
-
-												const auto collisionsBefore = coll.size();
-
-												int naa = 0;
-												for (; pp[ii] != pp_end; pp[ii] += dd[ii], naa += dd[ii]) {
-													// Stop on wall collisions
-													if (g_pGameWorld->map[pp[1]][pp[0]] == TILE_WALL) {
-														coll.push_back({e, ecs::IdentifierBad, Position{pp[0], pp[1]}, v});
-														goto onCollision;
-													}
-
-													// Skip when there's no content
-													auto it = g_pGameWorld->content.find({pp[0], pp[1]});
-													if (it == g_pGameWorld->content.end())
-														continue;
-
-													// Generate content collision data
-													bool hadCollision = false;
-													for (auto e2: it->second) {
-														if (e == e2)
-															continue;
-
-														// If the content has non-zero velocity we need to determine if we'd hit it
-														if (w.has<Velocity>(e2)) {
-															auto v2 = w.get<Velocity>(e2);
-															if (v2.x != 0 && v2.y != 0) {
-																const int vv2[2] = {v2.x, v2.y};
-
-																// No hit possible if moving on different axes
-																if (vv[ii] != vv2[jj])
-																	continue;
-
-																// No hit possible if moving just as fast or faster than us in the same direction
-																if (vv2[ii] > 0 && vv[i] > 0 && vv2[ii] >= vv[ii])
-																	continue;
-															}
-														}
-
-														coll.push_back({e, e2, Position{pp[0], pp[1]}, v});
-														hadCollision = true;
-													}
-													if (hadCollision)
-														break;
-												}
-
-												// Skip if no collisions were detected
-												if (collisionsBefore == coll.size())
-													return;
-
-											onCollision:
-												// Alter the velocity according to the first contact we made along the way.
-												// We make every collision stop the moving object. This is only a question of design.
-												// We might as well keep the velocity and handle the collision aftermath in a different system.
-												// Or we could introduce collision layers or many other things.
-												if (v.x != 0)
-													vel[i] = {naa, 0};
-												else
-													vel[i] = {0, naa};
-											}
-										});
-			w.child(sb.entity(), groupSimulation);
-		}
-		// MoveSystem
-		{
-			auto sb = w.system() //
-										.name("MoveSystem")
-										.all<Position&>()
-										.all<Velocity>()
-										.on_each([](Position& p, const Velocity& v) {
-#if PRINT_SYSTEM_NAME
-											GAIA_LOG_D("5 - MoveSystem");
-#endif
-											p.x += v.x;
-											p.y += v.y;
-										});
-			w.child(sb.entity(), groupSimulation);
-		}
-		// HandleDamageSystem
-		{
-			auto sb = w.system() //
-										.name("HandleDamageSystem")
-										.all<GameWorldComponent>()
-										.on_each([](ecs::Iter& iter) {
-#if PRINT_SYSTEM_NAME
-											GAIA_LOG_D("6 - HandleDamageSystem");
-#endif
-											const auto& w = *iter.world();
-											const auto& gw = iter.view<GameWorldComponent>()[0];
-											for (const auto& coll: gw.pGameWorld->m_colliding) {
-												// Skip world collisions
-												if (coll.e2 == ecs::IdentifierBad)
-													continue;
-
-												uint32_t idx1{}, idx2{};
-												auto* pChunk1 = w.get_chunk(coll.e1, idx1);
-												auto* pChunk2 = w.get_chunk(coll.e2, idx2);
-												GAIA_ASSERT(pChunk1 != nullptr);
-												GAIA_ASSERT(pChunk2 != nullptr);
-
-												// Skip non-damageable things
-												if (!pChunk2->has<Health>())
-													continue;
-												if (!pChunk1->has<BattleStats>() || !pChunk2->has<BattleStats>())
-													continue;
-
-												// Verify if damage can be applied (e.g. power > armor)
-												const auto stats1 = pChunk1->view<BattleStats>();
-												const auto stats2 = pChunk2->view<BattleStats>();
-
-												const int damage = stats1[idx1].power - stats2[idx2].armor;
-												if (damage < 0)
-													continue;
-
-												// Apply damage
-												auto health2 = pChunk2->view_mut<Health>();
-												health2[idx2].value -= damage;
-											}
-										});
-			w.child(sb.entity(), groupSimulation);
-			w.add(sb.entity(), {ecs::DependsOn, w.get("CollisionSystem")});
-		}
-		// HandleItemHitSystem
-		{
-			auto sb = w.system() //
-										.name("HandleItemHitSystem")
-										.all<GameWorldComponent>()
-										.on_each([](ecs::Iter& iter) {
-#if PRINT_SYSTEM_NAME
-											GAIA_LOG_D("7 - HandleItemHitSystem");
-#endif
-											const auto& w = *iter.world();
-											const auto& gw = iter.view<GameWorldComponent>()[0];
-											for (const auto& coll: gw.pGameWorld->m_colliding) {
-												// Entity -> world content collision
-												if (coll.e2 == ecs::IdentifierBad) {
-													uint32_t idx1{};
-													auto* pChunk1 = w.get_chunk(coll.e1, idx1);
-													GAIA_ASSERT(pChunk1 != nullptr);
-
-													// An arrow colliding with something. Bring its health to 0 (destroyed).
-													// We could have simply called world().del(coll.e1) but doing it
-													// this way allows our more control. Who knows what kinds of effect and
-													// post-processing we might have in mind for the arrow later in the frame.
-													if (pChunk1->has<Item>() && pChunk1->has<Health>()) {
-														auto item1 = pChunk1->view<Item>();
-														if (item1[idx1].type == ItemType::Arrow) {
-															auto health1 = pChunk1->view_mut<Health>();
-															health1[idx1].value = 0;
-														}
-													}
-												}
-												// Entity -> entity collision
-												else {
-													uint32_t idx1{}, idx2{};
-													auto* pChunk1 = w.get_chunk(coll.e1, idx1);
-													auto* pChunk2 = w.get_chunk(coll.e2, idx2);
-													GAIA_ASSERT(pChunk1 != nullptr);
-													GAIA_ASSERT(pChunk2 != nullptr);
-
-													// TODO: Add ability to get a list of components based on query
-
-													// E.g. a player coll with an item
-													if (pChunk1->has<Health>() && pChunk2->has<Item>() && pChunk2->has<BattleStats>()) {
-														auto health1 = pChunk1->view_mut<Health>();
-														auto stats2 = pChunk2->view<BattleStats>();
-
-														// Apply the item's effect
-														health1[idx1].value += stats2[idx2].power;
-													}
-
-													// An arrow coll with something. Bring its health to 0 (destroyed).
-													if (pChunk1->has<Item>() && pChunk1->has<Health>()) {
-														auto item1 = pChunk1->view<Item>();
-														if (item1[idx1].type == ItemType::Arrow) {
-															auto health1 = pChunk1->view_mut<Health>();
-															health1[idx1].value = 0;
-														}
-													}
-												}
-											}
-										});
-			w.child(sb.entity(), groupSimulation);
-			w.add(sb.entity(), {ecs::DependsOn, w.get("CollisionSystem")});
-		}
-		// HandleHealthSystem
-		{
-			auto sb = w.system() //
-										.name("HandleHealthSystem")
-										.all<Health&>()
-										.changed<Health>()
-										.on_each([](Health& h) {
-#if PRINT_SYSTEM_NAME
-											GAIA_LOG_D("8 - HandleHealthSystem");
-#endif
-											if (h.value > h.valueMax)
-												h.value = h.valueMax;
-										});
-			w.child(sb.entity(), groupSimulation);
-			w.add(sb.entity(), {ecs::DependsOn, w.get("HandleDamageSystem")});
-		}
-		// HandleDeathSystem
-		{
-			auto sb = w.system() //
-										.name("HandleDeathSystem")
-										.all<Health>()
-										.all<Position>()
-										.changed<Health>()
-										.on_each([](ecs::Iter& it) {
-#if PRINT_SYSTEM_NAME
-											GAIA_LOG_D("9 - HandleDeathSystem");
-#endif
-
-											auto& cmdBuffer = it.cmd_buffer_mt();
-											auto ve = it.view<ecs::Entity>();
-											auto vp = it.view<Position>();
-											auto vh = it.view<Health>();
-
-											GAIA_EACH(it) {
-												if (vh[i].value > 0)
-													return;
-
-												g_pGameWorld->map[vp[i].y][vp[i].x] = TILE_FREE;
-												cmdBuffer.del(ve[i]);
-											}
-										});
-			w.child(sb.entity(), groupSimulation);
-			w.add(sb.entity(), {ecs::DependsOn, w.get("HandleHealthSystem")});
-		}
+	if (game.floor != 1) {
+		printf("smoke: expected floor 1, got %u\n", game.floor);
+		return 1;
 	}
-	// Post-simulation step
+
+	const auto p = game.world.get<Position>(game.player);
+	if (p.x != game.dungeon.westFloorX || p.y != game.dungeon.spawn.y) {
+		printf("smoke: expected player at %d,%d got %d,%d\n", game.dungeon.westFloorX, game.dungeon.spawn.y, p.x, p.y);
+		return 1;
+	}
+	if (game.enemyCount < 3) {
+		printf("smoke: expected at least 3 enemies, got %u\n", game.enemyCount);
+		return 1;
+	}
+	if (!game.world.valid(foe) || !game.world.has<Health>(foe) || game.world.get<Health>(foe).value >= 20) {
+		printf("smoke: expected a melee hit against the planted foe\n");
+		return 1;
+	}
+	if (game.dungeon.At(game.dungeon.stairs.x, game.dungeon.stairs.y) != TILE_STAIRS) {
+		printf("smoke: dungeon has no stairs\n");
+		return 1;
+	}
+	if (game.world.get("game.monsters.Goblin") != game.prefabGoblin) {
+		printf("smoke: module path game.monsters.Goblin did not resolve\n");
+		return 1;
+	}
+	if (game.world.get("game.items.Potion") != game.prefabPotion) {
+		printf("smoke: module path game.items.Potion did not resolve\n");
+		return 1;
+	}
+	if (!game.world.is(game.prefabGoblin, game.prefabEnemy) || !game.world.is(game.prefabOrc, game.prefabEnemy)) {
+		printf("smoke: goblin/orc prefabs are not as(Enemy)\n");
+		return 1;
+	}
+	if (!game.world.is(foe, game.prefabGoblin)) {
+		printf("smoke: planted foe is not a goblin instance\n");
+		return 1;
+	}
+	if (!game.world.is(foe, game.prefabEnemy)) {
+		printf("smoke: planted foe is not in the enemy family\n");
+		return 1;
+	}
+	if (game.world.has_direct(foe, ecs::Pair(ecs::Is, game.prefabEnemy))) {
+		printf("smoke: planted foe should inherit Enemy, not store Pair(Is, Enemy) directly\n");
+		return 1;
+	}
+	if (!game.world.has(foe, ecs::Pair(ecs::ChildOf, game.floorRoot))) {
+		printf("smoke: planted foe is not ChildOf the floor\n");
+		return 1;
+	}
+	if (game.world.has(game.player, ecs::Pair(ecs::ChildOf, game.floorRoot))) {
+		printf("smoke: player should not be ChildOf the floor\n");
+		return 1;
+	}
+	if (game.world.find_prefab_instance(foe, game.prefabPack) == ecs::EntityBad) {
+		printf("smoke: planted goblin has no pack instance\n");
+		return 1;
+	}
+
+	printf(
+			"smoke: ok (player at %d,%d, floor %u, foes %u, foe hp %d, floor bodies %u)\n", p.x, p.y, game.floor,
+			game.enemyCount, game.world.get<Health>(foe).value, game.floorBodies);
+	return 0;
+}
+
+//! Builds prefabs, registers systems, and runs one idle turn.
+//! \param world Empty Gaia world.
+//! \param game Game bound to `world`.
+void start_scripted(ecs::World& world, Game& game) {
+	game.quiet = true;
+	game.color = false;
+	game.CreatePrefabs();
+	auto turn = world.add();
+	world.add<Turn>(turn);
+	register_systems(world, game);
+	game.StartRun();
+	game.pendingKey = 0;
+	world.update();
+}
+
+//! Applies one recognized input and advances the world once.
+//! Projectile instantiation happens here, before the locked system update.
+//! \param world World that owns the systems.
+//! \param game Game receiving `pendingKey`.
+void update_game(ecs::World& world, Game& game) {
+	const char key = game.pendingKey;
+	if (key != 0 && key != KEY_UP && key != KEY_DOWN && key != KEY_LEFT && key != KEY_RIGHT && key != KEY_SHOOT &&
+			key != KEY_WAIT && key != KEY_QUIT)
+		return;
+
+	if (key == KEY_SHOOT && game.world.valid(game.player) && game.world.has<Position>(game.player) &&
+			game.world.has<Orientation>(game.player)) {
+		const auto orientation = game.world.get<Orientation>(game.player);
+		game.QueueArrow(game.world.get<Position>(game.player), {orientation.x, orientation.y});
+		(void)game.SpawnQueuedArrow();
+	}
+
+	world.update();
+}
+
+//! Feeds one key and advances the game.
+//! \param world World that owns the systems.
+//! \param game Game receiving `pendingKey`.
+//! \param key Input character.
+void tap(ecs::World& world, Game& game, char key) {
+	game.pendingKey = key;
+	update_game(world, game);
+}
+
+//! True when any combat-log line contains `needle`.
+//! \param game Game whose log is scanned.
+//! \param needle Substring to find.
+//! \return True if a line matches.
+bool log_has(const Game& game, const char* needle) {
+	GAIA_EACH(game.log) {
+		if (strstr(game.log[i].text, needle) != nullptr)
+			return true;
+	}
+	return false;
+}
+
+//! Shoots, walks after the shot, and point-blanks an adjacent goblin.
+//! \return 0 on success. 1 when an invariant failed.
+int run_shot_smoke() {
 	{
-		// ClearMapSystem
-		{
-			auto sb = w.system() //
-										.name("ClearMapSystem")
-										.all<GameWorldComponent&>()
-										.on_each([](GameWorldComponent& value) {
-#if PRINT_SYSTEM_NAME
-											GAIA_LOG_D("10 - ClearMapSystem");
-#endif
-											clear_screen();
-											value.pGameWorld->InitWorldMap();
-										});
-			w.child(sb.entity(), groupPostSimulation);
-		}
-		// WriteSpritesToMapSystem
-		{
-			auto sb = w.system() //
-										.name("WriteSpritesToMapSystem")
-										.all<Position>()
-										.all<Sprite>()
-										.on_each([](const Position& p, const Sprite& s) {
-											g_pGameWorld->map[p.y][p.x] = s.value;
-										});
-			w.child(sb.entity(), groupPostSimulation);
-		}
-		// RenderSystem
-		{
-			auto sb = w.system() //
-										.name("RenderSystem")
-										.all<GameWorldComponent>()
-										.on_each([](const GameWorldComponent& value) {
-#if PRINT_SYSTEM_NAME
-											GAIA_LOG_D("12 - RenderSystem");
-#endif
-											GAIA_FOR_(ScreenY, y) {
-												GAIA_FOR_(ScreenX, x) {
-													putchar(value.pGameWorld->map[y][x]);
-												}
-												printf("\n");
-											}
-										});
-			w.child(sb.entity(), groupPostSimulation);
-		}
-		// UISystem Player
-		{
-			auto sb = w.system() //
-										.name("UISystemP")
-										.all<Health>()
-										.all<Player>()
-										.on_each([](const Health& h) {
-											printf("Player health: %d/%d\n", h.value, h.valueMax);
-										});
-			w.child(sb.entity(), groupPostSimulation);
-		}
-		// UISystem Non-player
-		{
-			auto sb = w.system() //
-										.name("UISystemNP")
-										.all<Health>()
-										.no<Player>()
-										.no<Item>()
-										.on_each([](ecs::Entity e, const Health& h) {
-											printf("Enemy %u:%u health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax);
-										});
-			w.child(sb.entity(), groupPostSimulation);
-		}
-		// GameStateSystem Player
-		{
-			struct GameStateSystemPData {
-				bool hadPlayer = false;
-			};
-			// auto sysDataEntity = w.add<GameStateSystemPData>().entity;
+		ecs::World world;
+		Game game(world);
+		start_scripted(world, game);
+		tap(world, game, 'q');
 
-			auto sb = w.system() //
-										.name("GameStateSystemP")
-										.all<Health>()
-										.all<Player>()
-										.on_each([](ecs::Iter& it) {
-											auto sysEnt = it.world()->get("GameStateSystemP");
-											auto sysData = it.world()->set<GameStateSystemPData>(sysEnt);
-
-											const bool hasNoPlayer = it.size() == 0;
-											if (sysData.hadPlayer && hasNoPlayer) {
-												printf("You are dead. Good job.\n");
-												g_pGameWorld->terminate = true;
-											}
-											sysData.hadPlayer = !hasNoPlayer;
-										});
-			w.child(sb.entity(), groupPostSimulation);
-			w.add<GameStateSystemPData>(sb.entity());
-			// sb.add({ecs::QueryOpKind::All, ecs::QueryAccess::Write, sysDataEntity, sb.entity()});
+		ecs::Entity firstArrow = ecs::EntityBad;
+		world.uquery().all<Position>().all<Velocity>().each([&](ecs::Iter& it) {
+			auto ve = it.view<ecs::Entity>();
+			GAIA_EACH(it) {
+				if (firstArrow == ecs::EntityBad && world.is(ve[i], game.prefabArrow))
+					firstArrow = ve[i];
+			}
+		});
+		if (firstArrow == ecs::EntityBad) {
+			printf("smoke-shot: no arrow spawned\n");
+			return 1;
 		}
-		// GameStateSystem Non-player
-		{
-			struct GameStateSystemNPData {
-				bool hadEnemies = false;
-			};
-			// auto sysDataEntity = w.add<GameStateSystemPData>().entity;
+		const auto firstPosition = world.get<Position>(firstArrow);
+		tap(world, game, 'x');
+		if (world.get<Position>(firstArrow).x != firstPosition.x || world.get<Position>(firstArrow).y != firstPosition.y) {
+			printf("smoke-shot: invalid input advanced the arrow\n");
+			return 1;
+		}
+		tap(world, game, 'q');
+		if (!world.valid(firstArrow) || world.get<Position>(firstArrow).x != firstPosition.x + 1 ||
+				world.get<Position>(firstArrow).y != firstPosition.y) {
+			printf("smoke-shot: repeated shooting advanced or consumed the first arrow incorrectly\n");
+			return 1;
+		}
 
-			auto sb = w.system() //
-										.name("GameStateSystemNP")
-										.all<Health>()
-										.no<Player>()
-										.no<Item>()
-										.on_each([](ecs::Iter& it) {
-											auto sysEnt = it.world()->get("GameStateSystemNP");
-											auto sysData = it.world()->set<GameStateSystemNPData>(sysEnt);
+		if (!game.world.valid(game.player) || !game.world.has<Health>(game.player)) {
+			printf("smoke-shot: player is gone\n");
+			return 1;
+		}
+		const int hp = game.world.get<Health>(game.player).value;
+		if (hp != PlayerStartHealth) {
+			printf("smoke-shot: expected hp %d, got %d\n", PlayerStartHealth, hp);
+			return 1;
+		}
+		if (log_has(game, "potion")) {
+			printf("smoke-shot: arrow was treated as a potion\n");
+			return 1;
+		}
 
-											const bool hasNoEnemies = it.size() == 0;
-											if (sysData.hadEnemies && hasNoEnemies) {
-												printf("All enemies are gone. They must have died of old age waiting for you to kill them.\n");
-												g_pGameWorld->terminate = true;
-											}
-											sysData.hadEnemies = !hasNoEnemies;
-										});
-			w.child(sb.entity(), groupPostSimulation);
-			w.add<GameStateSystemNPData>(sb.entity());
-			// sb.add({ecs::QueryOpKind::All, ecs::QueryAccess::Write, sysDataEntity, sb.entity()});
+		uint32_t arrows = 0;
+		world.uquery().all<Position>().all<Velocity>().each([&](ecs::Iter& it) {
+			auto ve = it.view<ecs::Entity>();
+			GAIA_EACH(it) {
+				if (world.is(ve[i], game.prefabArrow))
+					++arrows;
+			}
+		});
+		if (arrows == 0) {
+			printf("smoke-shot: the arrow was consumed\n");
+			return 1;
 		}
 	}
 
-	g_pGameWorld->init();
+	{
+		ecs::World world;
+		Game game(world);
+		start_scripted(world, game);
+		const Position p{game.dungeon.spawn.x + 1, game.dungeon.spawn.y};
+		if (!game.dungeon.IsWalkable(p.x, p.y)) {
+			printf("smoke-shot: no walkable cell east of spawn\n");
+			return 1;
+		}
+		const auto foe = game.SpawnFrom(game.prefabGoblin, p);
+		tap(world, game, 'q');
+		if (!game.world.valid(foe) || !game.world.has<Health>(foe) || game.world.get<Health>(foe).value >= 20) {
+			printf("smoke-shot: adjacent shot missed the planted foe\n");
+			return 1;
+		}
+		if (game.world.valid(foe) && game.world.has<Health>(foe) && game.world.get<Health>(foe).value != 8) {
+			printf("smoke-shot: expected foe hp 8, got %d\n", game.world.get<Health>(foe).value);
+			return 1;
+		}
+		tap(world, game, 'q');
+		if (game.world.valid(foe)) {
+			printf("smoke-shot: second adjacent shot did not delete the foe\n");
+			return 1;
+		}
+	}
 
-	while (!g_pGameWorld->terminate) {
-		w.update();
+	{
+		ecs::World world;
+		Game game(world);
+		start_scripted(world, game);
+		const Position p{game.dungeon.spawn.x + 3, game.dungeon.spawn.y};
+		if (!game.dungeon.IsWalkable(p.x, p.y)) {
+			printf("smoke-shot: no ranged-shot corridor east of spawn\n");
+			return 1;
+		}
+		const auto foe = game.SpawnFrom(game.prefabGoblin, p);
+		tap(world, game, 'q');
+		tap(world, game, ' ');
+		if (!game.world.valid(foe) || game.world.get<Health>(foe).value != 8) {
+			printf("smoke-shot: crossing arrow hit the foe more than once\n");
+			return 1;
+		}
+	}
+
+	{
+		ecs::World world;
+		Game game(world);
+		start_scripted(world, game);
+		ecs::Entity sample = ecs::EntityBad;
+		world.uquery().all<Position>().all<Health>().each([&](ecs::Iter& it) {
+			auto ve = it.view<ecs::Entity>();
+			GAIA_EACH(it) {
+				if (sample == ecs::EntityBad && world.is(ve[i], game.prefabGoblin))
+					sample = ve[i];
+			}
+		});
+		const auto oldFloor = game.floorRoot;
+		if (sample == ecs::EntityBad || oldFloor == ecs::EntityBad) {
+			printf("smoke-shot: no floor contents to wipe\n");
+			return 1;
+		}
+		game.GenerateFloor(2);
+		if (game.world.valid(oldFloor) || game.world.valid(sample)) {
+			printf("smoke-shot: floor wipe left old entities\n");
+			return 1;
+		}
+		if (!game.world.valid(game.player) || game.world.has(game.player, ecs::Pair(ecs::ChildOf, game.floorRoot))) {
+			printf("smoke-shot: player did not survive the descent\n");
+			return 1;
+		}
+	}
+
+	{
+		ecs::World world;
+		Game game(world);
+		start_scripted(world, game);
+		const Position enemyPos{game.dungeon.spawn.x + 1, game.dungeon.spawn.y};
+		const Position poisonPos{game.dungeon.spawn.x + 2, game.dungeon.spawn.y};
+		const Position playerPos{game.dungeon.spawn.x + 3, game.dungeon.spawn.y};
+		if (!game.dungeon.IsWalkable(enemyPos.x, enemyPos.y) || !game.dungeon.IsWalkable(poisonPos.x, poisonPos.y) ||
+				!game.dungeon.IsWalkable(playerPos.x, playerPos.y)) {
+			printf("smoke-shot: no walkable cells for enemy-item ownership check\n");
+			return 1;
+		}
+
+		game.world.set<Position>(game.player) = playerPos;
+		const auto foe = game.SpawnFrom(game.prefabGoblin, enemyPos);
+		const auto poison = game.SpawnFrom(game.prefabPoison, poisonPos);
+		tap(world, game, KEY_WAIT);
+		if (!game.world.valid(poison) || game.world.get<Health>(foe).value != 20) {
+			printf("smoke-shot: enemy consumed a player pickup\n");
+			return 1;
+		}
+	}
+
+	printf("smoke-shot: ok\n");
+	return 0;
+}
+
+//! Runs the dungeon. `--smoke`, `--keys`, and `--no-color` are optional.
+//! \param argc Argument count.
+//! \param argv Argument vector.
+//! \return 0 on a normal exit. 1 when `--smoke` fails.
+int main(int argc, char** argv) {
+	bool smoke = false;
+	const char* keys = nullptr;
+	bool noColor = false;
+	for (int i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "--smoke") == 0)
+			smoke = true;
+		else if (strcmp(argv[i], "--keys") == 0 && i + 1 < argc)
+			keys = argv[++i];
+		else if (strcmp(argv[i], "--no-color") == 0)
+			noColor = true;
+	}
+
+	const bool scripted = smoke || keys != nullptr;
+	if (smoke && keys == nullptr)
+		keys = "daaaaaaaaaaaaaaaaaaaa";
+
+	if (!scripted) {
+		clear_screen_main();
+		print_welcome();
+		(void)get_char();
+	}
+
+	ecs::World world;
+	Game game(world);
+	game.quiet = scripted;
+	game.color = !scripted && !noColor;
+
+	// Prefabs first so systems can use them in semantic query terms.
+	game.CreatePrefabs();
+
+	auto turn = world.add();
+	world.add<Turn>(turn);
+	world.name(turn, "GameTurn");
+
+	register_systems(world, game);
+	game.StartRun();
+
+	ecs::Entity smokeFoe = ecs::EntityBad;
+	if (smoke) {
+		const Position p{game.dungeon.spawn.x + 1, game.dungeon.spawn.y};
+		if (game.dungeon.IsWalkable(p.x, p.y)) {
+			smokeFoe = game.SpawnFrom(game.prefabGoblin, p);
+		}
+	}
+
+	game.pendingKey = 0;
+	update_game(world, game);
+
+	uint32_t keyIndex = 0;
+	while (!game.terminate) {
+		if (scripted) {
+			if (keys == nullptr || keys[keyIndex] == '\0')
+				game.pendingKey = KEY_QUIT;
+			else
+				game.pendingKey = keys[keyIndex++];
+		} else {
+			game.pendingKey = get_char();
+		}
+		update_game(world, game);
+	}
+
+	if (smoke) {
+		const int melee = run_smoke(game, smokeFoe);
+		if (melee != 0)
+			return melee;
+		return run_shot_smoke();
 	}
 
 	return 0;

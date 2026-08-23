@@ -4757,7 +4757,7 @@ Project name | Description
 [Standalone](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1)|A dummy example showing how to use the framework in a standalone project.
 [DLL](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/app)|A dummy example showing how to use the framework as a dynamic library that is used by an executable.
 [Basic](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2)|Simple example using some basic features of the framework.
-[Roguelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike)|Roguelike game putting all parts of the framework to use and represents a complex example of how it is used in practice. It is work-in-progress and changes and evolves with the project.
+[Roguelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike)|Playable five-floor dungeon demonstrating application architecture, systems, phases, prefabs, relationships, change detection, command buffers, and deterministic collision. See the [example README](src/examples/example_roguelike/README.md).
 [WASM](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_wasm)|WebAssembly example that runs in the browser and now includes a lightweight Explorer-style UI for inspecting entities/components in real time.
 
 >**NOTE:** To build the WASM example with **Emscripten**:
