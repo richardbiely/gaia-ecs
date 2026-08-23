@@ -399,6 +399,7 @@ namespace gaia {
 				if (bytesWanted == 0 || bytesWanted > MAX_SIZE)
 					return nullptr;
 
+				const detail::ArenaLock arenaLock;
 				const auto sizeType = small_block_size_type(bytesWanted);
 				auto& container = m_pages[sizeType];
 
@@ -431,6 +432,7 @@ namespace gaia {
 				if (pBlock == nullptr)
 					return;
 
+				const detail::ArenaLock arenaLock;
 				const auto& header = *(const SmallBlockHeader*)((uint8_t*)pBlock - SmallBlockUsableOffset);
 				const auto pageAddr = header.m_pageAddr;
 				GAIA_ASSERT(pageAddr % sizeof(uintptr_t) == 0);
@@ -459,6 +461,7 @@ namespace gaia {
 			//! Flushes unused pages.
 			//! \param releaseAll When true, all empty pages are released.
 			void flush(bool releaseAll = false) {
+				const detail::ArenaLock arenaLock;
 				for (uint32_t i = 0; i < SmallBlockSizeTypeCount; ++i)
 					flush_pages(m_pages[i], releaseAll);
 				verify();

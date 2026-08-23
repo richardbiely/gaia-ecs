@@ -347,6 +347,7 @@ namespace gaia {
 
 				//! Allocates memory
 				void* alloc([[maybe_unused]] uint32_t dummy) {
+					const detail::ArenaLock arenaLock;
 					void* pBlock = nullptr;
 
 					// Find first page with available space
@@ -379,6 +380,7 @@ namespace gaia {
 
 				//! Releases memory allocated for pointer
 				void free(void* pBlock) {
+					const detail::ArenaLock arenaLock;
 					// Decode the page from the address
 					const auto pageAddr = *(uintptr_t*)((uint8_t*)pBlock - MemoryBlockUsableOffset);
 					GAIA_ASSERT(pageAddr % MemoryBlockAlignment == 0);
@@ -438,6 +440,7 @@ namespace gaia {
 
 				//! Flushes unused memory
 				void flush() {
+					const detail::ArenaLock arenaLock;
 					for (auto it = m_pages.pagesFree.begin(); it != m_pages.pagesFree.end();) {
 						auto* pPage = &(*it);
 						++it;

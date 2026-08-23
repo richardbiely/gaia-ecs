@@ -116,6 +116,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Data on runtime relationships](#data-on-runtime-relationships)
     * [Querying runtime components](#querying-runtime-components)
   * [Multithreading](#multithreading)
+    * [Worlds, threads, and allocation arenas](#worlds-threads-and-allocation-arenas)
     * [Jobs](#jobs)
     * [Job dependencies](#job-dependencies)
     * [Priorities](#priorities)
@@ -4190,6 +4191,16 @@ contiguous read-only field array. See [Iteration](#iteration) for the supported 
 
 ## Multithreading
 
+### Worlds, threads, and allocation arenas
+
+Do not mutate the same World from two threads at once. Running queries and systems in parallel inside one World is fine.
+
+`mem::SmallBlockAllocator`, `ecs::ChunkAllocator`, and `mem::PagedAllocator` are shared by every World in the process and are not locked by default.
+
+To run several Worlds at once, set `GAIA_ALLOC_ARENA_LOCK` to `1` before including gaia.h, or pass `-DGAIA_ALLOC_ARENA_LOCK=1`. The allocators then take a spinlock on `alloc` / `free` / `flush`. That does not make one World safe to mutate from two threads. The default is `0`. With the lock off, assert builds abort if two threads enter an allocator together.
+
+The job system (`mt::ThreadPool`) has its own synchronization and is not affected by this flag.
+
 ### Jobs
 To fully utilize your system's potential **Gaia-ECS** allows you to spread your tasks into multiple threads. This can be achieved in multiple ways.
 
@@ -4696,6 +4707,7 @@ Parameter | Description
 **GAIA_PROFILER_BUILD** | Builds the [profiler](#profiling) ([Tracy](https://github.com/wolfpld/tracy) by default)
 **GAIA_USE_SANITIZER** | Applies the specified set of [sanitizers](#sanitizers)
 **GAIA_FUNC_WRAPPER_SMALLBLOCK** | Uses `SmallBlockAllocator` for `SmallFunc` and `MoveFunc` callables that are too large for their inline buffer. Enabled by default. Set to `0` to allocate those larger callables with the platform heap instead.
+**GAIA_ALLOC_ARENA_LOCK** | Process-wide spinlock on alloc/free/flush of `mem::SmallBlockAllocator`, `ecs::ChunkAllocator`, and `mem::PagedAllocator`. Off by default (`0`). Set to `1` to allow independent Worlds to mutate concurrently. With the lock off, assert builds abort if two threads enter an allocator at once. See [Worlds, threads, and allocation arenas](#worlds-threads-and-allocation-arenas).
 
 ### Sanitizers
 Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>

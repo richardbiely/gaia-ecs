@@ -410,6 +410,7 @@ namespace gaia {
 					if (bytesWanted == 0 || bytesWanted > MaxMemoryBlockSize)
 						return nullptr;
 
+					const ::gaia::mem::detail::ArenaLock arenaLock;
 					const auto sizeType = mem_block_size_type(bytesWanted);
 					auto& container = m_pages[sizeType];
 
@@ -446,6 +447,7 @@ namespace gaia {
 					if (pBlock == nullptr)
 						return;
 
+					const ::gaia::mem::detail::ArenaLock arenaLock;
 					// Decode the page from the address
 					const auto& header = *(const MemoryBlockHeader*)((uint8_t*)pBlock - MemoryBlockUsableOffset);
 					const auto pageAddr = header.m_pageAddr;
@@ -501,6 +503,7 @@ namespace gaia {
 				//! Flushes unused memory.
 				//! Keeps a small, size-class-specific empty-page cache warm by default.
 				void flush(bool releaseAll = false) {
+					const ::gaia::mem::detail::ArenaLock arenaLock;
 					uint32_t i = 0;
 					for (auto& page: m_pages)
 						flushPages(page, i++, releaseAll);

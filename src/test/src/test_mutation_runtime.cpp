@@ -1,5 +1,8 @@
 #include "test_common.h"
 
+#include <thread>
+#include <vector>
+
 namespace {
 	//! Marker type used by tests to request World::uquery().
 	struct QueryUncached {};
@@ -1337,6 +1340,71 @@ TEST_CASE("SmallBlockAllocator") {
 	}
 #endif
 }
+
+#if GAIA_ALLOC_ARENA_LOCK
+// Independent Worlds may mutate concurrently when the arena spinlock is on.
+// Each thread still owns its World.
+TEST_CASE("Independent Worlds can mutate concurrently") {
+	constexpr int kThreads = 3;
+	constexpr int kEntities = 256;
+	std::atomic<int> ok{0};
+
+	std::vector<std::thread> threads;
+	threads.reserve(kThreads);
+	for (int t = 0; t < kThreads; ++t) {
+		threads.emplace_back([&, t] {
+			ecs::World world;
+			world.add<Position>();
+			world.add<PositionSparse>();
+
+			float sum = 0.f;
+			for (int i = 0; i < kEntities; ++i) {
+				auto e = world.add();
+				world.add<Position>(e, {(float)i, (float)t, 0.f});
+				world.add<PositionSparse>(e, {(float)i, 1.f, 2.f});
+				sum += world.get<Position>(e).x;
+			}
+
+			CHECK(world.query().all<Position>().count() == (uint32_t)kEntities);
+			CHECK(world.query().all<PositionSparse>().count() == (uint32_t)kEntities);
+			CHECK(sum > 0.f);
+			ok.fetch_add(1, std::memory_order_relaxed);
+		});
+	}
+
+	for (auto& th: threads)
+		th.join();
+
+	CHECK(ok.load() == kThreads);
+}
+#elif GAIA_ASSERT_ENABLED && GAIA_ECS_TEST_HOOKS
+// Default (no arena lock): two threads inside an arena at once must be recorded.
+// TEST_HOOKS counts instead of aborting so the suite can assert the detector.
+TEST_CASE("Shared allocation arenas detect concurrent multi-thread use") {
+	const auto before = mem::detail::ArenaLock::test_violations();
+
+	std::atomic<bool> entered{false};
+	std::atomic<bool> release{false};
+
+	std::thread holder([&] {
+		const mem::detail::ArenaLock guard;
+		entered.store(true, std::memory_order_release);
+		while (!release.load(std::memory_order_acquire)) {
+		}
+	});
+
+	while (!entered.load(std::memory_order_acquire)) {
+	}
+	{
+		const mem::detail::ArenaLock overlapping;
+	}
+
+	release.store(true, std::memory_order_release);
+	holder.join();
+
+	CHECK(mem::detail::ArenaLock::test_violations() > before);
+}
+#endif
 
 TEST_CASE("SmallFunc") {
 	SUBCASE("stores small callables inline") {

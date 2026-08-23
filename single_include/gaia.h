@@ -741,6 +741,13 @@ namespace gaia {
 	#define GAIA_FUNC_WRAPPER_SMALLBLOCK 1
 #endif
 
+//! If enabled, process-wide allocation arenas take a spinlock on alloc/free/flush so independent
+//! Worlds may mutate concurrently. Default is 0. When disabled, assert builds abort if two threads
+//! enter an arena at once.
+#ifndef GAIA_ALLOC_ARENA_LOCK
+	#define GAIA_ALLOC_ARENA_LOCK 0
+#endif
+
 //! If enabled, systems as entities are enabled
 #ifndef GAIA_SYSTEMS_ENABLED
 	#define GAIA_SYSTEMS_ENABLED 1
@@ -5646,6 +5653,13 @@ namespace gaia {
 #include <type_traits>
 #include <utility>
 
+#if GAIA_ALLOC_ARENA_LOCK || GAIA_ASSERT_ENABLED
+	#include <atomic>
+#endif
+#if !GAIA_ALLOC_ARENA_LOCK && GAIA_ASSERT_ENABLED
+	#include <thread>
+#endif
+
 #if GAIA_PLATFORM_WINDOWS
 	#define GAIA_MEM_ALLC(size) ::malloc(size)
 	#define GAIA_MEM_FREE(ptr) ::free(ptr)
@@ -5667,6 +5681,88 @@ namespace gaia {
 
 namespace gaia {
 	namespace mem {
+		//! \cond INTERNAL
+		namespace detail {
+			//! Serializes or debug-checks mutating entry into a process-wide allocation arena.
+			//!
+			//! SmallBlockAllocator, ChunkAllocator and PagedAllocator are process-wide
+			//! dyn_singletons. Their page lists and block headers are not otherwise
+			//! synchronized. Construct this on the mutating path of alloc/free/flush, after
+			//! call-local argument checks. stats() and diag() stay unlocked so they cannot
+			//! deadlock against a mutating caller.
+			//!
+			//! When GAIA_ALLOC_ARENA_LOCK is 1, this is a non-recursive spinlock so
+			//! independent Worlds may mutate concurrently. When it is 0 (the default),
+			//! Release pays nothing. Assert-enabled builds then record the owning thread
+			//! and abort if a second thread enters at the same time.
+			class ArenaLock final {
+#if GAIA_ALLOC_ARENA_LOCK
+				inline static std::atomic_int32_t s_lock{0};
+#elif GAIA_ASSERT_ENABLED
+				inline static std::atomic_flag s_entered = ATOMIC_FLAG_INIT;
+				inline static std::atomic<std::thread::id> s_owner{};
+	#if GAIA_ECS_TEST_HOOKS
+				inline static std::atomic_uint32_t s_testViolations = 0;
+	#endif
+#endif
+
+			public:
+				ArenaLock() noexcept {
+#if GAIA_ALLOC_ARENA_LOCK
+					while (s_lock.exchange(1, std::memory_order_acquire) != 0) {
+						while (s_lock.load(std::memory_order_relaxed) != 0)
+	#if defined(__aarch64__)
+							__asm__ volatile("yield");
+	#else
+							;
+	#endif
+					}
+#elif GAIA_ASSERT_ENABLED
+					const auto me = std::this_thread::get_id();
+					if (s_entered.test_and_set(std::memory_order_acquire)) {
+						const auto other = s_owner.load(std::memory_order_relaxed);
+	#if GAIA_ECS_TEST_HOOKS
+						if (other != me)
+							++s_testViolations;
+	#else
+						// Same-thread re-entry is tolerated; a different thread means two Worlds
+						// are allocating or freeing concurrently through the same process-wide arena.
+						GAIA_ASSERT(
+								other == me && "Allocation arena entered concurrently from two "
+															 "threads. Define GAIA_ALLOC_ARENA_LOCK=1 to serialize the arenas, or "
+															 "keep one mutating World per process.");
+	#endif
+					} else {
+						s_owner.store(me, std::memory_order_relaxed);
+					}
+#endif
+				}
+
+				~ArenaLock() noexcept {
+#if GAIA_ALLOC_ARENA_LOCK
+					s_lock.store(0, std::memory_order_release);
+#elif GAIA_ASSERT_ENABLED
+					s_entered.clear(std::memory_order_release);
+#endif
+				}
+
+				ArenaLock(const ArenaLock&) = delete;
+				ArenaLock& operator=(const ArenaLock&) = delete;
+
+				//! Returns concurrent-use violations observed since process start.
+				//! \return Detected overlaps. Meaningful only when the lock is off, asserts
+				//!         are on, and GAIA_ECS_TEST_HOOKS is enabled.
+				GAIA_NODISCARD static uint32_t test_violations() noexcept {
+#if !GAIA_ALLOC_ARENA_LOCK && GAIA_ASSERT_ENABLED && GAIA_ECS_TEST_HOOKS
+					return s_testViolations.load(std::memory_order_relaxed);
+#else
+					return 0;
+#endif
+				}
+			};
+		} // namespace detail
+		//! \endcond
+
 		//! Stateless allocator backed by the platform heap.
 		struct DefaultAllocator {
 			//! Allocates an unaligned memory region.
@@ -8243,6 +8339,14 @@ namespace gaia {
 		//! Instead, we let the singleton allocate the object on the heap and once singleton's
 		//! destructor is called we tell the internal object it should destroy itself. This way
 		//! there are no memory leaks or access-after-freed issues on app exit reported.
+		//!
+		//! \warning The instance is process-wide, not thread-local and not per-World. All callers
+		//!          on all threads share the same object. Allocation arenas built on dyn_singleton
+		//!          (SmallBlockAllocator, ChunkAllocator, PagedAllocator) are unsynchronized unless
+		//!          GAIA_ALLOC_ARENA_LOCK is 1, in which case alloc/free/flush take a process-wide
+		//!          spinlock so independent Worlds may mutate concurrently. The lock does not make
+		//!          structural mutation of one World thread-safe. When the lock is off, assert builds abort if two
+		//!          threads enter an arena at once.
 		template <typename T>
 		class dyn_singleton final {
 			T* m_obj = new T();
@@ -9728,6 +9832,7 @@ namespace gaia {
 				if (bytesWanted == 0 || bytesWanted > MAX_SIZE)
 					return nullptr;
 
+				const detail::ArenaLock arenaLock;
 				const auto sizeType = small_block_size_type(bytesWanted);
 				auto& container = m_pages[sizeType];
 
@@ -9760,6 +9865,7 @@ namespace gaia {
 				if (pBlock == nullptr)
 					return;
 
+				const detail::ArenaLock arenaLock;
 				const auto& header = *(const SmallBlockHeader*)((uint8_t*)pBlock - SmallBlockUsableOffset);
 				const auto pageAddr = header.m_pageAddr;
 				GAIA_ASSERT(pageAddr % sizeof(uintptr_t) == 0);
@@ -9788,6 +9894,7 @@ namespace gaia {
 			//! Flushes unused pages.
 			//! \param releaseAll When true, all empty pages are released.
 			void flush(bool releaseAll = false) {
+				const detail::ArenaLock arenaLock;
 				for (uint32_t i = 0; i < SmallBlockSizeTypeCount; ++i)
 					flush_pages(m_pages[i], releaseAll);
 				verify();
@@ -18308,6 +18415,7 @@ namespace gaia {
 
 				//! Allocates memory
 				void* alloc([[maybe_unused]] uint32_t dummy) {
+					const detail::ArenaLock arenaLock;
 					void* pBlock = nullptr;
 
 					// Find first page with available space
@@ -18340,6 +18448,7 @@ namespace gaia {
 
 				//! Releases memory allocated for pointer
 				void free(void* pBlock) {
+					const detail::ArenaLock arenaLock;
 					// Decode the page from the address
 					const auto pageAddr = *(uintptr_t*)((uint8_t*)pBlock - MemoryBlockUsableOffset);
 					GAIA_ASSERT(pageAddr % MemoryBlockAlignment == 0);
@@ -18399,6 +18508,7 @@ namespace gaia {
 
 				//! Flushes unused memory
 				void flush() {
+					const detail::ArenaLock arenaLock;
 					for (auto it = m_pages.pagesFree.begin(); it != m_pages.pagesFree.end();) {
 						auto* pPage = &(*it);
 						++it;
@@ -32912,6 +33022,7 @@ namespace gaia {
 					if (bytesWanted == 0 || bytesWanted > MaxMemoryBlockSize)
 						return nullptr;
 
+					const ::gaia::mem::detail::ArenaLock arenaLock;
 					const auto sizeType = mem_block_size_type(bytesWanted);
 					auto& container = m_pages[sizeType];
 
@@ -32948,6 +33059,7 @@ namespace gaia {
 					if (pBlock == nullptr)
 						return;
 
+					const ::gaia::mem::detail::ArenaLock arenaLock;
 					// Decode the page from the address
 					const auto& header = *(const MemoryBlockHeader*)((uint8_t*)pBlock - MemoryBlockUsableOffset);
 					const auto pageAddr = header.m_pageAddr;
@@ -33003,6 +33115,7 @@ namespace gaia {
 				//! Flushes unused memory.
 				//! Keeps a small, size-class-specific empty-page cache warm by default.
 				void flush(bool releaseAll = false) {
+					const ::gaia::mem::detail::ArenaLock arenaLock;
 					uint32_t i = 0;
 					for (auto& page: m_pages)
 						flushPages(page, i++, releaseAll);
