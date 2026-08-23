@@ -126,6 +126,44 @@ TEST_CASE("System - iterator command buffer is visible to later system") {
 	CHECK(wld.has<SystemDeferredResult>(e));
 }
 
+TEST_CASE("System - direct Is seeds exclude an instance deleted by an earlier system") {
+	struct DeletePrefabInstance {};
+	struct InspectPrefabInstances {};
+
+	TestWorld twld;
+	const auto prefab = wld.prefab();
+	const auto instance = wld.instantiate(prefab);
+	const auto inspector = wld.add();
+	wld.add<DeletePrefabInstance>(instance);
+	wld.add<InspectPrefabInstances>(inspector);
+
+	uint32_t inHits = 0;
+	uint32_t isHits = 0;
+
+	auto producer = wld.system().all<DeletePrefabInstance>().on_each([&](ecs::Iter& it) {
+		auto& cb = it.cmd_buffer_st();
+		auto entities = it.view<ecs::Entity>();
+		GAIA_EACH(it)
+		cb.del(entities[i]);
+	});
+
+	auto consumer = wld.system().all<InspectPrefabInstances>().on_each([&]() {
+		wld.query().in(prefab).each([&](ecs::Entity) {
+			++inHits;
+		});
+		wld.query().is(prefab).each([&](ecs::Entity) {
+			++isHits;
+		});
+	});
+
+	wld.add(producer.entity(), {ecs::DependsOn, consumer.entity()});
+	wld.systems_run();
+
+	CHECK_FALSE(wld.valid(instance));
+	CHECK(inHits == 0);
+	CHECK(isHits == 0);
+}
+
 TEST_CASE("System - iterator command buffer crosses phase boundary") {
 	struct PhaseDeferredSource {};
 	struct PhaseDeferredResult {};

@@ -75934,10 +75934,14 @@ namespace gaia {
 				if (is_req_del(ec))
 					return;
 
+				unlink_live_is_relations(entity);
 #if GAIA_OBSERVERS_ENABLED
 				del_nonfragmenting_relation_source_observed(entity);
+				del_nonfragmenting_relation_source(entity);
 				auto delDiffCtx =
 						m_observers.prepare_diff(*this, ObserverEvent::OnDel, EntitySpan{&entity, 1}, EntitySpan{&entity, 1});
+#else
+				del_nonfragmenting_relation_source(entity);
 #endif
 				del_entity(ec, entity, false);
 #if GAIA_OBSERVERS_ENABLED
@@ -76013,6 +76017,21 @@ namespace gaia {
 						m_entityToAsRelations.erase(itRelations);
 				}
 				m_entityToAsRelationsTravCache = {};
+			}
+
+			//! Unlinks every live semantic `Is` target owned by \a source.
+			//! \param source Source entity whose semantic inheritance edges are removed.
+			void unlink_live_is_relations(Entity source) {
+				const auto itTargets = m_entityToAsTargets.find(EntityLookupKey(source));
+				if (itTargets == m_entityToAsTargets.end())
+					return;
+
+				cnt::darray_ext<Entity, 4> targets;
+				for (auto targetKey: itTargets->second)
+					targets.push_back(targetKey.entity());
+
+				for (auto target: targets)
+					unlink_live_is_relation(source, target);
 			}
 
 			void unlink_stale_is_relations_by_target_id(Entity source, EntityId targetId) {
