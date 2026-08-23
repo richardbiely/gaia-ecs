@@ -868,9 +868,8 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>save</b> ()</td></tr>
 <tr class="memitem:a071fc0680d06a3a7e77c100c7051dbbc" id="r_a071fc0680d06a3a7e77c100c7051dbbc"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a071fc0680d06a3a7e77c100c7051dbbc">invalidate_queries_for_structural_entity</a> (<a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a> entityKey)</td></tr>
 <tr class="memdesc:a071fc0680d06a3a7e77c100c7051dbbc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invalidates cached queries structurally affected by <em>entityKey</em>.  <br /></td></tr>
 <tr class="separator:a071fc0680d06a3a7e77c100c7051dbbc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6a7d90966f9370b96cf8ad9f54854226" id="r_a6a7d90966f9370b96cf8ad9f54854226"><td class="memItemLeft" align="right" valign="top"><a id="a6a7d90966f9370b96cf8ad9f54854226" name="a6a7d90966f9370b96cf8ad9f54854226"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>invalidate_queries_for_rel</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>)</td></tr>
-<tr class="memdesc:a6a7d90966f9370b96cf8ad9f54854226"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invalidates cached queries whose dynamic result depends on <em>relation</em>. <br /></td></tr>
+<tr class="memitem:a6a7d90966f9370b96cf8ad9f54854226" id="r_a6a7d90966f9370b96cf8ad9f54854226"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6a7d90966f9370b96cf8ad9f54854226">invalidate_queries_for_rel</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>)</td></tr>
+<tr class="memdesc:a6a7d90966f9370b96cf8ad9f54854226"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invalidates cached queries whose dynamic result depends on <em>relation</em>.  <br /></td></tr>
 <tr class="separator:a6a7d90966f9370b96cf8ad9f54854226"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a11f67b97d154b10b8411f318f12d17c1" id="r_a11f67b97d154b10b8411f318f12d17c1"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a11f67b97d154b10b8411f318f12d17c1">has_sorted_queries</a> () const</td></tr>
 <tr class="memdesc:a11f67b97d154b10b8411f318f12d17c1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether any cached sorted query is registered in this world.  <br /></td></tr>
@@ -5444,6 +5443,40 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname"><a class="el" href="structgaia_1_1ecs_1_1is__pair.html" title="Detects whether a type is a relationship pair.">is_pair</a></td><td><code>Is</code> pair </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a6a7d90966f9370b96cf8ad9f54854226" name="a6a7d90966f9370b96cf8ad9f54854226"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6a7d90966f9370b96cf8ad9f54854226">&#9670;&#160;</a></span>invalidate_queries_for_rel()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::invalidate_queries_for_rel </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>relation</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Invalidates cached queries whose dynamic result depends on <em>relation</em>. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">relation</td><td>Relation whose dependent query results are invalidated. </td></tr>
   </table>
   </dd>
 </dl>
@@ -10355,6 +10388,7 @@ template&lt;typename T &gt; </div>
 </div><div class="memdoc">
 
 <p>Returns the version that changes when an archetype enters or leaves the deletion-request set. </p>
+<p>Returns the version of the world's pending archetype-deletion set.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> whose archetype deletion state is inspected. </td></tr>
@@ -10713,6 +10747,7 @@ template&lt;typename T &gt; </div>
 </div><div class="memdoc">
 
 <p>Finishes a cursor write through the owning world. </p>
+<p>Finalizes one cursor-backed component write.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> owning the component value. </td></tr>
@@ -10881,6 +10916,7 @@ template&lt;typename T &gt; </div>
 </div><div class="memdoc">
 
 <p>Returns the current version of <code>relation-specific</code> traversal metadata. </p>
+<p>Returns the current traversal-metadata version for a relation.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> that owns the traversal metadata. </td></tr>
@@ -10917,6 +10953,7 @@ template&lt;typename T &gt; </div>
 </div><div class="memdoc">
 
 <p>Returns the current world structural version. </p>
+<p>Returns the world's current structural version.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> whose version is inspected. </td></tr>

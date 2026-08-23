@@ -1,5 +1,6 @@
 var NAVTREEINDEX14 =
 {
+"structgaia_1_1ser_1_1is__int__kind__id.html":[9,0,0,6,3],
 "structgaia_1_1ser_1_1is__trivially__serializable.html":[9,0,0,6,4],
 "structgaia_1_1ser_1_1is__trivially__serializable.html#add4b8b604dcd29b70941528334abefb6":[9,0,0,6,4,0],
 "structgaia_1_1ser_1_1serializer.html":[9,0,0,6,7],

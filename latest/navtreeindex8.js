@@ -1,6 +1,7 @@
 var NAVTREEINDEX8 =
 {
 "index.html#world-serialization":[2,8,2],
+"index.html#worlds-threads-and-allocation-arenas":[2,10,0],
 "iterator_8h_source.html":[10,0,0,0,2,6],
 "jobcommon_8h_source.html":[10,0,0,0,6,2],
 "jobhandle_8h_source.html":[10,0,0,0,6,3],
@@ -248,6 +249,5 @@ var NAVTREEINDEX8 =
 "structgaia_1_1cnt_1_1ilist__item__traits.html#acc85b650f9c5c0fba210d92af32a4f2d":[9,0,0,0,20,1],
 "structgaia_1_1cnt_1_1ilist__item__traits.html#ae2910ff205be2aa8218a925206c2e470":[9,0,0,0,20,2],
 "structgaia_1_1cnt_1_1page__iterator.html":[9,0,0,0,21],
-"structgaia_1_1cnt_1_1page__iterator.html#a056e07727caf38da9dffa93bb3b1469b":[9,0,0,0,21,5],
-"structgaia_1_1cnt_1_1page__iterator.html#a1cd79d8d890b3dc37bcf31c214749f62":[9,0,0,0,21,0]
+"structgaia_1_1cnt_1_1page__iterator.html#a056e07727caf38da9dffa93bb3b1469b":[9,0,0,0,21,5]
 };

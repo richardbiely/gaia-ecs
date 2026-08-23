@@ -21,9 +21,10 @@ var searchData=
   ['world_5fquery_5fentity_5farg_5fby_5fid_5fraw_18',['world_query_entity_arg_by_id_raw',['../classgaia_1_1ecs_1_1World.html#aef67861c095799464689a3b78502343f',1,'gaia::ecs::World']]],
   ['world_5frel_5fversion_19',['world_rel_version',['../classgaia_1_1ecs_1_1World.html#a7aae35834ed5e240c529e04c94cb9856',1,'gaia::ecs::World']]],
   ['world_5fversion_20',['world_version',['../classgaia_1_1ecs_1_1World.html#a0314449dbd8740cb1c450b901ea93b37',1,'gaia::ecs::World::world_version()'],['../classgaia_1_1ecs_1_1World.html#a045e0362d6201da20e31118491e11386',1,'gaia::ecs::World::world_version']]],
-  ['write_21',['write',['../structgaia_1_1ecs_1_1QueryTermOptions.html#a14acd7b6d93934363f25ef0008b94eca',1,'gaia::ecs::QueryTermOptions']]],
-  ['write_5fblock_5fidx_22',['write_block_idx',['../structgaia_1_1mem_1_1MemoryPage.html#a2836e2c2c9c7d16ae4951976d6202efd',1,'gaia::mem::MemoryPage']]],
-  ['writecnt_23',['writeCnt',['../structgaia_1_1ecs_1_1QueryAccessSet.html#ab47f64f1a66449b4edcaa9f5339c2f0e',1,'gaia::ecs::QueryAccessSet']]],
-  ['writes_24',['writes',['../structgaia_1_1ecs_1_1QueryAccessSet.html#adf5e6068bbd66e0c3c8f6acef489d73b',1,'gaia::ecs::QueryAccessSet::writes'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752',1,'gaia::ecs::detail::QueryImpl::writes(Entity entity)'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afe68a00ee539daa387d6a8d748af62e6',1,'gaia::ecs::detail::QueryImpl::writes()']]],
-  ['writes_5fview_25',['writes_view',['../structgaia_1_1ecs_1_1QueryAccessSet.html#a80527cec1e1fac7f8b885696c6d73115',1,'gaia::ecs::QueryAccessSet']]]
+  ['worlds_20threads_20and_20allocation_20arenas_21',['Worlds, threads, and allocation arenas',['../index.html#worlds-threads-and-allocation-arenas',1,'']]],
+  ['write_22',['write',['../structgaia_1_1ecs_1_1QueryTermOptions.html#a14acd7b6d93934363f25ef0008b94eca',1,'gaia::ecs::QueryTermOptions']]],
+  ['write_5fblock_5fidx_23',['write_block_idx',['../structgaia_1_1mem_1_1MemoryPage.html#a2836e2c2c9c7d16ae4951976d6202efd',1,'gaia::mem::MemoryPage']]],
+  ['writecnt_24',['writeCnt',['../structgaia_1_1ecs_1_1QueryAccessSet.html#ab47f64f1a66449b4edcaa9f5339c2f0e',1,'gaia::ecs::QueryAccessSet']]],
+  ['writes_25',['writes',['../structgaia_1_1ecs_1_1QueryAccessSet.html#adf5e6068bbd66e0c3c8f6acef489d73b',1,'gaia::ecs::QueryAccessSet::writes'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752',1,'gaia::ecs::detail::QueryImpl::writes(Entity entity)'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afe68a00ee539daa387d6a8d748af62e6',1,'gaia::ecs::detail::QueryImpl::writes()']]],
+  ['writes_5fview_26',['writes_view',['../structgaia_1_1ecs_1_1QueryAccessSet.html#a80527cec1e1fac7f8b885696c6d73115',1,'gaia::ecs::QueryAccessSet']]]
 ];

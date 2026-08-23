@@ -1,5 +1,6 @@
 var NAVTREEINDEX9 =
 {
+"structgaia_1_1cnt_1_1page__iterator.html#a1cd79d8d890b3dc37bcf31c214749f62":[9,0,0,0,21,0],
 "structgaia_1_1cnt_1_1page__iterator.html#a22e14151de3169190abece33c9a66e07":[9,0,0,0,21,11],
 "structgaia_1_1cnt_1_1page__iterator.html#a2e425b648ccb808e4dcc2795a79d8f7e":[9,0,0,0,21,14],
 "structgaia_1_1cnt_1_1page__iterator.html#a37791631b1c3cf14a5ea01a8ca20ddec":[9,0,0,0,21,6],
@@ -248,6 +249,5 @@ var NAVTREEINDEX9 =
 "structgaia_1_1ecs_1_1ArchetypeCompIndices.html#a73670c1b3705c61e6fcae769104fcc59":[9,0,0,2,17,0],
 "structgaia_1_1ecs_1_1ArchetypeInheritedData.html":[9,0,0,2,18],
 "structgaia_1_1ecs_1_1ArchetypeInheritedData.html#abda2b50b040f1fbe3ddd06df703a2b18":[9,0,0,2,18,0],
-"structgaia_1_1ecs_1_1Archetype_1_1Properties.html":[9,0,0,2,14,0],
-"structgaia_1_1ecs_1_1Archetype_1_1Properties.html#a0efe769c0529a8951ef522c56df60de6":[9,0,0,2,14,0,0]
+"structgaia_1_1ecs_1_1Archetype_1_1Properties.html":[9,0,0,2,14,0]
 };

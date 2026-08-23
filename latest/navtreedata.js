@@ -126,6 +126,7 @@ var NAVTREE =
         [ "Querying runtime components", "index.html#querying-runtime-components", null ]
       ] ],
       [ "Multithreading", "index.html#multithreading", [
+        [ "Worlds, threads, and allocation arenas", "index.html#worlds-threads-and-allocation-arenas", null ],
         [ "Jobs", "index.html#jobs", null ],
         [ "Job dependencies", "index.html#job-dependencies", null ],
         [ "Priorities", "index.html#priorities", null ],
@@ -191,12 +192,12 @@ var NAVTREEINDEX =
 "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752",
 "component__setter_8h_source.html",
 "index.html#world-serialization",
-"structgaia_1_1cnt_1_1page__iterator.html#a22e14151de3169190abece33c9a66e07",
-"structgaia_1_1ecs_1_1Archetype_1_1Properties.html#a5b08265ce76c56e69408a1366678ada5",
-"structgaia_1_1ecs_1_1QueryCtx.html#a5c21e6754dd9afa669fecb6cb24f29e3a4f2a6736352141b1f504b54c12cd2060",
-"structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html#af8a8b7488b7f70959cb5b2896b749a92",
-"structgaia_1_1mem_1_1AllocHelper.html#a3ae41033a17974982dd0c147230b542f",
-"structgaia_1_1ser_1_1is__trivially__serializable.html"
+"structgaia_1_1cnt_1_1page__iterator.html#a1cd79d8d890b3dc37bcf31c214749f62",
+"structgaia_1_1ecs_1_1Archetype_1_1Properties.html#a0efe769c0529a8951ef522c56df60de6",
+"structgaia_1_1ecs_1_1QueryCtx.html#a5c21e6754dd9afa669fecb6cb24f29e3a49bb0364f577658cbf45e111768ee977",
+"structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html#af367fdbd2003d1ab90d55405210b7477",
+"structgaia_1_1mem_1_1AllocHelper.html#a25aa19788f58d004f0069d95f48f8408",
+"structgaia_1_1ser_1_1is__int__kind__id.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

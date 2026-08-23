@@ -224,6 +224,7 @@ Table of Contents</h1>
 </ul>
 </li>
 <li><a class="el" href="index.html#multithreading">Multithreading</a><ul>
+<li><a class="el" href="index.html#worlds-threads-and-allocation-arenas">Worlds, threads, and allocation arenas</a></li>
 <li><a class="el" href="index.html#jobs">Jobs</a></li>
 <li><a class="el" href="index.html#job-dependencies">Job dependencies</a></li>
 <li><a class="el" href="index.html#priorities">Priorities</a></li>
@@ -3491,6 +3492,12 @@ Querying runtime components</h3>
 </div><!-- fragment --><p>Iterator callbacks can use <code>view_raw(termIdx)</code> for directly chunk-backed AoS payloads. Use <code>view_raw_any(component)</code> when sparse or inherited runtime payloads must be resolved separately for each entity. Each indexed access performs a world lookup, and the returned entity-resolved view is valid only during the callback. The mutable <code>view_raw_any_mut(component)</code> path emits normal write notifications after the callback. <code>sview_raw_any_mut(component)</code> stays silent until <code>modify_raw(component)</code> returns true. Both mutable paths require every iterated entity to own the component directly. A callback can track up to 32 distinct sparse components. A later mutable view is invalid, and <code>modify_raw(component)</code> returns false when that limit or the ownership requirement is not satisfied. Directly stored generic table runtime SoA component and exact-pair terms use <code>view_raw_field(termIdx, fieldIdx)</code> for a contiguous read-only field array. See <a class="el" href="index.html#iteration">Iteration</a> for the supported storage and ownership contracts.</p>
 <h2><a class="anchor" id="multithreading"></a>
 Multithreading</h2>
+<h3><a class="anchor" id="worlds-threads-and-allocation-arenas"></a>
+Worlds, threads, and allocation arenas</h3>
+<p>Do not mutate the same World from two threads at once. Running queries and systems in parallel inside one World is fine.</p>
+<p><code>mem::SmallBlockAllocator</code>, <code>ecs::ChunkAllocator</code>, and <code>mem::PagedAllocator</code> are shared by every World in the process and are not locked by default.</p>
+<p>To run several Worlds at once, set <code>GAIA_ALLOC_ARENA_LOCK</code> to <code>1</code> before including gaia.h, or pass <code>-DGAIA_ALLOC_ARENA_LOCK=1</code>. The allocators then take a spinlock on <code>alloc</code> / <code>free</code> / <code>flush</code>. That does not make one World safe to mutate from two threads. The default is <code>0</code>. With the lock off, assert builds abort if two threads enter an allocator together.</p>
+<p>The job system (<code>mt::ThreadPool</code>) has its own synchronization and is not affected by this flag.</p>
 <h3><a class="anchor" id="jobs"></a>
 Jobs</h3>
 <p>To fully utilize your system's potential <b>Gaia-ECS</b> allows you to spread your tasks into multiple threads. This can be achieved in multiple ways.</p>
@@ -3911,7 +3918,9 @@ Project settings</h3>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>GAIA_USE_SANITIZER</b>   </td><td class="markdownTableBodyNone">Applies the specified set of <a class="el" href="index.html#sanitizers">sanitizers</a>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>GAIA_FUNC_WRAPPER_SMALLBLOCK</b>   </td><td class="markdownTableBodyNone">Uses <code>SmallBlockAllocator</code> for <code>SmallFunc</code> and <code>MoveFunc</code> callables that are too large for their inline buffer. Enabled by default. Set to <code>0</code> to allocate those larger callables with the platform heap instead.   </td></tr>
+<td class="markdownTableBodyNone"><b>GAIA_FUNC_WRAPPER_SMALLBLOCK</b>   </td><td class="markdownTableBodyNone">Uses <code>SmallBlockAllocator</code> for <code>SmallFunc</code> and <code>MoveFunc</code> callables that are too large for their inline buffer. Enabled by default. Set to <code>0</code> to allocate those larger callables with the platform heap instead.    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>GAIA_ALLOC_ARENA_LOCK</b>   </td><td class="markdownTableBodyNone">Process-wide spinlock on alloc/free/flush of <code>mem::SmallBlockAllocator</code>, <code>ecs::ChunkAllocator</code>, and <code>mem::PagedAllocator</code>. Off by default (<code>0</code>). Set to <code>1</code> to allow independent Worlds to mutate concurrently. With the lock off, assert builds abort if two threads enter an allocator at once. See <a class="el" href="index.html#worlds-threads-and-allocation-arenas">Worlds, threads, and allocation arenas</a>.   </td></tr>
 </table>
 <h3><a class="anchor" id="sanitizers"></a>
 Sanitizers</h3>
@@ -3947,7 +3956,7 @@ Examples</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2">Basic</a>   </td><td class="markdownTableBodyNone">Simple example using some basic features of the framework.    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><a href="https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike">Roguelike</a>   </td><td class="markdownTableBodyNone">Roguelike game putting all parts of the framework to use and represents a complex example of how it is used in practice. It is work-in-progress and changes and evolves with the project.    </td></tr>
+<td class="markdownTableBodyNone"><a href="https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike">Roguelike</a>   </td><td class="markdownTableBodyNone">Playable five-floor dungeon demonstrating application architecture, systems, phases, prefabs, relationships, change detection, command buffers, and deterministic collision. See the <a href="https://github.com/richardbiely/gaia-ecs/blob/main/src/examples/example_roguelike/README.md">example README</a>.    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_wasm">WASM</a>   </td><td class="markdownTableBodyNone">WebAssembly example that runs in the browser and now includes a lightweight Explorer-style UI for inspecting entities/components in real time.   </td></tr>
 </table>

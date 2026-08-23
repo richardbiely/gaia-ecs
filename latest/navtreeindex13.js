@@ -1,5 +1,6 @@
 var NAVTREEINDEX13 =
 {
+"structgaia_1_1mem_1_1AllocHelper.html#a25aa19788f58d004f0069d95f48f8408":[9,0,0,3,0,2],
 "structgaia_1_1mem_1_1AllocHelper.html#a3ae41033a17974982dd0c147230b542f":[9,0,0,3,0,3],
 "structgaia_1_1mem_1_1AllocHelper.html#a71be398933adeb96bf538d7339089569":[9,0,0,3,0,7],
 "structgaia_1_1mem_1_1AllocHelper.html#a7cf7a36a76ec5272a7852902ba897d5a":[9,0,0,3,0,0],
@@ -248,6 +249,5 @@ var NAVTREEINDEX13 =
 "structgaia_1_1ser_1_1detail_1_1has__seek__fn_3_01T_00_01std_1_1void__t_3_01decltype_07std_1_1decde0c993735b2058fbd9b080718d84786.html":[9,0,0,6,0,11],
 "structgaia_1_1ser_1_1detail_1_1has__tell__fn.html":[9,0,0,6,0,12],
 "structgaia_1_1ser_1_1detail_1_1has__tell__fn_3_01T_00_01std_1_1void__t_3_01decltype_07std_1_1dec16493ebf98a8d23d7877f9f2a01cd59a.html":[9,0,0,6,0,13],
-"structgaia_1_1ser_1_1is__flt__kind__id.html":[9,0,0,6,2],
-"structgaia_1_1ser_1_1is__int__kind__id.html":[9,0,0,6,3]
+"structgaia_1_1ser_1_1is__flt__kind__id.html":[9,0,0,6,2]
 };
