@@ -1770,15 +1770,19 @@ make_legacy_named_entity_snapshot(uint32_t oldLastCoreComponentId, uint32_t arch
 	return buffer;
 }
 
-static std::string make_binary_snapshot_json(const ser::bin_stream& buffer) {
-	std::string json = "{\"format\":1,\"binary\":[";
+static util::str make_binary_snapshot_json(const ser::bin_stream& buffer) {
+	util::str json;
+	json.append("{\"format\":1,\"binary\":[");
 	const auto* pData = (const uint8_t*)buffer.data();
 	GAIA_FOR(buffer.bytes()) {
 		if (i != 0)
-			json += ',';
-		json += std::to_string((uint32_t)pData[i]);
+			json.append(",");
+		char buf[16];
+		const int n = snprintf(buf, sizeof(buf), "%u", (uint32_t)pData[i]);
+		if (n > 0)
+			json.append(buf, (uint32_t)n);
 	}
-	json += "]}";
+	json.append("]}");
 	return json;
 }
 
@@ -2083,7 +2087,7 @@ TEST_CASE("Serialization - world json compatibility when core components are add
 	const auto json = make_binary_snapshot_json(legacyBuffer);
 
 	TestWorld twldOut;
-	CHECK(twldOut.m_w.load_json(json.c_str(), (uint32_t)json.size()));
+	CHECK(twldOut.m_w.load_json(json.data(), json.size()));
 
 	const auto legacy = twldOut.m_w.get("LegacyJson");
 	CHECK(legacy != ecs::EntityBad);
@@ -2204,7 +2208,7 @@ TEST_CASE("Serialization - world json runtime fields nested arrays") {
 	CHECK(loadedComp.itemCounts[2] == 33);
 	CHECK(loadedComp.active[0] == true);
 	CHECK(loadedComp.active[1] == false);
-	CHECK(std::string(loadedComp.label) == "crate");
+	CHECK(strcmp(loadedComp.label, "crate") == 0);
 }
 
 TEST_CASE("Serialization - world json runtime semantic nested metadata") {
@@ -2779,19 +2783,21 @@ TEST_CASE("Serialization - world json diagnoses malformed runtime pair key") {
 	ser::ser_json writer;
 	CHECK(wld.save_json(writer, ser::JsonSaveFlags::RawFallback));
 	const auto& json = writer.str();
-	std::string malformed(json.data(), json.size());
-	const std::string pairName = "(Runtime_Pair_Malformed_Relation,Runtime_Pair_Malformed_Target)";
-	const auto pairPos = malformed.find(pairName);
-	CHECK(pairPos != std::string::npos);
-	if (pairPos == std::string::npos)
+	constexpr char pairName[] = "(Runtime_Pair_Malformed_Relation,Runtime_Pair_Malformed_Target)";
+	const auto pairPos = util::str_view(json.data(), json.size()).find(pairName);
+	CHECK(pairPos != BadIndex);
+	if (pairPos == BadIndex)
 		return;
-	malformed.replace(pairPos, pairName.size(), "(MalformedProbe)");
+	util::str malformed;
+	malformed.append(json.data(), pairPos);
+	malformed.append("(MalformedProbe)");
+	malformed.append(json.data() + pairPos + sizeof(pairName) - 1, json.size() - pairPos - (sizeof(pairName) - 1));
 
 	TestWorld twldOut;
 	ecs::Entity targetOut = ecs::EntityBad;
 	(void)register_schema(twldOut.m_w, targetOut);
 	ser::JsonDiagnostics diagnostics;
-	CHECK(twldOut.m_w.load_json(malformed.data(), (uint32_t)malformed.size(), diagnostics));
+	CHECK(twldOut.m_w.load_json(malformed.data(), malformed.size(), diagnostics));
 	bool diagnosed = false;
 	for (const auto& diag: diagnostics.items) {
 		if (diag.reason == ser::JsonDiagReason::UnknownComponent)

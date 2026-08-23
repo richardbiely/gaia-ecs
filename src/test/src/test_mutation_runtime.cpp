@@ -1,7 +1,6 @@
 #include "test_common.h"
 
 #include <thread>
-#include <vector>
 
 namespace {
 	//! Marker type used by tests to request World::uquery().
@@ -625,7 +624,7 @@ TEST_CASE("Components - non trivial") {
 
 			GAIA_EACH(it) {
 				strView[i] = {StringComponentDefaultValue};
-				str2View[i].value = StringComponent2DefaultValue_2;
+				str2View[i].value.assign(StringComponent2DefaultValue_2);
 				posView[i] = {111, 222, 333};
 			}
 		});
@@ -637,7 +636,7 @@ TEST_CASE("Components - non trivial") {
 
 			GAIA_EACH(it) {
 				strView[i] = {StringComponentDefaultValue};
-				str2View[i].value = StringComponent2DefaultValue_2;
+				str2View[i].value.assign(StringComponent2DefaultValue_2);
 				posView[i] = {111, 222, 333};
 			}
 		});
@@ -1349,7 +1348,7 @@ TEST_CASE("Independent Worlds can mutate concurrently") {
 	constexpr int kEntities = 256;
 	std::atomic<int> ok{0};
 
-	std::vector<std::thread> threads;
+	cnt::darray<std::thread> threads;
 	threads.reserve(kThreads);
 	for (int t = 0; t < kThreads; ++t) {
 		threads.emplace_back([&, t] {

@@ -249,7 +249,7 @@ TEST_CASE("System - invalid kind reports reason") {
 	auto& sys = ss.smut<ecs::System_>();
 	CHECK_FALSE(sys.query.valid());
 	CHECK(sys.query.kind_error() == ecs::QueryKindRes::AllNotIm);
-	CHECK(std::string(sys.query.kind_error_str()).find("immediate") != std::string::npos);
+	CHECK(cstr_view(sys.query.kind_error_str()).find("immediate") != BadIndex);
 }
 
 TEST_CASE("System - builder context is visible from iterator callbacks") {

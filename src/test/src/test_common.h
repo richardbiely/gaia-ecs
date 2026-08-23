@@ -25,10 +25,9 @@ GAIA_MSVC_WARNING_DISABLE(4100)
 #define DOCTEST_CONFIG_SUPER_FAST_ASSERTS
 #include <doctest/doctest.h>
 
-#include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <memory>
-#include <string>
 
 namespace rnd {
 	struct pseudo_random {
@@ -317,21 +316,34 @@ struct TypeNonTrivialM {
 // Strings
 //------------------------------------------------------------------------------
 
-static constexpr const char* StringComponentDefaultValue =
+static constexpr char StringComponentDefaultValue[] =
 		"StringComponentDefaultValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
-static constexpr const char* StringComponent2DefaultValue =
+static constexpr char StringComponent2DefaultValue[] =
 		"StringComponent2DefaultValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
-static constexpr const char* StringComponent2DefaultValue_2 =
+static constexpr char StringComponent2DefaultValue_2[] =
 		"2_StringComponent2DefaultValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
-static constexpr const char* StringComponentEmptyValue =
+static constexpr char StringComponentEmptyValue[] =
 		"StringComponentEmptyValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
 
+inline util::str_view cstr_view(const char* s) {
+	if (s == nullptr)
+		return {};
+	return util::str_view(s, (uint32_t)strlen(s));
+}
+
 struct StringComponent {
-	std::string value;
+	util::str value;
+
+	StringComponent() = default;
+
+	template <size_t N>
+	StringComponent(const char (&lit)[N]) {
+		value.assign(lit);
+	}
 
 	template <typename Serializer>
 	void save(Serializer& s) const {
-		const auto len = (uint32_t)value.size();
+		const auto len = value.size();
 		s.save(len);
 		s.save_raw(value.data(), len, ser::serialization_type_id::c8);
 	}
@@ -346,10 +358,10 @@ struct StringComponent {
 };
 struct StringComponent2: public StringComponent {
 	StringComponent2() {
-		value = StringComponent2DefaultValue;
+		value.assign(StringComponent2DefaultValue);
 	}
 	~StringComponent2() {
-		value = StringComponentEmptyValue;
+		value.assign(StringComponentEmptyValue);
 	}
 
 	StringComponent2(const StringComponent2&) = default;
@@ -357,6 +369,7 @@ struct StringComponent2: public StringComponent {
 	StringComponent2& operator=(const StringComponent2&) = default;
 	StringComponent2& operator=(StringComponent2&&) noexcept = default;
 };
+
 GAIA_DEFINE_HAS_MEMBER_FUNC(foo);
 GAIA_DEFINE_HAS_MEMBER_FUNC(food);
 

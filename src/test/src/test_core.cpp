@@ -324,24 +324,22 @@ TEST_CASE("bit_view") {
 }
 
 TEST_CASE("trim") {
-	std::string target = "Gaia-ECS";
-
 	{
-		std::string str = "  \t\n  Gaia-ECS  \t\n  ";
-		auto t = util::trim(std::span<const char>(str.c_str(), str.length()));
-		CHECK(std::string(t.data(), t.size()) == target);
+		util::str_view str = "  \t\n  Gaia-ECS  \t\n  ";
+		const auto t = util::trim(str);
+		CHECK(t == "Gaia-ECS");
 	}
 
 	{
-		std::string str = "Gaia-ECS";
-		auto t = util::trim(std::span<const char>(str.c_str(), str.length()));
-		CHECK(std::string(t.data(), t.size()) == target);
+		util::str_view str = "Gaia-ECS";
+		const auto t = util::trim(str);
+		CHECK(t == "Gaia-ECS");
 	}
 
 	{
-		std::string str = "";
-		auto t = util::trim(str);
-		CHECK(std::string(t.data(), t.size()) == std::string(""));
+		util::str_view str = "";
+		const auto t = util::trim(str);
+		CHECK(t.empty());
 	}
 
 	{
@@ -3133,7 +3131,6 @@ void sort_descending(C&& arr) {
 		for (uint32_t i = 1; i < arr.size(); ++i)
 			CHECK(arr[i - 1] > arr[i]);
 	}
-
 }
 
 template <typename C>
@@ -3179,7 +3176,6 @@ void sort_ascending(C&& arr) {
 		for (uint32_t i = 1; i < arr.size(); ++i)
 			CHECK(arr[i - 1] < arr[i]);
 	}
-
 }
 
 TEST_CASE("Sort descending") {
@@ -3298,7 +3294,6 @@ TEST_CASE("Sort avoids quadratic ordered and duplicate-heavy inputs") {
 			CHECK(arr[i - 1] <= arr[i]);
 		CHECK(comparisons < 80000);
 	}
-
 }
 
 //-----------------------------------------------------------------

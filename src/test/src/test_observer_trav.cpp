@@ -1,8 +1,6 @@
 #include "test_common.h"
 
 #define TestWorld SparseTestWorld
-#include <iterator>
-
 #if GAIA_OBSERVERS_ENABLED
 
 TEST_CASE("Observer - direct source term changes trigger OnAdd and OnDel") {
@@ -301,43 +299,62 @@ TEST_CASE("Observer - duplicate traversed observer cleanup leaves no stale obser
 }
 
 namespace {
+	bool entity_less(ecs::Entity left, ecs::Entity right) {
+		if (left.id() != right.id())
+			return left.id() < right.id();
+		return left.gen() < right.gen();
+	}
+
+	void sort_entities(cnt::darr<ecs::Entity>& entities) {
+		core::sort(entities, entity_less);
+	}
+
 	template <typename TQuery>
 	cnt::darr<ecs::Entity> collect_sorted_entities(TQuery query) {
 		cnt::darr<ecs::Entity> out;
 		query.each([&](ecs::Entity entity) {
 			out.push_back(entity);
 		});
-		std::sort(out.begin(), out.end(), [](ecs::Entity left, ecs::Entity right) {
-			if (left.id() != right.id())
-				return left.id() < right.id();
-			return left.gen() < right.gen();
-		});
+		sort_entities(out);
 		return out;
 	}
 
 	cnt::darr<ecs::Entity> sorted_entity_diff(const cnt::darr<ecs::Entity>& lhs, const cnt::darr<ecs::Entity>& rhs) {
 		cnt::darr<ecs::Entity> out;
 		out.reserve(lhs.size());
-		std::set_difference(
-				lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), std::back_inserter(out),
-				[](ecs::Entity left, ecs::Entity right) {
-					if (left.id() != right.id())
-						return left.id() < right.id();
-					return left.gen() < right.gen();
-				});
+		uint32_t i = 0;
+		uint32_t j = 0;
+		while (i < lhs.size() && j < rhs.size()) {
+			if (entity_less(lhs[i], rhs[j])) {
+				out.push_back(lhs[i]);
+				++i;
+			} else if (entity_less(rhs[j], lhs[i])) {
+				++j;
+			} else {
+				++i;
+				++j;
+			}
+		}
+		while (i < lhs.size()) {
+			out.push_back(lhs[i]);
+			++i;
+		}
 		return out;
 	}
 
-	std::string entity_list_string(const cnt::darr<ecs::Entity>& entities) {
-		std::string out = "[";
+	util::str entity_list_string(const cnt::darr<ecs::Entity>& entities) {
+		util::str out;
+		out.append("[");
 		for (uint32_t i = 0; i < entities.size(); ++i) {
 			if (i != 0)
-				out += ", ";
-			out += std::to_string(entities[i].id());
-			out += ":";
-			out += std::to_string(entities[i].gen());
+				out.append(", ");
+			char buf[32];
+			const int n = snprintf(buf, sizeof(buf), "%u:%u", entities[i].id(), entities[i].gen());
+			if (n > 0)
+				out.append(buf, (uint32_t)n);
 		}
-		out += "]";
+		out.append("]");
+		out.append('\0');
 		return out;
 	}
 
@@ -402,26 +419,18 @@ namespace {
 		mutate();
 		const auto after = collect_sorted_entities(buildQuery());
 
-		std::sort(added->begin(), added->end(), [](ecs::Entity left, ecs::Entity right) {
-			if (left.id() != right.id())
-				return left.id() < right.id();
-			return left.gen() < right.gen();
-		});
-		std::sort(removed->begin(), removed->end(), [](ecs::Entity left, ecs::Entity right) {
-			if (left.id() != right.id())
-				return left.id() < right.id();
-			return left.gen() < right.gen();
-		});
+		sort_entities(*added);
+		sort_entities(*removed);
 
 		const auto expectedAdded = sorted_entity_diff(after, before);
 		const auto expectedRemoved = sorted_entity_diff(before, after);
 
-		INFO("before=" << entity_list_string(before));
-		INFO("after=" << entity_list_string(after));
-		INFO("added=" << entity_list_string(*added));
-		INFO("expectedAdded=" << entity_list_string(expectedAdded));
-		INFO("removed=" << entity_list_string(*removed));
-		INFO("expectedRemoved=" << entity_list_string(expectedRemoved));
+		INFO("before=" << entity_list_string(before).data());
+		INFO("after=" << entity_list_string(after).data());
+		INFO("added=" << entity_list_string(*added).data());
+		INFO("expectedAdded=" << entity_list_string(expectedAdded).data());
+		INFO("removed=" << entity_list_string(*removed).data());
+		INFO("expectedRemoved=" << entity_list_string(expectedRemoved).data());
 
 		CHECK(*added == expectedAdded);
 		CHECK(*removed == expectedRemoved);
@@ -1308,27 +1317,15 @@ TEST_CASE("Observer - unsupported traversal diff shape") {
 	wld.add<Shield>(root);
 	const auto after = collect_sorted_entities(buildQuery());
 
-	std::sort(added.begin(), added.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
-	std::sort(removed.begin(), removed.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
+	sort_entities(added);
+	sort_entities(removed);
 
 	const auto expectedAddedFirst = sorted_entity_diff(middle, before);
 	const auto expectedAddedSecond = sorted_entity_diff(after, middle);
 	cnt::darr<ecs::Entity> expectedAdded = expectedAddedFirst;
 	for (auto entity: expectedAddedSecond)
 		expectedAdded.push_back(entity);
-	std::sort(expectedAdded.begin(), expectedAdded.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
+	sort_entities(expectedAdded);
 
 	CHECK(added == expectedAdded);
 	CHECK(removed.empty());
@@ -1375,16 +1372,8 @@ TEST_CASE("Observer - traversed source copy_ext_n fires for all new entities") {
 	});
 
 	const auto after = collect_sorted_entities(buildQuery());
-	std::sort(added.begin(), added.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
-	std::sort(copied.begin(), copied.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
+	sort_entities(added);
+	sort_entities(copied);
 
 	const auto expectedAdded = sorted_entity_diff(after, before);
 	CHECK(added == expectedAdded);
@@ -1427,16 +1416,8 @@ TEST_CASE("Observer - traversed source copy_ext_n with multiple matching binding
 		copied.push_back(entity);
 	});
 
-	std::sort(added.begin(), added.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
-	std::sort(copied.begin(), copied.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
+	sort_entities(added);
+	sort_entities(copied);
 
 	CHECK(added == copied);
 }
@@ -1482,16 +1463,8 @@ TEST_CASE("Observer - traversed source add_n fires for all new entities") {
 	});
 
 	const auto after = collect_sorted_entities(buildQuery());
-	std::sort(added.begin(), added.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
-	std::sort(created.begin(), created.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
+	sort_entities(added);
+	sort_entities(created);
 
 	const auto expectedAdded = sorted_entity_diff(after, before);
 	CHECK(added == expectedAdded);
@@ -1534,16 +1507,8 @@ TEST_CASE("Observer - traversed source add_n with multiple matching binding pair
 		created.push_back(entity);
 	});
 
-	std::sort(added.begin(), added.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
-	std::sort(created.begin(), created.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
+	sort_entities(added);
+	sort_entities(created);
 
 	CHECK(added == created);
 }
@@ -1585,16 +1550,8 @@ TEST_CASE("Observer - parented instantiate_n traversed source fires for all new 
 	});
 
 	const auto after = collect_sorted_entities(buildQuery());
-	std::sort(added.begin(), added.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
-	std::sort(created.begin(), created.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
+	sort_entities(added);
+	sort_entities(created);
 
 	const auto expectedAdded = sorted_entity_diff(after, before);
 	CHECK(added == expectedAdded);
@@ -1637,18 +1594,10 @@ TEST_CASE("Observer - many identical traversed observers each fire once for batc
 	wld.copy_ext_n(src, 97, [&](ecs::Entity entity) {
 		copied.push_back(entity);
 	});
-	std::sort(copied.begin(), copied.end(), [](ecs::Entity left, ecs::Entity right) {
-		if (left.id() != right.id())
-			return left.id() < right.id();
-		return left.gen() < right.gen();
-	});
+	sort_entities(copied);
 
 	for (auto& capture: captures) {
-		std::sort(capture.hits.begin(), capture.hits.end(), [](ecs::Entity left, ecs::Entity right) {
-			if (left.id() != right.id())
-				return left.id() < right.id();
-			return left.gen() < right.gen();
-		});
+		sort_entities(capture.hits);
 		CHECK(capture.hits == copied);
 	}
 }

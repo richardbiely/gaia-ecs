@@ -5,14 +5,9 @@
 	#include <termios.h>
 	#include <unistd.h>
 #endif
-#include <algorithm>
-#include <bitset>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <queue>
-#include <unordered_set>
-#include <vector>
 
 #include <gaia.h>
 
@@ -154,37 +149,77 @@ constexpr char TILE_PATH = 'W';
 
 #if USE_PATHFINDING
 
-template <class T, class Container, class Compare>
-class PriorityQueue: public std::priority_queue<T, Container, Compare> {
-public:
-	using const_iterator = typename std::priority_queue<T, Container, Compare>::container_type::const_iterator;
+struct OpenNode {
+	float f;
+	uint32_t id;
+};
 
-	template <typename Func>
-	bool has_if(Func func) const {
-		auto it = this->c.cbegin();
-		auto last = this->c.cend();
-		while (it != last) {
-			if (func(*it))
+class OpenSet {
+	cnt::darray<OpenNode> m_nodes;
+
+	void sift_up(uint32_t i) {
+		while (i > 0) {
+			const uint32_t p = (i - 1) / 2;
+			if (m_nodes[i].f >= m_nodes[p].f)
 				break;
-			++it;
+			core::swap(m_nodes[i], m_nodes[p]);
+			i = p;
 		}
-		return it != this->c.cend();
+	}
+
+	void sift_down(uint32_t i) {
+		for (;;) {
+			const uint32_t l = i * 2 + 1;
+			const uint32_t r = l + 1;
+			uint32_t best = i;
+			if (l < m_nodes.size() && m_nodes[l].f < m_nodes[best].f)
+				best = l;
+			if (r < m_nodes.size() && m_nodes[r].f < m_nodes[best].f)
+				best = r;
+			if (best == i)
+				break;
+			core::swap(m_nodes[i], m_nodes[best]);
+			i = best;
+		}
+	}
+
+public:
+	void push(OpenNode n) {
+		m_nodes.push_back(n);
+		sift_up((uint32_t)m_nodes.size() - 1);
+	}
+
+	void pop() {
+		m_nodes[0] = m_nodes.back();
+		m_nodes.pop_back();
+		if (!m_nodes.empty())
+			sift_down(0);
+	}
+
+	const OpenNode& top() const {
+		return m_nodes[0];
+	}
+
+	bool empty() const {
+		return m_nodes.empty();
+	}
+
+	bool has_id(uint32_t id) const {
+		for (const auto& n: m_nodes) {
+			if (n.id == id)
+				return true;
+		}
+		return false;
 	}
 };
 
 class AStar {
-	using MyPriorityPair = std::pair<float, uint32_t>; // f cost / ID
-
-	class MyPriorityCompare {
-	public:
-		bool operator()(MyPriorityPair a, MyPriorityPair b) const {
-			return a.first > b.first;
-		}
-	};
-
-	using MyPriorityQueue = PriorityQueue<MyPriorityPair, std::vector<MyPriorityPair>, MyPriorityCompare>;
-
 	static constexpr uint32_t MAX_NEIGHBORS = 4; // each node can have up to 4 neighbors
+
+	struct Score {
+		float g;
+		float f;
+	};
 
 public:
 	struct Node {
@@ -205,7 +240,7 @@ public:
 		Node() {
 			id = 0;
 			neighbors = 0;
-			edge_cost = 0;
+			edge_costs = 0;
 		}
 		Node(uint32_t value): id(value) {}
 
@@ -256,38 +291,31 @@ public:
 		return sqrtf((float)dxx + (float)dyy); // Euclidean distance
 	}
 
-	bool OpenSetContains(const MyPriorityQueue& open_set, uint32_t index) const {
-		static_assert(sizeof(MyPriorityPair) <= 8); // So long it's small we can pass by value
-		return open_set.has_if([index](MyPriorityPair elem) {
-			return elem.second == index;
-		}); // true if the node is in the open set, false otherwise
-	}
-
-	std::vector<uint32_t> FindPath(const std::vector<Node>& graph, uint32_t start_id, uint32_t goal_id) {
+	cnt::darray<uint32_t> FindPath(const cnt::darray<Node>& graph, uint32_t start_id, uint32_t goal_id) {
 		cnt::map<uint32_t, uint32_t> parents; // key: ID, data: parentID
-		cnt::map<uint32_t, std::pair<float, float>> scores; // key: ID, data: <g, f>
-		std::unordered_set<uint32_t> closed_set;
-		MyPriorityQueue open_set;
+		cnt::map<uint32_t, Score> scores; // key: ID, data: <g, f>
+		cnt::set<uint32_t> closed_set;
+		OpenSet open_set;
 
 		// Define the start and goal nodes
 		const Node& start_node = graph[start_id];
 		const Node& goal_node = graph[goal_id];
 
 		// Add the start node to the open set
-		open_set.push(std::make_pair(0, start_id));
+		open_set.push({0.f, start_id});
 
 		// Initialize the costs
-		scores[start_id] = {0, HeuristicCostEstimate(start_node, goal_node)};
+		scores[start_id] = {0.f, HeuristicCostEstimate(start_node, goal_node)};
 
 		// Run the A* algorithm
 		while (!open_set.empty()) {
 			// Get the node with the lowest f score from the open set
-			const uint32_t current_id = open_set.top().second;
+			const uint32_t current_id = open_set.top().id;
 			open_set.pop();
 
 			// Check if we've reached the goal node
 			if (current_id == goal_id) {
-				std::vector<uint32_t> path;
+				cnt::darray<uint32_t> path;
 
 				// Reconstruct the path
 				uint32_t node_id = goal_id;
@@ -296,7 +324,14 @@ public:
 					node_id = parents[node_id];
 				}
 				path.push_back(start_id);
-				reverse(path.begin(), path.end());
+
+				uint32_t a = 0;
+				uint32_t b = (uint32_t)path.size();
+				while (a + 1 < b) {
+					--b;
+					core::swap(path[a], path[b]);
+					++a;
+				}
 				return path;
 			}
 
@@ -322,20 +357,20 @@ public:
 				if (closed_set.find(neighbor_id) != closed_set.end())
 					continue;
 
-				const float tentative_g_score = scores[current_id].first + neighborCost;
-				if (tentative_g_score < scores[neighbor_id].first) {
+				const float tentative_g_score = scores[current_id].g + neighborCost;
+				if (tentative_g_score < scores[neighbor_id].g) {
 					// This is a better path to the neighbor node
 					const float f = tentative_g_score + HeuristicCostEstimate(graph[neighbor_id], goal_node);
 					parents[neighbor_id] = current_id;
 					scores[neighbor_id] = {tentative_g_score, f};
-					if (!OpenSetContains(open_set, neighbor_id))
-						open_set.push(std::make_pair(f, neighbor_id));
-				} else if (!OpenSetContains(open_set, neighbor_id)) {
+					if (!open_set.has_id(neighbor_id))
+						open_set.push({f, neighbor_id});
+				} else if (!open_set.has_id(neighbor_id)) {
 					// Unchecked field, try it
 					const float f = tentative_g_score + HeuristicCostEstimate(graph[neighbor_id], goal_node);
 					parents[neighbor_id] = current_id;
 					scores[neighbor_id] = {tentative_g_score, f};
-					open_set.push(std::make_pair(f, neighbor_id));
+					open_set.push({f, neighbor_id});
 				}
 			}
 		}
@@ -414,7 +449,7 @@ struct GameWorld {
 		}
 
 #if USE_PATHFINDING
-		std::vector<AStar::Node> graph;
+		cnt::darray<AStar::Node> graph;
 		graph.reserve(ScreenX * ScreenY);
 		uint32_t index = 0;
 		GAIA_FOR_(ScreenY, y) {

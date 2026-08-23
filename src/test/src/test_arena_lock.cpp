@@ -9,7 +9,6 @@
 
 #include <atomic>
 #include <thread>
-#include <vector>
 
 struct Position {
 	float x, y, z;
@@ -25,7 +24,7 @@ int main() {
 	constexpr int kEntities = 256;
 	std::atomic<int> ok{0};
 
-	std::vector<std::thread> threads;
+	gaia::cnt::darray<std::thread> threads;
 	threads.reserve(kThreads);
 	for (int t = 0; t < kThreads; ++t) {
 		threads.emplace_back([&, t] {

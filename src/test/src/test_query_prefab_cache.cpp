@@ -1528,7 +1528,7 @@ TEST_CASE("Query - kind") {
 	CHECK(qAutoSrcTrav.kind() == ecs::QueryCacheKind::Auto);
 	CHECK(!qAutoSrcTrav.valid());
 	CHECK(qAutoSrcTrav.kind_error() == ecs::QueryKindRes::AutoSrcTrav);
-	CHECK(std::string(qAutoSrcTrav.kind_error_str()).find("Auto") != std::string::npos);
+	CHECK(cstr_view(qAutoSrcTrav.kind_error_str()).find("Auto") != BadIndex);
 	CHECK(qAutoSrcTrav.count() == 0);
 
 	CHECK(qNone.kind() == ecs::QueryCacheKind::None);
@@ -1544,7 +1544,7 @@ TEST_CASE("Query - kind") {
 	CHECK(qAllFail.kind() == ecs::QueryCacheKind::All);
 	CHECK(!qAllFail.valid());
 	CHECK(qAllFail.kind_error() == ecs::QueryKindRes::AllNotIm);
-	CHECK(std::string(qAllFail.kind_error_str()).find("immediate") != std::string::npos);
+	CHECK(cstr_view(qAllFail.kind_error_str()).find("immediate") != BadIndex);
 	CHECK(qAllFail.count() == 0);
 
 	CHECK(qAllDynamic.kind() == ecs::QueryCacheKind::All);
@@ -1555,7 +1555,7 @@ TEST_CASE("Query - kind") {
 	CHECK(qAllSrcTrav.kind() == ecs::QueryCacheKind::All);
 	CHECK(!qAllSrcTrav.valid());
 	CHECK(qAllSrcTrav.kind_error() == ecs::QueryKindRes::AllSrcTrav);
-	CHECK(std::string(qAllSrcTrav.kind_error_str()).find("snapshot") != std::string::npos);
+	CHECK(cstr_view(qAllSrcTrav.kind_error_str()).find("snapshot") != BadIndex);
 	CHECK(qAllSrcTrav.count() == 0);
 
 	CHECK(qDynamic.valid());

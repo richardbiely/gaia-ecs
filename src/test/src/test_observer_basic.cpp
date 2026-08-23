@@ -1,7 +1,6 @@
 #include "test_common.h"
 
 #define TestWorld SparseTestWorld
-#include <iterator>
 
 #if GAIA_OBSERVERS_ENABLED
 
@@ -194,7 +193,7 @@ TEST_CASE("Observer - invalid kind reports reason") {
 	auto& obsData = wld.observers().data(observerEntity);
 	CHECK_FALSE(obsData.query.valid());
 	CHECK(obsData.query.kind_error() == ecs::QueryKindRes::AllNotIm);
-	CHECK(std::string(obsData.query.kind_error_str()).find("immediate") != std::string::npos);
+	CHECK(cstr_view(obsData.query.kind_error_str()).find("immediate") != BadIndex);
 }
 
 TEST_CASE("Observer - OnSet") {
