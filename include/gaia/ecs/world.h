@@ -11160,6 +11160,15 @@ namespace gaia {
 				if (archetype.is_req_del())
 					return;
 
+				// Bulk cascade deletion bypasses req_del_inter(), so remove semantic source edges
+				// before the archetype becomes invalid to direct entity-seeded queries.
+				if (archetype.pairs_is() != 0) {
+					for (const auto* pChunk: archetype.chunks()) {
+						for (const auto entity: pChunk->entity_view())
+							unlink_live_is_relations(entity);
+					}
+				}
+
 				archetype.req_del();
 				update_version(m_archetypeDeleteVersion);
 				m_reqArchetypesToDel.insert(ArchetypeLookupKey(archetype.lookup_hash(), &archetype));

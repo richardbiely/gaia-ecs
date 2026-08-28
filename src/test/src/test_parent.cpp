@@ -1111,6 +1111,40 @@ TEST_CASE("ChildOf and Parent - recursive delete removes nested subtree") {
 	CHECK_FALSE(wld.has(parentLeaf));
 }
 
+TEST_CASE("ChildOf and Parent - recursive delete removes semantic prefab query seeds") {
+	TestWorld twld;
+
+	const auto basePrefab = wld.prefab();
+	const auto derivedPrefab = wld.prefab();
+	wld.as(derivedPrefab, basePrefab);
+	wld.add<Position>(derivedPrefab, {1.0f, 2.0f, 3.0f});
+
+	const auto root = wld.add();
+	const auto instance = wld.instantiate(derivedPrefab);
+	wld.child(instance, root);
+
+	auto inQuery = wld.query().in(basePrefab);
+	auto isQuery = wld.query().is(basePrefab);
+	CHECK(inQuery.count() == 1);
+	CHECK(isQuery.count() == 1);
+
+	wld.del(root);
+	CHECK(inQuery.count() == 0);
+	CHECK(isQuery.count() == 0);
+
+	wld.frame_cleanup();
+
+	CHECK_FALSE(wld.valid(root));
+	CHECK_FALSE(wld.valid(instance));
+	CHECK(inQuery.count() == 0);
+	CHECK(isQuery.count() == 0);
+
+	const auto replacement = wld.instantiate(derivedPrefab);
+	CHECK(inQuery.count() == 1);
+	CHECK(isQuery.count() == 1);
+	CHECK(wld.valid(replacement));
+}
+
 TEST_CASE("ChildOf and Parent - mixed recursive delete removes branch and leaf siblings") {
 	TestWorld twld;
 
