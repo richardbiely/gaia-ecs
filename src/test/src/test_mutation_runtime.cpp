@@ -2562,6 +2562,11 @@ TEST_CASE("Query Filter - changed query survives removal, deletion, and row recr
 	wld.add<Marker>(replacement);
 	wld.add<Value>(replacement, {3});
 	expect_changed_consume_exact(query, {replacement});
+
+	ecs::CommandBufferST commandBuffer(wld);
+	commandBuffer.set<Value>(replacement, {4});
+	commandBuffer.commit();
+	expect_changed_consume_exact(query, {replacement});
 }
 
 TEST_CASE("Query Filter - Iter direct mutable views track changes correctly") {

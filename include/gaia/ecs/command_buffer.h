@@ -275,18 +275,92 @@ namespace gaia {
 
 				//! Replays a component or relationship pair addition.
 				void replay_add(Entity target, Entity object) {
-					if (object.pair())
+					if (object.pair()) {
 						World::EntityBuilder(m_world, target).add(decode_pair(object));
-					else
-						World::EntityBuilder(m_world, target).add(object);
+						return;
+					}
+
+					const auto* pItem = m_world.comp_cache().find(object);
+					if (pItem != nullptr && pItem->comp.storage_type() == DataStorageType::Sparse) {
+						const auto mode = m_world.sparse_storage_mode(object);
+						GAIA_ASSERT(mode != World::SparseStorageMode::None);
+						auto& store = m_world.sparse_component_store_erased_mut(object, *pItem);
+						(void)store.func_add(store.pStore, target);
+						m_world.finish_sparse_component_add_inter(target, object, mode);
+						return;
+					}
+
+					World::EntityBuilder(m_world, target).add(object);
 				}
 
 				//! Replays a component or relationship pair removal.
 				void replay_del(Entity target, Entity object) {
 					if (object.pair())
-						World::EntityBuilder(m_world, target).del(decode_pair(object));
+						m_world.del(target, decode_pair(object));
 					else
-						World::EntityBuilder(m_world, target).del(object);
+						m_world.del(target, object);
+				}
+
+				//! Replays serialized component data into table or sparse storage.
+				//! \param target Entity receiving the payload.
+				//! \param object Component id whose payload is restored.
+				//! \param dataPos Serialized payload offset in the command-buffer data stream.
+				//! \param finishWrite Whether to publish changed state and `OnSet` after loading.
+				void replay_data(Entity target, Entity object, uint32_t dataPos, bool finishWrite = true) {
+					auto serializer = ser::make_serializer(m_data);
+					serializer.seek(dataPos);
+					const auto& item = m_world.comp_cache().get(object);
+
+					if (!object.pair() && item.comp.storage_type() == DataStorageType::Sparse) {
+						const auto payload = m_world.mut_raw(target, object);
+						GAIA_ASSERT(payload.valid());
+						if (payload.valid())
+							item.load(serializer, payload.data, 0, 1, 1);
+						if (finishWrite)
+							m_world.finish_write(target, object);
+						return;
+					}
+
+					const auto& ec = m_world.m_recs.entities[target.id()];
+					const auto row = target.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+					const auto compIdx = ec.pChunk->comp_idx(object);
+					auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
+					item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
+					if (finishWrite)
+						m_world.finish_write(target, object);
+				}
+
+				//! Replays a component add whose serialized payload must be initialized before add notification.
+				//! \param target Entity receiving the component.
+				//! \param object Component id being added.
+				//! \param dataPos Serialized payload offset in the command-buffer data stream.
+				void replay_add_data(Entity target, Entity object, uint32_t dataPos) {
+					const auto& item = m_world.comp_cache().get(object);
+					if (!object.pair() && item.comp.storage_type() == DataStorageType::Sparse) {
+						const auto mode = m_world.sparse_storage_mode(object);
+						GAIA_ASSERT(mode != World::SparseStorageMode::None);
+						auto& store = m_world.sparse_component_store_erased_mut(object, item);
+						auto* pPayload = store.func_add(store.pStore, target);
+
+						auto serializer = ser::make_serializer(m_data);
+						serializer.seek(dataPos);
+						item.load(serializer, pPayload, 0, 1, 1);
+						m_world.finish_sparse_component_add_inter(target, object, mode);
+						return;
+					}
+
+					World::EntityBuilder builder(m_world, target);
+#if GAIA_OBSERVERS_ENABLED
+					auto addDiffCtx = m_world.m_observers.prepare_diff(
+							m_world, ObserverEvent::OnAdd, EntitySpan{&object, 1}, EntitySpan{&target, 1});
+#endif
+					builder.add_inter_init(object);
+					builder.commit();
+					replay_data(target, object, dataPos, false);
+					m_world.notify_add_single(target, object);
+#if GAIA_OBSERVERS_ENABLED
+					m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
+#endif
 				}
 
 				//! Returns true if a temporary entity was created and then destroyed within the same command buffer (
@@ -516,20 +590,11 @@ namespace gaia {
 												replay_add(tgtReal, othReal);
 												break;
 											case OpType::ADD_COMPONENT_DATA:
-												replay_add(tgtReal, othReal);
-												GAIA_FALLTHROUGH;
-											case OpType::SET_COMPONENT: {
-												const auto& ec = m_world.m_recs.entities[tgtReal.id()];
-												const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-												const auto compIdx = ec.pChunk->comp_idx(othReal);
-												auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
-
-												// Component data
-												auto serializer = ser::make_serializer(m_data);
-												serializer.seek(op.off);
-												const auto& item = m_world.comp_cache().get(othReal);
-												item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
-											} break;
+												replay_add_data(tgtReal, othReal, op.off);
+												break;
+											case OpType::SET_COMPONENT:
+												replay_data(tgtReal, othReal, op.off);
+												break;
 											default:
 												break;
 										}
@@ -575,18 +640,7 @@ namespace gaia {
 										}
 										// 3) ADD_WITH_DATA or ADD+SET = ADD_WITH_DATA
 										else if (hasAddData || (hasAdd && hasSet)) {
-											replay_add(tgtReal, othReal);
-
-											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
-											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-											const auto compIdx = ec.pChunk->comp_idx(othReal);
-											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
-
-											// Component data
-											auto serializer = ser::make_serializer(m_data);
-											serializer.seek(dataPos);
-											const auto& item = m_world.comp_cache().get(othReal);
-											item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
+											replay_add_data(tgtReal, othReal, dataPos);
 										}
 										// 4) ADD only
 										else if (hasAdd) {
@@ -594,16 +648,7 @@ namespace gaia {
 										}
 										// 5) SET only
 										else if (hasSet) {
-											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
-											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-											const auto compIdx = ec.pChunk->comp_idx(othReal);
-											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
-
-											// Component data
-											auto serializer = ser::make_serializer(m_data);
-											serializer.seek(dataPos);
-											const auto& item = m_world.comp_cache().get(othReal);
-											item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
+											replay_data(tgtReal, othReal, dataPos);
 										}
 									}
 								}

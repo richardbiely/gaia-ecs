@@ -284,6 +284,75 @@ TEST_CASE("Observer - OnSet") {
 	CHECK(lastPos.z == doctest::Approx(27.0f));
 }
 
+TEST_CASE("Observer - command buffer preserves add payloads and set notifications") {
+	TestWorld twld;
+
+	uint32_t tableAddHits = 0;
+	uint32_t sparseAddHits = 0;
+	uint32_t tableSetHits = 0;
+	uint32_t sparseSetHits = 0;
+	Position addedTable{};
+	PositionSparse addedSparse{};
+	Position setTable{};
+	PositionSparse setSparse{};
+
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all<Position>()
+			.on_each([&](const Position& value) {
+				++tableAddHits;
+				addedTable = value;
+			})
+			.entity();
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all<PositionSparse>()
+			.on_each([&](const PositionSparse& value) {
+				++sparseAddHits;
+				addedSparse = value;
+			})
+			.entity();
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnSet)
+			.all<Position>()
+			.on_each([&](const Position& value) {
+				++tableSetHits;
+				setTable = value;
+			})
+			.entity();
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnSet)
+			.all<PositionSparse>()
+			.on_each([&](const PositionSparse& value) {
+				++sparseSetHits;
+				setSparse = value;
+			})
+			.entity();
+
+	const auto tableEntity = wld.add();
+	const auto sparseEntity = wld.add();
+	ecs::CommandBufferST commandBuffer(wld);
+	commandBuffer.add<Position>(tableEntity, {1.0f, 2.0f, 3.0f});
+	commandBuffer.add<PositionSparse>(sparseEntity, {4.0f, 5.0f, 6.0f});
+	commandBuffer.commit();
+
+	CHECK(tableAddHits == 1);
+	CHECK(sparseAddHits == 1);
+	CHECK(addedTable.x == doctest::Approx(1.0f));
+	CHECK(addedSparse.x == doctest::Approx(4.0f));
+	CHECK(tableSetHits == 0);
+	CHECK(sparseSetHits == 0);
+
+	commandBuffer.set<Position>(tableEntity, {7.0f, 8.0f, 9.0f});
+	commandBuffer.set<PositionSparse>(sparseEntity, {10.0f, 11.0f, 12.0f});
+	commandBuffer.commit();
+
+	CHECK(tableSetHits == 1);
+	CHECK(sparseSetHits == 1);
+	CHECK(setTable.x == doctest::Approx(7.0f));
+	CHECK(setSparse.x == doctest::Approx(10.0f));
+}
+
 TEST_CASE("World modify emits OnSet for raw writes") {
 	TestWorld twld;
 

@@ -892,6 +892,40 @@ TEST_CASE("Clear removes non-fragmenting sparse component state") {
 	CHECK(wld.get<PositionSparse>(entity).x == doctest::Approx(4.0f));
 }
 
+TEST_CASE("Command buffer sparse lifecycle does not leak across recycled entity slots") {
+	SparseTestWorld twld;
+
+	const auto entity = wld.add();
+	ecs::CommandBufferST commandBuffer(wld);
+	commandBuffer.add<PositionSparse>(entity, {1.0f, 2.0f, 3.0f});
+	commandBuffer.commit();
+
+	CHECK(wld.has<PositionSparse>(entity));
+	CHECK(wld.get<PositionSparse>(entity).x == doctest::Approx(1.0f));
+
+	commandBuffer.set<PositionSparse>(entity, {10.0f, 11.0f, 12.0f});
+	commandBuffer.commit();
+	CHECK(wld.get<PositionSparse>(entity).x == doctest::Approx(10.0f));
+
+	commandBuffer.del<PositionSparse>(entity);
+	commandBuffer.commit();
+	CHECK_FALSE(wld.has<PositionSparse>(entity));
+
+	wld.add<PositionSparse>(entity, {4.0f, 5.0f, 6.0f});
+	wld.del(entity);
+	wld.update();
+
+	const auto recycled = wld.add();
+	CHECK(recycled.id() == entity.id());
+	CHECK(recycled.gen() != entity.gen());
+	CHECK_FALSE(wld.has<PositionSparse>(recycled));
+
+	commandBuffer.add<PositionSparse>(recycled, {7.0f, 8.0f, 9.0f});
+	commandBuffer.commit();
+	CHECK(wld.has<PositionSparse>(recycled));
+	CHECK(wld.get<PositionSparse>(recycled).x == doctest::Approx(7.0f));
+}
+
 TEST_CASE("EntityContainer cached entity slot across row swap and archetype move") {
 	TestWorld twld;
 

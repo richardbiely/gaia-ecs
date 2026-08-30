@@ -523,6 +523,8 @@ namespace gaia {
 				if (tearing_down() || !valid(entity))
 					return;
 
+				::gaia::ecs::update_version(m_worldVersion);
+
 				if (sparse_storage_mode(term) != SparseStorageMode::None) {
 					world_notify_on_set_entity(*this, term, entity);
 					return;
@@ -1700,6 +1702,8 @@ namespace gaia {
 			//! Applies structural and value changes to one entity.
 			struct EntityBuilder final {
 				friend class World;
+				friend CommandBufferST;
+				friend CommandBufferMT;
 
 				//! World receiving the accumulated entity changes.
 				World& m_world;
