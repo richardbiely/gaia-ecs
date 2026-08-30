@@ -126,6 +126,59 @@ TEST_CASE("Non-fragmenting relation - wildcard observer sees final builder state
 	CHECK(hits == 1);
 }
 
+TEST_CASE("Non-fragmenting relation - entity copies preserve direct pair storage") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(source, pair);
+
+	uint32_t addHits = 0;
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all(pair)
+			.on_each([&](ecs::Iter& it) {
+				addHits += it.size();
+			})
+			.entity();
+
+	const auto silentCopy = wld.copy(source);
+	CHECK(wld.has_direct(silentCopy, pair));
+	CHECK(wld.target(silentCopy, relation) == target);
+	CHECK(addHits == 0);
+
+	const auto observedCopy = wld.copy_ext(source);
+	CHECK(wld.has_direct(observedCopy, pair));
+	CHECK(wld.target(observedCopy, relation) == target);
+	CHECK(addHits == 1);
+
+	cnt::darray<ecs::Entity> silentCopies;
+	wld.copy_n(source, 3, [&](ecs::Entity entity) {
+		silentCopies.push_back(entity);
+	});
+	CHECK(silentCopies.size() == 3);
+	for (const auto entity: silentCopies) {
+		CHECK(wld.has_direct(entity, pair));
+		CHECK(wld.target(entity, relation) == target);
+	}
+	CHECK(addHits == 1);
+
+	cnt::darray<ecs::Entity> observedCopies;
+	wld.copy_ext_n(source, 3, [&](ecs::Entity entity) {
+		observedCopies.push_back(entity);
+	});
+	CHECK(observedCopies.size() == 3);
+	for (const auto entity: observedCopies) {
+		CHECK(wld.has_direct(entity, pair));
+		CHECK(wld.target(entity, relation) == target);
+	}
+	CHECK(addHits == 4);
+}
+
 TEST_CASE("Parent - deleting target deletes children through non-fragmenting relation") {
 	TestWorld twld;
 

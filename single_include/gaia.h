@@ -68230,11 +68230,13 @@ namespace gaia {
 					if (oldTarget != EntityBad && oldTarget != target) {
 						const Entity oldPair = Pair(relation, oldTarget);
 #if GAIA_OBSERVERS_ENABLED
-						auto delDiffCtx = m_world.m_observers.prepare_diff(
-								m_world, ObserverEvent::OnDel, EntitySpan{&oldPair, 1}, EntitySpan{&m_entity, 1});
-						if (delDiffCtx.active) {
-							delDiffCtx.targetsRemovedAfterPrepare = true;
-							tl_del_nonfragmenting_diff_contexts.push_back(GAIA_MOV(delDiffCtx));
+						if constexpr (!IsBootstrap) {
+							auto delDiffCtx = m_world.m_observers.prepare_diff(
+									m_world, ObserverEvent::OnDel, EntitySpan{&oldPair, 1}, EntitySpan{&m_entity, 1});
+							if (delDiffCtx.active) {
+								delDiffCtx.targetsRemovedAfterPrepare = true;
+								tl_del_nonfragmenting_diff_contexts.push_back(GAIA_MOV(delDiffCtx));
+							}
 						}
 #endif
 						invalidate_relation_change(oldPair);
@@ -68251,10 +68253,12 @@ namespace gaia {
 						return false;
 
 #if GAIA_OBSERVERS_ENABLED
-					auto addDiffCtx = m_world.m_observers.prepare_diff_add_new(m_world, EntitySpan{&entity, 1});
-					m_world.m_observers.add_diff_targets(m_world, addDiffCtx, EntitySpan{&m_entity, 1});
-					if (addDiffCtx.active && !addDiffCtx.targetsAddedAfterPrepare)
-						tl_add_nonfragmenting_diff_contexts.push_back(GAIA_MOV(addDiffCtx));
+					if constexpr (!IsBootstrap) {
+						auto addDiffCtx = m_world.m_observers.prepare_diff_add_new(m_world, EntitySpan{&entity, 1});
+						m_world.m_observers.add_diff_targets(m_world, addDiffCtx, EntitySpan{&m_entity, 1});
+						if (addDiffCtx.active && !addDiffCtx.targetsAddedAfterPrepare)
+							tl_add_nonfragmenting_diff_contexts.push_back(GAIA_MOV(addDiffCtx));
+					}
 #endif
 
 					m_world.nonfragmenting_relation_set(m_entity, relation, target);
@@ -69613,6 +69617,9 @@ namespace gaia {
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 				GAIA_ASSERT(ec.pChunk != nullptr);
 
+				cnt::darray_ext<Entity, 8> nonfragmentingPairs;
+				collect_nonfragmenting_relation_pairs(srcEntity, nonfragmentingPairs);
+
 				auto* pDstArchetype = ec.pArchetype;
 				Entity dstEntity;
 
@@ -69631,6 +69638,7 @@ namespace gaia {
 				}
 
 				copy_all_sparse_entity_data(srcEntity, dstEntity);
+				copy_nonfragmenting_relation_pairs(dstEntity, EntitySpan{nonfragmentingPairs});
 
 				return dstEntity;
 			}
@@ -69646,7 +69654,9 @@ namespace gaia {
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			template <typename Func = TFunc_Void_With_Entity>
 			void copy_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
-				copy_n_inter(entity, count, func, EntitySpan{});
+				cnt::darray_ext<Entity, 8> nonfragmentingPairs;
+				collect_nonfragmenting_relation_pairs(entity, nonfragmentingPairs);
+				copy_n_inter(entity, count, func, EntitySpan{}, EntitySpan{nonfragmentingPairs});
 			}
 
 #if GAIA_OBSERVERS_ENABLED
@@ -69665,6 +69675,9 @@ namespace gaia {
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 				GAIA_ASSERT(ec.pChunk != nullptr);
 
+				cnt::darray_ext<Entity, 8> nonfragmentingPairs;
+				collect_nonfragmenting_relation_pairs(srcEntity, nonfragmentingPairs);
+
 				auto* pDstArchetype = ec.pArchetype;
 				// Names have to be unique so if we see that EntityDesc is present during copy
 				// we navigate towards a version of the archetype without the EntityDesc.
@@ -69674,10 +69687,13 @@ namespace gaia {
 
 				const auto archetypeIdCount = (uint32_t)pDstArchetype->ids_view().size();
 				const auto sparseIdCount = copied_non_frag_sparse_id_count(srcEntity);
-				const auto addedIdCount = archetypeIdCount + sparseIdCount;
+				const auto nonfragmentingPairCount = (uint32_t)nonfragmentingPairs.size();
+				const auto addedIdCount = archetypeIdCount + sparseIdCount + nonfragmentingPairCount;
 				auto* pAddedIds = addedIdCount != 0U ? (Entity*)alloca(sizeof(Entity) * addedIdCount) : nullptr;
 				write_archetype_ids(*pDstArchetype, pAddedIds);
 				write_copied_non_frag_sparse_ids(srcEntity, pAddedIds + archetypeIdCount);
+				GAIA_FOR(nonfragmentingPairCount)
+				pAddedIds[archetypeIdCount + sparseIdCount + i] = nonfragmentingPairs[i];
 	#if GAIA_OBSERVERS_ENABLED
 				auto addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{pAddedIds, addedIdCount});
 	#endif
@@ -69694,6 +69710,7 @@ namespace gaia {
 				}
 
 				(void)copy_all_sparse_entity_data(srcEntity, dstEntity);
+				copy_nonfragmenting_relation_pairs(dstEntity, EntitySpan{nonfragmentingPairs});
 				m_observers.add_diff_targets(*this, addDiffCtx, EntitySpan{&dstEntity, 1});
 
 				m_observers.on_add(*this, *pDstArchetype, EntitySpan{pAddedIds, addedIdCount}, EntitySpan{&dstEntity, 1});
@@ -69715,6 +69732,9 @@ namespace gaia {
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			template <typename Func = TFunc_Void_With_Entity>
 			void copy_ext_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
+				cnt::darray_ext<Entity, 8> nonfragmentingPairs;
+				collect_nonfragmenting_relation_pairs(entity, nonfragmentingPairs);
+
 				auto& ec = m_recs.entities[entity.id()];
 				auto* pDstArchetype = ec.pArchetype;
 				if (pDstArchetype->has<EntityDesc>())
@@ -69722,15 +69742,18 @@ namespace gaia {
 
 				const auto archetypeIdCount = (uint32_t)pDstArchetype->ids_view().size();
 				const auto sparseIdCount = copied_non_frag_sparse_id_count(entity);
-				const auto addedIdCount = archetypeIdCount + sparseIdCount;
+				const auto nonfragmentingPairCount = (uint32_t)nonfragmentingPairs.size();
+				const auto addedIdCount = archetypeIdCount + sparseIdCount + nonfragmentingPairCount;
 				auto* pAddedIds = addedIdCount != 0U ? (Entity*)alloca(sizeof(Entity) * addedIdCount) : nullptr;
 				write_archetype_ids(*pDstArchetype, pAddedIds);
 				write_copied_non_frag_sparse_ids(entity, pAddedIds + archetypeIdCount);
+				GAIA_FOR(nonfragmentingPairCount)
+				pAddedIds[archetypeIdCount + sparseIdCount + i] = nonfragmentingPairs[i];
 	#if GAIA_OBSERVERS_ENABLED
 				auto addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{pAddedIds, addedIdCount});
 	#endif
 				copy_n_inter(
-						entity, count, func, EntitySpan{pAddedIds, addedIdCount}, EntityBad
+						entity, count, func, EntitySpan{pAddedIds, addedIdCount}, EntitySpan{nonfragmentingPairs}, EntityBad
 	#if GAIA_OBSERVERS_ENABLED
 						,
 						&addDiffCtx
@@ -70058,13 +70081,15 @@ namespace gaia {
 			//! \param count Number of copies.
 			//! \param func Callback for copied entities.
 			//! \param addedIds Ids reported to add observers.
+			//! \param nonfragmentingPairs Exact out-of-archetype relation pairs copied to each destination.
 			//! \param parentInstance Optional parent for copied entities.
 #if GAIA_OBSERVERS_ENABLED
 			//! \param pAddDiffCtx Optional observer diff context.
 #endif
 			template <typename Func>
 			void copy_n_inter(
-					Entity entity, uint32_t count, Func& func, EntitySpan addedIds, Entity parentInstance = EntityBad
+					Entity entity, uint32_t count, Func& func, EntitySpan addedIds, EntitySpan nonfragmentingPairs,
+					Entity parentInstance = EntityBad
 #if GAIA_OBSERVERS_ENABLED
 					,
 					ObserverRegistry::DiffDispatchCtx* pAddDiffCtx = nullptr
@@ -70128,6 +70153,7 @@ namespace gaia {
 						}
 
 						copy_all_sparse_entity_data(entity, entityNew);
+						copy_nonfragmenting_relation_pairs(entityNew, nonfragmentingPairs);
 					}
 
 					pDstArchetype->try_update_free_chunk_idx();
@@ -70320,6 +70346,34 @@ namespace gaia {
 				}
 
 				add(instance, Pair(relation, parentInstance));
+			}
+
+			//! Collects directly owned non-fragmenting relation pairs in deterministic id order.
+			//! \param srcEntity Source entity whose pairs are collected.
+			//! \param out Destination pair list.
+			void collect_nonfragmenting_relation_pairs(Entity srcEntity, cnt::darray_ext<Entity, 8>& out) const {
+				for (const auto& [relKey, store]: m_nonFragmentingRelationsByRel) {
+					const auto target = store.target(srcEntity);
+					if (target != EntityBad)
+						out.push_back(Pair(relKey.entity(), target));
+				}
+
+				core::sort(out.begin(), out.end(), [](Entity left, Entity right) {
+					return left < right;
+				});
+			}
+
+			//! Copies directly owned non-fragmenting relation pairs without dispatching add notifications.
+			//! \param dstEntity Destination entity.
+			//! \param pairs Exact relation pairs to attach.
+			void copy_nonfragmenting_relation_pairs(Entity dstEntity, EntitySpan pairs) {
+				if (pairs.empty())
+					return;
+
+				EntityBuilder builder(*this, dstEntity);
+				for (const auto pair: pairs)
+					builder.add_inter_init(pair);
+				builder.commit();
 			}
 
 			//! Copies one sparse payload between entities.
@@ -71131,7 +71185,7 @@ namespace gaia {
 						return;
 					}
 
-					copy_n_inter(prefabEntity, count, func, EntitySpan{}, parentInstance);
+					copy_n_inter(prefabEntity, count, func, EntitySpan{}, EntitySpan{}, parentInstance);
 					return;
 				}
 
