@@ -926,6 +926,44 @@ TEST_CASE("Command buffer sparse lifecycle does not leak across recycled entity 
 	CHECK(wld.get<PositionSparse>(recycled).x == doctest::Approx(7.0f));
 }
 
+TEST_CASE("Changed filters track direct and buffered sparse writes") {
+	SUBCASE("fragmenting sparse storage") {
+		SparseTestWorld twld;
+		const auto entity = wld.add();
+		wld.add<PositionSparse>(entity, {1.0f, 2.0f, 3.0f});
+
+		auto query = wld.query().all<PositionSparse>().changed<PositionSparse>();
+		expect_changed_consume_exact(query, {entity});
+
+		wld.set<PositionSparse>(entity) = {4.0f, 5.0f, 6.0f};
+		expect_changed_consume_exact(query, {entity});
+
+		ecs::CommandBufferST commandBuffer(wld);
+		commandBuffer.set<PositionSparse>(entity, {7.0f, 8.0f, 9.0f});
+		commandBuffer.commit();
+		expect_changed_consume_exact(query, {entity});
+	}
+
+	SUBCASE("non-fragmenting sparse storage") {
+		SparseTestWorld twld;
+		const auto& compItem = wld.add<PositionSparse>();
+		wld.add(compItem.entity, ecs::DontFragment);
+		const auto entity = wld.add();
+		wld.add<PositionSparse>(entity, {1.0f, 2.0f, 3.0f});
+
+		auto query = wld.query().all<PositionSparse>().changed<PositionSparse>();
+		expect_changed_consume_exact(query, {entity});
+
+		wld.set<PositionSparse>(entity) = {4.0f, 5.0f, 6.0f};
+		expect_changed_consume_exact(query, {entity});
+
+		ecs::CommandBufferST commandBuffer(wld);
+		commandBuffer.set<PositionSparse>(entity, {7.0f, 8.0f, 9.0f});
+		commandBuffer.commit();
+		expect_changed_consume_exact(query, {entity});
+	}
+}
+
 TEST_CASE("EntityContainer cached entity slot across row swap and archetype move") {
 	TestWorld twld;
 

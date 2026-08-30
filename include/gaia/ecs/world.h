@@ -514,8 +514,23 @@ namespace gaia {
 				return ec.pChunk->template set<T>(ec.row, object);
 			}
 
+			//! Marks a sparse write in the owning chunk's change-filter state.
+			//! Fragmenting sparse components have an archetype column whose version can be updated directly.
+			//! Non-fragmenting sparse components use the chunk entity-order version as the conservative
+			//! chunk-granular signal because they do not have an archetype column.
+			//! \param entity Entity whose sparse payload changed.
+			//! \param term Sparse component entity.
+			void mark_sparse_component_write(Entity entity, Entity term) {
+				const auto& ec = fetch(entity);
+				const auto compIdx = core::get_index(ec.pChunk->ids_view(), term);
+				if (compIdx != BadIndex)
+					ec.pChunk->update_world_version(compIdx);
+				else
+					ec.pChunk->update_entity_order_version();
+			}
+
 			//! Finishes a deferred raw write on \a term attached to \a entity.
-			//! Ensures direct owned storage exists when needed, updates version state for table storage,
+			//! Ensures direct owned storage exists when needed, updates table or sparse version state,
 			//! and emits `OnSet` for the completed write.
 			//! \param entity Entity
 			//! \param term Component entity or pair
@@ -526,6 +541,7 @@ namespace gaia {
 				::gaia::ecs::update_version(m_worldVersion);
 
 				if (sparse_storage_mode(term) != SparseStorageMode::None) {
+					mark_sparse_component_write(entity, term);
 					world_notify_on_set_entity(*this, term, entity);
 					return;
 				}
@@ -559,11 +575,10 @@ namespace gaia {
 			template <typename TApi, typename TValue>
 			void write_back_set_typed(Entity entity, Entity term, const TValue& value) {
 				using FT = typename component_type_t<TApi>::TypeFull;
-				::gaia::ecs::update_version(m_worldVersion);
 
 				if constexpr (uses_compile_time_sparse_storage<FT>()) {
 					sparse_component_store_mut<FT>(term).add(entity) = value;
-					world_notify_on_set_entity(*this, term, entity);
+					finish_write(entity, term);
 					return;
 				}
 
@@ -581,7 +596,6 @@ namespace gaia {
 			template <typename TValue>
 			void write_back_set_object(Entity entity, Entity term, const TValue& value) {
 				using FT = typename component_type_t<TValue>::TypeFull;
-				::gaia::ecs::update_version(m_worldVersion);
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (can_use_sparse_component_storage<FT>(term)) {
 						sparse_component_add_value<FT>(term, entity) = value;
@@ -6010,12 +6024,12 @@ namespace gaia {
 						GAIA_ASSERT(has_direct_sparse_component_inter(entity, pItem->entity));
 #endif
 
-						::gaia::ecs::update_version(m_worldVersion);
-
-#if GAIA_OBSERVERS_ENABLED
 						if constexpr (TriggerSetEffects)
-							world_notify_on_set_entity(*this, pItem->entity, entity);
-#endif
+							finish_write(entity, pItem->entity);
+						else {
+							::gaia::ecs::update_version(m_worldVersion);
+							mark_sparse_component_write(entity, pItem->entity);
+						}
 						return;
 					}
 				}
@@ -6073,12 +6087,12 @@ namespace gaia {
 						GAIA_ASSERT(has_direct_sparse_component_inter(entity, object));
 #endif
 
-						::gaia::ecs::update_version(m_worldVersion);
-
-#if GAIA_OBSERVERS_ENABLED
 						if constexpr (TriggerSetEffects)
-							world_notify_on_set_entity(*this, object, entity);
-#endif
+							finish_write(entity, object);
+						else {
+							::gaia::ecs::update_version(m_worldVersion);
+							mark_sparse_component_write(entity, object);
+						}
 						return;
 					}
 				}
@@ -15322,11 +15336,6 @@ namespace gaia {
 			smut<T>(type) = GAIA_FWD(value);
 			using FT = typename component_type_t<T>::TypeFull;
 			auto& world = *const_cast<World*>(m_pWorld);
-
-			if constexpr (World::template supports_sparse_component_storage<FT>()) {
-				if (world.template can_use_sparse_component_storage<FT>(type))
-					::gaia::ecs::update_version(world.m_worldVersion);
-			}
 
 			world.finish_write(m_entity, type);
 			return *this;

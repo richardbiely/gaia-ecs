@@ -39703,66 +39703,94 @@ namespace gaia {
 			//! Generic in-place quicksort across chunks
 			template <bool Enabled>
 			void sort_entities_inter(size_t low, size_t high, TSortByFunc func) {
-				if (low >= high)
-					return;
+				while (low < high) {
+					const auto pivotIdx = low + (high - low) / 2;
+					Entity pivotEntity = get_flat_entity<Enabled>(pivotIdx);
+					if (pivotIdx != high) {
+						const Entity highEntity = get_flat_entity<Enabled>(high);
+						Chunk::swap_chunk_entities(const_cast<World&>(m_world), pivotEntity, highEntity);
+					}
 
-				Entity pivotEntity = get_flat_entity<Enabled>(high);
-
-				size_t i = low;
-				for (size_t j = low; j < high; ++j) {
-					Entity jEntity = get_flat_entity<Enabled>(j);
-					if (func(m_world, &jEntity, &pivotEntity) < 0) {
-						if (i != j) {
-							Entity iEntity = get_flat_entity<Enabled>(i);
-							Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
+					size_t i = low;
+					for (size_t j = low; j < high; ++j) {
+						Entity jEntity = get_flat_entity<Enabled>(j);
+						if (func(m_world, &jEntity, &pivotEntity) < 0) {
+							if (i != j) {
+								Entity iEntity = get_flat_entity<Enabled>(i);
+								Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
+							}
+							++i;
 						}
-						++i;
+					}
+
+					{
+						Entity iEntity = get_flat_entity<Enabled>(i);
+						Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
+					}
+
+					//! Recurse into the smaller partition and iterate over the larger one so
+					//! ordered inputs cannot make recursion depth linear in the entity count.
+					if (i - low < high - i) {
+						if (low < i)
+							sort_entities_inter<Enabled>(low, i - 1, func);
+						low = i + 1;
+					} else {
+						if (i < high)
+							sort_entities_inter<Enabled>(i + 1, high, func);
+						if (i == 0)
+							return;
+						high = i - 1;
 					}
 				}
-
-				{
-					Entity iEntity = get_flat_entity<Enabled>(i);
-					Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
-				}
-
-				if (i > 0)
-					sort_entities_inter<Enabled>(low, i - 1, func);
-				sort_entities_inter<Enabled>(i + 1, high, func);
 			}
 
 			//! Generic in-place quicksort across chunks
 			template <bool Enabled>
 			void sort_entities_inter(
 					const ComponentCacheItem* pItem, uint32_t compIdx, size_t low, size_t high, TSortByFunc func) {
-				if (low >= high)
-					return;
+				while (low < high) {
+					const auto pivotIdx = low + (high - low) / 2;
+					Entity pivotEntity;
+					(void)get_flat_comp_ptr<Enabled>(compIdx, pivotIdx, pivotEntity);
+					if (pivotIdx != high) {
+						Entity highEntity;
+						(void)get_flat_comp_ptr<Enabled>(compIdx, high, highEntity);
+						Chunk::swap_chunk_entities(const_cast<World&>(m_world), pivotEntity, highEntity);
+					}
+					const void* pPivotData = get_flat_comp_ptr<Enabled>(compIdx, high, pivotEntity);
 
-				Entity pivotEntity;
-				const void* pPivotData = get_flat_comp_ptr<Enabled>(compIdx, high, pivotEntity);
-
-				size_t i = low;
-				for (size_t j = low; j < high; ++j) {
-					Entity jEntity;
-					const void* jData = get_flat_comp_ptr<Enabled>(compIdx, j, jEntity);
-					if (func(m_world, jData, pPivotData) < 0) {
-						if (i != j) {
-							Entity iEntity;
-							(void)get_flat_comp_ptr<Enabled>(compIdx, i, iEntity);
-							Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
+					size_t i = low;
+					for (size_t j = low; j < high; ++j) {
+						Entity jEntity;
+						const void* jData = get_flat_comp_ptr<Enabled>(compIdx, j, jEntity);
+						if (func(m_world, jData, pPivotData) < 0) {
+							if (i != j) {
+								Entity iEntity;
+								(void)get_flat_comp_ptr<Enabled>(compIdx, i, iEntity);
+								Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
+							}
+							++i;
 						}
-						++i;
+					}
+
+					{
+						Entity iEntity;
+						(void)get_flat_comp_ptr<Enabled>(compIdx, i, iEntity);
+						Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
+					}
+
+					if (i - low < high - i) {
+						if (low < i)
+							sort_entities_inter<Enabled>(pItem, compIdx, low, i - 1, func);
+						low = i + 1;
+					} else {
+						if (i < high)
+							sort_entities_inter<Enabled>(pItem, compIdx, i + 1, high, func);
+						if (i == 0)
+							return;
+						high = i - 1;
 					}
 				}
-
-				{
-					Entity iEntity;
-					(void)get_flat_comp_ptr<Enabled>(compIdx, i, iEntity);
-					Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
-				}
-
-				if (i > 0)
-					sort_entities_inter<Enabled>(pItem, compIdx, low, i - 1, func);
-				sort_entities_inter<Enabled>(pItem, compIdx, i + 1, high, func);
 			}
 
 			//! Sorts all entities in the archetypes according to the given function.
@@ -65788,8 +65816,23 @@ namespace gaia {
 				return ec.pChunk->template set<T>(ec.row, object);
 			}
 
+			//! Marks a sparse write in the owning chunk's change-filter state.
+			//! Fragmenting sparse components have an archetype column whose version can be updated directly.
+			//! Non-fragmenting sparse components use the chunk entity-order version as the conservative
+			//! chunk-granular signal because they do not have an archetype column.
+			//! \param entity Entity whose sparse payload changed.
+			//! \param term Sparse component entity.
+			void mark_sparse_component_write(Entity entity, Entity term) {
+				const auto& ec = fetch(entity);
+				const auto compIdx = core::get_index(ec.pChunk->ids_view(), term);
+				if (compIdx != BadIndex)
+					ec.pChunk->update_world_version(compIdx);
+				else
+					ec.pChunk->update_entity_order_version();
+			}
+
 			//! Finishes a deferred raw write on \a term attached to \a entity.
-			//! Ensures direct owned storage exists when needed, updates version state for table storage,
+			//! Ensures direct owned storage exists when needed, updates table or sparse version state,
 			//! and emits `OnSet` for the completed write.
 			//! \param entity Entity
 			//! \param term Component entity or pair
@@ -65797,7 +65840,10 @@ namespace gaia {
 				if (tearing_down() || !valid(entity))
 					return;
 
+				::gaia::ecs::update_version(m_worldVersion);
+
 				if (sparse_storage_mode(term) != SparseStorageMode::None) {
+					mark_sparse_component_write(entity, term);
 					world_notify_on_set_entity(*this, term, entity);
 					return;
 				}
@@ -65831,11 +65877,10 @@ namespace gaia {
 			template <typename TApi, typename TValue>
 			void write_back_set_typed(Entity entity, Entity term, const TValue& value) {
 				using FT = typename component_type_t<TApi>::TypeFull;
-				::gaia::ecs::update_version(m_worldVersion);
 
 				if constexpr (uses_compile_time_sparse_storage<FT>()) {
 					sparse_component_store_mut<FT>(term).add(entity) = value;
-					world_notify_on_set_entity(*this, term, entity);
+					finish_write(entity, term);
 					return;
 				}
 
@@ -65853,7 +65898,6 @@ namespace gaia {
 			template <typename TValue>
 			void write_back_set_object(Entity entity, Entity term, const TValue& value) {
 				using FT = typename component_type_t<TValue>::TypeFull;
-				::gaia::ecs::update_version(m_worldVersion);
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (can_use_sparse_component_storage<FT>(term)) {
 						sparse_component_add_value<FT>(term, entity) = value;
@@ -66974,6 +67018,8 @@ namespace gaia {
 			//! Applies structural and value changes to one entity.
 			struct EntityBuilder final {
 				friend class World;
+				friend CommandBufferST;
+				friend CommandBufferMT;
 
 				//! World receiving the accumulated entity changes.
 				World& m_world;
@@ -69406,6 +69452,26 @@ namespace gaia {
 					eb.del(ids[i]);
 
 				eb.commit();
+
+				cnt::darray_ext<Entity, 16> sparseIds;
+				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
+					const auto component = compKey.entity();
+					if (component_is_non_fragmenting(component) && store.func_has(store.pStore, entity))
+						sparseIds.push_back(component);
+				}
+				for (const auto component: sparseIds)
+					del(entity, component);
+
+				cnt::darray_ext<Entity, 8> relationIds;
+				for (const auto& [relationKey, store]: m_nonFragmentingRelationsByRel) {
+					if (store.target(entity) != EntityBad)
+						relationIds.push_back(relationKey.entity());
+				}
+				for (const auto relation: relationIds) {
+					const auto targetEntity = target(entity, relation);
+					if (targetEntity != EntityBad)
+						del(entity, Pair(relation, targetEntity));
+				}
 			}
 
 			//----------------------------------------------------------------------
@@ -71260,12 +71326,12 @@ namespace gaia {
 						GAIA_ASSERT(has_direct_sparse_component_inter(entity, pItem->entity));
 #endif
 
-						::gaia::ecs::update_version(m_worldVersion);
-
-#if GAIA_OBSERVERS_ENABLED
 						if constexpr (TriggerSetEffects)
-							world_notify_on_set_entity(*this, pItem->entity, entity);
-#endif
+							finish_write(entity, pItem->entity);
+						else {
+							::gaia::ecs::update_version(m_worldVersion);
+							mark_sparse_component_write(entity, pItem->entity);
+						}
 						return;
 					}
 				}
@@ -71323,12 +71389,12 @@ namespace gaia {
 						GAIA_ASSERT(has_direct_sparse_component_inter(entity, object));
 #endif
 
-						::gaia::ecs::update_version(m_worldVersion);
-
-#if GAIA_OBSERVERS_ENABLED
 						if constexpr (TriggerSetEffects)
-							world_notify_on_set_entity(*this, object, entity);
-#endif
+							finish_write(entity, object);
+						else {
+							::gaia::ecs::update_version(m_worldVersion);
+							mark_sparse_component_write(entity, object);
+						}
 						return;
 					}
 				}
@@ -86176,11 +86242,6 @@ namespace gaia {
 			using FT = typename component_type_t<T>::TypeFull;
 			auto& world = *const_cast<World*>(m_pWorld);
 
-			if constexpr (World::template supports_sparse_component_storage<FT>()) {
-				if (world.template can_use_sparse_component_storage<FT>(type))
-					::gaia::ecs::update_version(world.m_worldVersion);
-			}
-
 			world.finish_write(m_entity, type);
 			return *this;
 		}
@@ -86535,18 +86596,92 @@ namespace gaia {
 
 				//! Replays a component or relationship pair addition.
 				void replay_add(Entity target, Entity object) {
-					if (object.pair())
+					if (object.pair()) {
 						World::EntityBuilder(m_world, target).add(decode_pair(object));
-					else
-						World::EntityBuilder(m_world, target).add(object);
+						return;
+					}
+
+					const auto* pItem = m_world.comp_cache().find(object);
+					if (pItem != nullptr && pItem->comp.storage_type() == DataStorageType::Sparse) {
+						const auto mode = m_world.sparse_storage_mode(object);
+						GAIA_ASSERT(mode != World::SparseStorageMode::None);
+						auto& store = m_world.sparse_component_store_erased_mut(object, *pItem);
+						(void)store.func_add(store.pStore, target);
+						m_world.finish_sparse_component_add_inter(target, object, mode);
+						return;
+					}
+
+					World::EntityBuilder(m_world, target).add(object);
 				}
 
 				//! Replays a component or relationship pair removal.
 				void replay_del(Entity target, Entity object) {
 					if (object.pair())
-						World::EntityBuilder(m_world, target).del(decode_pair(object));
+						m_world.del(target, decode_pair(object));
 					else
-						World::EntityBuilder(m_world, target).del(object);
+						m_world.del(target, object);
+				}
+
+				//! Replays serialized component data into table or sparse storage.
+				//! \param target Entity receiving the payload.
+				//! \param object Component id whose payload is restored.
+				//! \param dataPos Serialized payload offset in the command-buffer data stream.
+				//! \param finishWrite Whether to publish changed state and `OnSet` after loading.
+				void replay_data(Entity target, Entity object, uint32_t dataPos, bool finishWrite = true) {
+					auto serializer = ser::make_serializer(m_data);
+					serializer.seek(dataPos);
+					const auto& item = m_world.comp_cache().get(object);
+
+					if (!object.pair() && item.comp.storage_type() == DataStorageType::Sparse) {
+						const auto payload = m_world.mut_raw(target, object);
+						GAIA_ASSERT(payload.valid());
+						if (payload.valid())
+							item.load(serializer, payload.data, 0, 1, 1);
+						if (finishWrite)
+							m_world.finish_write(target, object);
+						return;
+					}
+
+					const auto& ec = m_world.m_recs.entities[target.id()];
+					const auto row = target.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+					const auto compIdx = ec.pChunk->comp_idx(object);
+					auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
+					item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
+					if (finishWrite)
+						m_world.finish_write(target, object);
+				}
+
+				//! Replays a component add whose serialized payload must be initialized before add notification.
+				//! \param target Entity receiving the component.
+				//! \param object Component id being added.
+				//! \param dataPos Serialized payload offset in the command-buffer data stream.
+				void replay_add_data(Entity target, Entity object, uint32_t dataPos) {
+					const auto& item = m_world.comp_cache().get(object);
+					if (!object.pair() && item.comp.storage_type() == DataStorageType::Sparse) {
+						const auto mode = m_world.sparse_storage_mode(object);
+						GAIA_ASSERT(mode != World::SparseStorageMode::None);
+						auto& store = m_world.sparse_component_store_erased_mut(object, item);
+						auto* pPayload = store.func_add(store.pStore, target);
+
+						auto serializer = ser::make_serializer(m_data);
+						serializer.seek(dataPos);
+						item.load(serializer, pPayload, 0, 1, 1);
+						m_world.finish_sparse_component_add_inter(target, object, mode);
+						return;
+					}
+
+					World::EntityBuilder builder(m_world, target);
+#if GAIA_OBSERVERS_ENABLED
+					auto addDiffCtx = m_world.m_observers.prepare_diff(
+							m_world, ObserverEvent::OnAdd, EntitySpan{&object, 1}, EntitySpan{&target, 1});
+#endif
+					builder.add_inter_init(object);
+					builder.commit();
+					replay_data(target, object, dataPos, false);
+					m_world.notify_add_single(target, object);
+#if GAIA_OBSERVERS_ENABLED
+					m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
+#endif
 				}
 
 				//! Returns true if a temporary entity was created and then destroyed within the same command buffer (
@@ -86776,20 +86911,11 @@ namespace gaia {
 												replay_add(tgtReal, othReal);
 												break;
 											case OpType::ADD_COMPONENT_DATA:
-												replay_add(tgtReal, othReal);
-												GAIA_FALLTHROUGH;
-											case OpType::SET_COMPONENT: {
-												const auto& ec = m_world.m_recs.entities[tgtReal.id()];
-												const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-												const auto compIdx = ec.pChunk->comp_idx(othReal);
-												auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
-
-												// Component data
-												auto serializer = ser::make_serializer(m_data);
-												serializer.seek(op.off);
-												const auto& item = m_world.comp_cache().get(othReal);
-												item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
-											} break;
+												replay_add_data(tgtReal, othReal, op.off);
+												break;
+											case OpType::SET_COMPONENT:
+												replay_data(tgtReal, othReal, op.off);
+												break;
 											default:
 												break;
 										}
@@ -86835,18 +86961,7 @@ namespace gaia {
 										}
 										// 3) ADD_WITH_DATA or ADD+SET = ADD_WITH_DATA
 										else if (hasAddData || (hasAdd && hasSet)) {
-											replay_add(tgtReal, othReal);
-
-											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
-											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-											const auto compIdx = ec.pChunk->comp_idx(othReal);
-											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
-
-											// Component data
-											auto serializer = ser::make_serializer(m_data);
-											serializer.seek(dataPos);
-											const auto& item = m_world.comp_cache().get(othReal);
-											item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
+											replay_add_data(tgtReal, othReal, dataPos);
 										}
 										// 4) ADD only
 										else if (hasAdd) {
@@ -86854,16 +86969,7 @@ namespace gaia {
 										}
 										// 5) SET only
 										else if (hasSet) {
-											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
-											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-											const auto compIdx = ec.pChunk->comp_idx(othReal);
-											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
-
-											// Component data
-											auto serializer = ser::make_serializer(m_data);
-											serializer.seek(dataPos);
-											const auto& item = m_world.comp_cache().get(othReal);
-											item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
+											replay_data(tgtReal, othReal, dataPos);
 										}
 									}
 								}
