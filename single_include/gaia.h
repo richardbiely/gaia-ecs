@@ -86391,6 +86391,10 @@ namespace gaia {
 					Entity target;
 					//! For ADD_COMPONENT/SET_COMPONENT/DEL_COMPONENT (other entity) or CPY_ENTITY source
 					Entity other;
+					//! Pair target kept separately so temporary pair endpoints survive until commit.
+					Entity pairTarget = EntityBad;
+					//! Original insertion order, used to keep equal-key operations deterministic after sorting.
+					uint32_t order = 0;
 				};
 
 				//! Parent world
@@ -86405,11 +86409,6 @@ namespace gaia {
 				uint32_t m_nextTemp = 0;
 				//! True if op sorting is necessary
 				bool m_needsSort = false;
-
-				bool m_haveReal = false;
-				bool m_haveTemp = false;
-				Entity m_lastRealTarget = EntityBad;
-				Entity m_lastTempTarget = EntityBad;
 
 				//! Buffer holding component data
 				ser::bin_stream m_data;
@@ -86470,6 +86469,11 @@ namespace gaia {
 				void add(Entity entity, Entity other) {
 					core::lock_scope lock(m_acc);
 
+					if (other.pair()) {
+						push_op({OpType::ADD_COMPONENT, 0, entity, m_world.get(other.id()), m_world.get(other.gen())});
+						return;
+					}
+
 					push_op({OpType::ADD_COMPONENT, 0, entity, other});
 				}
 
@@ -86479,7 +86483,7 @@ namespace gaia {
 				void add(Entity entity, const Pair& pair) {
 					core::lock_scope lock(m_acc);
 
-					push_op({OpType::ADD_COMPONENT, 0, entity, (Entity)pair});
+					push_op({OpType::ADD_COMPONENT, 0, entity, pair.first(), pair.second()});
 				}
 
 				//! Requests a component \a T to be added to entity. Also sets its value.
@@ -86553,6 +86557,11 @@ namespace gaia {
 				void del(Entity entity, Entity object) {
 					core::lock_scope lock(m_acc);
 
+					if (object.pair()) {
+						push_op({OpType::DEL_COMPONENT, 0, entity, m_world.get(object.id()), m_world.get(object.gen())});
+						return;
+					}
+
 					push_op({OpType::DEL_COMPONENT, 0, entity, object});
 				}
 
@@ -86562,7 +86571,7 @@ namespace gaia {
 				void del(Entity entity, const Pair& pair) {
 					core::lock_scope lock(m_acc);
 
-					push_op({OpType::DEL_COMPONENT, 0, entity, (Entity)pair});
+					push_op({OpType::DEL_COMPONENT, 0, entity, pair.first(), pair.second()});
 				}
 
 			private:
@@ -86588,16 +86597,27 @@ namespace gaia {
 					return EntityBad;
 				}
 
-				//! Rebuilds a Pair wrapper from its encoded entity form.
-				GAIA_NODISCARD Pair decode_pair(Entity pair) const {
-					GAIA_ASSERT(pair.pair());
-					return Pair(m_world.get(pair.id()), m_world.get(pair.gen()));
+				//! Resolves an operation's component or pair identifier.
+				//! \param op Operation whose component or pair endpoints are resolved.
+				//! \return Resolved component or pair identifier, or EntityBad when a temporary endpoint cannot be resolved.
+				GAIA_NODISCARD Entity resolve_object(const Op& op) const {
+					if (op.pairTarget == EntityBad)
+						return resolve(op.other);
+
+					const auto relation = resolve(op.other);
+					const auto target = resolve(op.pairTarget);
+					if (relation == EntityBad || target == EntityBad)
+						return EntityBad;
+
+					return (Entity)Pair(relation, target);
 				}
 
 				//! Replays a component or relationship pair addition.
+				//! \param target Entity receiving the component or pair.
+				//! \param object Resolved component or pair identifier.
 				void replay_add(Entity target, Entity object) {
 					if (object.pair()) {
-						World::EntityBuilder(m_world, target).add(decode_pair(object));
+						World::EntityBuilder(m_world, target).add(Pair(m_world.get(object.id()), m_world.get(object.gen())));
 						return;
 					}
 
@@ -86615,9 +86635,11 @@ namespace gaia {
 				}
 
 				//! Replays a component or relationship pair removal.
+				//! \param target Entity losing the component or pair.
+				//! \param object Resolved component or pair identifier.
 				void replay_del(Entity target, Entity object) {
 					if (object.pair())
-						m_world.del(target, decode_pair(object));
+						m_world.del(target, Pair(m_world.get(object.id()), m_world.get(object.gen())));
 					else
 						m_world.del(target, object);
 				}
@@ -86707,43 +86729,29 @@ namespace gaia {
 					return tmp;
 				}
 
-				GAIA_NODISCARD bool less_target(Entity a, Entity b) const {
-					const bool ta = is_tmp(a);
-					const bool tb = is_tmp(b);
-
-					// Real entities always come first in order. Temps come last.
-					if (ta != tb)
-						return !ta && tb;
-
-					// Within same domain, normal numeric order.
-					return a.id() < b.id();
+				//! Compares operation grouping keys without considering insertion order.
+				//! \param a Left operation.
+				//! \param b Right operation.
+				//! \return True when the grouping key of \p a sorts before the grouping key of \p b.
+				GAIA_NODISCARD static bool less_op_key(const Op& a, const Op& b) {
+					if (a.target != b.target)
+						return a.target < b.target;
+					if (a.other != b.other)
+						return a.other < b.other;
+					return a.pairTarget < b.pairTarget;
 				}
 
-				//! Verifies if sorting is necessary after a given op is added
+				//! Verifies if sorting is necessary after a given operation is added.
+				//! \param op Operation about to be appended.
 				void check_sort(const Op& op) {
-					if (is_tmp(op.target)) {
-						if (m_haveTemp) {
-							// Only compare temp indices against previous temp target
-							const uint32_t prev = m_lastTempTarget.id();
-							const uint32_t curr = op.target.id();
-							if (curr < prev)
-								m_needsSort = true;
-						}
-						m_lastTempTarget = op.target;
-						m_haveTemp = true;
-					} else {
-						if (m_haveReal) {
-							// Only compare real IDs against previous real target
-							if (op.target.id() < m_lastRealTarget.id())
-								m_needsSort = true;
-						}
-						m_lastRealTarget = op.target;
-						m_haveReal = true;
-					}
+					if (!m_ops.empty() && less_op_key(op, m_ops.back()))
+						m_needsSort = true;
 				}
 
-				//! Pushes the op to the op buffer
+				//! Pushes an operation to the operation buffer.
+				//! \param op Operation to append.
 				void push_op(Op&& op) {
+					op.order = m_ops.size();
 					check_sort(op);
 					m_ops.push_back(GAIA_MOV(op));
 				}
@@ -86757,10 +86765,6 @@ namespace gaia {
 					m_data.reset();
 
 					m_needsSort = false;
-					m_haveReal = false;
-					m_haveTemp = false;
-					m_lastRealTarget = EntityBad;
-					m_lastTempTarget = EntityBad;
 				}
 
 			public:
@@ -86804,6 +86808,8 @@ namespace gaia {
 
 							if (is_tmp(o.other) && o.other.id() < m_tmpFlags.size())
 								m_tmpFlags.set((o.other.id() * 3) + 2, true);
+							if (is_tmp(o.pairTarget) && o.pairTarget.id() < m_tmpFlags.size())
+								m_tmpFlags.set((o.pairTarget.id() * 3) + 2, true);
 						}
 
 						// Allocate real entities for the surviving temporaries
@@ -86835,11 +86841,11 @@ namespace gaia {
 
 						m_needsSort = false;
 						core::sort(m_ops.begin(), m_ops.end(), [](const Op& a, const Op& b) {
-							if (a.target != b.target)
-								return a.target < b.target;
-							if (a.other != b.other)
-								return a.other < b.other;
-							return false;
+							if (less_op_key(a, b))
+								return true;
+							if (less_op_key(b, a))
+								return false;
+							return a.order < b.order;
 						});
 					}
 
@@ -86891,11 +86897,12 @@ namespace gaia {
 							// We perform per-component reduction.
 							for (uint32_t i = p; i < q;) {
 								const Entity othKey = m_ops[i].other;
-								const Entity othReal = resolve_cached(othKey);
+								const Entity pairTargetKey = m_ops[i].pairTarget;
+								const Entity othReal = resolve_object(m_ops[i]);
 
 								// Group ops with same (target, other)
 								uint32_t j = i + 1;
-								while (j < q && m_ops[j].other == othKey)
+								while (j < q && m_ops[j].other == othKey && m_ops[j].pairTarget == pairTargetKey)
 									++j;
 
 								if (tgtReal != EntityBad) {

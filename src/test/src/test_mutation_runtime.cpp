@@ -2170,6 +2170,33 @@ TEST_CASE("CommandBuffer") {
 		CHECK(p.z == 3);
 	}
 
+	SUBCASE("Interleaved add and set initialize before OnAdd") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto entity = wld.add();
+		uint32_t addHits = 0;
+		Position observed{};
+		(void)wld.observer()
+				.event(ecs::ObserverEvent::OnAdd)
+				.all<Position>()
+				.on_each([&](const Position& value) {
+					++addHits;
+					observed = value;
+				})
+				.entity();
+
+		cb.add<Position>(entity);
+		cb.add<Acceleration>(entity);
+		cb.set<Position>(entity, {1, 2, 3});
+		cb.commit();
+
+		CHECK(addHits == 1);
+		CHECK(observed.x == 1);
+		CHECK(observed.y == 2);
+		CHECK(observed.z == 3);
+	}
+
 	SUBCASE("Delayed 2 components setting of an existing entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
