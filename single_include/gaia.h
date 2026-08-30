@@ -67044,12 +67044,15 @@ namespace gaia {
 				static constexpr uint32_t MAX_TERMS = 32;
 				static_assert(MAX_TERMS <= ChunkHeader::MAX_COMPONENTS);
 
-				cnt::sarray_ext<Entity, MAX_TERMS> tl_new_comps;
-				cnt::sarray_ext<Entity, MAX_TERMS> tl_del_comps;
+				//! Pending added ids, with the archetype component limit reserved inline.
+				cnt::darray_ext<Entity, MAX_TERMS> tl_new_comps;
+				//! Pending removed ids, with the archetype component limit reserved inline.
+				cnt::darray_ext<Entity, MAX_TERMS> tl_del_comps;
 #endif
 
 #if GAIA_OBSERVERS_ENABLED
-				cnt::sarray_ext<Entity, MAX_TERMS> tl_del_nonfragmenting_relations;
+				//! Pending non-fragmenting relation removals, with the archetype component limit reserved inline.
+				cnt::darray_ext<Entity, MAX_TERMS> tl_del_nonfragmenting_relations;
 #endif
 
 				//! Creates a builder from an already fetched entity record.

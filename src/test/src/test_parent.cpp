@@ -195,6 +195,58 @@ TEST_CASE("Non-fragmenting relation - all-relation wildcard removes mixed pair s
 	CHECK_FALSE(wld.has(source, ecs::Pair(ecs::All, ecs::All)));
 }
 
+TEST_CASE("Non-fragmenting relation - wildcard removal observes more pairs than archetype component capacity") {
+	TestWorld twld;
+
+	constexpr uint32_t Count = ecs::ChunkHeader::MAX_COMPONENTS + 1;
+	const auto source = wld.add();
+	uint32_t removed = 0;
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnDel)
+			.all(ecs::Pair(ecs::All, ecs::All))
+			.on_each([&](ecs::Iter& it) {
+				removed += it.size();
+			})
+			.entity();
+
+	GAIA_FOR(Count) {
+		const auto relation = wld.add();
+		const auto target = wld.add();
+		wld.add(relation, ecs::Exclusive);
+		wld.add(relation, ecs::DontFragment);
+		wld.add(source, ecs::Pair(relation, target));
+	}
+
+	wld.del(source, ecs::Pair(ecs::All, ecs::All));
+	CHECK_FALSE(wld.has(source, ecs::Pair(ecs::All, ecs::All)));
+	CHECK(removed == 1);
+}
+
+TEST_CASE("Non-fragmenting relation - builder adds more pairs than archetype component capacity") {
+	TestWorld twld;
+
+	constexpr uint32_t Count = ecs::ChunkHeader::MAX_COMPONENTS + 1;
+	cnt::darray_ext<ecs::Entity, Count> relations;
+	cnt::darray_ext<ecs::Entity, Count> targets;
+	GAIA_FOR(Count) {
+		const auto relation = wld.add();
+		relations.push_back(relation);
+		targets.push_back(wld.add());
+		wld.add(relation, ecs::Exclusive);
+		wld.add(relation, ecs::DontFragment);
+	}
+
+	const auto source = wld.add();
+	{
+		auto builder = wld.build(source);
+		GAIA_FOR(Count) builder.add(ecs::Pair(relations[i], targets[i]));
+		builder.commit();
+	}
+
+	CHECK(wld.has(source, ecs::Pair(ecs::All, ecs::All)));
+	GAIA_FOR(Count) CHECK(wld.has(source, ecs::Pair(relations[i], targets[i])));
+}
+
 TEST_CASE("Non-fragmenting relation - deleting target deletes source and emits source pair OnDel") {
 	TestWorld twld;
 
