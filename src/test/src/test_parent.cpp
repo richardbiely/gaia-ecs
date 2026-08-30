@@ -56,6 +56,76 @@ TEST_CASE("Parent - targets and sources use non-fragmenting relation storage") {
 	CHECK(sources[0] == child);
 }
 
+TEST_CASE("Non-fragmenting relation - wildcard observer sees add and delete") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto targetB = wld.add();
+	const auto source = wld.add();
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+
+	uint32_t addHits = 0;
+	uint32_t delHits = 0;
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all(ecs::Pair(relation, ecs::All))
+			.on_each([&](ecs::Iter&) {
+				++addHits;
+			})
+			.entity();
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnDel)
+			.all(ecs::Pair(relation, ecs::All))
+			.on_each([&](ecs::Iter&) {
+				++delHits;
+			})
+			.entity();
+
+	wld.add(source, ecs::Pair(relation, target));
+	CHECK(addHits == 1);
+	CHECK(delHits == 0);
+
+	wld.del(source, ecs::Pair(relation, target));
+	CHECK(addHits == 1);
+	CHECK(delHits == 1);
+
+	wld.add(source, ecs::Pair(relation, target));
+	wld.add(source, ecs::Pair(relation, targetB));
+	CHECK(addHits == 3);
+	CHECK(delHits == 2);
+}
+
+TEST_CASE("Non-fragmenting relation - wildcard observer sees final builder state") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+
+	uint32_t hits = 0;
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all<Position>()
+			.all(ecs::Pair(relation, ecs::All))
+			.on_each([&](ecs::Iter&) {
+				++hits;
+			})
+			.entity();
+
+	{
+		auto builder = wld.build(source);
+		builder.add(ecs::Pair(relation, target));
+		builder.add<Position>();
+		builder.commit();
+	}
+
+	CHECK(hits == 1);
+}
+
 TEST_CASE("Parent - deleting target deletes children through non-fragmenting relation") {
 	TestWorld twld;
 

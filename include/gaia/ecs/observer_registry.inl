@@ -371,6 +371,13 @@ namespace gaia {
 				if (pObs == nullptr || !world.valid(pObs->entity))
 					continue;
 
+				if (ctx.targetsRemovedAfterPrepare && ctx.event == ObserverEvent::OnDel) {
+					GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
+					const auto& matchesBefore = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
+					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesBefore});
+					continue;
+				}
+
 				auto afterCacheIdx = find_match_cache_entry(matchesAfterCache, *pObs);
 				if (afterCacheIdx == -1) {
 					matchesAfterCache.push_back({});

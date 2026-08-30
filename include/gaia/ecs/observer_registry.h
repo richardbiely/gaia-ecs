@@ -98,6 +98,8 @@ namespace gaia {
 					bool active = false;
 					bool targeted = false;
 					bool targetsAddedAfterPrepare = false;
+					//! Dispatches the captured pre-mutation matches as explicit removal events.
+					bool targetsRemovedAfterPrepare = false;
 					bool resetTraversalCaches = false;
 				};
 

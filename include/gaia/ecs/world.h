@@ -1751,6 +1751,10 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 				//! Pending non-fragmenting relation removals, with the archetype component limit reserved inline.
 				cnt::darray_ext<Entity, MAX_TERMS> tl_del_nonfragmenting_relations;
+				//! Add-event diff contexts captured before non-fragmenting relation storage is updated.
+				cnt::darray_ext<ObserverRegistry::DiffDispatchCtx, 4> tl_add_nonfragmenting_diff_contexts;
+				//! Delete-event diff contexts captured before exclusive non-fragmenting targets are replaced.
+				cnt::darray_ext<ObserverRegistry::DiffDispatchCtx, 4> tl_del_nonfragmenting_diff_contexts;
 #endif
 
 				//! Creates a builder from an already fetched entity record.
@@ -1804,10 +1808,11 @@ namespace gaia {
 																								 : m_world.m_observers.prepare_diff(
 																											 m_world, ObserverEvent::OnDel, EntitySpan{tl_del_comps},
 																											 EntitySpan{&m_entity, 1});
-						auto addDiffCtx = !hasOnAddObservers ? ObserverRegistry::DiffDispatchCtx{}
-																								 : m_world.m_observers.prepare_diff(
-																											 m_world, ObserverEvent::OnAdd, EntitySpan{tl_new_comps},
-																											 EntitySpan{&m_entity, 1});
+						auto addDiffCtx = !hasOnAddObservers
+								? ObserverRegistry::DiffDispatchCtx{}
+								: m_world.m_observers.prepare_diff_add_new(m_world, EntitySpan{tl_new_comps});
+						if (hasOnAddObservers)
+							m_world.m_observers.add_diff_targets(m_world, addDiffCtx, EntitySpan{&m_entity, 1});
 #endif
 
 #if GAIA_OBSERVERS_ENABLED
@@ -1868,10 +1873,11 @@ namespace gaia {
 																								 : m_world.m_observers.prepare_diff(
 																											 m_world, ObserverEvent::OnDel, EntitySpan{tl_del_comps},
 																											 EntitySpan{&m_entity, 1});
-						auto addDiffCtx = !hasOnAddObservers ? ObserverRegistry::DiffDispatchCtx{}
-																								 : m_world.m_observers.prepare_diff(
-																											 m_world, ObserverEvent::OnAdd, EntitySpan{tl_new_comps},
-																											 EntitySpan{&m_entity, 1});
+						auto addDiffCtx = !hasOnAddObservers
+								? ObserverRegistry::DiffDispatchCtx{}
+								: m_world.m_observers.prepare_diff_add_new(m_world, EntitySpan{tl_new_comps});
+						if (hasOnAddObservers)
+							m_world.m_observers.add_diff_targets(m_world, addDiffCtx, EntitySpan{&m_entity, 1});
 #endif
 
 #if GAIA_OBSERVERS_ENABLED
@@ -1909,6 +1915,10 @@ namespace gaia {
 #endif
 						cleanup_deleted_sparse_components();
 					}
+
+#if GAIA_OBSERVERS_ENABLED
+					finish_nonfragmenting_diff_contexts();
+#endif
 
 					// Finalize the builder by reseting the archetype pointer
 					m_pArchetype = nullptr;
@@ -2234,6 +2244,16 @@ namespace gaia {
 				}
 
 #if GAIA_OBSERVERS_ENABLED
+				//! Finishes observer diffs captured before non-fragmenting relation mutations.
+				void finish_nonfragmenting_diff_contexts() {
+					for (auto& ctx: tl_del_nonfragmenting_diff_contexts)
+						m_world.m_observers.finish_diff(m_world, GAIA_MOV(ctx));
+					tl_del_nonfragmenting_diff_contexts.clear();
+					for (auto& ctx: tl_add_nonfragmenting_diff_contexts)
+						m_world.m_observers.finish_diff(m_world, GAIA_MOV(ctx));
+					tl_add_nonfragmenting_diff_contexts.clear();
+				}
+
 				//! Flushes deferred non-fragmenting relation removals after observer dispatch.
 				void flush_del_nonfragmenting_relations() {
 					for (auto entity: tl_del_nonfragmenting_relations)
@@ -2883,7 +2903,15 @@ namespace gaia {
 					const auto* pStore = m_world.nonfragmenting_relation_store(relation);
 					const auto oldTarget = pStore != nullptr ? pStore->target(m_entity) : EntityBad;
 					if (oldTarget != EntityBad && oldTarget != target) {
-						const auto oldPair = Pair(relation, oldTarget);
+						const Entity oldPair = Pair(relation, oldTarget);
+#if GAIA_OBSERVERS_ENABLED
+						auto delDiffCtx = m_world.m_observers.prepare_diff(
+								m_world, ObserverEvent::OnDel, EntitySpan{&oldPair, 1}, EntitySpan{&m_entity, 1});
+						if (delDiffCtx.active) {
+							delDiffCtx.targetsRemovedAfterPrepare = true;
+							tl_del_nonfragmenting_diff_contexts.push_back(GAIA_MOV(delDiffCtx));
+						}
+#endif
 						invalidate_relation_change(oldPair);
 						try_set_flags(oldPair, false);
 						handle_DependsOn(oldPair, false);
@@ -2896,6 +2924,13 @@ namespace gaia {
 					try_set_flags(entity, true);
 					if (!link_is_relation(entity))
 						return false;
+
+#if GAIA_OBSERVERS_ENABLED
+					auto addDiffCtx = m_world.m_observers.prepare_diff_add_new(m_world, EntitySpan{&entity, 1});
+					m_world.m_observers.add_diff_targets(m_world, addDiffCtx, EntitySpan{&m_entity, 1});
+					if (addDiffCtx.active && !addDiffCtx.targetsAddedAfterPrepare)
+						tl_add_nonfragmenting_diff_contexts.push_back(GAIA_MOV(addDiffCtx));
+#endif
 
 					m_world.nonfragmenting_relation_set(m_entity, relation, target);
 
