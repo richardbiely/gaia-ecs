@@ -66108,10 +66108,8 @@ namespace gaia {
 			//! Monotonic stamp used with m_entityVisitStamps for O(1) per-call dedup.
 			mutable uint64_t m_entityVisitStamp = 0;
 
-#if GAIA_OBSERVERS_ENABLED
 			//! Active entity-deletion stack used to suppress duplicate reentrant deletion.
 			cnt::darray_ext<Entity, 16> m_entitiesDeleting;
-#endif
 			//! Array of chunks to delete
 			cnt::darray<ArchetypeChunkPair> m_chunksToDel;
 			//! Array of archetypes to delete
@@ -66295,10 +66293,11 @@ namespace gaia {
 				return m_observerCallbackDepth != 0;
 			}
 	#endif
+#endif
 
 			//! Returns whether \a entity is already being processed by the deletion pipeline.
 			//! \param entity Entity to inspect.
-			//! True when deletion is active for \a entity.
+			//! \return True when deletion is active for \a entity.
 			GAIA_NODISCARD bool entity_deletion_active(Entity entity) const {
 				for (auto deleting: m_entitiesDeleting) {
 					if (deleting == entity)
@@ -66321,7 +66320,6 @@ namespace gaia {
 				GAIA_ASSERT(m_entitiesDeleting.back() == entity);
 				m_entitiesDeleting.pop_back();
 			}
-#endif
 
 			//! Returns whether \a entity is marked DontFragment.
 			//! \param entity Entity
@@ -71305,34 +71303,26 @@ namespace gaia {
 			//! Removes an entity along with all data associated with it.
 			//! \param entity Entity to delete
 			void del(Entity entity) {
-#if GAIA_OBSERVERS_ENABLED
 				if (entity_deletion_active(entity))
 					return;
-#endif
 
 				if (!entity.pair()) {
-					if (relation_uses_non_fragmenting_storage(entity)) {
-						cnt::darray_ext<Entity, 64> pairEntities;
-						if (const auto* pTargets = targets(entity)) {
-							for (auto targetKey: *pTargets)
-								pairEntities.push_back(Pair(entity, targetKey.entity()));
+					cnt::darray_ext<Entity, 64> pairEntities;
+					if (const auto* pTargets = targets(entity)) {
+						for (auto targetKey: *pTargets)
+							pairEntities.push_back(Pair(entity, targetKey.entity()));
+					}
+					if (const auto* pRelations = relations(entity)) {
+						for (auto relationKey: *pRelations) {
+							const auto relation = relationKey.entity();
+							if (relation != entity)
+								pairEntities.push_back(Pair(relation, entity));
 						}
-						if (const auto* pRelations = relations(entity)) {
-							for (auto relationKey: *pRelations) {
-								const auto relation = relationKey.entity();
-								if (relation != entity)
-									pairEntities.push_back(Pair(relation, entity));
-							}
-						}
-
-						auto& ec = fetch(entity);
-						handle_del_entity(ec, entity, EntitySpan{pairEntities.data(), pairEntities.size()});
-						return;
 					}
 
-					// Delete all relationships associated with this entity (if any)
-					del_inter(Pair(entity, All));
-					del_inter(Pair(All, entity));
+					auto& ec = fetch(entity);
+					handle_del_entity(ec, entity, EntitySpan{pairEntities.data(), pairEntities.size()});
+					return;
 				}
 
 				del_inter(entity);
@@ -74371,9 +74361,7 @@ namespace gaia {
 					m_queryCache.clear_archetype_tracking();
 					m_reqArchetypesToDel = {};
 					m_reqEntitiesToDel = {};
-#if GAIA_OBSERVERS_ENABLED
 					m_entitiesDeleting = {};
-#endif
 					m_chunksToDel = {};
 					m_archetypesToDel = {};
 				}
@@ -76720,16 +76708,12 @@ namespace gaia {
 			//! \param ec Entity container associated with \a entity.
 			//! \param entity Entity to request for deletion.
 			void req_del(EntityContainer& ec, Entity entity) {
-#if GAIA_OBSERVERS_ENABLED
 				if (entity_deletion_active(entity))
 					return;
 
 				entity_deletion_enter(entity);
 				req_del_inter(ec, entity);
 				entity_deletion_leave(entity);
-#else
-				req_del_inter(ec, entity);
-#endif
 			}
 
 			//! Invalidates relation and query caches affected by pair removal.
@@ -77395,10 +77379,8 @@ namespace gaia {
 				GAIA_PROF_SCOPE(World::handle_del_entity);
 
 				GAIA_ASSERT(!is_wildcard(entity));
-#if GAIA_OBSERVERS_ENABLED
 				if (entity_deletion_active(entity))
 					return;
-#endif
 
 				if (entity.pair()) {
 					if ((ec.flags & EntityContainerFlags::OnDelete_Error) != 0) {
@@ -77436,9 +77418,7 @@ namespace gaia {
 						return;
 #endif
 
-#if GAIA_OBSERVERS_ENABLED
 					entity_deletion_enter(entity);
-#endif
 
 					if (hasLiveTarget) {
 						const auto& ecTgt = fetch(tgt);
@@ -77467,9 +77447,7 @@ namespace gaia {
 
 					// This entity has been requested to be deleted already. Nothing more for us to do here
 					if (is_req_del(ec)) {
-#if GAIA_OBSERVERS_ENABLED
 						entity_deletion_leave(entity);
-#endif
 						return;
 					}
 
@@ -77517,9 +77495,7 @@ namespace gaia {
 						return;
 #endif
 
-#if GAIA_OBSERVERS_ENABLED
 					entity_deletion_enter(entity);
-#endif
 
 					const bool deleteTargets = (ec.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0 ||
 																		 has_nonfragmenting_relation_target_cond(entity, Pair(OnDeleteTarget, Delete));
@@ -77550,9 +77526,7 @@ namespace gaia {
 					// This entity is has been requested to be deleted already. Nothing more for us to do here
 					if (is_req_del(ec)) {
 						del_pair_entities(pairEntities);
-#if GAIA_OBSERVERS_ENABLED
 						entity_deletion_leave(entity);
-#endif
 						return;
 					}
 
@@ -77593,9 +77567,7 @@ namespace gaia {
 					delete pTracker;
 				}
 #endif
-#if GAIA_OBSERVERS_ENABLED
 				entity_deletion_leave(entity);
-#endif
 			}
 
 			//! Removes a graph connection with the surrounding archetypes.

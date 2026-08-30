@@ -1434,6 +1434,44 @@ TEST_CASE("ChildOf and Parent - recursive delete removes nested subtree") {
 	CHECK_FALSE(wld.has(parentLeaf));
 }
 
+TEST_CASE("Parent - deep non-fragmenting delete cascade") {
+	TestWorld twld;
+
+	constexpr uint32_t Depth = 256;
+	ecs::Entity entities[Depth + 1]{};
+	entities[0] = wld.add();
+	GAIA_FOR(Depth) {
+		entities[i + 1] = wld.add();
+		wld.parent(entities[i + 1], entities[i]);
+	}
+
+	wld.del(entities[0]);
+	wld.update();
+
+	for (const auto entity: entities)
+		CHECK_FALSE(wld.has(entity));
+}
+
+TEST_CASE("Non-fragmenting relation - cyclic delete cascade terminates") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto entityA = wld.add();
+	const auto entityB = wld.add();
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(relation, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete));
+	wld.add(entityA, ecs::Pair(relation, entityB));
+	wld.add(entityB, ecs::Pair(relation, entityA));
+
+	wld.del(entityA);
+	wld.update();
+
+	CHECK_FALSE(wld.has(entityA));
+	CHECK_FALSE(wld.has(entityB));
+	CHECK(wld.has(relation));
+}
+
 TEST_CASE("ChildOf and Parent - recursive delete removes semantic prefab query seeds") {
 	TestWorld twld;
 
