@@ -68223,6 +68223,11 @@ namespace gaia {
 
 					if (entity.pair()) {
 						m_world.invalidate_scope_path_cache();
+						if (is_wildcard(entity)) {
+							handle_del_nonfragmenting_wildcard(entity);
+							handle_del_archetype_wildcard(entity);
+							return;
+						}
 
 						const auto relationPath = relation_mutation_path(entity);
 						if (relationPath == RelationMutationPath::NonFragmentingExclusive)
@@ -68270,6 +68275,32 @@ namespace gaia {
 					finish_del_id(entity);
 				}
 
+				//! Detaches every archetype-backed relation pair matched by a wildcard pair.
+				//! \param entity Wildcard pair selector.
+				void handle_del_archetype_wildcard(Entity entity) {
+					GAIA_ASSERT(entity.pair());
+					GAIA_ASSERT(is_wildcard(entity));
+
+					const auto relationFilter = entity.id();
+					const auto targetFilter = entity.gen();
+					cnt::darray_ext<Entity, 16> pairs;
+					for (auto pair: m_pArchetype->ids_view()) {
+						if (!pair.pair())
+							continue;
+						if (relationFilter != All.id() && pair.id() != relationFilter)
+							continue;
+						if (targetFilter != All.id() && pair.gen() != targetFilter)
+							continue;
+
+						pairs.push_back(pair);
+					}
+
+					for (auto pair: pairs) {
+						if (can_del(pair))
+							handle_del_archetype_relation(pair);
+					}
+				}
+
 				//! Detaches an exclusive non-fragmenting relation pair.
 				//! \param entity Pair to detach.
 				void handle_del_nonfragmenting_relation(Entity entity) {
@@ -68292,6 +68323,36 @@ namespace gaia {
 #endif
 						del_nonfragmenting_relation_id(entity);
 					finish_del_id(entity);
+				}
+
+				//! Detaches every stored non-fragmenting relation pair matched by a wildcard pair.
+				//! \param entity Wildcard pair selector.
+				void handle_del_nonfragmenting_wildcard(Entity entity) {
+					GAIA_ASSERT(entity.pair());
+					GAIA_ASSERT(is_wildcard(entity));
+
+					const auto relationFilter = entity.id();
+					const auto targetFilter = entity.gen();
+					cnt::darray_ext<Entity, 16> pairs;
+					for (const auto& item: m_world.m_nonFragmentingRelationsByRel) {
+						const auto relation = item.first.entity();
+						if (relationFilter != All.id() && relation.id() != relationFilter)
+							continue;
+
+						const auto target = item.second.target(m_entity);
+						if (target == EntityBad || (targetFilter != All.id() && target.id() != targetFilter))
+							continue;
+
+						pairs.push_back(Pair(relation, target));
+					}
+
+					core::sort(pairs.begin(), pairs.end(), [](Entity left, Entity right) {
+						return left < right;
+					});
+					for (auto pair: pairs) {
+						if (can_del(pair))
+							handle_del_nonfragmenting_relation(pair);
+					}
 				}
 
 				//! Prepares a pair id before add validation.
@@ -86729,16 +86790,24 @@ namespace gaia {
 					return tmp;
 				}
 
-				//! Compares operation grouping keys without considering insertion order.
+				//! Compares operation grouping buckets without considering insertion order.
 				//! \param a Left operation.
 				//! \param b Right operation.
-				//! \return True when the grouping key of \p a sorts before the grouping key of \p b.
+				//! \return True when the grouping bucket of \p a sorts before the grouping bucket of \p b.
 				GAIA_NODISCARD static bool less_op_key(const Op& a, const Op& b) {
 					if (a.target != b.target)
 						return a.target < b.target;
+
+					const bool aIsPair = a.pairTarget != EntityBad;
+					const bool bIsPair = b.pairTarget != EntityBad;
+					if (aIsPair != bIsPair)
+						return !aIsPair;
+					if (aIsPair)
+						return false;
+
 					if (a.other != b.other)
 						return a.other < b.other;
-					return a.pairTarget < b.pairTarget;
+					return false;
 				}
 
 				//! Verifies if sorting is necessary after a given operation is added.

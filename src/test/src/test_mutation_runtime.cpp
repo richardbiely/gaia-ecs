@@ -2077,6 +2077,47 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.has(source, ecs::Pair(relation, target)));
 	}
 
+	SUBCASE("Delayed exact pair addition followed by wildcard removal") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto relation = wld.add();
+		const auto target = wld.add();
+		const auto source = wld.add();
+		wld.add(relation, ecs::Exclusive);
+		wld.add(relation, ecs::DontFragment);
+
+		cb.add(source, ecs::Pair(relation, target));
+		cb.del(source, ecs::Pair(relation, ecs::All));
+		cb.commit();
+
+		CHECK_FALSE(wld.has(source, ecs::Pair(relation, ecs::All)));
+
+		cb.del(source, ecs::Pair(relation, ecs::All));
+		cb.add(source, ecs::Pair(relation, target));
+		cb.commit();
+
+		CHECK(wld.has(source, ecs::Pair(relation, target)));
+	}
+
+	SUBCASE("Delayed exclusive pair additions preserve target order") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto relation = wld.add();
+		const auto targetA = wld.add();
+		const auto targetB = wld.add();
+		const auto source = wld.add();
+		wld.add(relation, ecs::Exclusive);
+		wld.add(relation, ecs::DontFragment);
+
+		cb.add(source, ecs::Pair(relation, targetB));
+		cb.add(source, ecs::Pair(relation, targetA));
+		cb.commit();
+
+		CHECK(wld.target(source, relation) == targetA);
+	}
+
 	SUBCASE("Delayed entity addition to an existing entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);

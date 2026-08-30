@@ -408,16 +408,24 @@ namespace gaia {
 					return tmp;
 				}
 
-				//! Compares operation grouping keys without considering insertion order.
+				//! Compares operation grouping buckets without considering insertion order.
 				//! \param a Left operation.
 				//! \param b Right operation.
-				//! \return True when the grouping key of \p a sorts before the grouping key of \p b.
+				//! \return True when the grouping bucket of \p a sorts before the grouping bucket of \p b.
 				GAIA_NODISCARD static bool less_op_key(const Op& a, const Op& b) {
 					if (a.target != b.target)
 						return a.target < b.target;
+
+					const bool aIsPair = a.pairTarget != EntityBad;
+					const bool bIsPair = b.pairTarget != EntityBad;
+					if (aIsPair != bIsPair)
+						return !aIsPair;
+					if (aIsPair)
+						return false;
+
 					if (a.other != b.other)
 						return a.other < b.other;
-					return a.pairTarget < b.pairTarget;
+					return false;
 				}
 
 				//! Verifies if sorting is necessary after a given operation is added.

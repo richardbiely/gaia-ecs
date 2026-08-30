@@ -145,6 +145,56 @@ TEST_CASE("Non-fragmenting relation - deleting target removes source pair when p
 	CHECK(removed == 1);
 }
 
+TEST_CASE("Non-fragmenting relation - wildcard removal clears source binding") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(source, ecs::Pair(relation, target));
+	uint32_t removed = 0;
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnDel)
+			.all(ecs::Pair(relation, target))
+			.on_each([&](ecs::Iter& it) {
+				removed += it.size();
+			})
+			.entity();
+
+	CHECK(wld.has(source, ecs::Pair(relation, ecs::All)));
+	wld.del(source, ecs::Pair(relation, ecs::All));
+	CHECK_FALSE(wld.has(source, ecs::Pair(relation, ecs::All)));
+	CHECK(removed == 1);
+}
+
+TEST_CASE("Non-fragmenting relation - all-relation wildcard removes mixed pair storage") {
+	TestWorld twld;
+
+	const auto relationA = wld.add();
+	const auto relationB = wld.add();
+	const auto fragmentingRelation = wld.add();
+	const auto targetA = wld.add();
+	const auto targetB = wld.add();
+	const auto source = wld.add();
+	wld.add(relationA, ecs::Exclusive);
+	wld.add(relationA, ecs::DontFragment);
+	wld.add(relationB, ecs::Exclusive);
+	wld.add(relationB, ecs::DontFragment);
+	wld.add(source, ecs::Pair(relationA, targetA));
+	wld.add(source, ecs::Pair(relationB, targetB));
+	wld.add(source, ecs::Pair(fragmentingRelation, targetA));
+
+	wld.del(source, ecs::Pair(ecs::All, targetA));
+	CHECK_FALSE(wld.has(source, ecs::Pair(relationA, targetA)));
+	CHECK_FALSE(wld.has(source, ecs::Pair(fragmentingRelation, targetA)));
+	CHECK(wld.has(source, ecs::Pair(relationB, targetB)));
+
+	wld.del(source, ecs::Pair(ecs::All, ecs::All));
+	CHECK_FALSE(wld.has(source, ecs::Pair(ecs::All, ecs::All)));
+}
+
 TEST_CASE("Non-fragmenting relation - deleting target deletes source and emits source pair OnDel") {
 	TestWorld twld;
 
