@@ -70,6 +70,8 @@ namespace gaia {
 					Entity target;
 					//! For ADD_COMPONENT/SET_COMPONENT/DEL_COMPONENT (other entity) or CPY_ENTITY source
 					Entity other;
+					//! Pair target kept separately so temporary pair endpoints survive until commit.
+					Entity pairTarget = EntityBad;
 				};
 
 				//! Parent world
@@ -149,6 +151,11 @@ namespace gaia {
 				void add(Entity entity, Entity other) {
 					core::lock_scope lock(m_acc);
 
+					if (other.pair()) {
+						push_op({OpType::ADD_COMPONENT, 0, entity, m_world.get(other.id()), m_world.get(other.gen())});
+						return;
+					}
+
 					push_op({OpType::ADD_COMPONENT, 0, entity, other});
 				}
 
@@ -158,7 +165,7 @@ namespace gaia {
 				void add(Entity entity, const Pair& pair) {
 					core::lock_scope lock(m_acc);
 
-					push_op({OpType::ADD_COMPONENT, 0, entity, (Entity)pair});
+					push_op({OpType::ADD_COMPONENT, 0, entity, pair.first(), pair.second()});
 				}
 
 				//! Requests a component \a T to be added to entity. Also sets its value.
@@ -232,6 +239,11 @@ namespace gaia {
 				void del(Entity entity, Entity object) {
 					core::lock_scope lock(m_acc);
 
+					if (object.pair()) {
+						push_op({OpType::DEL_COMPONENT, 0, entity, m_world.get(object.id()), m_world.get(object.gen())});
+						return;
+					}
+
 					push_op({OpType::DEL_COMPONENT, 0, entity, object});
 				}
 
@@ -241,7 +253,7 @@ namespace gaia {
 				void del(Entity entity, const Pair& pair) {
 					core::lock_scope lock(m_acc);
 
-					push_op({OpType::DEL_COMPONENT, 0, entity, (Entity)pair});
+					push_op({OpType::DEL_COMPONENT, 0, entity, pair.first(), pair.second()});
 				}
 
 			private:
@@ -267,16 +279,23 @@ namespace gaia {
 					return EntityBad;
 				}
 
-				//! Rebuilds a Pair wrapper from its encoded entity form.
-				GAIA_NODISCARD Pair decode_pair(Entity pair) const {
-					GAIA_ASSERT(pair.pair());
-					return Pair(m_world.get(pair.id()), m_world.get(pair.gen()));
+				//! Resolves an operation's component or pair identifier.
+				GAIA_NODISCARD Entity resolve_object(const Op& op) const {
+					if (op.pairTarget == EntityBad)
+						return resolve(op.other);
+
+					const auto relation = resolve(op.other);
+					const auto target = resolve(op.pairTarget);
+					if (relation == EntityBad || target == EntityBad)
+						return EntityBad;
+
+					return (Entity)Pair(relation, target);
 				}
 
 				//! Replays a component or relationship pair addition.
 				void replay_add(Entity target, Entity object) {
 					if (object.pair()) {
-						World::EntityBuilder(m_world, target).add(decode_pair(object));
+						World::EntityBuilder(m_world, target).add(Pair(m_world.get(object.id()), m_world.get(object.gen())));
 						return;
 					}
 
@@ -296,7 +315,7 @@ namespace gaia {
 				//! Replays a component or relationship pair removal.
 				void replay_del(Entity target, Entity object) {
 					if (object.pair())
-						m_world.del(target, decode_pair(object));
+						m_world.del(target, Pair(m_world.get(object.id()), m_world.get(object.gen())));
 					else
 						m_world.del(target, object);
 				}
@@ -483,6 +502,8 @@ namespace gaia {
 
 							if (is_tmp(o.other) && o.other.id() < m_tmpFlags.size())
 								m_tmpFlags.set((o.other.id() * 3) + 2, true);
+							if (is_tmp(o.pairTarget) && o.pairTarget.id() < m_tmpFlags.size())
+								m_tmpFlags.set((o.pairTarget.id() * 3) + 2, true);
 						}
 
 						// Allocate real entities for the surviving temporaries
@@ -518,6 +539,8 @@ namespace gaia {
 								return a.target < b.target;
 							if (a.other != b.other)
 								return a.other < b.other;
+							if (a.pairTarget != b.pairTarget)
+								return a.pairTarget < b.pairTarget;
 							return false;
 						});
 					}
@@ -570,11 +593,12 @@ namespace gaia {
 							// We perform per-component reduction.
 							for (uint32_t i = p; i < q;) {
 								const Entity othKey = m_ops[i].other;
-								const Entity othReal = resolve_cached(othKey);
+								const Entity pairTargetKey = m_ops[i].pairTarget;
+								const Entity othReal = resolve_object(m_ops[i]);
 
 								// Group ops with same (target, other)
 								uint32_t j = i + 1;
-								while (j < q && m_ops[j].other == othKey)
+								while (j < q && m_ops[j].other == othKey && m_ops[j].pairTarget == pairTargetKey)
 									++j;
 
 								if (tgtReal != EntityBad) {

@@ -2061,6 +2061,22 @@ TEST_CASE("CommandBuffer") {
 		CHECK_FALSE(wld.has(e, pair));
 	}
 
+	SUBCASE("Delayed pair addition with temporary relation and target") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto source = wld.add();
+		const auto firstDeferredId = wld.size();
+		const auto relationTmp = cb.add();
+		const auto targetTmp = cb.add();
+		cb.add(source, ecs::Pair(relationTmp, targetTmp));
+		cb.commit();
+
+		const auto relation = wld.get(firstDeferredId);
+		const auto target = wld.get(firstDeferredId + 1);
+		CHECK(wld.has(source, ecs::Pair(relation, target)));
+	}
+
 	SUBCASE("Delayed entity addition to an existing entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
