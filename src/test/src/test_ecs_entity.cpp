@@ -1061,6 +1061,20 @@ TEST_CASE("Add - many components") {
 	GAIA_FOR(N) create();
 }
 
+TEST_CASE("Add - maximum archetype id capacity is usable") {
+	TestWorld twld;
+
+	ecs::Entity ids[ecs::ChunkHeader::MAX_COMPONENTS]{};
+	const auto entity = wld.add();
+	GAIA_FOR(ecs::ChunkHeader::MAX_COMPONENTS) {
+		ids[i] = wld.add();
+		wld.add(entity, ids[i]);
+	}
+
+	GAIA_FOR(ecs::ChunkHeader::MAX_COMPONENTS) CHECK(wld.has(entity, ids[i]));
+	CHECK(wld.fetch(entity).pArchetype->ids_view().size() == ecs::ChunkHeader::MAX_COMPONENTS);
+}
+
 TEST_CASE("Add - many components, bulk") {
 	TestWorld twld;
 

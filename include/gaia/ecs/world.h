@@ -10527,7 +10527,7 @@ namespace gaia {
 
 				// Make sure not to add too many entities/components
 				auto ids = archetype.ids_view();
-				if GAIA_UNLIKELY (ids.size() + 1 >= ChunkHeader::MAX_COMPONENTS) {
+				if GAIA_UNLIKELY (ids.size() + 1 > ChunkHeader::MAX_COMPONENTS) {
 					GAIA_ASSERT2(false, "Trying to add too many entities to entity!");
 					GAIA_LOG_W("Trying to add an entity to entity [%u:%u] but there's no space left!", entity.id(), entity.gen());
 					print_archetype_entities(world, archetype, addEntity, true);

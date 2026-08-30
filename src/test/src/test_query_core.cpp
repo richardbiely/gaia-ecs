@@ -21,6 +21,39 @@ TEST_CASE("Query - empty storage is copyable") {
 	assigned = source;
 }
 
+TEST_CASE("Query - maximum term capacity is usable") {
+	TestWorld twld;
+
+	ecs::Entity terms[ecs::MAX_ITEMS_IN_QUERY]{};
+	const auto entity = wld.add();
+	auto query = wld.uquery();
+	GAIA_FOR(ecs::MAX_ITEMS_IN_QUERY) {
+		terms[i] = wld.add();
+		wld.add(entity, terms[i]);
+		query.all(terms[i]);
+	}
+
+	CHECK(query.count() == 1);
+	expect_exact_entities(query, {entity});
+}
+
+TEST_CASE("Query Filter - maximum changed term capacity is usable") {
+	TestWorld twld;
+
+	ecs::Entity terms[ecs::MAX_ITEMS_IN_QUERY]{};
+	const auto entity = wld.add();
+	auto query = wld.uquery();
+	GAIA_FOR(ecs::MAX_ITEMS_IN_QUERY) {
+		terms[i] = wld.add();
+		wld.add(entity, terms[i]);
+		query.all(terms[i]);
+	}
+	GAIA_FOR(ecs::MAX_ITEMS_IN_QUERY) query.changed(terms[i]);
+
+	CHECK(query.count() == 1);
+	expect_exact_entities(query, {entity});
+}
+
 TEST_CASE("Query - assignment releases overwritten cached query") {
 	TestWorld twld;
 
