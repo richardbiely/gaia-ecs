@@ -11,9 +11,11 @@ namespace gaia {
 			if (!world.enabled(ec))
 				return;
 
+			// Reset the query iterator so this snapshot always starts from the first match.
 			obs.query.reset();
 			obs.query.collect_entities_enabled(out);
 
+			// The later comparison walks two ordered lists instead of searching one list for every entity.
 			core::sort(out, [](Entity left, Entity right) {
 				return left.value() < right.value();
 			});
@@ -84,6 +86,7 @@ namespace gaia {
 			if (targets.empty())
 				return;
 
+			// Sorting places duplicates next to each other and gives the diff pass a deterministic order.
 			core::sort(targets, [](Entity left, Entity right) {
 				return left.value() < right.value();
 			});
@@ -103,6 +106,8 @@ namespace gaia {
 		}
 
 		inline bool ObserverRegistry::DiffDispatcher::same_query_ctx(const QueryCtx& left, const QueryCtx& right) {
+			// The hash rejects different queries quickly. The field comparisons below make
+			// cache sharing safe even if two different queries have the same hash.
 			if (left.hashLookup != right.hashLookup)
 				return false;
 
@@ -135,6 +140,9 @@ namespace gaia {
 
 			GAIA_FOR((uint32_t)cache.size()) {
 				auto& entry = cache[i];
+
+				// The same query object is an immediate match. Other observers may still use
+				// an equivalent query, which is checked after the hash comparison.
 				if (entry.pQueryInfoRepresentative == &queryInfo)
 					return (int32_t)i;
 				if (entry.queryHash != queryHash || entry.pObsRepresentative == nullptr)
@@ -156,6 +164,8 @@ namespace gaia {
 			if (index.empty())
 				return ctx;
 
+			// Creating or deleting an entity also changes whether that entity itself can be
+			// used as a query term. Such changes may affect entities beyond the supplied targets.
 			bool hasEntityLifecycleTerm = false;
 			if (!targetEntities.empty() && !terms.empty()) {
 				for (auto term: terms) {
@@ -174,6 +184,8 @@ namespace gaia {
 				}
 			}
 
+			// Use the supplied targets only when no observer depends on a source or relation
+			// that can carry the change to other entities.
 			if (!hasEntityLifecycleTerm && !targetEntities.empty() && !terms.empty() &&
 					!SharedDispatch::has_terms(index.sourceTerm, terms) &&
 					!SharedDispatch::has_pair_relations(world, index.traversalRelation, terms)) {
@@ -183,6 +195,8 @@ namespace gaia {
 				normalize_targets(ctx.targets);
 			}
 
+			// Look up observers through the narrowest available indexes. The match stamp
+			// prevents one observer from being added more than once through different terms.
 			registry.m_relevant_observers_tmp.clear();
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			if (terms.empty()) {
@@ -210,11 +224,15 @@ namespace gaia {
 				}
 			}
 
+			// Entity lifetime changes and globally dynamic terms cannot be represented by
+			// a single exact index lookup, so include their broader observer lists.
 			if (hasEntityLifecycleTerm)
 				SharedDispatch::collect_diff_from_list(registry, world, index.all, matchStamp);
 			if (!terms.empty() && !hasEntityLifecycleTerm)
 				SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp);
 
+			// A propagated observer may still turn a broad dispatch into a known target set.
+			// Observers with the same propagation plan share the result of that work.
 			if (!ctx.targeted && !targetEntities.empty() && !registry.m_relevant_observers_tmp.empty()) {
 				cnt::darray<Entity> narrowedTargets;
 				cnt::darray<TargetNarrowCacheEntry> narrowCache;
@@ -259,6 +277,8 @@ namespace gaia {
 			if (registry.m_relevant_observers_tmp.empty())
 				return ctx;
 
+			// Capture each distinct query once. Several observers may use the same query,
+			// while keeping separate callbacks and event settings.
 			ctx.active = true;
 			for (auto* pObs: registry.m_relevant_observers_tmp) {
 				ctx.observers.push_back({});
@@ -296,11 +316,14 @@ namespace gaia {
 			if (index.empty())
 				return ctx;
 
+			// Source and traversal observers can affect existing entities. They require the
+			// normal before snapshot even though the directly created entities are new.
 			if (terms.empty() || SharedDispatch::has_terms(index.sourceTerm, terms) ||
 					SharedDispatch::has_pair_relations(world, index.traversalRelation, terms)) {
 				return prepare(registry, world, ObserverEvent::OnAdd, terms);
 			}
 
+			// Only observers reachable from the new entity's terms need to be considered.
 			registry.m_relevant_observers_tmp.clear();
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			for (auto term: terms) {
@@ -350,6 +373,8 @@ namespace gaia {
 			if (!ctx.active)
 				return;
 
+			// A changed traversal relation can invalidate query paths even when no local
+			// component changed on the entities returned by the query.
 			if (ctx.resetTraversalCaches) {
 				world.m_targetsTravCache = {};
 				world.m_srcBfsTravCache = {};
@@ -363,6 +388,7 @@ namespace gaia {
 			if (ctx.targeted)
 				normalize_targets(ctx.targets);
 
+			// As with the before snapshot, equivalent observer queries share one result.
 			cnt::darray<MatchCacheEntry> matchesAfterCache;
 			cnt::darray<Entity> delta;
 
@@ -371,6 +397,8 @@ namespace gaia {
 				if (pObs == nullptr || !world.valid(pObs->entity))
 					continue;
 
+				// Some removal paths delete the target before this function runs. Their last
+				// valid matches were captured in the before snapshot and are the event targets.
 				if (ctx.targetsRemovedAfterPrepare && ctx.event == ObserverEvent::OnDel) {
 					GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
 					const auto& matchesBefore = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
@@ -395,11 +423,15 @@ namespace gaia {
 
 				const auto& matchesAfter = matchesAfterCache[(uint32_t)afterCacheIdx].matches;
 
+				// Newly created entities have no meaningful before result. Every matching
+				// entity in the after snapshot is therefore an added match.
 				if (ctx.targetsAddedAfterPrepare && ctx.event == ObserverEvent::OnAdd) {
 					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesAfter});
 					continue;
 				}
 
+				// Both lists are sorted. Walk them together to collect only entities that
+				// entered the query for OnAdd or left it for OnDel.
 				GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
 				const auto& before = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
 				delta.clear();
@@ -449,6 +481,8 @@ namespace gaia {
 			if GAIA_UNLIKELY (world.tearing_down())
 				return;
 
+			// Most mutations have no observers. Archetype and registry flags make that
+			// common path return without building a candidate list.
 			if (!archetype.has_observed_terms() && registry.m_observer_map_add.empty() &&
 					registry.m_observer_map_add_is.empty())
 				return;
@@ -458,6 +492,8 @@ namespace gaia {
 					!SharedDispatch::has_inherited_terms(world, registry.m_observer_map_add, entsAdded))
 				return;
 
+			// Exact terms, semantic Is targets, and inherited terms can all lead to the
+			// same observer. The match stamp keeps the candidate list unique.
 			const bool archetypeIsPrefab = archetype.has(Prefab);
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			for (auto comp: entsAdded) {
@@ -476,6 +512,8 @@ namespace gaia {
 				SharedDispatch::collect_for_inherited_terms(registry, world, registry.m_observer_map_add, target, matchStamp);
 			}
 
+			// The index only identifies possible observers. The plan and query decide
+			// whether this archetype and these entities are actual matches.
 			for (auto* pObs: registry.m_relevant_observers_tmp) {
 				auto& obs = *pObs;
 				if (!obs.plan.uses_direct_dispatch())
@@ -504,6 +542,8 @@ namespace gaia {
 					registry.m_observer_map_del_is.empty())
 				return;
 
+			// OnDel uses the old archetype, so direct negative plans are known to have
+			// stopped matching even though their normal positive check returns false.
 			const bool archetypeIsPrefab = archetype.has(Prefab);
 			if (!archetype.has_observed_terms() && !SharedDispatch::has_terms(registry.m_observer_map_del, entsRemoved) &&
 					!SharedDispatch::has_semantic_is_terms(world, registry.m_observer_map_del_is, entsRemoved) &&
@@ -556,6 +596,8 @@ namespace gaia {
 			if (targets.empty())
 				return;
 
+			// A concrete pair can satisfy observers registered for the exact pair, either
+			// wildcard endpoint, or both wildcard endpoints.
 			registry.m_relevant_observers_tmp.clear();
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			SharedDispatch::collect_from_map<false>(registry, world, registry.m_observer_map_set, term, matchStamp);
@@ -572,6 +614,7 @@ namespace gaia {
 			if (registry.m_relevant_observers_tmp.empty())
 				return;
 
+			// OnSet is value based, so every target must still satisfy the complete query.
 			for (auto* pObs: registry.m_relevant_observers_tmp) {
 				auto& obs = *pObs;
 				for (auto entity: targets) {
@@ -606,6 +649,7 @@ namespace gaia {
 				GAIA_ASSERT(pObs != nullptr);
 				if (pObs == nullptr)
 					continue;
+				// One mutation can find the same observer through several changed terms.
 				if (pObs->lastMatchStamp == matchStamp)
 					continue;
 
@@ -682,6 +726,7 @@ namespace gaia {
 
 		template <typename Func>
 		void ObserverRegistry::SharedDispatch::for_each_inherited_term(World& world, Entity baseEntity, Func&& func) {
+			// Only plain component terms can be inherited through OnInstantiate.
 			auto collectTerms = [&](Entity entity) {
 				if (!world.valid(entity))
 					return;
@@ -799,6 +844,7 @@ namespace gaia {
 			if (!term.pair())
 				return world.valid(term);
 
+			// A wildcard pair is a search pattern, not a concrete record owned by the world.
 			if (is_wildcard(term))
 				return false;
 
@@ -821,6 +867,8 @@ namespace gaia {
 			else
 				ec.flags &= ~EntityContainerFlags::IsObserved;
 
+			// Archetypes keep a counter so mutation dispatch can reject unobserved changes
+			// without searching the registry. Keep every archetype containing this term in sync.
 			const auto it = world.m_entityToArchetypeMap.find(EntityLookupKey(term));
 			if (it == world.m_entityToArchetypeMap.end())
 				return;
@@ -844,6 +892,7 @@ namespace gaia {
 				return world.try_mark_entity_visited(entity, visitStamp);
 			};
 
+			// Self is a query choice independent of walking the relation.
 			if (query_trav_has(travKind, QueryTravKind::Self)) {
 				if (try_mark_visited(root))
 					outTargets.push_back(root);
@@ -852,6 +901,7 @@ namespace gaia {
 			if (!query_trav_has(travKind, QueryTravKind::Up))
 				return;
 
+			// Use the world's cached breadth-first traversal for the common unlimited path.
 			if (travDepth == QueryTermOptions::TravDepthUnlimited && !query_trav_has(travKind, QueryTravKind::Down)) {
 				world.sources_bfs(relation, root, [&](Entity source) {
 					if (try_mark_visited(source))
@@ -868,6 +918,7 @@ namespace gaia {
 				return;
 			}
 
+			// Limited-depth traversal keeps the current depth beside each queued entity.
 			cnt::darray_ext<Entity, 32> queue;
 			cnt::darray_ext<uint8_t, 32> depths;
 			queue.push_back(root);
@@ -899,6 +950,7 @@ namespace gaia {
 			auto& entry = registry.m_propagated_target_cache[key];
 			const auto bindingRelationVersion = world.rel_version(obs.plan.diff.bindingRelation);
 			const auto traversalRelationVersion = world.rel_version(obs.plan.diff.traversalRelation);
+			// Relation versions let this cache survive unrelated world mutations.
 			const bool cacheValid = entry.bindingRelationVersion == bindingRelationVersion &&
 															entry.traversalRelationVersion == traversalRelationVersion;
 
@@ -907,6 +959,8 @@ namespace gaia {
 				entry.traversalRelationVersion = traversalRelationVersion;
 				entry.targets.clear();
 
+				// First find the binding targets reachable from the changed source. Then find
+				// entities whose binding relation points at any of those targets.
 				const auto visitStamp = world.next_entity_visit_stamp();
 				cnt::darray<Entity> bindingTargets;
 				collect_traversal_descendants(
@@ -957,6 +1011,8 @@ namespace gaia {
 					obs.plan.diff.traversalTriggerTermCount == 0)
 				return false;
 
+			// A source change matters only when it touches the source entity itself, the
+			// traversal relation, or a term recorded as a traversal trigger by the plan.
 			bool termTriggered = false;
 			for (auto changedTerm: changedTerms) {
 				for (auto changedSource: changedSources) {
@@ -986,6 +1042,8 @@ namespace gaia {
 			if (!termTriggered)
 				return false;
 
+			// One source needs no cross-source duplicate tracking. Multiple sources share
+			// a visit stamp so the same bound entity is returned only once.
 			if (changedSources.size() == 1) {
 				add_propagated_targets_cached(registry, world, obs, changedSources[0], outTargets);
 				return true;
@@ -1056,11 +1114,15 @@ namespace gaia {
 					return;
 			}
 
+			// Every diff observer remains available through the complete list for mutation
+			// paths that cannot provide precise changed terms.
 			auto& index = diff_index(obs.event);
 			add_observer_to_list(index.all, observer);
 
 			bool registered = false;
 
+			// Add every index key that can identify this dependency. Registration is
+			// unique because one term may describe the same dependency in several ways.
 			if (term != EntityBad && term != All) {
 				add_observer_to_map_unique(index.direct, term, observer);
 				registered = true;
@@ -1093,6 +1155,7 @@ namespace gaia {
 				}
 			}
 
+			// Fully dynamic terms cannot be found from a concrete changed term alone.
 			if (!registered || is_observer_term_globally_dynamic(term))
 				add_observer_to_list(index.global, observer);
 		}
@@ -1137,11 +1200,13 @@ namespace gaia {
 		inline void ObserverRegistry::add(World& world, Entity term, Entity observer, QueryMatchKind matchKind) {
 			GAIA_ASSERT(!observer.pair());
 			GAIA_ASSERT(world.valid(observer));
-			// For a pair term, valid(pair) is true only if that exact pair already exists
-			// in the world's pair records. Observers are allowed to register pair terms that
-			// may appear later, so asserting just world.valid(term) for pairs when adding is wrong.
+			// A concrete pair is valid only after the world has created its pair record.
+			// Observers may register pair terms before that happens, so only plain terms
+			// must already be valid here.
 			GAIA_ASSERT(term.pair() || world.valid(term));
 
+			// Mark the term only when the first observer is attached. Archetypes use this
+			// state to skip registry work for terms that nobody observes.
 			const auto wasObserved = has_observers_for_term(term);
 			const auto canMarkObserved = can_mark_term_observed(world, term);
 			const auto& ec = world.fetch(observer);
@@ -1170,6 +1235,8 @@ namespace gaia {
 		inline void ObserverRegistry::del(World& world, Entity term) {
 			GAIA_ASSERT(world.valid(term));
 
+			// First remove entries keyed directly by this entity. When term is an observer
+			// entity, its runtime data tells us whether the broader indexes must be scanned.
 			const auto termKey = EntityLookupKey(term);
 			const auto erasedData = m_observer_data.erase(termKey);
 			const auto erasedOnAdd = m_observer_map_add.erase(termKey);
@@ -1188,6 +1255,8 @@ namespace gaia {
 			if (erasedData == 0)
 				return;
 
+			// The observer may appear under several query dependencies. Remove every
+			// occurrence and clear observed flags when the last registration disappears.
 			auto remove_observer_from_map = [&](auto& map) {
 				for (auto it = map.begin(); it != map.end();) {
 					auto& observers = it->second;
