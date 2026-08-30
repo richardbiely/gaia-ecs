@@ -4132,6 +4132,26 @@ namespace gaia {
 					eb.del(ids[i]);
 
 				eb.commit();
+
+				cnt::darray_ext<Entity, 16> sparseIds;
+				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
+					const auto component = compKey.entity();
+					if (component_is_non_fragmenting(component) && store.func_has(store.pStore, entity))
+						sparseIds.push_back(component);
+				}
+				for (const auto component: sparseIds)
+					del(entity, component);
+
+				cnt::darray_ext<Entity, 8> relationIds;
+				for (const auto& [relationKey, store]: m_nonFragmentingRelationsByRel) {
+					if (store.target(entity) != EntityBad)
+						relationIds.push_back(relationKey.entity());
+				}
+				for (const auto relation: relationIds) {
+					const auto targetEntity = target(entity, relation);
+					if (targetEntity != EntityBad)
+						del(entity, Pair(relation, targetEntity));
+				}
 			}
 
 			//----------------------------------------------------------------------

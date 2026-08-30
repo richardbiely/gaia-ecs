@@ -2534,6 +2534,36 @@ TEST_CASE("Query Filter - no systems") {
 	}
 }
 
+TEST_CASE("Query Filter - changed query survives removal, deletion, and row recreation") {
+	TestWorld twld;
+	struct Marker {};
+	struct Value {
+		int value;
+	};
+
+	const auto entity = wld.add();
+	wld.add<Marker>(entity);
+	wld.add<Value>(entity, {1});
+
+	auto query = wld.query().all<Marker>().all<Value>().changed<Value>();
+	expect_changed_consume_exact(query, {entity});
+
+	wld.del<Value>(entity);
+	expect_changed_consume_exact(query, {});
+
+	wld.add<Value>(entity, {2});
+	expect_changed_consume_exact(query, {entity});
+
+	wld.del(entity);
+	wld.update();
+	expect_changed_consume_exact(query, {});
+
+	const auto replacement = wld.add();
+	wld.add<Marker>(replacement);
+	wld.add<Value>(replacement, {3});
+	expect_changed_consume_exact(query, {replacement});
+}
+
 TEST_CASE("Query Filter - Iter direct mutable views track changes correctly") {
 	SUBCASE("AoS") {
 		TestWorld twld;

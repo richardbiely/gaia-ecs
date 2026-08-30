@@ -855,6 +855,49 @@ TEST_CASE("Parent - direct query terms are evaluated as entity filters") {
 	expect_exact_entities(qOr, {eA, eC});
 }
 
+TEST_CASE("Parent - clear and recycled child slots do not retain non-fragmenting relations") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.add<Position>(child);
+	wld.parent(child, root);
+
+	auto exact = wld.query().all<Position>().all(ecs::Pair(ecs::Parent, root));
+	auto wildcard = wld.query().all<Position>().all(ecs::Pair(ecs::Parent, ecs::All));
+	CHECK(exact.count() == 1);
+	CHECK(wildcard.count() == 1);
+
+	wld.clear(child);
+	CHECK(wld.has(child));
+	CHECK(wld.target(child, ecs::Parent) == ecs::EntityBad);
+	CHECK_FALSE(wld.has(child, ecs::Pair(ecs::Parent, root)));
+	CHECK(exact.count() == 0);
+	CHECK(wildcard.count() == 0);
+
+	wld.add<Position>(child);
+	wld.parent(child, root);
+	CHECK(exact.count() == 1);
+	CHECK(wildcard.count() == 1);
+
+	wld.del(child);
+	wld.update();
+	CHECK(exact.count() == 0);
+	CHECK(wildcard.count() == 0);
+
+	const auto recycled = wld.add();
+	CHECK(recycled.id() == child.id());
+	CHECK(recycled.gen() != child.gen());
+	wld.add<Position>(recycled);
+	CHECK(wld.target(recycled, ecs::Parent) == ecs::EntityBad);
+	CHECK(exact.count() == 0);
+	CHECK(wildcard.count() == 0);
+
+	wld.parent(recycled, root);
+	CHECK(exact.count() == 1);
+	CHECK(wildcard.count() == 1);
+}
+
 TEST_CASE("Parent - duplicate direct set does not dispatch OnAdd again") {
 	TestWorld twld;
 

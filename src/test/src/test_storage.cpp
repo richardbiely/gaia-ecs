@@ -871,6 +871,27 @@ TEST_CASE("Clear removes table unique and sparse component state") {
 	CHECK(wld.get<PositionSparse>(e).x == doctest::Approx(14.0f));
 }
 
+TEST_CASE("Clear removes non-fragmenting sparse component state") {
+	SparseTestWorld twld;
+	const auto& compItem = wld.add<PositionSparse>();
+	wld.add(compItem.entity, ecs::DontFragment);
+
+	const auto entity = wld.add();
+	const auto* pArchetype = wld.fetch(entity).pArchetype;
+	wld.add<PositionSparse>(entity, {1.0f, 2.0f, 3.0f});
+	CHECK(wld.has<PositionSparse>(entity));
+	CHECK(wld.fetch(entity).pArchetype == pArchetype);
+
+	wld.clear(entity);
+	CHECK(wld.has(entity));
+	CHECK_FALSE(wld.has<PositionSparse>(entity));
+	CHECK(wld.fetch(entity).pArchetype == pArchetype);
+
+	wld.add<PositionSparse>(entity, {4.0f, 5.0f, 6.0f});
+	CHECK(wld.has<PositionSparse>(entity));
+	CHECK(wld.get<PositionSparse>(entity).x == doctest::Approx(4.0f));
+}
+
 TEST_CASE("EntityContainer cached entity slot across row swap and archetype move") {
 	TestWorld twld;
 
