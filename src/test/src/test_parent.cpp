@@ -72,6 +72,42 @@ TEST_CASE("Parent - deleting target deletes children through non-fragmenting rel
 	CHECK(!wld.has(child));
 }
 
+TEST_CASE("Parent - cached query rematches after parent target recycling") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.add<Position>(child);
+	wld.parent(child, root);
+
+	auto query = wld.query().all<Position>().all(ecs::Pair(ecs::Parent, root));
+	CHECK(query.count() == 1);
+
+	wld.del(root);
+	wld.update();
+	CHECK_FALSE(wld.has(root));
+	CHECK_FALSE(wld.has(child));
+	CHECK(query.count() == 0);
+
+	ecs::Entity recycledRoot = ecs::EntityBad;
+	for (uint32_t i = 0; i < 64 && recycledRoot == ecs::EntityBad; ++i) {
+		const auto candidate = wld.add();
+		if (candidate.id() == root.id())
+			recycledRoot = candidate;
+	}
+	CHECK(recycledRoot != ecs::EntityBad);
+	if (recycledRoot == ecs::EntityBad)
+		return;
+	CHECK(recycledRoot.gen() != root.gen());
+
+	const auto recycledChild = wld.add();
+	wld.add<Position>(recycledChild);
+	wld.parent(recycledChild, recycledRoot);
+
+	CHECK(query.count() == 1);
+	expect_exact_entities(query, {recycledChild});
+}
+
 TEST_CASE("Non-fragmenting relation - deleting target removes source pair when policy is Remove") {
 	TestWorld twld;
 
@@ -186,6 +222,25 @@ TEST_CASE("Non-fragmenting relation - deleting relation entity emits source pair
 	CHECK_FALSE(wld.has(sourceB, ecs::Pair(relation, targetB)));
 	CHECK(removedA == 1);
 	CHECK(removedB == 1);
+}
+
+TEST_CASE("Non-fragmenting relation - recycled self-pair does not retain stale binding") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(relation, ecs::Pair(relation, relation));
+
+	CHECK(wld.has(relation, ecs::Pair(relation, relation)));
+	wld.del(relation);
+	wld.update();
+	CHECK_FALSE(wld.has(relation));
+
+	const auto recycled = wld.add();
+	CHECK(recycled.id() == relation.id());
+	CHECK(recycled.gen() != relation.gen());
+	CHECK_FALSE(wld.has(recycled, ecs::Pair(recycled, recycled)));
 }
 
 TEST_CASE("Non-fragmenting relation - reentrant relation deletion keeps pair removal stable") {

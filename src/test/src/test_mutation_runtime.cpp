@@ -2612,6 +2612,34 @@ TEST_CASE("Query Filter - changed query survives removal, deletion, and row recr
 	expect_changed_consume_exact(query, {replacement});
 }
 
+TEST_CASE("Query Filter - changed pair query survives target deletion and recycling") {
+	TestWorld twld;
+	struct Marker {};
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add<Marker>(source);
+	wld.add(source, pair);
+
+	auto query = wld.query().all<Marker>().all(pair).changed(pair);
+	expect_changed_consume_exact(query, {source});
+
+	wld.del(target);
+	wld.update();
+	CHECK(wld.has(source));
+	CHECK_FALSE(wld.has(source, pair));
+	expect_changed_consume_exact(query, {});
+
+	const auto recycledTarget = wld.add();
+	CHECK(recycledTarget.id() == target.id());
+	CHECK(recycledTarget.gen() != target.gen());
+	wld.add(source, ecs::Pair(relation, recycledTarget));
+
+	expect_changed_consume_exact(query, {source});
+}
+
 TEST_CASE("Query Filter - Iter direct mutable views track changes correctly") {
 	SUBCASE("AoS") {
 		TestWorld twld;
