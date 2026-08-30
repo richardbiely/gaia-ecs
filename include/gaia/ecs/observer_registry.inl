@@ -197,13 +197,14 @@ namespace gaia {
 
 			// Look up observers through the narrowest available indexes. The match stamp
 			// prevents one observer from being added more than once through different terms.
-			registry.m_relevant_observers_tmp.clear();
+			CandidateScope candidateScope(registry);
+			auto& relevantObservers = candidateScope.candidates();
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			if (terms.empty()) {
-				SharedDispatch::collect_diff_from_list(registry, world, index.all, matchStamp);
+				SharedDispatch::collect_diff_from_list(registry, world, index.all, matchStamp, relevantObservers);
 			} else {
 				for (auto term: terms) {
-					SharedDispatch::collect_from_map<true>(registry, world, index.direct, term, matchStamp);
+					SharedDispatch::collect_from_map<true>(registry, world, index.direct, term, matchStamp, relevantObservers);
 
 					if (!term.pair())
 						continue;
@@ -211,15 +212,18 @@ namespace gaia {
 					if (!is_wildcard(term.id()) && world.valid_entity_id((EntityId)term.id())) {
 						const auto relation = entity_from_id(world, term.id());
 						if (world.valid(relation)) {
-							SharedDispatch::collect_from_map<true>(registry, world, index.traversalRelation, relation, matchStamp);
-							SharedDispatch::collect_from_map<true>(registry, world, index.pairRelation, relation, matchStamp);
+							SharedDispatch::collect_from_map<true>(
+									registry, world, index.traversalRelation, relation, matchStamp, relevantObservers);
+							SharedDispatch::collect_from_map<true>(
+									registry, world, index.pairRelation, relation, matchStamp, relevantObservers);
 						}
 					}
 
 					if (!is_wildcard(term.gen()) && world.valid_entity_id((EntityId)term.gen())) {
 						const auto target = world.get(term.gen());
 						if (world.valid(target))
-							SharedDispatch::collect_from_map<true>(registry, world, index.pairTarget, target, matchStamp);
+							SharedDispatch::collect_from_map<true>(
+									registry, world, index.pairTarget, target, matchStamp, relevantObservers);
 					}
 				}
 			}
@@ -227,18 +231,18 @@ namespace gaia {
 			// Entity lifetime changes and globally dynamic terms cannot be represented by
 			// a single exact index lookup, so include their broader observer lists.
 			if (hasEntityLifecycleTerm)
-				SharedDispatch::collect_diff_from_list(registry, world, index.all, matchStamp);
+				SharedDispatch::collect_diff_from_list(registry, world, index.all, matchStamp, relevantObservers);
 			if (!terms.empty() && !hasEntityLifecycleTerm)
-				SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp);
+				SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp, relevantObservers);
 
 			// A propagated observer may still turn a broad dispatch into a known target set.
 			// Observers with the same propagation plan share the result of that work.
-			if (!ctx.targeted && !targetEntities.empty() && !registry.m_relevant_observers_tmp.empty()) {
+			if (!ctx.targeted && !targetEntities.empty() && !relevantObservers.empty()) {
 				cnt::darray<Entity> narrowedTargets;
 				cnt::darray<TargetNarrowCacheEntry> narrowCache;
 				bool canNarrow = true;
 
-				for (auto* pObs: registry.m_relevant_observers_tmp) {
+				for (auto* pObs: relevantObservers) {
 					if (pObs == nullptr)
 						continue;
 
@@ -274,16 +278,19 @@ namespace gaia {
 				}
 			}
 
-			if (registry.m_relevant_observers_tmp.empty())
+			if (relevantObservers.empty())
 				return ctx;
 
 			// Capture each distinct query once. Several observers may use the same query,
 			// while keeping separate callbacks and event settings.
 			ctx.active = true;
-			for (auto* pObs: registry.m_relevant_observers_tmp) {
+			for (auto* pObs: relevantObservers) {
+				if (pObs == nullptr)
+					continue;
+
 				ctx.observers.push_back({});
 				auto& snapshot = ctx.observers.back();
-				snapshot.pObs = pObs;
+				snapshot.observer = pObs->entity;
 				if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
 					ctx.resetTraversalCaches = true;
 
@@ -324,10 +331,11 @@ namespace gaia {
 			}
 
 			// Only observers reachable from the new entity's terms need to be considered.
-			registry.m_relevant_observers_tmp.clear();
+			CandidateScope candidateScope(registry);
+			auto& relevantObservers = candidateScope.candidates();
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			for (auto term: terms) {
-				SharedDispatch::collect_from_map<true>(registry, world, index.direct, term, matchStamp);
+				SharedDispatch::collect_from_map<true>(registry, world, index.direct, term, matchStamp, relevantObservers);
 
 				if (!term.pair())
 					continue;
@@ -335,28 +343,33 @@ namespace gaia {
 				if (!is_wildcard(term.id()) && world.valid_entity_id((EntityId)term.id())) {
 					const auto relation = entity_from_id(world, term.id());
 					if (world.valid(relation))
-						SharedDispatch::collect_from_map<true>(registry, world, index.pairRelation, relation, matchStamp);
+						SharedDispatch::collect_from_map<true>(
+								registry, world, index.pairRelation, relation, matchStamp, relevantObservers);
 				}
 
 				if (!is_wildcard(term.gen()) && world.valid_entity_id((EntityId)term.gen())) {
 					const auto target = world.get(term.gen());
 					if (world.valid(target))
-						SharedDispatch::collect_from_map<true>(registry, world, index.pairTarget, target, matchStamp);
+						SharedDispatch::collect_from_map<true>(
+								registry, world, index.pairTarget, target, matchStamp, relevantObservers);
 				}
 			}
-			SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp);
+			SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp, relevantObservers);
 
-			if (registry.m_relevant_observers_tmp.empty())
+			if (relevantObservers.empty())
 				return ctx;
 
 			ctx.active = true;
 			ctx.targeted = true;
 			ctx.targetsAddedAfterPrepare = true;
-			for (auto* pObs: registry.m_relevant_observers_tmp) {
+			for (auto* pObs: relevantObservers) {
+				if (pObs == nullptr)
+					continue;
+
 				if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
 					ctx.resetTraversalCaches = true;
 				ctx.observers.push_back({});
-				ctx.observers.back().pObs = pObs;
+				ctx.observers.back().observer = pObs->entity;
 			}
 
 			return ctx;
@@ -393,8 +406,8 @@ namespace gaia {
 			cnt::darray<Entity> delta;
 
 			for (auto& snapshot: ctx.observers) {
-				auto* pObs = snapshot.pObs;
-				if (pObs == nullptr || !world.valid(pObs->entity))
+				auto* pObs = world.m_observers.data_try(snapshot.observer);
+				if (pObs == nullptr || !world.valid(snapshot.observer))
 					continue;
 
 				// Some removal paths delete the target before this function runs. Their last
@@ -495,9 +508,12 @@ namespace gaia {
 			// Exact terms, semantic Is targets, and inherited terms can all lead to the
 			// same observer. The match stamp keeps the candidate list unique.
 			const bool archetypeIsPrefab = archetype.has(Prefab);
+			CandidateScope candidateScope(registry);
+			auto& relevantObservers = candidateScope.candidates();
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			for (auto comp: entsAdded) {
-				SharedDispatch::collect_for_event_term(registry, world, registry.m_observer_map_add, comp, matchStamp);
+				SharedDispatch::collect_for_event_term(
+						registry, world, registry.m_observer_map_add, comp, matchStamp, relevantObservers);
 				if (!is_semantic_is_term(comp))
 					continue;
 
@@ -505,16 +521,24 @@ namespace gaia {
 				if (!world.valid(target))
 					continue;
 
-				SharedDispatch::collect_for_is_target(registry, world, registry.m_observer_map_add_is, target, matchStamp);
+				SharedDispatch::collect_for_is_target(
+						registry, world, registry.m_observer_map_add_is, target, matchStamp, relevantObservers);
 				for (auto inheritedTarget: world.as_targets_trav_cache(target))
 					SharedDispatch::collect_for_is_target(
-							registry, world, registry.m_observer_map_add_is, inheritedTarget, matchStamp);
-				SharedDispatch::collect_for_inherited_terms(registry, world, registry.m_observer_map_add, target, matchStamp);
+							registry, world, registry.m_observer_map_add_is, inheritedTarget, matchStamp, relevantObservers);
+				SharedDispatch::collect_for_inherited_terms(
+						registry, world, registry.m_observer_map_add, target, matchStamp, relevantObservers);
 			}
 
 			// The index only identifies possible observers. The plan and query decide
 			// whether this archetype and these entities are actual matches.
-			for (auto* pObs: registry.m_relevant_observers_tmp) {
+			for (auto* pObs: relevantObservers) {
+				if (pObs == nullptr)
+					continue;
+				const auto observer = pObs->entity;
+				if (!world.valid(observer) || !world.enabled(world.fetch(observer)))
+					continue;
+
 				auto& obs = *pObs;
 				if (!obs.plan.uses_direct_dispatch())
 					continue;
@@ -528,8 +552,6 @@ namespace gaia {
 				if (SharedDispatch::matches_direct_targets(obs, archetype, targets, pQueryInfo))
 					SharedDispatch::execute_targets(world, obs, targets);
 			}
-
-			registry.m_relevant_observers_tmp.clear();
 		}
 
 		inline void ObserverRegistry::DirectDispatcher::on_del(
@@ -550,9 +572,12 @@ namespace gaia {
 					!SharedDispatch::has_inherited_terms(world, registry.m_observer_map_del, entsRemoved))
 				return;
 
+			CandidateScope candidateScope(registry);
+			auto& relevantObservers = candidateScope.candidates();
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			for (auto comp: entsRemoved) {
-				SharedDispatch::collect_for_event_term(registry, world, registry.m_observer_map_del, comp, matchStamp);
+				SharedDispatch::collect_for_event_term(
+						registry, world, registry.m_observer_map_del, comp, matchStamp, relevantObservers);
 				if (!is_semantic_is_term(comp))
 					continue;
 
@@ -560,14 +585,22 @@ namespace gaia {
 				if (!world.valid(target))
 					continue;
 
-				SharedDispatch::collect_for_is_target(registry, world, registry.m_observer_map_del_is, target, matchStamp);
+				SharedDispatch::collect_for_is_target(
+						registry, world, registry.m_observer_map_del_is, target, matchStamp, relevantObservers);
 				for (auto inheritedTarget: world.as_targets_trav_cache(target))
 					SharedDispatch::collect_for_is_target(
-							registry, world, registry.m_observer_map_del_is, inheritedTarget, matchStamp);
-				SharedDispatch::collect_for_inherited_terms(registry, world, registry.m_observer_map_del, target, matchStamp);
+							registry, world, registry.m_observer_map_del_is, inheritedTarget, matchStamp, relevantObservers);
+				SharedDispatch::collect_for_inherited_terms(
+						registry, world, registry.m_observer_map_del, target, matchStamp, relevantObservers);
 			}
 
-			for (auto* pObs: registry.m_relevant_observers_tmp) {
+			for (auto* pObs: relevantObservers) {
+				if (pObs == nullptr)
+					continue;
+				const auto observer = pObs->entity;
+				if (!world.valid(observer) || !world.enabled(world.fetch(observer)))
+					continue;
+
 				auto& obs = *pObs;
 				if (!obs.plan.uses_direct_dispatch())
 					continue;
@@ -585,8 +618,6 @@ namespace gaia {
 				if (matches)
 					SharedDispatch::execute_targets(world, obs, targets);
 			}
-
-			registry.m_relevant_observers_tmp.clear();
 		}
 
 		inline void ObserverRegistry::DirectDispatcher::on_set(
@@ -598,26 +629,34 @@ namespace gaia {
 
 			// A concrete pair can satisfy observers registered for the exact pair, either
 			// wildcard endpoint, or both wildcard endpoints.
-			registry.m_relevant_observers_tmp.clear();
+			CandidateScope candidateScope(registry);
+			auto& relevantObservers = candidateScope.candidates();
 			const auto matchStamp = ++registry.m_current_match_stamp;
-			SharedDispatch::collect_from_map<false>(registry, world, registry.m_observer_map_set, term, matchStamp);
+			SharedDispatch::collect_from_map<false>(
+					registry, world, registry.m_observer_map_set, term, matchStamp, relevantObservers);
 			if (term.pair()) {
 				Entity rel, tgt;
 				pair_endpoint_entities(term, rel, tgt);
 				SharedDispatch::collect_from_map<false>(
-						registry, world, registry.m_observer_map_set, Pair(rel, All), matchStamp);
+						registry, world, registry.m_observer_map_set, Pair(rel, All), matchStamp, relevantObservers);
 				SharedDispatch::collect_from_map<false>(
-						registry, world, registry.m_observer_map_set, Pair(All, tgt), matchStamp);
+						registry, world, registry.m_observer_map_set, Pair(All, tgt), matchStamp, relevantObservers);
 				SharedDispatch::collect_from_map<false>(
-						registry, world, registry.m_observer_map_set, Pair(All, All), matchStamp);
+						registry, world, registry.m_observer_map_set, Pair(All, All), matchStamp, relevantObservers);
 			}
-			if (registry.m_relevant_observers_tmp.empty())
+			if (relevantObservers.empty())
 				return;
 
 			// OnSet is value based, so every target must still satisfy the complete query.
-			for (auto* pObs: registry.m_relevant_observers_tmp) {
-				auto& obs = *pObs;
+			for (auto* pObs: relevantObservers) {
+				if (pObs == nullptr)
+					continue;
+				const auto observer = pObs->entity;
 				for (auto entity: targets) {
+					if (!world.valid(observer) || !world.enabled(world.fetch(observer)))
+						break;
+
+					auto& obs = *pObs;
 					if (!world.valid(entity))
 						continue;
 
@@ -633,13 +672,12 @@ namespace gaia {
 					SharedDispatch::execute_targets(world, obs, EntitySpan{&entity, 1});
 				}
 			}
-
-			registry.m_relevant_observers_tmp.clear();
 		}
 
-		template <bool DiffOnly, typename TObserverMap>
+		template <bool DiffOnly, typename TObserverMap, typename TObserverList>
 		void ObserverRegistry::SharedDispatch::collect_from_map(
-				ObserverRegistry& registry, World& world, const TObserverMap& map, Entity term, uint64_t matchStamp) {
+				ObserverRegistry& registry, World& world, const TObserverMap& map, Entity term, uint64_t matchStamp,
+				TObserverList& out) {
 			const auto it = map.find(EntityLookupKey(term));
 			if (it == map.end())
 				return;
@@ -663,12 +701,14 @@ namespace gaia {
 				}
 
 				pObs->lastMatchStamp = matchStamp;
-				registry.m_relevant_observers_tmp.push_back(pObs);
+				out.push_back(pObs);
 			}
 		}
 
+		template <typename TObserverList>
 		inline void ObserverRegistry::SharedDispatch::collect_diff_from_list(
-				ObserverRegistry& registry, World& world, const cnt::darray<Entity>& observers, uint64_t matchStamp) {
+				ObserverRegistry& registry, World& world, const cnt::darray<Entity>& observers, uint64_t matchStamp,
+				TObserverList& out) {
 			for (auto observer: observers) {
 				auto* pObs = registry.data_try(observer);
 				GAIA_ASSERT(pObs != nullptr);
@@ -682,7 +722,7 @@ namespace gaia {
 					continue;
 
 				pObs->lastMatchStamp = matchStamp;
-				registry.m_relevant_observers_tmp.push_back(pObs);
+				out.push_back(pObs);
 			}
 		}
 
@@ -704,9 +744,10 @@ namespace gaia {
 			return false;
 		}
 
-		template <typename TObserverMap>
+		template <typename TObserverMap, typename TObserverList>
 		void ObserverRegistry::SharedDispatch::collect_for_event_term(
-				ObserverRegistry& registry, World& world, const TObserverMap& map, Entity term, uint64_t matchStamp) {
+				ObserverRegistry& registry, World& world, const TObserverMap& map, Entity term, uint64_t matchStamp,
+				TObserverList& out) {
 			if (!world.valid(term))
 				return;
 
@@ -715,13 +756,14 @@ namespace gaia {
 					return;
 			}
 
-			collect_from_map<false>(registry, world, map, term, matchStamp);
+			collect_from_map<false>(registry, world, map, term, matchStamp, out);
 		}
 
-		template <typename TObserverMap>
+		template <typename TObserverMap, typename TObserverList>
 		void ObserverRegistry::SharedDispatch::collect_for_is_target(
-				ObserverRegistry& registry, World& world, const TObserverMap& map, Entity target, uint64_t matchStamp) {
-			collect_from_map<false>(registry, world, map, target, matchStamp);
+				ObserverRegistry& registry, World& world, const TObserverMap& map, Entity target, uint64_t matchStamp,
+				TObserverList& out) {
+			collect_from_map<false>(registry, world, map, target, matchStamp, out);
 		}
 
 		template <typename Func>
@@ -799,11 +841,12 @@ namespace gaia {
 			return false;
 		}
 
-		template <typename TObserverMap>
+		template <typename TObserverMap, typename TObserverList>
 		void ObserverRegistry::SharedDispatch::collect_for_inherited_terms(
-				ObserverRegistry& registry, World& world, const TObserverMap& map, Entity baseEntity, uint64_t matchStamp) {
+				ObserverRegistry& registry, World& world, const TObserverMap& map, Entity baseEntity, uint64_t matchStamp,
+				TObserverList& out) {
 			for_each_inherited_term(world, baseEntity, [&](Entity inheritedId) {
-				collect_for_event_term(registry, world, map, inheritedId, matchStamp);
+				collect_for_event_term(registry, world, map, inheritedId, matchStamp, out);
 			});
 		}
 
@@ -1180,6 +1223,7 @@ namespace gaia {
 		inline void ObserverRegistry::finish_diff(World& world, DiffDispatchCtx&& ctx) {
 			if GAIA_UNLIKELY (world.tearing_down())
 				return;
+			DispatchScope dispatchScope(*this);
 			DiffDispatcher::finish(world, GAIA_MOV(ctx));
 		}
 
@@ -1238,7 +1282,12 @@ namespace gaia {
 			// First remove entries keyed directly by this entity. When term is an observer
 			// entity, its runtime data tells us whether the broader indexes must be scanned.
 			const auto termKey = EntityLookupKey(term);
-			const auto erasedData = m_observer_data.erase(termKey);
+			Entity erasedData = EntityBad;
+			const auto itData = m_observer_data.find(termKey);
+			if (itData != m_observer_data.end()) {
+				erasedData = itData->second;
+				m_observer_data.erase(itData);
+			}
 			const auto erasedOnAdd = m_observer_map_add.erase(termKey);
 			const auto erasedOnDel = m_observer_map_del.erase(termKey);
 			const auto erasedOnSet = m_observer_map_set.erase(termKey);
@@ -1252,7 +1301,7 @@ namespace gaia {
 			if ((erasedOnAdd != 0 || erasedOnDel != 0 || erasedOnSet != 0) && can_mark_term_observed(world, term))
 				mark_term_observed(world, term, false);
 
-			if (erasedData == 0)
+			if (erasedData == EntityBad)
 				return;
 
 			// The observer may appear under several query dependencies. Remove every
@@ -1295,19 +1344,23 @@ namespace gaia {
 			};
 			remove_observer_from_diff_index(m_diff_index_add);
 			remove_observer_from_diff_index(m_diff_index_del);
+			retire_observer_data(erasedData);
 		}
 
 		inline void
 		ObserverRegistry::on_add(World& world, const Archetype& archetype, EntitySpan entsAdded, EntitySpan targets) {
+			DispatchScope dispatchScope(*this);
 			DirectDispatcher::on_add(*this, world, archetype, entsAdded, targets);
 		}
 
 		inline void
 		ObserverRegistry::on_del(World& world, const Archetype& archetype, EntitySpan entsRemoved, EntitySpan targets) {
+			DispatchScope dispatchScope(*this);
 			DirectDispatcher::on_del(*this, world, archetype, entsRemoved, targets);
 		}
 
 		inline void ObserverRegistry::on_set(World& world, Entity term, EntitySpan targets) {
+			DispatchScope dispatchScope(*this);
 			DirectDispatcher::on_set(*this, world, term, targets);
 		}
 	} // namespace ecs

@@ -1508,4 +1508,138 @@ TEST_CASE("Observer - fast path") {
 	(void)observerPairRuntime;
 }
 
+TEST_CASE("Observer - OnSet callback deletes pending observer") {
+	TestWorld twld;
+
+	const auto entity = wld.add();
+	wld.add<Position>(entity, {});
+
+	uint32_t firstHits = 0;
+	uint32_t secondHits = 0;
+	ecs::Entity observerToDelete = ecs::EntityBad;
+	const auto deletingObserver = wld.observer()
+												 .event(ecs::ObserverEvent::OnSet)
+												 .all<Position>()
+												 .on_each([&](ecs::Iter&) {
+													 ++firstHits;
+													 wld.del(observerToDelete);
+												 })
+												 .entity();
+	observerToDelete = wld.observer()
+									 .event(ecs::ObserverEvent::OnSet)
+									 .all<Position>()
+									 .on_each([&](ecs::Iter&) {
+										 ++secondHits;
+									 })
+									 .entity();
+
+	wld.set<Position>(entity) = {};
+
+	CHECK(firstHits == 1);
+	CHECK(secondHits == 0);
+	CHECK_FALSE(wld.valid(observerToDelete));
+	(void)deletingObserver;
+}
+
+TEST_CASE("Observer - OnSet callback deletes itself") {
+	TestWorld twld;
+
+	const auto entity = wld.add();
+	wld.add<Position>(entity, {});
+
+	uint32_t hits = 0;
+	ecs::Entity observer = ecs::EntityBad;
+	observer = wld.observer()
+							 .event(ecs::ObserverEvent::OnSet)
+							 .all<Position>()
+							 .on_each([&](ecs::Iter&) {
+								 ++hits;
+								 wld.del(observer);
+							 })
+							 .entity();
+
+	wld.set<Position>(entity) = {};
+	CHECK(hits == 1);
+	CHECK_FALSE(wld.valid(observer));
+
+	wld.set<Position>(entity) = {};
+	CHECK(hits == 1);
+}
+
+TEST_CASE("Observer - OnSet callback registers observer") {
+	TestWorld twld;
+
+	const auto entity = wld.add();
+	wld.add<Position>(entity, {});
+
+	uint32_t firstHits = 0;
+	uint32_t addedHits = 0;
+	ecs::Entity addedObserver = ecs::EntityBad;
+	const auto firstObserver = wld.observer()
+												.event(ecs::ObserverEvent::OnSet)
+												.all<Position>()
+												.on_each([&](ecs::Iter&) {
+													++firstHits;
+													if (addedObserver != ecs::EntityBad)
+														return;
+													addedObserver = wld.observer()
+																					.event(ecs::ObserverEvent::OnSet)
+																					.all<Position>()
+																					.on_each([&](ecs::Iter&) {
+																						++addedHits;
+																					})
+																					.entity();
+												})
+												.entity();
+
+	wld.set<Position>(entity) = {};
+	CHECK(firstHits == 1);
+	CHECK(addedHits == 0);
+	CHECK(wld.valid(addedObserver));
+
+	wld.set<Position>(entity) = {};
+	CHECK(firstHits == 2);
+	CHECK(addedHits == 1);
+	(void)firstObserver;
+}
+
+TEST_CASE("Observer - nested OnSet dispatch preserves pending observers") {
+	TestWorld twld;
+
+	const auto firstEntity = wld.add();
+	const auto nestedEntity = wld.add();
+	wld.add<Position>(firstEntity, {});
+	wld.add<Position>(nestedEntity, {});
+
+	uint32_t firstHits = 0;
+	uint32_t secondHits = 0;
+	bool nested = false;
+	const auto firstObserver = wld.observer()
+												.event(ecs::ObserverEvent::OnSet)
+												.all<Position>()
+												.on_each([&](ecs::Iter&) {
+													++firstHits;
+													if (nested)
+														return;
+													nested = true;
+													wld.set<Position>(nestedEntity) = {};
+													nested = false;
+												})
+												.entity();
+	const auto secondObserver = wld.observer()
+												 .event(ecs::ObserverEvent::OnSet)
+												 .all<Position>()
+												 .on_each([&](ecs::Iter&) {
+													 ++secondHits;
+												 })
+												 .entity();
+
+	wld.set<Position>(firstEntity) = {};
+
+	CHECK(firstHits == 2);
+	CHECK(secondHits == 2);
+	(void)firstObserver;
+	(void)secondObserver;
+}
+
 #endif

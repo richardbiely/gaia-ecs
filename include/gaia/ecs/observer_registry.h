@@ -2,6 +2,7 @@
 #include "gaia/config/config.h"
 
 #include "gaia/cnt/darray.h"
+#include "gaia/cnt/ilist.h"
 #include "gaia/cnt/map.h"
 #include "gaia/cnt/set.h"
 #include "gaia/ecs/observer.h"
@@ -74,7 +75,7 @@ namespace gaia {
 		public:
 			struct DiffDispatcher {
 				struct Snapshot {
-					ObserverRuntimeData* pObs = nullptr;
+					Entity observer = EntityBad;
 					uint32_t matchesBeforeIdx = UINT32_MAX;
 				};
 
@@ -227,22 +228,29 @@ namespace gaia {
 				//! Appends enabled observers registered under one lookup term.
 				//! \tparam DiffOnly When true, observers using direct dispatch are ignored.
 				//! \tparam TObserverMap Observer map type used by the selected index.
+				//! \tparam TObserverList Candidate observer list type.
 				//! \param registry Registry receiving the matching runtime records.
 				//! \param world World used to check whether observer entities are enabled.
 				//! \param map Index to search.
 				//! \param term Lookup term.
 				//! \param matchStamp Stamp used to avoid appending an observer more than once.
-				template <bool DiffOnly, typename TObserverMap>
+				//! \param out Receives runtime records that pass the index and enabled-state checks.
+				template <bool DiffOnly, typename TObserverMap, typename TObserverList>
 				static void collect_from_map(
-						ObserverRegistry& registry, World& world, const TObserverMap& map, Entity term, uint64_t matchStamp);
+						ObserverRegistry& registry, World& world, const TObserverMap& map, Entity term, uint64_t matchStamp,
+						TObserverList& out);
 
 				//! Appends enabled diff observers from a broad fallback list.
+				//! \tparam TObserverList Candidate observer list type.
 				//! \param registry Registry receiving the matching runtime records.
 				//! \param world World used to check whether observer entities are enabled.
 				//! \param observers Observer entities to inspect.
 				//! \param matchStamp Stamp used to avoid appending an observer more than once.
+				//! \param out Receives enabled diff observer runtime records.
+				template <typename TObserverList>
 				static void collect_diff_from_list(
-						ObserverRegistry& registry, World& world, const cnt::darray<Entity>& observers, uint64_t matchStamp);
+						ObserverRegistry& registry, World& world, const cnt::darray<Entity>& observers, uint64_t matchStamp,
+						TObserverList& out);
 
 				//! Checks whether any changed term is present in an observer index.
 				//! \tparam TObserverMap Observer map type used by the selected index.
@@ -271,25 +279,31 @@ namespace gaia {
 
 				//! Collects observers for an exact changed term that is known to be observed.
 				//! \tparam TObserverMap Observer map type used by the selected event.
+				//! \tparam TObserverList Candidate observer list type.
 				//! \param registry Registry receiving the matching runtime records.
 				//! \param world World that owns the term.
 				//! \param map Event index to search.
 				//! \param term Changed term.
 				//! \param matchStamp Stamp used to avoid duplicate candidates.
-				template <typename TObserverMap>
+				//! \param out Receives matching observer runtime records.
+				template <typename TObserverMap, typename TObserverList>
 				static void collect_for_event_term(
-						ObserverRegistry& registry, World& world, const TObserverMap& map, Entity term, uint64_t matchStamp);
+						ObserverRegistry& registry, World& world, const TObserverMap& map, Entity term, uint64_t matchStamp,
+						TObserverList& out);
 
 				//! Collects observers registered for a semantic Is target.
 				//! \tparam TObserverMap Observer map type used by the selected event.
+				//! \tparam TObserverList Candidate observer list type.
 				//! \param registry Registry receiving the matching runtime records.
 				//! \param world World that owns the observer entities.
 				//! \param map Semantic Is target index to search.
 				//! \param target Is target used as the lookup key.
 				//! \param matchStamp Stamp used to avoid duplicate candidates.
-				template <typename TObserverMap>
+				//! \param out Receives matching observer runtime records.
+				template <typename TObserverMap, typename TObserverList>
 				static void collect_for_is_target(
-						ObserverRegistry& registry, World& world, const TObserverMap& map, Entity target, uint64_t matchStamp);
+						ObserverRegistry& registry, World& world, const TObserverMap& map, Entity target, uint64_t matchStamp,
+						TObserverList& out);
 
 				//! Visits inheritable component terms from a base entity and all of its bases.
 				//! \tparam Func Callable invoked for every inheritable component term found.
@@ -319,14 +333,17 @@ namespace gaia {
 
 				//! Collects observers for inheritable component terms supplied by a base entity.
 				//! \tparam TObserverMap Observer map type used by the selected event.
+				//! \tparam TObserverList Candidate observer list type.
 				//! \param registry Registry receiving the matching runtime records.
 				//! \param world World containing the inheritance graph.
 				//! \param map Component term index to search.
 				//! \param baseEntity First base entity to inspect.
 				//! \param matchStamp Stamp used to avoid duplicate candidates.
-				template <typename TObserverMap>
+				//! \param out Receives matching observer runtime records.
+				template <typename TObserverMap, typename TObserverList>
 				static void collect_for_inherited_terms(
-						ObserverRegistry& registry, World& world, const TObserverMap& map, Entity baseEntity, uint64_t matchStamp);
+						ObserverRegistry& registry, World& world, const TObserverMap& map, Entity baseEntity, uint64_t matchStamp,
+						TObserverList& out);
 
 				//! Runs one observer callback for a span of matching entities.
 				//! \param world World supplied to the observer iterator.
@@ -347,10 +364,51 @@ namespace gaia {
 			using DiffDispatchCtx = DiffDispatcher::Context;
 
 		private:
-			//! Temporary list of observers preliminary matching the event.
-			cnt::darray<ObserverRuntimeData*> m_relevant_observers_tmp;
-			//! Runtime observer payload storage.
-			cnt::map<EntityLookupKey, ObserverRuntimeData> m_observer_data;
+			//! Stable paged slot containing one observer runtime record.
+			struct ObserverRuntimeSlot {
+				uint32_t idx = 0;
+				uint32_t gen = 0;
+				ObserverRuntimeData runtime;
+
+				//! Constructs a slot with the index and generation assigned by the paged list.
+				//! \param index Slot index.
+				//! \param generation Slot generation.
+				ObserverRuntimeSlot(uint32_t index, uint32_t generation): idx(index), gen(generation) {}
+
+				//! Creates a slot for paged-list allocation.
+				//! \param index Slot index.
+				//! \param generation Slot generation.
+				//! \param pContext Unused allocation context.
+				//! \return Newly initialized runtime slot.
+				GAIA_NODISCARD static ObserverRuntimeSlot create(
+						uint32_t index, uint32_t generation, [[maybe_unused]] void* pContext) {
+					return ObserverRuntimeSlot(index, generation);
+				}
+
+				//! Returns the internal handle identifying a runtime slot.
+				//! \param slot Runtime slot whose handle is requested.
+				//! \return Internal generational slot handle.
+				GAIA_NODISCARD static Entity handle(const ObserverRuntimeSlot& slot) {
+					return Entity(slot.idx, slot.gen, false, false, EntityKind::EK_Gen);
+				}
+			};
+
+			using ObserverRuntimeSlots = cnt::paged_ilist<ObserverRuntimeSlot, Entity>;
+
+			//! Reusable candidate storage for the outermost observer dispatch.
+			cnt::darray<ObserverRuntimeData*> m_candidate_observers;
+			//! Reusable candidate storage allocated only for nested observer dispatch levels.
+			cnt::darray<cnt::darray<ObserverRuntimeData*>*> m_nested_candidate_observers;
+			//! Number of candidate buffers currently borrowed by nested dispatches.
+			uint32_t m_candidate_depth = 0;
+			//! Stable runtime observer slots addressed by internal generational handles.
+			ObserverRuntimeSlots m_observer_runtime_slots;
+			//! Observer entity to stable runtime-slot handle mapping.
+			cnt::map<EntityLookupKey, Entity> m_observer_data;
+			//! Runtime slots removed by a callback and released after the outermost dispatch returns.
+			cnt::darray<Entity> m_retired_observer_data;
+			//! Number of active, possibly nested observer dispatches.
+			uint32_t m_dispatch_depth = 0;
 			//! Component to OnAdd observer mapping.
 			cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_add;
 			//! Component to OnDel observer mapping.
@@ -371,6 +429,86 @@ namespace gaia {
 			cnt::map<PropagatedTargetCacheKey, PropagatedTargetCacheEntry> m_propagated_target_cache;
 			//! Monotonically increasing stamp used for O(1) deduplication.
 			uint64_t m_current_match_stamp = 0;
+
+			//! Borrows reusable candidate storage for one possibly nested dispatch pass.
+			class CandidateScope final {
+				ObserverRegistry& m_registry;
+				cnt::darray<ObserverRuntimeData*>* m_pCandidates = nullptr;
+
+			public:
+				//! Borrows and clears the candidate list for the next dispatch depth.
+				//! \param registry Registry that owns the reusable candidate storage.
+				explicit CandidateScope(ObserverRegistry& registry): m_registry(registry) {
+					const auto depth = m_registry.m_candidate_depth++;
+					if (depth == 0) {
+						m_pCandidates = &m_registry.m_candidate_observers;
+					} else {
+						const auto nestedIdx = depth - 1;
+						if (nestedIdx == m_registry.m_nested_candidate_observers.size())
+							m_registry.m_nested_candidate_observers.push_back(new cnt::darray<ObserverRuntimeData*>());
+						m_pCandidates = m_registry.m_nested_candidate_observers[nestedIdx];
+					}
+					m_pCandidates->clear();
+				}
+
+				//! Returns the candidate list reserved for this dispatch depth.
+				//! \return Writable reusable candidate list.
+				GAIA_NODISCARD cnt::darray<ObserverRuntimeData*>& candidates() {
+					return *m_pCandidates;
+				}
+
+				//! Releases the borrowed candidate list.
+				~CandidateScope() {
+					GAIA_ASSERT(m_registry.m_candidate_depth > 0);
+					--m_registry.m_candidate_depth;
+				}
+
+				CandidateScope(CandidateScope&&) = delete;
+				CandidateScope(const CandidateScope&) = delete;
+				CandidateScope& operator=(CandidateScope&&) = delete;
+				CandidateScope& operator=(const CandidateScope&) = delete;
+			};
+
+			//! Keeps removed runtime records alive while user callbacks can still be executing them.
+			class DispatchScope final {
+				ObserverRegistry& m_registry;
+
+			public:
+				//! Starts a nested observer dispatch.
+				//! \param registry Registry whose runtime records must remain stable.
+				explicit DispatchScope(ObserverRegistry& registry): m_registry(registry) {
+					++m_registry.m_dispatch_depth;
+				}
+
+				//! Finishes a nested observer dispatch and releases deferred runtime records when possible.
+				~DispatchScope() {
+					GAIA_ASSERT(m_registry.m_dispatch_depth > 0);
+					if (--m_registry.m_dispatch_depth == 0)
+						m_registry.release_retired_observer_data();
+				}
+
+				DispatchScope(DispatchScope&&) = delete;
+				DispatchScope(const DispatchScope&) = delete;
+				DispatchScope& operator=(DispatchScope&&) = delete;
+				DispatchScope& operator=(const DispatchScope&) = delete;
+			};
+
+			//! Releases runtime records removed during observer dispatch.
+			void release_retired_observer_data() {
+				for (auto handle: m_retired_observer_data)
+					m_observer_runtime_slots.free(handle);
+				m_retired_observer_data.clear();
+			}
+
+			//! Deletes a runtime record immediately or defers it while a callback may still use it.
+			//! \param handle Runtime slot removed from the live lookup map.
+			void retire_observer_data(Entity handle) {
+				GAIA_ASSERT(m_observer_runtime_slots.has(handle));
+				if (m_dispatch_depth == 0)
+					m_observer_runtime_slots.free(handle);
+				else
+					m_retired_observer_data.push_back(handle);
+			}
 
 			//! Returns the mutable diff index for an add or delete event.
 			//! \param event Observer event whose index is requested.
@@ -667,16 +805,23 @@ namespace gaia {
 
 			//! Releases observer callbacks, queries, indexes, and cached dispatch data.
 			void teardown() {
-				for (auto& it: m_observer_data) {
-					auto& obs = it.second;
+				for (auto& slot: m_observer_runtime_slots) {
+					auto& obs = slot.runtime;
 					obs.on_each_func = {};
 					obs.query = {};
 					obs.plan = {};
 					obs.lastMatchStamp = 0;
 				}
 
-				m_relevant_observers_tmp = {};
 				m_observer_data = {};
+				m_observer_runtime_slots = {};
+				m_retired_observer_data = {};
+				m_dispatch_depth = 0;
+				m_candidate_observers = {};
+				for (auto* pCandidates: m_nested_candidate_observers)
+					delete pCandidates;
+				m_nested_candidate_observers = {};
+				m_candidate_depth = 0;
 				m_observer_map_add = {};
 				m_observer_map_del = {};
 				m_observer_map_set = {};
@@ -692,7 +837,14 @@ namespace gaia {
 			//! \param observer Observer entity used as the storage key.
 			//! \return Writable observer runtime record.
 			ObserverRuntimeData& data_add(Entity observer) {
-				return m_observer_data[EntityLookupKey(observer)];
+				const auto key = EntityLookupKey(observer);
+				const auto it = m_observer_data.find(key);
+				if (it != m_observer_data.end())
+					return m_observer_runtime_slots[it->second.id()].runtime;
+
+				const auto handle = m_observer_runtime_slots.alloc(nullptr);
+				m_observer_data.emplace(key, handle);
+				return m_observer_runtime_slots[handle.id()].runtime;
 			}
 
 			//! Finds writable runtime storage for an observer.
@@ -700,9 +852,9 @@ namespace gaia {
 			//! \return Runtime record, or null when the observer is not registered.
 			GAIA_NODISCARD ObserverRuntimeData* data_try(Entity observer) {
 				const auto it = m_observer_data.find(EntityLookupKey(observer));
-				if (it == m_observer_data.end())
+				if (it == m_observer_data.end() || !m_observer_runtime_slots.has(it->second))
 					return nullptr;
-				return &it->second;
+				return &m_observer_runtime_slots[it->second.id()].runtime;
 			}
 
 			//! Finds read-only runtime storage for an observer.
@@ -710,9 +862,9 @@ namespace gaia {
 			//! \return Runtime record, or null when the observer is not registered.
 			GAIA_NODISCARD const ObserverRuntimeData* data_try(Entity observer) const {
 				const auto it = m_observer_data.find(EntityLookupKey(observer));
-				if (it == m_observer_data.end())
+				if (it == m_observer_data.end() || !m_observer_runtime_slots.has(it->second))
 					return nullptr;
-				return &it->second;
+				return &m_observer_runtime_slots[it->second.id()].runtime;
 			}
 
 			//! Returns writable runtime storage for a registered observer.
