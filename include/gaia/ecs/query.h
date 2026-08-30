@@ -4007,24 +4007,6 @@ namespace gaia {
 					return world_has_entity_term_direct(world, entity, term.id);
 				}
 
-				//! Evaluates a compiled single-term direct-target query without re-walking the generic term loop.
-				GAIA_NODISCARD static bool match_single_direct_target_term(
-						const World& world, Entity entity, Entity termId, QueryCtx::DirectTargetEvalKind kind) {
-					switch (kind) {
-						case QueryCtx::DirectTargetEvalKind::SingleAllSemanticIs:
-						case QueryCtx::DirectTargetEvalKind::SingleAllInherited:
-							return world_has_entity_term(world, entity, termId);
-						case QueryCtx::DirectTargetEvalKind::SingleAllInIs:
-							return world_has_entity_term_in(world, entity, termId);
-						case QueryCtx::DirectTargetEvalKind::SingleAllDirect:
-							return world_has_entity_term_direct(world, entity, termId);
-						case QueryCtx::DirectTargetEvalKind::Generic:
-							break;
-					}
-
-					return false;
-				}
-
 				GAIA_NODISCARD static uint32_t count_direct_term_entities(const World& world, const QueryTerm& term) {
 					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
 						return world_count_direct_term_entities(world, term.id);
@@ -4229,6 +4211,82 @@ namespace gaia {
 					}
 
 					return !hasOrTerms || anyOrMatched;
+				}
+
+				//! Evaluates remaining strict direct-storage terms after a required seed matched.
+				GAIA_NODISCARD static bool match_remaining_direct_storage_terms(
+						const World& world, Entity entity, const QueryInfo& queryInfo, Entity seedTerm) {
+					bool hasOrTerms = false;
+					bool anyOrMatched = false;
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.op == QueryOpKind::All && term.id == seedTerm && term.matchKind == QueryMatchKind::Direct)
+							continue;
+
+						const bool present = world_has_entity_term_direct(world, entity, term.id);
+						switch (term.op) {
+							case QueryOpKind::All:
+								if (!present)
+									return false;
+								break;
+							case QueryOpKind::Or:
+								hasOrTerms = true;
+								anyOrMatched |= present;
+								break;
+							case QueryOpKind::Not:
+								if (present)
+									return false;
+								break;
+							case QueryOpKind::Any:
+							case QueryOpKind::Count:
+								break;
+						}
+					}
+
+					return !hasOrTerms || anyOrMatched;
+				}
+
+				//! Evaluates a specialized direct-target seed and any remaining direct terms.
+				GAIA_NODISCARD static bool match_specialized_direct_target_terms(
+						const World& world, Entity entity, const QueryInfo& queryInfo, Entity termId,
+						QueryCtx::DirectTargetEvalKind kind) {
+					if (kind == QueryCtx::DirectTargetEvalKind::SingleAllDirect)
+						return world_has_entity_term_direct(world, entity, termId);
+
+					DirectEntitySeedInfo seedInfo{};
+					switch (kind) {
+						case QueryCtx::DirectTargetEvalKind::SingleAllSemanticIs:
+						case QueryCtx::DirectTargetEvalKind::SingleAllInherited:
+							return world_has_entity_term(world, entity, termId);
+						case QueryCtx::DirectTargetEvalKind::SingleAllInIs:
+							return world_has_entity_term_in(world, entity, termId);
+						case QueryCtx::DirectTargetEvalKind::SingleAllDirectMixedDirect:
+							if (!world_has_entity_term_direct(world, entity, termId))
+								return false;
+							return match_remaining_direct_storage_terms(world, entity, queryInfo, termId);
+						case QueryCtx::DirectTargetEvalKind::SingleAllDirectMixed:
+							if (!world_has_entity_term_direct(world, entity, termId))
+								return false;
+							seedInfo.seededAllMatchKind = QueryMatchKind::Direct;
+							break;
+						case QueryCtx::DirectTargetEvalKind::SingleAllInIsMixed:
+							if (!world_has_entity_term_in(world, entity, termId))
+								return false;
+							seedInfo.seededAllMatchKind = QueryMatchKind::In;
+							break;
+						case QueryCtx::DirectTargetEvalKind::SingleAllSemanticIsMixed:
+						case QueryCtx::DirectTargetEvalKind::SingleAllInheritedMixed:
+							if (!world_has_entity_term(world, entity, termId))
+								return false;
+							seedInfo.seededAllMatchKind = QueryMatchKind::Semantic;
+							break;
+						case QueryCtx::DirectTargetEvalKind::Generic:
+						case QueryCtx::DirectTargetEvalKind::SingleAllDirect:
+							return false;
+					}
+
+					seedInfo.seededAllTerm = termId;
+					seedInfo.seededFromAll = true;
+					return match_direct_entity_terms(world, entity, queryInfo, seedInfo);
 				}
 
 				GAIA_NODISCARD static const QueryTerm*
@@ -4844,13 +4902,15 @@ namespace gaia {
 								const auto entity = targetEntities[0];
 								if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly))
 									return false;
-								return match_single_direct_target_term(world, entity, termId, directTargetEvalKind);
+								return match_specialized_direct_target_terms(
+										world, entity, queryInfo, termId, directTargetEvalKind);
 							}
 
 							for (const auto entity: targetEntities) {
 								if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly))
 									continue;
-								if (match_single_direct_target_term(world, entity, termId, directTargetEvalKind))
+								if (match_specialized_direct_target_terms(
+											world, entity, queryInfo, termId, directTargetEvalKind))
 									return true;
 							}
 

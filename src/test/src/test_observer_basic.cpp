@@ -1642,4 +1642,119 @@ TEST_CASE("Observer - nested OnSet dispatch preserves pending observers") {
 	(void)secondObserver;
 }
 
+TEST_CASE("Observer - direct matching evaluates all query terms") {
+	SUBCASE("Negative term") {
+		TestWorld twld;
+
+		uint32_t addHits = 0;
+		uint32_t delHits = 0;
+		const auto onAdd = wld.observer()
+											.event(ecs::ObserverEvent::OnAdd)
+											.all<Position>()
+											.no<Acceleration>()
+											.on_each([&]() {
+												++addHits;
+											})
+											.entity();
+		const auto onDel = wld.observer()
+											.event(ecs::ObserverEvent::OnDel)
+											.all<Position>()
+											.no<Acceleration>()
+											.on_each([&]() {
+												++delHits;
+											})
+											.entity();
+
+		const auto entity = wld.add();
+		wld.add<Acceleration>(entity);
+		wld.add<Position>(entity);
+		CHECK(addHits == 0);
+
+		wld.del<Position>(entity);
+		CHECK(delHits == 0);
+
+		wld.del<Acceleration>(entity);
+		wld.add<Position>(entity);
+		CHECK(addHits == 1);
+
+		wld.del<Position>(entity);
+		CHECK(delHits == 1);
+		(void)onAdd;
+		(void)onDel;
+	}
+
+	SUBCASE("Or group") {
+		TestWorld twld;
+
+		uint32_t hits = 0;
+		const auto observer = wld.observer()
+												 .event(ecs::ObserverEvent::OnAdd)
+												 .all<Position>()
+												 .or_<Acceleration>()
+												 .or_<Rotation>()
+												 .on_each([&]() {
+													 ++hits;
+												 })
+												 .entity();
+
+		const auto entity = wld.add();
+		wld.add<Position>(entity);
+		CHECK(hits == 0);
+
+		wld.add<Acceleration>(entity);
+		CHECK(hits == 1);
+		(void)observer;
+	}
+
+	SUBCASE("Semantic Is with negative term") {
+		TestWorld twld;
+
+		const auto base = wld.add();
+		uint32_t hits = 0;
+		const auto observer = wld.observer()
+												 .event(ecs::ObserverEvent::OnAdd)
+												 .is(base)
+												 .no<Acceleration>()
+												 .on_each([&]() {
+													 ++hits;
+												 })
+												 .entity();
+
+		const auto rejected = wld.add();
+		wld.add<Acceleration>(rejected);
+		wld.add(rejected, ecs::Pair(ecs::Is, base));
+		CHECK(hits == 0);
+
+		const auto matching = wld.add();
+		wld.add(matching, ecs::Pair(ecs::Is, base));
+		CHECK(hits == 1);
+		(void)observer;
+	}
+
+	SUBCASE("Strict In with negative term") {
+		TestWorld twld;
+
+		const auto base = wld.add();
+		uint32_t hits = 0;
+		const auto observer = wld.observer()
+												 .event(ecs::ObserverEvent::OnAdd)
+												 .in(base)
+												 .no<Acceleration>()
+												 .on_each([&]() {
+													 ++hits;
+												 })
+												 .entity();
+
+		const auto rejected = wld.add();
+		wld.add<Acceleration>(rejected);
+		wld.add(rejected, ecs::Pair(ecs::Is, base));
+		CHECK(hits == 0);
+
+		const auto matching = wld.add();
+		wld.add(matching, ecs::Pair(ecs::Is, base));
+		CHECK(hits == 1);
+		(void)observer;
+	}
+}
+
 #endif

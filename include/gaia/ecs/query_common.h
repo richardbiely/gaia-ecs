@@ -962,6 +962,16 @@ namespace gaia {
 				SingleAllInIs,
 				//! Evaluates one required term through inherited component data.
 				SingleAllInherited,
+				//! Evaluates one required direct-storage term before remaining direct terms.
+				SingleAllDirectMixed,
+				//! Evaluates one required direct-storage term before remaining direct-storage terms.
+				SingleAllDirectMixedDirect,
+				//! Evaluates one required semantic Is term before remaining direct terms.
+				SingleAllSemanticIsMixed,
+				//! Evaluates one required inherited-inclusive Is term before remaining direct terms.
+				SingleAllInIsMixed,
+				//! Evaluates one required inherited-data term before remaining direct terms.
+				SingleAllInheritedMixed,
 			};
 
 			//! Dependency facts derived from the compiled term set.
@@ -1564,6 +1574,8 @@ namespace gaia {
 					bool hasDirectTargetEvalPositiveTerms = false;
 					const QueryTerm* pSingleDirectTargetAllTerm = nullptr;
 					bool singleDirectTargetEvalPossible = true;
+					bool directTargetEvalHasRemainingTerms = false;
+					bool directTargetEvalAllTermsDirect = true;
 					QueryEntityArray idsNoSrc;
 					QueryEntityArray createSelectorsAll;
 					QueryEntityArray createSelectorsOr;
@@ -1590,6 +1602,7 @@ namespace gaia {
 																				!is_variable((EntityId)id.gen());
 						const bool isPotentialInheritedTerm = query_term_uses_potential_inherited_id_matching(term);
 						const bool isInheritedTerm = isPotentialInheritedTerm && world_term_uses_inherit_policy(*w, id);
+						directTargetEvalAllTermsDirect &= !isDirectIsTerm && !isInheritedTerm;
 						const bool isNonFragmentingTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_relation_uses_non_fragmenting_storage(*w, pair_rel(*w, id))) ||
@@ -1617,8 +1630,10 @@ namespace gaia {
 							case QueryOpKind::Or:
 								hasDirectTargetEvalPositiveTerms = true;
 								hasOrTerms = true;
+								directTargetEvalHasRemainingTerms = true;
 								break;
 							case QueryOpKind::Not:
+								directTargetEvalHasRemainingTerms = true;
 								break;
 							case QueryOpKind::Any:
 							case QueryOpKind::Count:
@@ -1739,17 +1754,26 @@ namespace gaia {
 						const auto id = term.id;
 						if (term.matchKind == QueryMatchKind::In && id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
 								!is_variable((EntityId)id.gen())) {
-							data.directTargetEvalKind = DirectTargetEvalKind::SingleAllInIs;
+							data.directTargetEvalKind = directTargetEvalHasRemainingTerms
+									? DirectTargetEvalKind::SingleAllInIsMixed
+									: DirectTargetEvalKind::SingleAllInIs;
 						} else if (
 								term.matchKind == QueryMatchKind::Semantic && id.pair() && id.id() == Is.id() &&
 								!is_wildcard(id.gen()) && !is_variable((EntityId)id.gen())) {
-							data.directTargetEvalKind = DirectTargetEvalKind::SingleAllSemanticIs;
+							data.directTargetEvalKind = directTargetEvalHasRemainingTerms
+									? DirectTargetEvalKind::SingleAllSemanticIsMixed
+									: DirectTargetEvalKind::SingleAllSemanticIs;
 						} else if (
 								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
 								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id)) {
-							data.directTargetEvalKind = DirectTargetEvalKind::SingleAllInherited;
+							data.directTargetEvalKind = directTargetEvalHasRemainingTerms
+									? DirectTargetEvalKind::SingleAllInheritedMixed
+									: DirectTargetEvalKind::SingleAllInherited;
 						} else {
-							data.directTargetEvalKind = DirectTargetEvalKind::SingleAllDirect;
+							data.directTargetEvalKind = !directTargetEvalHasRemainingTerms
+									? DirectTargetEvalKind::SingleAllDirect
+									: directTargetEvalAllTermsDirect ? DirectTargetEvalKind::SingleAllDirectMixedDirect
+																			 : DirectTargetEvalKind::SingleAllDirectMixed;
 						}
 						data.directTargetEvalId = id;
 					}
