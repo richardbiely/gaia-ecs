@@ -1075,6 +1075,32 @@ TEST_CASE("Add - maximum archetype id capacity is usable") {
 	CHECK(wld.fetch(entity).pArchetype->ids_view().size() == ecs::ChunkHeader::MAX_COMPONENTS);
 }
 
+TEST_CASE("EntityBuilder - pending commit ownership moves") {
+	static_assert(!std::is_copy_constructible_v<ecs::EntityBuilder>);
+	static_assert(std::is_move_constructible_v<ecs::EntityBuilder>);
+
+	TestWorld twld;
+	const auto entity = wld.add();
+	uint32_t addHits = 0;
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all<Position>()
+			.on_each([&](ecs::Iter&) {
+				++addHits;
+			})
+			.entity();
+
+	{
+		auto builder = wld.build(entity);
+		builder.add<Position>();
+		ecs::EntityBuilder moved(GAIA_MOV(builder));
+		(void)moved;
+	}
+
+	CHECK(wld.has<Position>(entity));
+	CHECK(addHits == 1);
+}
+
 TEST_CASE("Add - many components, bulk") {
 	TestWorld twld;
 

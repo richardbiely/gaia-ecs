@@ -67084,7 +67084,28 @@ namespace gaia {
 					m_pArchetype = ec.pArchetype;
 				}
 
-				EntityBuilder(const EntityBuilder&) = default;
+				//! Entity builders own one pending commit and therefore cannot be copied.
+				EntityBuilder(const EntityBuilder&) = delete;
+
+				//! Transfers ownership of a pending entity mutation.
+				//! \param other Builder whose pending mutation is transferred.
+				EntityBuilder(EntityBuilder&& other) noexcept:
+						m_world(other.m_world), m_pArchetypeSrc(other.m_pArchetypeSrc), m_pChunkSrc(other.m_pChunkSrc),
+						m_rowSrc(other.m_rowSrc), m_pArchetype(other.m_pArchetype), m_targetNameKey(other.m_targetNameKey),
+						m_targetAliasKey(other.m_targetAliasKey), m_entity(other.m_entity)
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+						,
+						tl_new_comps(GAIA_MOV(other.tl_new_comps)), tl_del_comps(GAIA_MOV(other.tl_del_comps))
+#endif
+#if GAIA_OBSERVERS_ENABLED
+						,
+						tl_del_nonfragmenting_relations(GAIA_MOV(other.tl_del_nonfragmenting_relations)),
+						tl_add_nonfragmenting_diff_contexts(GAIA_MOV(other.tl_add_nonfragmenting_diff_contexts)),
+						tl_del_nonfragmenting_diff_contexts(GAIA_MOV(other.tl_del_nonfragmenting_diff_contexts))
+#endif
+				{
+					other.m_pArchetype = nullptr;
+				}
 
 				EntityBuilder& operator=(const EntityBuilder&) = delete;
 				EntityBuilder& operator=(EntityBuilder&&) = delete;
