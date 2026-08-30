@@ -1011,66 +1011,94 @@ namespace gaia {
 			//! Generic in-place quicksort across chunks
 			template <bool Enabled>
 			void sort_entities_inter(size_t low, size_t high, TSortByFunc func) {
-				if (low >= high)
-					return;
+				while (low < high) {
+					const auto pivotIdx = low + (high - low) / 2;
+					Entity pivotEntity = get_flat_entity<Enabled>(pivotIdx);
+					if (pivotIdx != high) {
+						const Entity highEntity = get_flat_entity<Enabled>(high);
+						Chunk::swap_chunk_entities(const_cast<World&>(m_world), pivotEntity, highEntity);
+					}
 
-				Entity pivotEntity = get_flat_entity<Enabled>(high);
-
-				size_t i = low;
-				for (size_t j = low; j < high; ++j) {
-					Entity jEntity = get_flat_entity<Enabled>(j);
-					if (func(m_world, &jEntity, &pivotEntity) < 0) {
-						if (i != j) {
-							Entity iEntity = get_flat_entity<Enabled>(i);
-							Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
+					size_t i = low;
+					for (size_t j = low; j < high; ++j) {
+						Entity jEntity = get_flat_entity<Enabled>(j);
+						if (func(m_world, &jEntity, &pivotEntity) < 0) {
+							if (i != j) {
+								Entity iEntity = get_flat_entity<Enabled>(i);
+								Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
+							}
+							++i;
 						}
-						++i;
+					}
+
+					{
+						Entity iEntity = get_flat_entity<Enabled>(i);
+						Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
+					}
+
+					//! Recurse into the smaller partition and iterate over the larger one so
+					//! ordered inputs cannot make recursion depth linear in the entity count.
+					if (i - low < high - i) {
+						if (low < i)
+							sort_entities_inter<Enabled>(low, i - 1, func);
+						low = i + 1;
+					} else {
+						if (i < high)
+							sort_entities_inter<Enabled>(i + 1, high, func);
+						if (i == 0)
+							return;
+						high = i - 1;
 					}
 				}
-
-				{
-					Entity iEntity = get_flat_entity<Enabled>(i);
-					Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
-				}
-
-				if (i > 0)
-					sort_entities_inter<Enabled>(low, i - 1, func);
-				sort_entities_inter<Enabled>(i + 1, high, func);
 			}
 
 			//! Generic in-place quicksort across chunks
 			template <bool Enabled>
 			void sort_entities_inter(
 					const ComponentCacheItem* pItem, uint32_t compIdx, size_t low, size_t high, TSortByFunc func) {
-				if (low >= high)
-					return;
+				while (low < high) {
+					const auto pivotIdx = low + (high - low) / 2;
+					Entity pivotEntity;
+					(void)get_flat_comp_ptr<Enabled>(compIdx, pivotIdx, pivotEntity);
+					if (pivotIdx != high) {
+						Entity highEntity;
+						(void)get_flat_comp_ptr<Enabled>(compIdx, high, highEntity);
+						Chunk::swap_chunk_entities(const_cast<World&>(m_world), pivotEntity, highEntity);
+					}
+					const void* pPivotData = get_flat_comp_ptr<Enabled>(compIdx, high, pivotEntity);
 
-				Entity pivotEntity;
-				const void* pPivotData = get_flat_comp_ptr<Enabled>(compIdx, high, pivotEntity);
-
-				size_t i = low;
-				for (size_t j = low; j < high; ++j) {
-					Entity jEntity;
-					const void* jData = get_flat_comp_ptr<Enabled>(compIdx, j, jEntity);
-					if (func(m_world, jData, pPivotData) < 0) {
-						if (i != j) {
-							Entity iEntity;
-							(void)get_flat_comp_ptr<Enabled>(compIdx, i, iEntity);
-							Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
+					size_t i = low;
+					for (size_t j = low; j < high; ++j) {
+						Entity jEntity;
+						const void* jData = get_flat_comp_ptr<Enabled>(compIdx, j, jEntity);
+						if (func(m_world, jData, pPivotData) < 0) {
+							if (i != j) {
+								Entity iEntity;
+								(void)get_flat_comp_ptr<Enabled>(compIdx, i, iEntity);
+								Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
+							}
+							++i;
 						}
-						++i;
+					}
+
+					{
+						Entity iEntity;
+						(void)get_flat_comp_ptr<Enabled>(compIdx, i, iEntity);
+						Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
+					}
+
+					if (i - low < high - i) {
+						if (low < i)
+							sort_entities_inter<Enabled>(pItem, compIdx, low, i - 1, func);
+						low = i + 1;
+					} else {
+						if (i < high)
+							sort_entities_inter<Enabled>(pItem, compIdx, i + 1, high, func);
+						if (i == 0)
+							return;
+						high = i - 1;
 					}
 				}
-
-				{
-					Entity iEntity;
-					(void)get_flat_comp_ptr<Enabled>(compIdx, i, iEntity);
-					Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
-				}
-
-				if (i > 0)
-					sort_entities_inter<Enabled>(pItem, compIdx, low, i - 1, func);
-				sort_entities_inter<Enabled>(pItem, compIdx, i + 1, high, func);
 			}
 
 			//! Sorts all entities in the archetypes according to the given function.
