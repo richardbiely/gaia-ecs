@@ -1028,12 +1028,15 @@ TEST_CASE("ChunkAllocator") {
 
 TEST_CASE("PagedAllocator") {
 	using Alloc = mem::PagedAllocator<PagedAllocatorProbe, 64>;
+	using Page = mem::MemoryPage<PagedAllocatorProbe, 64>;
+	static_assert(Page::MemoryBlockBytes >= 64 + mem::MemoryBlockUsableOffset);
 	auto& alloc = Alloc::get();
 	alloc.flush();
 	alloc.verify();
 
 	void* p = alloc.alloc(0);
 	CHECK(p != nullptr);
+	CHECK((uintptr_t)p % mem::MemoryBlockAlignment == 0);
 
 #if GAIA_DEBUG
 	const auto* bytes = (const uint8_t*)p;

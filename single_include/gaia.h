@@ -18290,11 +18290,12 @@ namespace gaia {
 	namespace mem {
 		//! Required alignment of each page block.
 		static constexpr uint32_t MemoryBlockAlignment = 16;
-		//! Size in bytes of one memory block.
+		//! Default usable size in bytes of one memory block.
 		//! 32 kiB per block by default.
 		static constexpr uint32_t MemoryBlockBytesDefault = 32768;
-		//! Unusable area at the beginning of the allocated block designated for special purposes
-		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
+		//! Header area preceding each aligned usable block.
+		static constexpr uint32_t MemoryBlockUsableOffset = MemoryBlockAlignment;
+		static_assert(MemoryBlockUsableOffset >= sizeof(uintptr_t));
 
 		//! Common header for allocator pages.
 		struct GAIA_API MemoryPageHeader {
@@ -18317,13 +18318,11 @@ namespace gaia {
 			static constexpr uint32_t next_multiple_of_alignment(uint32_t num) {
 				return (num + (MemoryBlockAlignment - 1)) & uint32_t(-(int32_t)MemoryBlockAlignment);
 			}
-			//! Selects and aligns the configured block size.
-			//! \return Block size in bytes.
+			//! Selects and aligns the configured block size, including its header.
+			//! \return Total block size in bytes.
 			static constexpr uint32_t calculate_block_size() {
-				if constexpr (RequestedBlockSize == 0)
-					return next_multiple_of_alignment(MemoryBlockBytesDefault);
-				else
-					return next_multiple_of_alignment(RequestedBlockSize);
+				constexpr uint32_t UsableBytes = RequestedBlockSize == 0 ? MemoryBlockBytesDefault : RequestedBlockSize;
+				return next_multiple_of_alignment(UsableBytes + MemoryBlockUsableOffset);
 			}
 
 			//! Size of one block in bytes.
