@@ -958,6 +958,22 @@ void input_range_constructor_test(const T (&values)[N]) {
 	GAIA_FOR(N) CHECK(arr[i] == values[i]);
 }
 
+template <typename Container, typename T>
+void lvalue_insert_test(const T& first, const T& insertedValue, const T& third, const T& fourth) {
+	Container arr;
+	arr.push_back(first);
+	arr.push_back(third);
+	arr.push_back(fourth);
+
+	const auto inserted = arr.insert(arr.begin() + 1, insertedValue);
+	CHECK(inserted == arr.begin() + 1);
+	CHECK(arr.size() == 4);
+	CHECK(arr[0] == first);
+	CHECK(arr[1] == insertedValue);
+	CHECK(arr[2] == third);
+	CHECK(arr[3] == fourth);
+}
+
 template <typename Container>
 void retainable_arr_test() {
 	using cont_item = typename Container::value_type;
@@ -1104,6 +1120,11 @@ TEST_CASE("Containers - forward iterator range construction") {
 	input_range_constructor_test<cnt::sarr_ext_soa<PositionSoA, 4>>(soaValues);
 	input_range_constructor_test<cnt::darr_soa<PositionSoA>>(soaValues);
 	input_range_constructor_test<cnt::darr_ext_soa<PositionSoA, 4>>(soaValues);
+}
+
+TEST_CASE("Containers - dynamic lvalue insertion") {
+	lvalue_insert_test<cnt::darr<uint32_t>>(1, 2, 3, 4);
+	lvalue_insert_test<cnt::darr_ext<uint32_t, 4>>(1, 2, 3, 4);
 }
 
 //------------------------------------------------------------------------------

@@ -8780,7 +8780,7 @@ namespace gaia {
 
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				try_grow();
-				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
+				const auto idxDst = (size_type)core::distance(begin(), end());
 
 				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
 				mem::shift_elements_right<T, false>(m_pData, idxDst, idxSrc, m_cap);
@@ -11178,11 +11178,11 @@ namespace gaia {
 
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				try_grow();
-				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
+				const auto idxDst = (size_type)core::distance(begin(), end());
 
 				GAIA_MEM_SANI_PUSH(value_size, m_pData, m_cap, m_cnt);
 				mem::shift_elements_right<T, false>(m_pData, idxDst, idxSrc, m_cap);
-				auto* ptr = &data()[m_cnt];
+				auto* ptr = &data()[idxSrc];
 				core::call_ctor(ptr, arg);
 
 				++m_cnt;
