@@ -2181,6 +2181,42 @@ TEST_CASE("Containers - paged storage") {
 	util::g_logLevelMask = logLevelBackup;
 }
 
+TEST_CASE("Containers - paged storage skips empty pages") {
+	using Storage = cnt::page_storage<SparseTestItem>;
+	constexpr uint32_t FirstId = 1;
+	constexpr uint32_t LastId = Storage::PageCapacity * 2 + 7;
+
+	Storage arr;
+	arr.add(SparseTestItem{FirstId, 11});
+	arr.add(SparseTestItem{LastId, 22});
+
+	auto verify = [](auto& storage) {
+		const uint32_t forwardIds[] = {FirstId, LastId};
+		auto it = storage.begin();
+		const auto itEnd = storage.end();
+		GAIA_FOR(2) {
+			CHECK(it != itEnd);
+			CHECK(it->id == forwardIds[i]);
+			++it;
+		}
+		CHECK(it == itEnd);
+
+		const uint32_t reverseIds[] = {LastId, FirstId};
+		auto reverseIt = storage.rbegin();
+		const auto reverseItEnd = storage.rend();
+		GAIA_FOR(2) {
+			CHECK(reverseIt != reverseItEnd);
+			CHECK(reverseIt->id == reverseIds[i]);
+			++reverseIt;
+		}
+		CHECK(reverseIt == reverseItEnd);
+	};
+
+	verify(arr);
+	const auto& constArr = arr;
+	verify(constArr);
+}
+
 TEST_CASE("Containers - alignment check") {
 	using TArrInter = cnt::sarr<ecs::QueryTerm, 3>;
 	struct TFoo {

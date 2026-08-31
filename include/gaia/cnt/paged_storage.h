@@ -548,11 +548,11 @@ namespace gaia {
 				if constexpr (!IsFwd) {
 					m_it = m_pPage->rbegin();
 					while (m_it == m_pPage->rend()) {
-						--m_pPage;
 						if (m_pPage == m_pPageLast) {
 							m_it = {};
 							break;
 						}
+						--m_pPage;
 						m_it = m_pPage->rbegin();
 					}
 				} else {
@@ -585,22 +585,26 @@ namespace gaia {
 				if constexpr (!IsFwd) {
 					++m_it;
 					if (m_it == m_pPage->rend()) {
-						--m_pPage;
-						if (m_pPage == m_pPageLast) {
-							m_it = {};
-							return *this;
-						}
-						m_it = m_pPage->rbegin();
+						do {
+							if (m_pPage == m_pPageLast) {
+								m_it = {};
+								return *this;
+							}
+							--m_pPage;
+							m_it = m_pPage->rbegin();
+						} while (m_it == m_pPage->rend());
 					}
 				} else {
 					++m_it;
 					if (m_it == m_pPage->end()) {
-						++m_pPage;
-						if (m_pPage == m_pPageLast) {
-							m_it = {};
-							return *this;
-						}
-						m_it = m_pPage->begin();
+						do {
+							++m_pPage;
+							if (m_pPage == m_pPageLast) {
+								m_it = {};
+								return *this;
+							}
+							m_it = m_pPage->begin();
+						} while (m_it == m_pPage->end());
 					}
 				}
 				return *this;
@@ -668,11 +672,11 @@ namespace gaia {
 				if constexpr (!IsFwd) {
 					m_it = m_pPage->rbegin();
 					while (m_it == m_pPage->rend()) {
-						--m_pPage;
 						if (m_pPage == m_pPageLast) {
 							m_it = {};
 							break;
 						}
+						--m_pPage;
 						m_it = m_pPage->rbegin();
 					}
 				} else {
@@ -705,22 +709,26 @@ namespace gaia {
 				if constexpr (!IsFwd) {
 					++m_it;
 					if (m_it == m_pPage->rend()) {
-						--m_pPage;
-						if (m_pPage == m_pPageLast) {
-							m_it = {};
-							return *this;
-						}
-						m_it = m_pPage->rbegin();
+						do {
+							if (m_pPage == m_pPageLast) {
+								m_it = {};
+								return *this;
+							}
+							--m_pPage;
+							m_it = m_pPage->rbegin();
+						} while (m_it == m_pPage->rend());
 					}
 				} else {
 					++m_it;
 					if (m_it == m_pPage->end()) {
-						++m_pPage;
-						if (m_pPage == m_pPageLast) {
-							m_it = {};
-							return *this;
-						}
-						m_it = m_pPage->begin();
+						do {
+							++m_pPage;
+							if (m_pPage == m_pPageLast) {
+								m_it = {};
+								return *this;
+							}
+							m_it = m_pPage->begin();
+						} while (m_it == m_pPage->end());
 					}
 				}
 				return *this;
@@ -1286,42 +1294,42 @@ namespace gaia {
 			//! \return Mutable reverse iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
 				GAIA_ASSERT(!empty());
-				return iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
+				return iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data());
 			}
 
 			//! Returns a reverse iterator to the last stored element.
 			//! \return Read-only reverse iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
 				GAIA_ASSERT(!empty());
-				return const_iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
+				return const_iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data());
 			}
 
 			//! Returns a read-only reverse iterator to the last stored element.
 			//! \return Read-only reverse iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
 				GAIA_ASSERT(!empty());
-				return const_iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
+				return const_iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data());
 			}
 
 			//! Returns a reverse iterator before the first stored element.
 			//! \return Mutable reverse end iterator.
 			GAIA_NODISCARD auto rend() noexcept {
 				GAIA_ASSERT(!empty());
-				return iterator_reverse(m_pages.data() - 1);
+				return iterator_reverse(m_pages.data());
 			}
 
 			//! Returns a reverse iterator before the first stored element.
 			//! \return Read-only reverse end iterator.
 			GAIA_NODISCARD auto rend() const noexcept {
 				GAIA_ASSERT(!empty());
-				return const_iterator_reverse(m_pages.data() - 1);
+				return const_iterator_reverse(m_pages.data());
 			}
 
 			//! Returns a read-only reverse iterator before the first stored element.
 			//! \return Read-only reverse end iterator.
 			GAIA_NODISCARD auto crend() const noexcept {
 				GAIA_ASSERT(!empty());
-				return const_iterator_reverse(m_pages.data() - 1);
+				return const_iterator_reverse(m_pages.data());
 			}
 
 			//! Checks whether two storages contain equal elements.
