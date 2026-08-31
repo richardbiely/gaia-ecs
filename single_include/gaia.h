@@ -10611,8 +10611,8 @@ namespace gaia {
 						// Find the last set bit
 						if (pos != lastBit || !check_bit(pos)) {
 							const auto newPos = find_prev_set_bit(pos);
-							// Point one beyond the last found bit
-							pos = (newPos == pos) ? bitsetSize - 1 : newPos;
+							// Use the reverse sentinel when no earlier set bit exists.
+							pos = (newPos == pos) ? (value_type)-1 : newPos;
 						}
 					} else {
 						// Find the last set bit

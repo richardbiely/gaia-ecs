@@ -2716,6 +2716,10 @@ void test_bitset() {
 			for ([[maybe_unused]] auto val: bs)
 				++i;
 			CHECK(i == 0);
+			CHECK(bs.rbegin() == bs.rend());
+			for (auto it = bs.rbegin(); it != bs.rend(); ++it)
+				++i;
+			CHECK(i == 0);
 		}
 		auto fwd_iterator_test = [](std::span<uint32_t> vals) {
 			cnt::bitset<NBits> bs;
@@ -3046,6 +3050,10 @@ void test_dbitset() {
 			cnt::dbitset bs;
 			uint32_t i = 0;
 			for ([[maybe_unused]] auto val: bs)
+				++i;
+			CHECK(i == 0);
+			CHECK(bs.rbegin() == bs.rend());
+			for (auto it = bs.rbegin(); it != bs.rend(); ++it)
 				++i;
 			CHECK(i == 0);
 		}
