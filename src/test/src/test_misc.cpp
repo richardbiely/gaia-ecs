@@ -4347,6 +4347,39 @@ TEST_CASE("Hooks") {
 		CHECK(hook_trigger_cnt == 3);
 	}
 
+	SUBCASE("copy add") {
+		using PairType = ecs::pair<ErasedPairRelationTag, ErasedPairPayload>;
+
+		TestWorld twld;
+		const auto& positionItem = wld.add<Position>();
+		const auto& sparseItem = wld.add<PositionSparse>();
+		(void)wld.add<ErasedPairRelationTag>();
+		const auto& pairPayloadItem = wld.add<ErasedPairPayload>();
+		hook_trigger_cnt = 0;
+
+		auto countAdd = [](const ecs::World&, const ecs::ComponentCacheItem&, ecs::Entity) {
+			++hook_trigger_cnt;
+		};
+		ecs::ComponentCache::hooks(positionItem).func_add = countAdd;
+		ecs::ComponentCache::hooks(sparseItem).func_add = countAdd;
+		ecs::ComponentCache::hooks(pairPayloadItem).func_add = countAdd;
+
+		const auto source = wld.add();
+		wld.add<Position>(source, {1.0f, 2.0f, 3.0f});
+		wld.add<PositionSparse>(source, {4.0f, 5.0f, 6.0f});
+		wld.add<PairType>(source, {7.0f, 8.0f});
+		hook_trigger_cnt = 0;
+
+		(void)wld.copy(source);
+		CHECK(hook_trigger_cnt == 3);
+		(void)wld.copy_ext(source);
+		CHECK(hook_trigger_cnt == 6);
+		wld.copy_n(source, 3);
+		CHECK(hook_trigger_cnt == 15);
+		wld.copy_ext_n(source, 4);
+		CHECK(hook_trigger_cnt == 27);
+	}
+
 	SUBCASE("del") {
 		TestWorld twld;
 		const auto& pitem = wld.add<Position>();

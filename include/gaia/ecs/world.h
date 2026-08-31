@@ -4319,9 +4319,14 @@ namespace gaia {
 
 				// Names have to be unique so if we see that EntityDesc is present during copy
 				// we navigate towards a version of the archetype without the EntityDesc.
-				if (pDstArchetype->has<EntityDesc>()) {
+				const bool hasEntityDesc = pDstArchetype->has<EntityDesc>();
+				if (hasEntityDesc)
 					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
 
+				cnt::darray_ext<Entity, 16> addHookIds;
+				collect_copy_add_hook_ids(srcEntity, *pDstArchetype, EntitySpan{nonfragmentingPairs}, addHookIds);
+
+				if (hasEntityDesc) {
 					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
 					auto& ecDst = m_recs.entities[dstEntity.id()];
 					Chunk::copy_foreign_entity_data(ec.pChunk, ec.row, ecDst.pChunk, ecDst.row);
@@ -4333,6 +4338,7 @@ namespace gaia {
 
 				copy_all_sparse_entity_data(srcEntity, dstEntity);
 				copy_nonfragmenting_relation_pairs(dstEntity, EntitySpan{nonfragmentingPairs});
+				trigger_copy_add_hooks(EntitySpan{&dstEntity, 1}, EntitySpan{addHookIds});
 
 				return dstEntity;
 			}
@@ -4350,7 +4356,13 @@ namespace gaia {
 			void copy_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				cnt::darray_ext<Entity, 8> nonfragmentingPairs;
 				collect_nonfragmenting_relation_pairs(entity, nonfragmentingPairs);
-				copy_n_inter(entity, count, func, EntitySpan{}, EntitySpan{nonfragmentingPairs});
+				auto* pDstArchetype = m_recs.entities[entity.id()].pArchetype;
+				if (pDstArchetype->has<EntityDesc>())
+					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
+				cnt::darray_ext<Entity, 16> addHookIds;
+				collect_copy_add_hook_ids(entity, *pDstArchetype, EntitySpan{nonfragmentingPairs}, addHookIds);
+				copy_n_inter(
+						entity, count, func, EntitySpan{}, EntitySpan{nonfragmentingPairs}, EntitySpan{addHookIds});
 			}
 
 #if GAIA_OBSERVERS_ENABLED
@@ -4388,6 +4400,8 @@ namespace gaia {
 				write_copied_non_frag_sparse_ids(srcEntity, pAddedIds + archetypeIdCount);
 				GAIA_FOR(nonfragmentingPairCount)
 				pAddedIds[archetypeIdCount + sparseIdCount + i] = nonfragmentingPairs[i];
+				cnt::darray_ext<Entity, 16> addHookIds;
+				collect_add_hook_ids(EntitySpan{pAddedIds, addedIdCount}, addHookIds);
 	#if GAIA_OBSERVERS_ENABLED
 				auto addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{pAddedIds, addedIdCount});
 	#endif
@@ -4405,6 +4419,7 @@ namespace gaia {
 
 				(void)copy_all_sparse_entity_data(srcEntity, dstEntity);
 				copy_nonfragmenting_relation_pairs(dstEntity, EntitySpan{nonfragmentingPairs});
+				trigger_copy_add_hooks(EntitySpan{&dstEntity, 1}, EntitySpan{addHookIds});
 				m_observers.add_diff_targets(*this, addDiffCtx, EntitySpan{&dstEntity, 1});
 
 				m_observers.on_add(*this, *pDstArchetype, EntitySpan{pAddedIds, addedIdCount}, EntitySpan{&dstEntity, 1});
@@ -4443,11 +4458,14 @@ namespace gaia {
 				write_copied_non_frag_sparse_ids(entity, pAddedIds + archetypeIdCount);
 				GAIA_FOR(nonfragmentingPairCount)
 				pAddedIds[archetypeIdCount + sparseIdCount + i] = nonfragmentingPairs[i];
+				cnt::darray_ext<Entity, 16> addHookIds;
+				collect_add_hook_ids(EntitySpan{pAddedIds, addedIdCount}, addHookIds);
 	#if GAIA_OBSERVERS_ENABLED
 				auto addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{pAddedIds, addedIdCount});
 	#endif
 				copy_n_inter(
-						entity, count, func, EntitySpan{pAddedIds, addedIdCount}, EntitySpan{nonfragmentingPairs}, EntityBad
+						entity, count, func, EntitySpan{pAddedIds, addedIdCount}, EntitySpan{nonfragmentingPairs},
+						EntitySpan{addHookIds}, EntityBad
 	#if GAIA_OBSERVERS_ENABLED
 						,
 						&addDiffCtx
@@ -4880,6 +4898,7 @@ namespace gaia {
 			//! \param func Callback for copied entities.
 			//! \param addedIds Ids reported to add observers.
 			//! \param nonfragmentingPairs Exact out-of-archetype relation pairs copied to each destination.
+			//! \param addHookIds Copied ids with configured add hooks.
 			//! \param parentInstance Optional parent for copied entities.
 #if GAIA_OBSERVERS_ENABLED
 			//! \param pAddDiffCtx Optional observer diff context.
@@ -4887,7 +4906,7 @@ namespace gaia {
 			template <typename Func>
 			void copy_n_inter(
 					Entity entity, uint32_t count, Func& func, EntitySpan addedIds, EntitySpan nonfragmentingPairs,
-					Entity parentInstance = EntityBad
+					EntitySpan addHookIds, Entity parentInstance = EntityBad
 #if GAIA_OBSERVERS_ENABLED
 					,
 					ObserverRegistry::DiffDispatchCtx* pAddDiffCtx = nullptr
@@ -4966,10 +4985,12 @@ namespace gaia {
 					}
 
 					pDstChunk->update_versions();
+					auto entities = pDstChunk->entity_view();
+					trigger_copy_add_hooks(
+							EntitySpan{entities.data() + originalChunkSize, toCreate}, EntitySpan{addHookIds});
 
 #if GAIA_OBSERVERS_ENABLED
 					if (!addedIds.empty()) {
-						auto entities = pDstChunk->entity_view();
 						if (pAddDiffCtx != nullptr)
 							m_observers.add_diff_targets(
 									*this, *pAddDiffCtx, EntitySpan{entities.data() + originalChunkSize, toCreate});
@@ -5207,6 +5228,89 @@ namespace gaia {
 				}
 
 				return copiedCnt;
+			}
+
+			//! Filters copied ids down to components with configured add hooks.
+			//! \tparam T Output container type.
+			//! \param addedIds Candidate copied ids.
+			//! \param outHookIds Destination hook id list.
+			template <typename T>
+			void collect_add_hook_ids(EntitySpan addedIds, T& outHookIds) const {
+				outHookIds.clear();
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+				if (!m_compCache.hooks_accessed())
+					return;
+
+				for (const auto id: addedIds) {
+					const auto* pItem = id.pair() ? comp_cache().find_pair_payload(id) : comp_cache().find(id);
+					if (pItem != nullptr && pItem->hooks().func_add != nullptr)
+						outHookIds.push_back(id);
+				}
+#else
+				(void)addedIds;
+#endif
+			}
+
+			//! Collects copied ids with configured add hooks.
+			//! \tparam T Output container type.
+			//! \param srcEntity Source entity.
+			//! \param dstArchetype Destination archetype.
+			//! \param nonfragmentingPairs Copied out-of-archetype relation pairs.
+			//! \param outHookIds Destination hook id list.
+			template <typename T>
+			void collect_copy_add_hook_ids(
+					Entity srcEntity, const Archetype& dstArchetype, EntitySpan nonfragmentingPairs, T& outHookIds) const {
+				outHookIds.clear();
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+				if (!m_compCache.hooks_accessed())
+					return;
+
+				auto appendHook = [&](Entity id) {
+					const auto* pItem = id.pair() ? comp_cache().find_pair_payload(id) : comp_cache().find(id);
+					if (pItem != nullptr && pItem->hooks().func_add != nullptr)
+						outHookIds.push_back(id);
+				};
+
+				for (const auto id: dstArchetype.ids_view())
+					appendHook(id);
+				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
+					const auto component = compKey.entity();
+					if (copies_non_frag_sparse_payload_inter(component, srcEntity, store))
+						appendHook(component);
+				}
+				for (const auto pair: nonfragmentingPairs)
+					appendHook(pair);
+#else
+				(void)srcEntity;
+				(void)dstArchetype;
+				(void)nonfragmentingPairs;
+#endif
+			}
+
+			//! Runs component add hooks for copied entities after their payloads are initialized.
+			//! \param entities Copied entities.
+			//! \param hookIds Copied ids with configured add hooks.
+			void trigger_copy_add_hooks(EntitySpan entities, EntitySpan hookIds) {
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+				if (hookIds.empty() || tearing_down())
+					return;
+
+				lock();
+				for (const auto id: hookIds) {
+					for (const auto entity: entities) {
+						const auto* pItem = component_item(entity, id);
+						if (pItem == nullptr)
+							continue;
+						const auto& hooks = pItem->hooks();
+						if (hooks.func_add != nullptr)
+							hooks.func_add(*this, *pItem, entity);
+					}
+				}
+				unlock();
+#else
+				(void)entities;
+				(void)hookIds;
+#endif
 			}
 
 			//! Copies selected sparse payloads between entities.
@@ -5983,7 +6087,7 @@ namespace gaia {
 						return;
 					}
 
-					copy_n_inter(prefabEntity, count, func, EntitySpan{}, EntitySpan{}, parentInstance);
+					copy_n_inter(prefabEntity, count, func, EntitySpan{}, EntitySpan{}, EntitySpan{}, parentInstance);
 					return;
 				}
 
