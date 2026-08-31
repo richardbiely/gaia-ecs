@@ -70595,13 +70595,37 @@ namespace gaia {
 #endif
 			}
 
+			//! Checks whether deleting entities from an archetype can notify component observers or hooks.
+			//! \param archetype Source archetype.
+			//! \return True if component delete notification work may be required.
+			GAIA_NODISCARD bool may_notify_del_entity_components(const Archetype& archetype) const {
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+				if (m_compCache.hooks_accessed())
+					return true;
+#endif
+#if GAIA_OBSERVERS_ENABLED
+				return m_observers.has_on_del_observers() &&
+							 (archetype.has_observed_terms() || !m_sparseComponentsByComp.empty());
+#else
+				(void)archetype;
+				return false;
+#endif
+			}
+
 			//! Dispatches component delete notifications before an entity leaves its storage.
 			//! \param ec Entity container associated with \a entity.
 			//! \param entity Entity whose directly owned components are about to be destroyed.
 			void notify_del_entity_components(const EntityContainer& ec, Entity entity) {
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+				const auto& archetype = *ec.pArchetype;
+				if (!may_notify_del_entity_components(archetype))
+					return;
+				if GAIA_UNLIKELY (tearing_down())
+					return;
+
 	#if GAIA_OBSERVERS_ENABLED
-				bool inspectObserverTerms = ec.pArchetype->has_observed_terms() || !m_sparseComponentsByComp.empty();
+				const bool inspectObserverTerms =
+						m_observers.has_on_del_observers() && (archetype.has_observed_terms() || !m_sparseComponentsByComp.empty());
 	#else
 				constexpr bool inspectObserverTerms = false;
 	#endif
@@ -70610,18 +70634,6 @@ namespace gaia {
 	#else
 				constexpr bool inspectHookTerms = false;
 	#endif
-				if (!inspectObserverTerms && !inspectHookTerms)
-					return;
-				if GAIA_UNLIKELY (tearing_down())
-					return;
-
-				const auto& archetype = *ec.pArchetype;
-	#if GAIA_OBSERVERS_ENABLED
-				inspectObserverTerms = inspectObserverTerms && m_observers.has_on_del_observers();
-				if (!inspectObserverTerms && !inspectHookTerms)
-					return;
-	#endif
-
 				cnt::darray_ext<Entity, 32> observerTerms;
 				cnt::darray_ext<Entity, 32> hookTerms;
 
@@ -77336,13 +77348,34 @@ namespace gaia {
 				if (archetype.is_req_del())
 					return;
 
-				// Bulk cascade deletion bypasses req_del_inter(), so remove semantic source edges
-				// before the archetype becomes invalid to direct entity-seeded queries.
-				if (archetype.pairs_is() != 0) {
+				const bool unlinkIsRelations = archetype.pairs_is() != 0;
+				const bool notifyComponents = may_notify_del_entity_components(archetype) && !tearing_down();
+				if (unlinkIsRelations) {
 					for (const auto* pChunk: archetype.chunks()) {
 						for (const auto entity: pChunk->entity_view())
 							unlink_live_is_relations(entity);
 					}
+				}
+
+				if (notifyComponents) {
+					cnt::darray_ext<Entity, 32> entitiesToNotify;
+					for (const auto* pChunk: archetype.chunks()) {
+						for (const auto entity: pChunk->entity_view()) {
+							// Bulk cascade deletion bypasses req_del_inter(), so finish the same
+							// semantic bookkeeping while the entity and its payloads are still readable.
+							if (!entity_deletion_active(entity)) {
+								entity_deletion_enter(entity);
+								entitiesToNotify.push_back(entity);
+							}
+						}
+					}
+
+					// Mark every entity active before callbacks run. A callback can then request
+					// deletion of any entity in this archetype without recursively notifying it.
+					for (const auto entity: entitiesToNotify)
+						notify_del_entity_components(fetch(entity), entity);
+					for (uint32_t i = entitiesToNotify.size(); i > 0; --i)
+						entity_deletion_leave(entitiesToNotify[i - 1]);
 				}
 
 				archetype.req_del();

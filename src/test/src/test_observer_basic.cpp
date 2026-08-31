@@ -1272,6 +1272,67 @@ TEST_CASE("Observer - deleting an entity emits component OnDel") {
 	}
 }
 
+TEST_CASE("Observer - cascade deletion emits owned component OnDel") {
+	TestWorld twld;
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	wld.add(relation, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete));
+	const auto sparseComponent = wld.add<PositionSparse>().entity;
+	wld.add(sparseComponent, ecs::DontFragment);
+
+	uint32_t positionCount = 0;
+	uint32_t pairCount = 0;
+	uint32_t sparseCount = 0;
+	float sparseX = 0.0f;
+	const auto positionObserver = wld.observer()
+									 .event(ecs::ObserverEvent::OnDel)
+									 .all<Position>()
+									 .on_each([&](ecs::Iter& it) {
+										 positionCount += it.size();
+										 const auto entities = it.view<ecs::Entity>();
+										 GAIA_EACH(it) wld.del(entities[i]);
+									 })
+									 .entity();
+	const auto pairObserver = wld.observer()
+							 .event(ecs::ObserverEvent::OnDel)
+							 .all(ecs::Pair(relation, target))
+							 .on_each([&](ecs::Iter& it) {
+								 pairCount += it.size();
+							 })
+							 .entity();
+	const auto sparseObserver = wld.observer()
+								 .event(ecs::ObserverEvent::OnDel)
+								 .all<PositionSparse>()
+								 .on_each([&](ecs::Iter& it) {
+									 sparseCount += it.size();
+									 sparseX = it.view_any<PositionSparse>()[0].x;
+								 })
+								 .entity();
+
+	const auto sourceA = wld.add();
+	const auto sourceB = wld.add();
+	wld.add<Position>(sourceA);
+	wld.add<Position>(sourceB);
+	wld.add(sourceA, ecs::Pair(relation, target));
+	wld.add(sourceB, ecs::Pair(relation, target));
+	wld.add<PositionSparse>(sourceA, {12.0f, 13.0f, 14.0f});
+
+	wld.del(target);
+	CHECK_FALSE(wld.valid(sourceA));
+	CHECK_FALSE(wld.valid(sourceB));
+	CHECK(positionCount == 2);
+	CHECK(pairCount == 2);
+	CHECK(sparseCount == 1);
+	CHECK(sparseX == doctest::Approx(12.0f));
+	wld.update();
+	CHECK(positionCount == 2);
+	CHECK(pairCount == 2);
+	CHECK(sparseCount == 1);
+	(void)positionObserver;
+	(void)pairObserver;
+	(void)sparseObserver;
+}
+
 TEST_CASE("Observer - copy_ext sparse payload") {
 	TestWorld twld;
 

@@ -4403,10 +4403,22 @@ TEST_CASE("Hooks") {
 		wld.update();
 		CHECK(hook_trigger_cnt == 3);
 
+		// Cascaded entity deletion must use the same component delete hook path.
+		const auto relation = wld.add();
+		const auto target = wld.add();
+		wld.add(relation, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete));
+		const auto cascadeSource = wld.add();
+		wld.add<Position>(cascadeSource);
+		wld.add(cascadeSource, ecs::Pair(relation, target));
+		wld.del(target);
+		CHECK(hook_trigger_cnt == 4);
+		wld.update();
+		CHECK(hook_trigger_cnt == 4);
+
 		#if !GAIA_ASSERT_ENABLED
 		// Don't trigger again
 		wld.del<Position>(e);
-		CHECK(hook_trigger_cnt == 3);
+		CHECK(hook_trigger_cnt == 4);
 		#endif
 	}
 	#endif
