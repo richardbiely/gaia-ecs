@@ -644,21 +644,21 @@ TEST_CASE("Query - cached down traversed-source query after reparent") {
 	wld.parent(parentSource, parentRootA);
 
 	auto childOfOldRoot = wld.query()
-									 .cache_src_trav(ecs::MaxCacheSrcTrav)
-									 .all<Position>()
-									 .all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRootA).trav_down(ecs::ChildOf));
+														.cache_src_trav(ecs::MaxCacheSrcTrav)
+														.all<Position>()
+														.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRootA).trav_down(ecs::ChildOf));
 	auto childOfNewRoot = wld.query()
-									 .cache_src_trav(ecs::MaxCacheSrcTrav)
-									 .all<Position>()
-									 .all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRootB).trav_down(ecs::ChildOf));
+														.cache_src_trav(ecs::MaxCacheSrcTrav)
+														.all<Position>()
+														.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRootB).trav_down(ecs::ChildOf));
 	auto parentOldRoot = wld.query()
-								 .cache_src_trav(ecs::MaxCacheSrcTrav)
-								 .all<Position>()
-								 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRootA).trav_down(ecs::Parent));
+													 .cache_src_trav(ecs::MaxCacheSrcTrav)
+													 .all<Position>()
+													 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRootA).trav_down(ecs::Parent));
 	auto parentNewRoot = wld.query()
-								 .cache_src_trav(ecs::MaxCacheSrcTrav)
-								 .all<Position>()
-								 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRootB).trav_down(ecs::Parent));
+													 .cache_src_trav(ecs::MaxCacheSrcTrav)
+													 .all<Position>()
+													 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRootB).trav_down(ecs::Parent));
 
 	auto& childOfOldInfo = childOfOldRoot.fetch();
 	auto& childOfNewInfo = childOfNewRoot.fetch();
@@ -715,13 +715,13 @@ TEST_CASE("Query - cached down traversed-source query after subtree delete") {
 	wld.parent(parentLeaf, parentSource);
 
 	auto childOfQuery = wld.query()
-								.cache_src_trav(ecs::MaxCacheSrcTrav)
-								.all<Position>()
-								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRoot).trav_down(ecs::ChildOf));
+													.cache_src_trav(ecs::MaxCacheSrcTrav)
+													.all<Position>()
+													.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRoot).trav_down(ecs::ChildOf));
 	auto parentQuery = wld.query()
-							 .cache_src_trav(ecs::MaxCacheSrcTrav)
-							 .all<Position>()
-							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRoot).trav_down(ecs::Parent));
+												 .cache_src_trav(ecs::MaxCacheSrcTrav)
+												 .all<Position>()
+												 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRoot).trav_down(ecs::Parent));
 	auto& childOfInfo = childOfQuery.fetch();
 	auto& parentInfo = parentQuery.fetch();
 
@@ -764,13 +764,13 @@ TEST_CASE("Query - cached down traversed-source query skips disabled subtrees") 
 	wld.parent(parentLeaf, parentSource);
 
 	auto childOfQuery = wld.query()
-								.cache_src_trav(ecs::MaxCacheSrcTrav)
-								.all<Position>()
-								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRoot).trav_down(ecs::ChildOf));
+													.cache_src_trav(ecs::MaxCacheSrcTrav)
+													.all<Position>()
+													.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRoot).trav_down(ecs::ChildOf));
 	auto parentQuery = wld.query()
-							 .cache_src_trav(ecs::MaxCacheSrcTrav)
-							 .all<Position>()
-							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRoot).trav_down(ecs::Parent));
+												 .cache_src_trav(ecs::MaxCacheSrcTrav)
+												 .all<Position>()
+												 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRoot).trav_down(ecs::Parent));
 	auto& childOfInfo = childOfQuery.fetch();
 	auto& parentInfo = parentQuery.fetch();
 
@@ -822,13 +822,13 @@ TEST_CASE("Query - cached up traversed-source query skips disabled ancestors") {
 	wld.parent(parentParent, parentRoot);
 
 	auto childOfQuery = wld.query()
-								.cache_src_trav(ecs::MaxCacheSrcTrav)
-								.all<Position>()
-								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfSource).trav_parent(ecs::ChildOf));
+													.cache_src_trav(ecs::MaxCacheSrcTrav)
+													.all<Position>()
+													.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfSource).trav_parent(ecs::ChildOf));
 	auto parentQuery = wld.query()
-							 .cache_src_trav(ecs::MaxCacheSrcTrav)
-							 .all<Position>()
-							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentSource).trav_parent(ecs::Parent));
+												 .cache_src_trav(ecs::MaxCacheSrcTrav)
+												 .all<Position>()
+												 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentSource).trav_parent(ecs::Parent));
 	auto& childOfInfo = childOfQuery.fetch();
 	auto& parentInfo = parentQuery.fetch();
 
@@ -879,25 +879,25 @@ TEST_CASE("Query - mixed dynamic traversed-source query after reparent") {
 	wld.parent(parentSource, parentRootA);
 
 	auto childOfOldRoot = wld.query()
-									 .cache_src_trav(ecs::MaxCacheSrcTrav)
-									 .all<Position>()
-									 .all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRootA).trav_down(ecs::ChildOf))
-									 .all(ecs::Pair(tagRel, ecs::Var0));
+														.cache_src_trav(ecs::MaxCacheSrcTrav)
+														.all<Position>()
+														.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRootA).trav_down(ecs::ChildOf))
+														.all(ecs::Pair(tagRel, ecs::Var0));
 	auto childOfNewRoot = wld.query()
-									 .cache_src_trav(ecs::MaxCacheSrcTrav)
-									 .all<Position>()
-									 .all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRootB).trav_down(ecs::ChildOf))
-									 .all(ecs::Pair(tagRel, ecs::Var0));
+														.cache_src_trav(ecs::MaxCacheSrcTrav)
+														.all<Position>()
+														.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRootB).trav_down(ecs::ChildOf))
+														.all(ecs::Pair(tagRel, ecs::Var0));
 	auto parentOldRoot = wld.query()
-								 .cache_src_trav(ecs::MaxCacheSrcTrav)
-								 .all<Position>()
-								 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRootA).trav_down(ecs::Parent))
-								 .all(ecs::Pair(tagRel, ecs::Var0));
+													 .cache_src_trav(ecs::MaxCacheSrcTrav)
+													 .all<Position>()
+													 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRootA).trav_down(ecs::Parent))
+													 .all(ecs::Pair(tagRel, ecs::Var0));
 	auto parentNewRoot = wld.query()
-								 .cache_src_trav(ecs::MaxCacheSrcTrav)
-								 .all<Position>()
-								 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRootB).trav_down(ecs::Parent))
-								 .all(ecs::Pair(tagRel, ecs::Var0));
+													 .cache_src_trav(ecs::MaxCacheSrcTrav)
+													 .all<Position>()
+													 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRootB).trav_down(ecs::Parent))
+													 .all(ecs::Pair(tagRel, ecs::Var0));
 	childOfOldRoot.set_var(ecs::Var0, tag);
 	childOfNewRoot.set_var(ecs::Var0, tag);
 	parentOldRoot.set_var(ecs::Var0, tag);
@@ -959,15 +959,15 @@ TEST_CASE("Query - mixed dynamic up traversed-source query after reparent") {
 	wld.parent(parentSource, parentParentA);
 
 	auto childOfQuery = wld.query()
-								.cache_src_trav(ecs::MaxCacheSrcTrav)
-								.all<Position>()
-								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfSource).trav_parent(ecs::ChildOf))
-								.all(ecs::Pair(tagRel, ecs::Var0));
+													.cache_src_trav(ecs::MaxCacheSrcTrav)
+													.all<Position>()
+													.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfSource).trav_parent(ecs::ChildOf))
+													.all(ecs::Pair(tagRel, ecs::Var0));
 	auto parentQuery = wld.query()
-							 .cache_src_trav(ecs::MaxCacheSrcTrav)
-							 .all<Position>()
-							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentSource).trav_parent(ecs::Parent))
-							 .all(ecs::Pair(tagRel, ecs::Var0));
+												 .cache_src_trav(ecs::MaxCacheSrcTrav)
+												 .all<Position>()
+												 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentSource).trav_parent(ecs::Parent))
+												 .all(ecs::Pair(tagRel, ecs::Var0));
 	childOfQuery.set_var(ecs::Var0, tag);
 	parentQuery.set_var(ecs::Var0, tag);
 	auto& childOfInfo = childOfQuery.fetch();
@@ -1026,15 +1026,15 @@ TEST_CASE("Query - mixed dynamic up traversed-source query skips disabled ancest
 	wld.parent(parentParent, parentRoot);
 
 	auto childOfQuery = wld.query()
-								.cache_src_trav(ecs::MaxCacheSrcTrav)
-								.all<Position>()
-								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfSource).trav_parent(ecs::ChildOf))
-								.all(ecs::Pair(tagRel, ecs::Var0));
+													.cache_src_trav(ecs::MaxCacheSrcTrav)
+													.all<Position>()
+													.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfSource).trav_parent(ecs::ChildOf))
+													.all(ecs::Pair(tagRel, ecs::Var0));
 	auto parentQuery = wld.query()
-							 .cache_src_trav(ecs::MaxCacheSrcTrav)
-							 .all<Position>()
-							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentSource).trav_parent(ecs::Parent))
-							 .all(ecs::Pair(tagRel, ecs::Var0));
+												 .cache_src_trav(ecs::MaxCacheSrcTrav)
+												 .all<Position>()
+												 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentSource).trav_parent(ecs::Parent))
+												 .all(ecs::Pair(tagRel, ecs::Var0));
 	childOfQuery.set_var(ecs::Var0, tag);
 	parentQuery.set_var(ecs::Var0, tag);
 	auto& childOfInfo = childOfQuery.fetch();
@@ -1093,15 +1093,15 @@ TEST_CASE("Query - mixed dynamic up traversed-source query after source subtree 
 	wld.parent(parentParent, parentRoot);
 
 	auto childOfQuery = wld.query()
-								.cache_src_trav(ecs::MaxCacheSrcTrav)
-								.all<Position>()
-								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfSource).trav_parent(ecs::ChildOf))
-								.all(ecs::Pair(tagRel, ecs::Var0));
+													.cache_src_trav(ecs::MaxCacheSrcTrav)
+													.all<Position>()
+													.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfSource).trav_parent(ecs::ChildOf))
+													.all(ecs::Pair(tagRel, ecs::Var0));
 	auto parentQuery = wld.query()
-							 .cache_src_trav(ecs::MaxCacheSrcTrav)
-							 .all<Position>()
-							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentSource).trav_parent(ecs::Parent))
-							 .all(ecs::Pair(tagRel, ecs::Var0));
+												 .cache_src_trav(ecs::MaxCacheSrcTrav)
+												 .all<Position>()
+												 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentSource).trav_parent(ecs::Parent))
+												 .all(ecs::Pair(tagRel, ecs::Var0));
 	childOfQuery.set_var(ecs::Var0, tag);
 	parentQuery.set_var(ecs::Var0, tag);
 	auto& childOfInfo = childOfQuery.fetch();
@@ -1149,15 +1149,15 @@ TEST_CASE("Query - mixed dynamic traversed-source query skips disabled subtrees"
 	wld.parent(parentLeaf, parentSource);
 
 	auto childOfQuery = wld.query()
-								.cache_src_trav(ecs::MaxCacheSrcTrav)
-								.all<Position>()
-								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRoot).trav_down(ecs::ChildOf))
-								.all(ecs::Pair(tagRel, ecs::Var0));
+													.cache_src_trav(ecs::MaxCacheSrcTrav)
+													.all<Position>()
+													.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRoot).trav_down(ecs::ChildOf))
+													.all(ecs::Pair(tagRel, ecs::Var0));
 	auto parentQuery = wld.query()
-							 .cache_src_trav(ecs::MaxCacheSrcTrav)
-							 .all<Position>()
-							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRoot).trav_down(ecs::Parent))
-							 .all(ecs::Pair(tagRel, ecs::Var0));
+												 .cache_src_trav(ecs::MaxCacheSrcTrav)
+												 .all<Position>()
+												 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRoot).trav_down(ecs::Parent))
+												 .all(ecs::Pair(tagRel, ecs::Var0));
 	childOfQuery.set_var(ecs::Var0, tag);
 	parentQuery.set_var(ecs::Var0, tag);
 	auto& childOfInfo = childOfQuery.fetch();
@@ -1204,15 +1204,15 @@ TEST_CASE("Query - mixed dynamic traversed-source query after subtree delete") {
 	wld.parent(parentLeaf, parentSource);
 
 	auto childOfQuery = wld.query()
-								.cache_src_trav(ecs::MaxCacheSrcTrav)
-								.all<Position>()
-								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRoot).trav_down(ecs::ChildOf))
-								.all(ecs::Pair(tagRel, ecs::Var0));
+													.cache_src_trav(ecs::MaxCacheSrcTrav)
+													.all<Position>()
+													.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRoot).trav_down(ecs::ChildOf))
+													.all(ecs::Pair(tagRel, ecs::Var0));
 	auto parentQuery = wld.query()
-							 .cache_src_trav(ecs::MaxCacheSrcTrav)
-							 .all<Position>()
-							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRoot).trav_down(ecs::Parent))
-							 .all(ecs::Pair(tagRel, ecs::Var0));
+												 .cache_src_trav(ecs::MaxCacheSrcTrav)
+												 .all<Position>()
+												 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRoot).trav_down(ecs::Parent))
+												 .all(ecs::Pair(tagRel, ecs::Var0));
 	childOfQuery.set_var(ecs::Var0, tag);
 	parentQuery.set_var(ecs::Var0, tag);
 	auto& childOfInfo = childOfQuery.fetch();

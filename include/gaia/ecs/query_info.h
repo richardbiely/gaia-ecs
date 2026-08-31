@@ -2083,12 +2083,7 @@ namespace gaia {
 					if (!query_term_maps_to_current_archetype(term))
 						continue;
 
-					if (!queryId.pair() && world_component_uses_sparse_storage(*world(), queryId)) {
-#if GAIA_ASSERT_ENABLED
-						// Verify that the component is indeed not present on the archetype, otherwise our matching logic is flawed.
-						const auto compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
-						GAIA_ASSERT(compIdx != BadIndex);
-#endif
+					if (world_component_uses_sparse_storage(*world(), queryId)) {
 						cacheData.indices[fieldIdx] = 0xFF;
 						continue;
 					}

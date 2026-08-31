@@ -1565,7 +1565,8 @@ namespace gaia {
 									const auto sparseIt = nonFragmentingSparseByOwner.find(EntityLookupKey(entity));
 									if (sparseIt != nonFragmentingSparseByOwner.end()) {
 										for (auto component: sparseIt->second) {
-											const auto* pItem = comp_cache().find(component);
+											const auto* pItem =
+													component.pair() ? comp_cache().find_pair_payload(component) : comp_cache().find(component);
 											GAIA_ASSERT(pItem != nullptr);
 											if (pItem == nullptr || !write_component_key(component, *pItem)) {
 												writer.key("<unnamed>");
@@ -1704,7 +1705,7 @@ namespace gaia {
 
 			auto locate_component_data = [&](Entity entity, Entity component) {
 				CompDataLoc loc{};
-				const auto* pItem = comp_cache().find(component);
+				const auto* pItem = component.pair() ? comp_cache().find_pair_payload(component) : comp_cache().find(component);
 				if (pItem != nullptr && gaia::ecs::component_uses_sparse_storage(pItem->comp)) {
 					auto& store = sparse_component_store_erased_mut(component, *pItem);
 					loc.pBase = (uint8_t*)store.func_mut(store.pStore, entity);

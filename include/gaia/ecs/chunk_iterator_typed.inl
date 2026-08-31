@@ -12,17 +12,10 @@ namespace gaia {
 					desc.termId = EntityBad;
 					desc.isEntity = true;
 				} else {
-					using FT = typename component_type_t<Arg>::TypeFull;
-					if constexpr (is_pair<FT>::value) {
-						desc.termId = EntityBad;
-						desc.isEntity = false;
-						desc.storageKnown = true;
-					} else {
-						desc.termId = world_query_arg_id<Arg>(*const_cast<World*>(self.world()));
-						desc.isEntity = false;
-						desc.usesSparseStorage = uses_compile_time_sparse_storage_v<Arg>;
-						desc.storageKnown = true;
-					}
+					desc.termId = world_query_arg_id<Arg>(*const_cast<World*>(self.world()));
+					desc.isEntity = false;
+					desc.usesSparseStorage = uses_ct_sparse_storage_v<Arg>;
+					desc.storageKnown = true;
 				}
 				return desc;
 			}
@@ -32,7 +25,7 @@ namespace gaia {
 				using U = typename actual_type_t<T>::Type;
 				if constexpr (std::is_same_v<U, Entity> || mem::is_soa_layout_v<U>)
 					return self.m_pChunk->template view<T>(self.from(), self.to());
-				else if constexpr (uses_compile_time_sparse_storage_v<T>) {
+				else if constexpr (uses_ct_sparse_storage_v<T>) {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					auto* pWorld = const_cast<World*>(self.world());
 					return EntityTermViewGetSparse<U>{
@@ -74,7 +67,7 @@ namespace gaia {
 							EntityBad,
 							self.from(),
 							self.size()};
-				} else if constexpr (uses_compile_time_sparse_storage_v<T>) {
+				} else if constexpr (uses_ct_sparse_storage_v<T>) {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					auto* pWorld = const_cast<World*>(self.world());
 					return EntityTermViewGetSparse<U>{
@@ -152,7 +145,7 @@ namespace gaia {
 					if (self.m_writeIm)
 						return self.m_pChunk->template view_mut<T>(self.from(), self.to());
 					return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
-				} else if constexpr (uses_compile_time_sparse_storage_v<T>) {
+				} else if constexpr (uses_ct_sparse_storage_v<T>) {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					if (!self.touch_term(desc.termId))
 						return EntityTermViewSetSparse<U>{};
@@ -251,7 +244,7 @@ namespace gaia {
 							self.from(),
 							self.size(),
 							self.m_writeIm};
-				} else if constexpr (uses_compile_time_sparse_storage_v<T>) {
+				} else if constexpr (uses_ct_sparse_storage_v<T>) {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					if (!self.touch_term(desc.termId))
 						return EntityTermViewSetSparse<U>{};
@@ -262,13 +255,7 @@ namespace gaia {
 				} else {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					const auto compIdx = self.m_pCompIndices[termIdx];
-					if (desc.usesSparseStorage) {
-						if (!self.touch_term(desc.termId))
-							return self.template entity_view_set_empty<U>(self.m_writeIm);
-						return self.template entity_view_set<U>(desc.termId, self.m_writeIm);
-					}
-
-					if (compIdx == 0xFF) {
+					if (desc.usesSparseStorage || compIdx == 0xFF) {
 						GAIA_ASSERT(desc.termId != EntityBad);
 						if (!self.touch_term(desc.termId))
 							return self.template entity_view_set_empty<U>(self.m_writeIm);
@@ -291,7 +278,7 @@ namespace gaia {
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 				if constexpr (mem::is_soa_layout_v<U>)
 					return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
-				else if constexpr (uses_compile_time_sparse_storage_v<T>) {
+				else if constexpr (uses_ct_sparse_storage_v<T>) {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					auto* pWorld = const_cast<World*>(self.world());
 					return EntityTermViewSetSparse<U>{
@@ -360,7 +347,7 @@ namespace gaia {
 							self.from(),
 							self.size(),
 							false};
-				} else if constexpr (uses_compile_time_sparse_storage_v<T>) {
+				} else if constexpr (uses_ct_sparse_storage_v<T>) {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					auto* pWorld = const_cast<World*>(self.world());
 					return EntityTermViewSetSparse<U>{
@@ -369,10 +356,7 @@ namespace gaia {
 				} else {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					const auto compIdx = self.m_pCompIndices[termIdx];
-					if (desc.usesSparseStorage)
-						return self.template entity_view_set<U>(desc.termId, false);
-
-					if (compIdx == 0xFF) {
+					if (desc.usesSparseStorage || compIdx == 0xFF) {
 						GAIA_ASSERT(desc.termId != EntityBad);
 						return self.template entity_view_set<U>(desc.termId, false);
 					}

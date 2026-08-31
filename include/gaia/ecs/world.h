@@ -444,7 +444,7 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (uses_compile_time_sparse_storage<FT>())
+				if constexpr (uses_ct_sparse_storage<FT>())
 					return sparse_component_store_mut<FT>(item.entity).mut(entity);
 
 				const auto& ec = m_recs.entities[entity.id()];
@@ -465,7 +465,8 @@ namespace gaia {
 
 				const auto& ec = fetch(entity);
 				const auto compIdx = core::get_index(ec.pChunk->ids_view(), component);
-				return compIdx != BadIndex ? ec.pChunk->comp_rec_view()[compIdx].pItem : nullptr;
+				return compIdx != BadIndex ? ec.pChunk->comp_rec_view()[compIdx].pItem
+																	 : comp_cache().find_pair_payload(component);
 			}
 
 			//! Checks whether \a item can expose a direct raw byte view.
@@ -629,7 +630,7 @@ namespace gaia {
 			void write_back_set_typed(Entity entity, Entity term, const TValue& value) {
 				using FT = typename component_type_t<TApi>::TypeFull;
 
-				if constexpr (uses_compile_time_sparse_storage<FT>()) {
+				if constexpr (uses_ct_sparse_storage<FT>()) {
 					sparse_component_store_mut<FT>(term).add(entity) = value;
 					finish_write(entity, term);
 					return;
@@ -1144,18 +1145,23 @@ namespace gaia {
 			}
 
 			//! Returns whether \a component stores instance data in sparse storage instead of archetype chunks.
-			//! This is currently the storage path used for sparse plain generic AoS components.
-			//! \param component Component entity to inspect.
+			//! This is the storage path used for sparse plain generic AoS components and exact pair AoS payloads.
+			//! \param component Component or exact pair id to inspect.
 			//! \return True when the component uses sparse storage.
 			GAIA_NODISCARD bool component_uses_sparse_storage(Entity component) const {
-				if (!valid(component) || component.pair() || component.entity())
-					return false;
+				if (!component.pair()) {
+					if (!valid(component) || component.entity())
+						return false;
 
-				const auto* pItem = comp_cache().find(component);
-				if (pItem == nullptr || component.kind() != EntityKind::EK_Gen || pItem->comp.soa() != 0)
-					return false;
+					const auto* pItem = comp_cache().find(component);
+					if (pItem == nullptr || component.kind() != EntityKind::EK_Gen || pItem->comp.soa() != 0)
+						return false;
 
-				return gaia::ecs::component_uses_sparse_storage(pItem->comp);
+					return gaia::ecs::component_uses_sparse_storage(pItem->comp);
+				}
+
+				const auto* pItem = comp_cache().find_pair_payload(component);
+				return pItem != nullptr && pItem->comp.soa() == 0 && gaia::ecs::component_uses_sparse_storage(pItem->comp);
 			}
 
 			//! Returns whether \a component is non-fragmenting.
@@ -1166,25 +1172,37 @@ namespace gaia {
 				if (!component_uses_sparse_storage(component))
 					return false;
 
-				return (fetch(component).flags & EntityContainerFlags::IsDontFragment) != 0;
+				if (!component.pair())
+					return (fetch(component).flags & EntityContainerFlags::IsDontFragment) != 0;
+
+				return (fetch(pair_rel(*this, component)).flags & EntityContainerFlags::IsDontFragment) != 0;
 			}
 
 			//! Returns the sparse storage mode used by a component.
 			//! \param component Component entity to inspect.
 			//! \return Sparse storage mode, or SparseStorageMode::None when the component is not sparse.
 			GAIA_NODISCARD SparseStorageMode sparse_storage_mode(Entity component) const {
-				if (!valid(component) || component.pair() || component.entity())
+				if (!component.pair()) {
+					if (!valid(component) || component.entity())
+						return SparseStorageMode::None;
+
+					const auto* pItem = comp_cache().find(component);
+					if (pItem == nullptr || component.kind() != EntityKind::EK_Gen || pItem->comp.soa() != 0 ||
+							!gaia::ecs::component_uses_sparse_storage(pItem->comp))
+						return SparseStorageMode::None;
+
+					return (fetch(component).flags & EntityContainerFlags::IsDontFragment) != 0
+							? SparseStorageMode::NonFragmenting
+							: SparseStorageMode::Fragmenting;
+				}
+
+				const auto* pItem = comp_cache().find_pair_payload(component);
+				if (pItem == nullptr || pItem->comp.soa() != 0 || !gaia::ecs::component_uses_sparse_storage(pItem->comp))
 					return SparseStorageMode::None;
 
-				const auto* pItem = comp_cache().find(component);
-				if (pItem == nullptr || component.kind() != EntityKind::EK_Gen || pItem->comp.soa() != 0 ||
-						!gaia::ecs::component_uses_sparse_storage(pItem->comp))
-					return SparseStorageMode::None;
-
-				if ((fetch(component).flags & EntityContainerFlags::IsDontFragment) != 0)
-					return SparseStorageMode::NonFragmenting;
-
-				return SparseStorageMode::Fragmenting;
+				return (fetch(pair_rel(*this, component)).flags & EntityContainerFlags::IsDontFragment) != 0
+						? SparseStorageMode::NonFragmenting
+						: SparseStorageMode::Fragmenting;
 			}
 
 			//! Checks whether an inter-world copy includes a sparse component payload.
@@ -1335,29 +1353,54 @@ namespace gaia {
 				return item.func_create_sparse_store == nullptr || item.comp.storage_type() == DataStorageType::Sparse;
 			}
 
-			//! Sparse storage currently supports only plain generic components.
-			//! Pairs, unique components and SoA layouts stay on the normal archetype path.
+			//! Sparse storage supports plain generic components and exact relationship pairs.
+			//! Unique components and SoA layouts stay on the normal archetype path.
 			//! \tparam T Component type to inspect.
 			//! \return True when \a T can use the sparse storage path.
 			template <typename T>
 			GAIA_NODISCARD static constexpr bool supports_sparse_component_storage() {
 				using U = typename actual_type_t<T>::Type;
-				return !is_pair<T>::value && entity_kind_v<T> == EntityKind::EK_Gen && !mem::is_soa_layout_v<U>;
+				return entity_kind_v<T> == EntityKind::EK_Gen && !mem::is_soa_layout_v<U>;
 			}
 
 			//! Returns whether \a T has compile-time sparse payload storage.
 			//! \tparam T Component type to inspect.
 			//! \return True when `GAIA_STORAGE(Sparse)` is authoritative for \a T.
 			template <typename T>
-			GAIA_NODISCARD static constexpr bool uses_compile_time_sparse_storage() {
-				return uses_compile_time_sparse_storage_v<T>;
+			GAIA_NODISCARD static constexpr bool uses_ct_sparse_storage() {
+				return uses_ct_sparse_storage_v<T>;
+			}
+
+			//! Registers the component or exact pair represented by compile-time type \a T.
+			//! \tparam T Component or pair type to register.
+			//! \return Registered component or exact pair entity.
+			template <typename T>
+			GAIA_NODISCARD Entity register_component_id() {
+				if constexpr (is_pair<T>::value) {
+					const auto relation = reg_comp<typename T::rel>().entity;
+					const auto target = reg_comp<typename T::tgt>().entity;
+					return Pair(relation, target);
+				} else
+					return reg_comp<T>().entity;
 			}
 
 			//! Returns the fragmentation mode for a component known at compile time to use sparse storage.
 			//! \param component Typed sparse component entity.
 			//! \return Fragmenting or non-fragmenting sparse mode.
-			GAIA_NODISCARD SparseStorageMode compile_time_sparse_storage_mode(Entity component) const {
+			GAIA_NODISCARD SparseStorageMode ct_sparse_storage_mode(Entity component) const {
 				return is_dont_fragment(component) ? SparseStorageMode::NonFragmenting : SparseStorageMode::Fragmenting;
+			}
+
+			//! Returns the sparse storage mode for compile-time component or pair type \a T.
+			//! \tparam T Component or pair type represented by \a component.
+			//! \param component Registered component or exact pair entity.
+			//! \return Fragmenting or non-fragmenting sparse mode.
+			template <typename T>
+			GAIA_NODISCARD SparseStorageMode typed_sparse_storage_mode(Entity component) const {
+				if constexpr (is_pair<T>::value)
+					return sparse_storage_mode(component);
+				else
+					return ct_sparse_storage_mode(component);
 			}
 
 			//! Returns whether \a object is a usable sparse storage target for component type \a T.
@@ -1369,11 +1412,12 @@ namespace gaia {
 				if constexpr (!supports_sparse_component_storage<T>())
 					return false;
 				else {
-					if (!valid(object) || object.pair())
+					if (!valid(object))
 						return false;
 
-					const auto* pItem = comp_cache().find(object);
-					if (pItem == nullptr || pItem->entity != object || !gaia::ecs::component_uses_sparse_storage(pItem->comp))
+					const auto* pItem = object.pair() ? comp_cache().find_pair_payload(object) : comp_cache().find(object);
+					if (pItem == nullptr || (!object.pair() && pItem->entity != object) ||
+							!gaia::ecs::component_uses_sparse_storage(pItem->comp))
 						return false;
 
 					using U = typename actual_type_t<T>::Type;
@@ -1387,12 +1431,13 @@ namespace gaia {
 			//! \param component Component entity identifying the store.
 			//! \return Pointer to the sparse store, or nullptr when absent.
 			template <typename T>
-			GAIA_NODISCARD SparseComponentStore<T>* sparse_component_store(Entity component) {
+			GAIA_NODISCARD auto* sparse_component_store(Entity component) {
+				using U = typename actual_type_t<T>::Type;
 				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
 				if (it == m_sparseComponentsByComp.end())
-					return nullptr;
+					return (SparseComponentStore<U>*)nullptr;
 
-				return static_cast<SparseComponentStore<T>*>(it->second.pStore);
+				return static_cast<SparseComponentStore<U>*>(it->second.pStore);
 			}
 
 			//! Returns the sparse component store for \a component, or nullptr if it does not exist.
@@ -1400,12 +1445,13 @@ namespace gaia {
 			//! \param component Component entity identifying the store.
 			//! \return Pointer to the sparse store, or nullptr when absent.
 			template <typename T>
-			GAIA_NODISCARD const SparseComponentStore<T>* sparse_component_store(Entity component) const {
+			GAIA_NODISCARD const auto* sparse_component_store(Entity component) const {
+				using U = typename actual_type_t<T>::Type;
 				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
 				if (it == m_sparseComponentsByComp.end())
-					return nullptr;
+					return (const SparseComponentStore<U>*)nullptr;
 
-				return static_cast<const SparseComponentStore<T>*>(it->second.pStore);
+				return static_cast<const SparseComponentStore<U>*>(it->second.pStore);
 			}
 
 			//! Returns the sparse component store for \a component, creating it if needed.
@@ -1413,13 +1459,14 @@ namespace gaia {
 			//! \param component Component entity identifying the store.
 			//! \return Mutable sparse store reference.
 			template <typename T>
-			GAIA_NODISCARD SparseComponentStore<T>& sparse_component_store_mut(Entity component) {
+			GAIA_NODISCARD auto& sparse_component_store_mut(Entity component) {
+				using U = typename actual_type_t<T>::Type;
 				const auto key = EntityLookupKey(component);
 				const auto it = m_sparseComponentsByComp.find(key);
 				if (it != m_sparseComponentsByComp.end())
-					return *static_cast<SparseComponentStore<T>*>(it->second.pStore);
+					return *static_cast<SparseComponentStore<U>*>(it->second.pStore);
 
-				auto* pStore = new SparseComponentStore<T>();
+				auto* pStore = new SparseComponentStore<U>();
 				m_sparseComponentsByComp.emplace(key, make_sparse_component_store_erased(pStore));
 				return *pStore;
 			}
@@ -1434,7 +1481,8 @@ namespace gaia {
 				using U = typename actual_type_t<T>::Type;
 				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
 				if (it == m_sparseComponentsByComp.end()) {
-					const auto* pItem = comp_cache().find(component);
+					const auto* pItem =
+							component.pair() ? comp_cache().find_pair_payload(component) : comp_cache().find(component);
 					GAIA_ASSERT(pItem != nullptr);
 					auto& store = sparse_component_store_erased_mut(component, *pItem);
 					return *(U*)store.func_add(store.pStore, entity);
@@ -1520,7 +1568,7 @@ namespace gaia {
 				auto ctx =
 						m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
 #endif
-				if (mode == SparseStorageMode::Fragmenting) {
+				if (object.pair() || mode == SparseStorageMode::Fragmenting) {
 					GAIA_ASSERT(!locked());
 					EntityBuilder eb(*this, entity);
 					eb.add_inter_init(object);
@@ -2188,13 +2236,7 @@ namespace gaia {
 				//! \return Registered component or pair entity.
 				template <typename T>
 				Entity register_component() {
-					if constexpr (is_pair<T>::value) {
-						const auto rel = m_world.template reg_comp<typename T::rel>().entity;
-						const auto tgt = m_world.template reg_comp<typename T::tgt>().entity;
-						return Pair(rel, tgt);
-					} else {
-						return m_world.template reg_comp<T>().entity;
-					}
+					return m_world.template register_component_id<T>();
 				}
 
 				//! Adds the registered component or pair type to the pending entity state.
@@ -2925,6 +2967,26 @@ namespace gaia {
 #endif
 				}
 
+				//! Creates the sparse payload instance associated with an attached relationship pair.
+				//! \param pair Exact relationship pair being attached.
+				void add_sparse_pair_payload(Entity pair) {
+					if (!m_world.component_uses_sparse_storage(pair))
+						return;
+
+					const auto* pItem = m_world.comp_cache().find_pair_payload(pair);
+					GAIA_ASSERT(pItem != nullptr);
+					auto& store = m_world.sparse_component_store_erased_mut(pair, *pItem);
+					(void)store.func_add(store.pStore, m_entity);
+				}
+
+				//! Removes the sparse payload instance associated with a detached relationship pair.
+				//! \param pair Exact relationship pair being detached.
+				void del_sparse_pair_payload(Entity pair) {
+					const auto it = m_world.m_sparseComponentsByComp.find(EntityLookupKey(pair));
+					if (it != m_world.m_sparseComponentsByComp.end())
+						it->second.func_del(it->second.pStore, m_entity);
+				}
+
 				//! Attaches an id through its selected storage path.
 				//! \tparam IsBootstrap True while bootstrapping core ids.
 				//! \param entity Id to attach.
@@ -2997,6 +3059,7 @@ namespace gaia {
 #endif
 
 					add_archetype_id(entity);
+					add_sparse_pair_payload(entity);
 					finish_add_id<IsBootstrap>(entity);
 					return true;
 				}
@@ -3036,6 +3099,7 @@ namespace gaia {
 						try_set_flags(oldPair, false);
 						handle_DependsOn(oldPair, false);
 						unlink_is_relation(oldPair);
+						del_sparse_pair_payload(oldPair);
 						finish_del_id(oldPair);
 					}
 
@@ -3054,6 +3118,7 @@ namespace gaia {
 #endif
 
 					m_world.nonfragmenting_relation_set(m_entity, relation, target);
+					add_sparse_pair_payload(entity);
 
 					finish_add_id<IsBootstrap>(entity);
 
@@ -3064,6 +3129,8 @@ namespace gaia {
 				//! \param entity Id to detach.
 				void handle_del(Entity entity) {
 					if (entity.pair() && !m_world.valid(entity)) {
+						del_sparse_pair_payload(entity);
+
 						if (m_pArchetype->has(entity)) {
 							const auto relation = m_world.try_get(entity.id());
 							if (relation != EntityBad) {
@@ -3128,6 +3195,8 @@ namespace gaia {
 					handle_DependsOn(entity, false);
 					unlink_is_relation(entity);
 
+					del_sparse_pair_payload(entity);
+
 					del_archetype_id(entity);
 					finish_del_id(entity);
 				}
@@ -3172,6 +3241,7 @@ namespace gaia {
 					try_set_flags(entity, false);
 					handle_DependsOn(entity, false);
 					unlink_is_relation(entity);
+					del_sparse_pair_payload(entity);
 
 #if GAIA_OBSERVERS_ENABLED
 					if (m_world.m_observers.has_on_del_observers())
@@ -4200,8 +4270,7 @@ namespace gaia {
 				if (!object.pair()) {
 					const auto* pItem = comp_cache().find(object);
 					if (pItem != nullptr && pItem->entity == object && component_uses_sparse_storage(object))
-						GAIA_ASSERT2(
-								false, "Out-of-line runtime components require an explicit typed value when added by entity id");
+						GAIA_ASSERT2(false, "Sparse runtime components require an explicit typed value when added by entity id");
 				}
 #endif
 				EntityBuilder(*this, entity).add(object);
@@ -4240,10 +4309,10 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity) {
 				using FT = typename component_type_t<T>::TypeFull;
-				const auto& item = add<FT>();
-				if constexpr (uses_compile_time_sparse_storage<FT>()) {
-					(void)sparse_component_store_mut<FT>(item.entity).add(entity);
-					finish_sparse_component_add_inter(entity, item.entity, compile_time_sparse_storage_mode(item.entity));
+				if constexpr (uses_ct_sparse_storage<FT>()) {
+					const auto object = register_component_id<FT>();
+					(void)sparse_component_store_mut<FT>(object).add(entity);
+					finish_sparse_component_add_inter(entity, object, typed_sparse_storage_mode<FT>(object));
 					return;
 				}
 
@@ -4311,11 +4380,11 @@ namespace gaia {
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Entity entity, U&& value) {
 				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (uses_compile_time_sparse_storage<FT>()) {
-					const auto& item = add<FT>();
-					auto& data = sparse_component_store_mut<FT>(item.entity).add(entity);
+				if constexpr (uses_ct_sparse_storage<FT>()) {
+					const auto object = register_component_id<FT>();
+					auto& data = sparse_component_store_mut<FT>(object).add(entity);
 					data = GAIA_FWD(value);
-					finish_sparse_component_add_inter(entity, item.entity, compile_time_sparse_storage_mode(item.entity));
+					finish_sparse_component_add_inter(entity, object, typed_sparse_storage_mode<FT>(object));
 					return;
 				}
 
@@ -4350,14 +4419,7 @@ namespace gaia {
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Pair entity, U&& value) {
 				using FT = typename component_type_t<T>::TypeFull;
-				const auto object = [&]() {
-					if constexpr (is_pair<FT>::value) {
-						const auto relation = reg_comp<typename FT::rel>().entity;
-						const auto target = reg_comp<typename FT::tgt>().entity;
-						return (Entity)Pair(relation, target);
-					} else
-						return reg_comp<FT>().entity;
-				}();
+				const auto object = register_component_id<FT>();
 
 				using ValueType = typename actual_type_t<T>::Type;
 				add<ValueType>((Entity)entity, object, GAIA_FWD(value));
@@ -4389,7 +4451,7 @@ namespace gaia {
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
 
-				if constexpr (uses_compile_time_sparse_storage<FT>())
+				if constexpr (uses_ct_sparse_storage<FT>())
 					return override_sparse_component_inter(entity, item.entity);
 
 				return override_inter(entity, item.entity);
@@ -5548,7 +5610,7 @@ namespace gaia {
 
 			//! Copies an inherited sparse payload onto \a entity and makes it direct when needed.
 			//! \param entity Entity receiving the local override.
-			//! \param object Out-of-line component entity being overridden.
+			//! \param object Sparse component or exact pair id being overridden.
 			//! \return True when the local override was created. False otherwise.
 			GAIA_NODISCARD bool override_sparse_component_inter(Entity entity, Entity object) {
 				GAIA_ASSERT(valid(entity));
@@ -5574,7 +5636,7 @@ namespace gaia {
 			//! Fragmenting components are also made direct on the destination archetype.
 			//! \param srcEntity Source entity owning the payload.
 			//! \param dstEntity Destination entity receiving the payload.
-			//! \param object Out-of-line component entity being copied.
+			//! \param object Sparse component or exact pair id being copied.
 			//! \return True when the payload was copied. False otherwise.
 			GAIA_NODISCARD bool copy_owned_sparse_component_inter(Entity srcEntity, Entity dstEntity, Entity object) {
 				GAIA_ASSERT(valid(srcEntity));
@@ -5656,7 +5718,7 @@ namespace gaia {
 					return false;
 
 				const auto* pItem = component_item(inheritedOwner, object);
-				if (!object.pair() && pItem != nullptr && sparse_storage_mode(object) != SparseStorageMode::None)
+				if (pItem != nullptr && sparse_storage_mode(object) != SparseStorageMode::None)
 					return override_sparse_component_inter(entity, object);
 
 				if (pItem != nullptr && pItem->comp.size() != 0U) {
@@ -5686,7 +5748,7 @@ namespace gaia {
 					return false;
 
 				const auto* pItem = component_item(srcEntity, object);
-				if (!object.pair() && pItem != nullptr && sparse_storage_mode(object) != SparseStorageMode::None)
+				if (pItem != nullptr && sparse_storage_mode(object) != SparseStorageMode::None)
 					return copy_owned_sparse_component_inter(srcEntity, dstEntity, object);
 
 				if (pItem != nullptr && pItem->comp.size() != 0U) {
@@ -6427,10 +6489,14 @@ namespace gaia {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
 
-				if constexpr (uses_compile_time_sparse_storage<FT>()) {
-					const auto* pItem = comp_cache().template find<FT>();
-					if (pItem != nullptr)
-						del(entity, pItem->entity);
+				if constexpr (uses_ct_sparse_storage<FT>()) {
+					if constexpr (is_pair<FT>::value)
+						del(entity, register_component_id<FT>());
+					else {
+						const auto* pItem = comp_cache().template find<FT>();
+						if (pItem != nullptr)
+							del(entity, pItem->entity);
+					}
 					return;
 				}
 
@@ -6538,7 +6604,7 @@ namespace gaia {
 			void modify(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
-				if constexpr (uses_compile_time_sparse_storage<T>()) {
+				if constexpr (uses_ct_sparse_storage<T>()) {
 					const auto* pItem = comp_cache().template find<T>();
 					if (pItem != nullptr) {
 #if GAIA_ASSERT_ENABLED
@@ -6583,7 +6649,7 @@ namespace gaia {
 				const auto source = (Entity)entity;
 				GAIA_ASSERT(valid(source));
 
-				if constexpr (uses_compile_time_sparse_storage<T>()) {
+				if constexpr (uses_ct_sparse_storage<T>()) {
 					modify<
 							T
 #if GAIA_ENABLE_HOOKS
@@ -6789,7 +6855,7 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (uses_compile_time_sparse_storage<FT>())
+				if constexpr (uses_ct_sparse_storage<FT>())
 					return sparse_component_store_mut<FT>(item.entity).mut(entity);
 				return acc_mut(entity).smut<T>();
 			}
@@ -6805,7 +6871,7 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (uses_compile_time_sparse_storage<FT>())
+				if constexpr (uses_ct_sparse_storage<FT>())
 					return sparse_component_store_mut<FT>(item.entity).mut((Entity)entity);
 				return acc_mut(entity).smut<T>();
 			}
@@ -7174,7 +7240,7 @@ namespace gaia {
 						return comp_cache().template get<FT>().entity;
 					}
 				}();
-				if constexpr (uses_compile_time_sparse_storage<FT>()) {
+				if constexpr (uses_ct_sparse_storage<FT>()) {
 					const auto owner = id_owner_inter(entity, compEntity);
 					GAIA_ASSERT(owner != EntityBad);
 					const auto* pStore = sparse_component_store<FT>(compEntity);
@@ -7206,7 +7272,7 @@ namespace gaia {
 					}
 				}();
 				const auto source = (Entity)entity;
-				if constexpr (uses_compile_time_sparse_storage<FT>()) {
+				if constexpr (uses_ct_sparse_storage<FT>()) {
 					const auto owner = id_owner_inter(source, compEntity);
 					GAIA_ASSERT(owner != EntityBad);
 					const auto* pStore = sparse_component_store<FT>(compEntity);
@@ -10043,7 +10109,8 @@ namespace gaia {
 					const auto storeIt = m_sparseComponentsByComp.find(EntityLookupKey(component));
 					GAIA_ASSERT(storeIt != m_sparseComponentsByComp.end());
 					const auto& store = storeIt->second;
-					const auto* pItem = comp_cache().find(component);
+					const auto* pItem =
+							component.pair() ? comp_cache().find_pair_payload(component) : comp_cache().find(component);
 					GAIA_ASSERT(pItem != nullptr);
 
 					cnt::darray<Entity> owners;
@@ -10079,7 +10146,8 @@ namespace gaia {
 					s.load(component);
 					s.load(ownerCnt);
 
-					const auto* pItem = comp_cache().find(component);
+					const auto* pItem =
+							component.pair() ? comp_cache().find_pair_payload(component) : comp_cache().find(component);
 					if (pItem == nullptr || pItem->comp.storage_type() != DataStorageType::Sparse) {
 						GAIA_LOG_E("Missing sparse component metadata for entity %u", component.id());
 						return false;
@@ -12635,6 +12703,37 @@ namespace gaia {
 				}
 			}
 
+			//! Returns whether an exact pair id matches a pair removal selector.
+			//! Pair is the exact pair id from an archetype; selector is the exact or wildcard pair requested for removal.
+			GAIA_NODISCARD static bool pair_matches_removal_selector(Entity pair, Entity selector) {
+				GAIA_ASSERT(pair.pair());
+				GAIA_ASSERT(selector.pair());
+
+				if (selector.id() != All.id() && pair.id() != selector.id())
+					return false;
+				return selector.gen() == All.id() || pair.gen() == selector.gen();
+			}
+
+			//! Removes sparse payloads selected for removal from every row in an archetype.
+			void del_sparse_pair_payloads(Archetype& archetype, Entity selector) {
+				GAIA_ASSERT(selector.pair());
+
+				for (const auto pair: archetype.ids_view()) {
+					if (!pair.pair() || !pair_matches_removal_selector(pair, selector))
+						continue;
+
+					const auto it = m_sparseComponentsByComp.find(EntityLookupKey(pair));
+					if (it == m_sparseComponentsByComp.end())
+						continue;
+
+					for (const auto* pChunk: archetype.chunks()) {
+						const auto entities = pChunk->entity_view();
+						GAIA_EACH(entities)
+						it->second.func_del(it->second.pStore, entities[i]);
+					}
+				}
+			}
+
 			//! Removes \a entity from anything referencing it.
 			//! \param entity Entity to remove from referring records.
 			void rem_from_entities(Entity entity) {
@@ -12778,8 +12877,11 @@ namespace gaia {
 					}
 
 					auto* pDstArchetype = calc_dst_archetype(pArchetype, entity);
-					if (pDstArchetype != nullptr)
+					if (pDstArchetype != nullptr) {
+						if (entity.pair())
+							del_sparse_pair_payloads(*pArchetype, entity);
 						move_to_archetype(*pArchetype, *pDstArchetype);
+					}
 				}
 
 #if GAIA_OBSERVERS_ENABLED
@@ -12909,8 +13011,11 @@ namespace gaia {
 						continue;
 
 					auto* pDstArchetype = calc_dst_archetype(pArchetype, entity);
-					if (pDstArchetype != nullptr)
+					if (pDstArchetype != nullptr) {
+						if (entity.pair())
+							del_sparse_pair_payloads(*pArchetype, entity);
 						move_to_archetype(*pArchetype, *pDstArchetype);
+					}
 				}
 
 #if GAIA_OBSERVERS_ENABLED
@@ -13298,6 +13403,8 @@ namespace gaia {
 				del_nonfragmenting_relation_source(entity);
 
 				if (entity.pair()) {
+					// The pair entity identifies the store for sparse relationship payloads.
+					del_sparse_component_store(entity);
 					Entity rel;
 					Entity tgt;
 					if (del_pair_record(entity, pArchetype, rel, tgt))
@@ -14097,7 +14204,8 @@ namespace gaia {
 			if (pStore == nullptr)
 				return false;
 
-			const auto* pItem = world.comp_cache().find(component);
+			const auto* pItem =
+					component.pair() ? world.comp_cache().find_pair_payload(component) : world.comp_cache().find(component);
 			GAIA_ASSERT(pItem != nullptr);
 			ops = {pStore->pStore, pStore->func_get, pStore->func_mut, pStore->func_has, pItem->comp.size()};
 			return true;

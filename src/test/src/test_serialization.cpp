@@ -2026,6 +2026,60 @@ TEST_CASE("Serialization - world preserves sparse component payloads") {
 		}
 	}
 
+	SUBCASE("fragmenting sparse relationship payload") {
+		ecs::World in;
+		const auto relation = in.add<PositionSparse>().entity;
+		const auto target = in.add();
+		const auto owner = in.add();
+		const auto pair = ecs::Pair(relation, target);
+		in.add<PositionSparse>(owner, pair, {7.0f, 8.0f, 9.0f});
+
+		ser::bin_stream buffer;
+		in.set_serializer(buffer);
+		in.save();
+
+		ecs::World out;
+		CHECK(out.add<PositionSparse>().entity == relation);
+		CHECK(out.load(buffer));
+		CHECK(out.has(owner, pair));
+		if (out.has(owner, pair)) {
+			const auto& value = out.get<PositionSparse>(owner, pair);
+			CHECK(value.x == 7.0f);
+			CHECK(value.y == 8.0f);
+			CHECK(value.z == 9.0f);
+		}
+	}
+
+	SUBCASE("non-fragmenting sparse relationship payload") {
+		ecs::World in;
+		const auto relation = in.add<PositionSparse>().entity;
+		in.add(relation, ecs::Exclusive);
+		in.add(relation, ecs::DontFragment);
+		const auto target = in.add();
+		const auto owner = in.add();
+		const auto pair = ecs::Pair(relation, target);
+		const auto* pArchetype = in.fetch(owner).pArchetype;
+		in.add<PositionSparse>(owner, pair, {10.0f, 11.0f, 12.0f});
+		CHECK(in.fetch(owner).pArchetype == pArchetype);
+
+		ser::bin_stream buffer;
+		in.set_serializer(buffer);
+		in.save();
+
+		ecs::World out;
+		CHECK(out.add<PositionSparse>().entity == relation);
+		out.add(relation, ecs::Exclusive);
+		out.add(relation, ecs::DontFragment);
+		CHECK(out.load(buffer));
+		CHECK(out.has(owner, pair));
+		if (out.has(owner, pair)) {
+			const auto& value = out.get<PositionSparse>(owner, pair);
+			CHECK(value.x == 10.0f);
+			CHECK(value.y == 11.0f);
+			CHECK(value.z == 12.0f);
+		}
+	}
+
 	SUBCASE("non-fragmenting typed sparse payloads on entity and exact pair") {
 		ecs::World in;
 		const auto sparse = in.add<PositionSparse>().entity;
@@ -3004,7 +3058,20 @@ TEST_CASE("Serialization - world json runtime pair payload") {
 		uint32_t flags;
 	};
 
-	auto register_schema = [](ecs::World& world) {
+	ecs::DataStorageType storageType = ecs::DataStorageType::Table;
+	bool dontFragment = false;
+	SUBCASE("table payload") {
+		storageType = ecs::DataStorageType::Table;
+	}
+	SUBCASE("sparse payload") {
+		storageType = ecs::DataStorageType::Sparse;
+	}
+	SUBCASE("non-fragmenting sparse payload") {
+		storageType = ecs::DataStorageType::Sparse;
+		dontFragment = true;
+	}
+
+	auto register_schema = [storageType, dontFragment](ecs::World& world) {
 		ecs::ComponentDesc targetDesc{};
 		targetDesc.name = runtime_component_name_view("Runtime_Pair_Json_Target");
 		targetDesc.size = 0;
@@ -3018,11 +3085,15 @@ TEST_CASE("Serialization - world json runtime pair payload") {
 		relationDesc.name = runtime_component_name_view("Runtime_Pair_Json_Relation");
 		relationDesc.size = sizeof(RuntimePairPayload);
 		relationDesc.alig = alignof(RuntimePairPayload);
-		relationDesc.storageType = ecs::DataStorageType::Table;
+		relationDesc.storageType = storageType;
 		relationDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
 		relationDesc.runtimeType.fields = fields;
 		relationDesc.runtimeType.fieldCount = 2;
 		auto& relation = world.add(relationDesc);
+		if (dontFragment) {
+			world.add(relation.entity, ecs::Exclusive);
+			world.add(relation.entity, ecs::DontFragment);
+		}
 
 		return RuntimePairSchema{relation.entity, target.entity};
 	};

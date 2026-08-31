@@ -4908,15 +4908,13 @@ namespace gaia {
 								const auto entity = targetEntities[0];
 								if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly))
 									return false;
-								return match_specialized_direct_target_terms(
-										world, entity, queryInfo, termId, directTargetEvalKind);
+								return match_specialized_direct_target_terms(world, entity, queryInfo, termId, directTargetEvalKind);
 							}
 
 							for (const auto entity: targetEntities) {
 								if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly))
 									continue;
-								if (match_specialized_direct_target_terms(
-											world, entity, queryInfo, termId, directTargetEvalKind))
+								if (match_specialized_direct_target_terms(world, entity, queryInfo, termId, directTargetEvalKind))
 									return true;
 							}
 
@@ -5094,11 +5092,7 @@ namespace gaia {
 							if (!query_term_maps_to_current_archetype(term))
 								continue;
 
-							if (!queryId.pair() && world_component_uses_sparse_storage(world, queryId)) {
-#if GAIA_ASSERT_ENABLED
-								const auto compIdx = core::get_index_unsafe(ec.pArchetype->ids_view(), queryId);
-								GAIA_ASSERT(compIdx != BadIndex);
-#endif
+							if (world_component_uses_sparse_storage(world, queryId)) {
 								pIndices[fieldIdx] = 0xFF;
 								continue;
 							}

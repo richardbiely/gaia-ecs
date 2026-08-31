@@ -42,16 +42,12 @@ namespace gaia {
 		}
 
 		//! Returns the effective payload descriptor for an archetype term.
-		//! Pairs always keep their payload in the archetype table, even when the component type
-		//! supplying their payload requests sparse storage.
+		//! Pair payloads retain the storage policy of the component type that supplies their data.
 		//! \param term Archetype term using the payload descriptor.
 		//! \param component Registered payload descriptor.
 		//! \return Descriptor with the storage mode used by the archetype.
-		GAIA_NODISCARD constexpr Component archetype_component(Entity term, Component component) noexcept {
-			if (component.storage_type() != DataStorageType::Sparse || !term.pair())
-				return component;
-
-			return Component(component.id(), component.soa(), component.size(), component.alig(), DataStorageType::Table);
+		GAIA_NODISCARD constexpr Component archetype_component([[maybe_unused]] Entity term, Component component) noexcept {
+			return component;
 		}
 
 		//! \cond INTERNAL
@@ -75,25 +71,25 @@ namespace gaia {
 		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, bool IsEntity = std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity>>
-			struct uses_compile_time_sparse_storage: std::false_type {};
+			struct uses_ct_sparse_storage: std::false_type {};
 
 			template <typename T>
-			struct uses_compile_time_sparse_storage<T, false> {
+			struct uses_ct_sparse_storage<T, false> {
 				using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 				using FT = typename component_type_t<Arg>::TypeFull;
 				using U = typename actual_type_t<Arg>::Type;
 
-				static constexpr bool value = !is_pair<FT>::value && entity_kind_v<Arg> == EntityKind::EK_Gen &&
-															 !mem::is_soa_layout_v<U> && auto_storage_policy_v<U> == DataStorageType::Sparse;
+				static constexpr bool value = entity_kind_v<Arg> == EntityKind::EK_Gen && !mem::is_soa_layout_v<U> &&
+																			auto_storage_policy_v<U> == DataStorageType::Sparse;
 			};
 		} // namespace detail
 		//! \endcond
 
 		//! True when a typed component uses Gaia's compile-time sparse payload path.
-		//! Pair, unique, and SoA component forms remain table-backed even when their payload type requests sparse storage.
+		//! Sparse storage applies only to generic AoS payloads; unique and SoA component forms use table storage.
 		//! \tparam T Component API type.
 		template <typename T>
-		inline constexpr bool uses_compile_time_sparse_storage_v = detail::uses_compile_time_sparse_storage<T>::value;
+		inline constexpr bool uses_ct_sparse_storage_v = detail::uses_ct_sparse_storage<T>::value;
 
 		//----------------------------------------------------------------------
 		// Component verification

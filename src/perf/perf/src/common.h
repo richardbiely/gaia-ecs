@@ -14,6 +14,7 @@
 #define PICO_SETTINGS() iterations({64}).samples(3)
 #define PICO_SETTINGS_HEAVY() iterations({32}).samples(3)
 #define PICO_SETTINGS_FOCUS() iterations({64}).samples(3)
+#define PICO_SETTINGS_BATCH() iterations({1}).samples(7)
 #define PICO_SETTINGS_OBS() iterations({16}).samples(3)
 #define PICO_SETTINGS_SANI() iterations({8}).samples(1)
 #define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name)
@@ -41,6 +42,8 @@ struct PositionSparse {
 	float y;
 	float z;
 };
+
+struct SparsePairTarget {};
 
 struct Velocity {
 	float x;

@@ -1754,26 +1754,25 @@ namespace gaia {
 						const auto id = term.id;
 						if (term.matchKind == QueryMatchKind::In && id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
 								!is_variable((EntityId)id.gen())) {
-							data.directTargetEvalKind = directTargetEvalHasRemainingTerms
-									? DirectTargetEvalKind::SingleAllInIsMixed
-									: DirectTargetEvalKind::SingleAllInIs;
+							data.directTargetEvalKind = directTargetEvalHasRemainingTerms ? DirectTargetEvalKind::SingleAllInIsMixed
+																																						: DirectTargetEvalKind::SingleAllInIs;
 						} else if (
 								term.matchKind == QueryMatchKind::Semantic && id.pair() && id.id() == Is.id() &&
 								!is_wildcard(id.gen()) && !is_variable((EntityId)id.gen())) {
 							data.directTargetEvalKind = directTargetEvalHasRemainingTerms
-									? DirectTargetEvalKind::SingleAllSemanticIsMixed
-									: DirectTargetEvalKind::SingleAllSemanticIs;
+																							? DirectTargetEvalKind::SingleAllSemanticIsMixed
+																							: DirectTargetEvalKind::SingleAllSemanticIs;
 						} else if (
 								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
 								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id)) {
 							data.directTargetEvalKind = directTargetEvalHasRemainingTerms
-									? DirectTargetEvalKind::SingleAllInheritedMixed
-									: DirectTargetEvalKind::SingleAllInherited;
+																							? DirectTargetEvalKind::SingleAllInheritedMixed
+																							: DirectTargetEvalKind::SingleAllInherited;
 						} else {
-							data.directTargetEvalKind = !directTargetEvalHasRemainingTerms
-									? DirectTargetEvalKind::SingleAllDirect
-									: directTargetEvalAllTermsDirect ? DirectTargetEvalKind::SingleAllDirectMixedDirect
-																			 : DirectTargetEvalKind::SingleAllDirectMixed;
+							data.directTargetEvalKind = !directTargetEvalHasRemainingTerms ? DirectTargetEvalKind::SingleAllDirect
+																					: directTargetEvalAllTermsDirect
+																							? DirectTargetEvalKind::SingleAllDirectMixedDirect
+																							: DirectTargetEvalKind::SingleAllDirectMixed;
 						}
 						data.directTargetEvalId = id;
 					}

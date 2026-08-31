@@ -494,6 +494,13 @@ The resulting configurations are:
 | `GAIA_STORAGE(Sparse)` | `Sparse` | In archetype | Yes |
 | `GAIA_STORAGE(Sparse)` + `DontFragment` | `Sparse` | Outside archetype | No |
 
+Data-bearing relationships use the same payload/membership split. When the payload type of an exact
+`(relation, target)` pair uses sparse storage, Gaia keeps one separate sparse payload store for that exact pair. The
+pair id still participates in the entity's archetype identity. This preserves normal relationship query matching
+without putting the payload in a chunk column. For an `Exclusive` relation marked `DontFragment`, both pair
+membership and its sparse payload stay outside the archetype, so changing the target does not move the source
+entity.
+
 Rule of thumb:
 - Keep hot, common, frequently iterated data in table storage.
 - Use `Sparse` when the payload needs a stable address, but the component should still participate in archetype identity.
@@ -503,7 +510,9 @@ Rule of thumb:
 Directly adding or removing an already-registered `DontFragment` component is safe during serial query iteration because the entity does not move to another archetype. If the active query filters on that component, later rows are matched against the current world state rather than a snapshot taken before iteration.
 
 >**NOTE:<br/>** 
-SoA components do not support sparse storage and remain in table storage. `GAIA_STORAGE(Sparse)` and `ecs::Sparse` apply only to plain AoS generic components.<br/>
+Component layout and storage follow the same rules for ordinary components and relationship payloads. Table storage
+supports AoS and SoA layouts. Sparse storage is intended for individually addressed payloads and supports only plain
+AoS generic components. `GAIA_STORAGE(Sparse)` and `ecs::Sparse` cannot be combined with a SoA layout.<br/>
 
 >**NOTE:<br/>** 
 Runtime component storage and fragmentation traits must be set before the component has instances attached to entities. They do not override a typed component's `GAIA_STORAGE` policy.<br/>
@@ -4182,7 +4191,7 @@ auto affinityForAnyone = w.query().all(ecs::Pair(affinity.entity, ecs::All));
 
 Use an exact pair when reading or writing its value because a wildcard query can match several targets. Adding, removing, and changing relationship data triggers the same lifecycle hooks and `OnSet` notifications as component data.
 
-Semantic JSON writes the relationship as `(Relation,Target)`, such as `(Affinity,Bob)`. Register the relation before loading and give each target a stable name before saving. Runtime relationship data currently works with AoS and SoA payloads in table storage, not sparse storage.
+Semantic JSON writes the relationship as `(Relation,Target)`, such as `(Affinity,Bob)`. Register the relation before loading and give each target a stable name before saving. Relationship payloads inherit the same layout and storage rules as ordinary components: table storage supports AoS and SoA payloads, while sparse storage supports AoS payloads only.
 
 ### Querying runtime components
 

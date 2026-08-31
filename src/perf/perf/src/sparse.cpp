@@ -333,6 +333,85 @@ void BM_Query_DirectSparse_Or_Each(picobench::state& state) {
 	dont_optimize(total);
 }
 
+using PositionSparsePair = ecs::pair<PositionSparse, SparsePairTarget>;
+
+template <bool DontFragment>
+void setup_sparse_pair_entities(ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count) {
+	entities.clear();
+	entities.reserve(count);
+
+	const auto& relation = w.add<PositionSparse>();
+	(void)w.add<SparsePairTarget>();
+	if constexpr (DontFragment) {
+		w.add(relation.entity, ecs::Exclusive);
+		w.add(relation.entity, ecs::DontFragment);
+	}
+
+	GAIA_FOR(count) entities.push_back(w.add());
+}
+
+template <bool DontFragment>
+void BM_SparsePair_Add(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> entities;
+		setup_sparse_pair_entities<DontFragment>(w, entities, n);
+
+		state.start_timer();
+		for (auto e: entities)
+			w.add<PositionSparsePair>(e, PositionSparse{});
+		state.stop_timer();
+	}
+}
+
+template <bool DontFragment>
+void BM_SparsePair_Del(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> entities;
+		setup_sparse_pair_entities<DontFragment>(w, entities, n);
+		for (auto e: entities)
+			w.add<PositionSparsePair>(e, PositionSparse{});
+
+		state.start_timer();
+		for (auto e: entities)
+			w.del<PositionSparsePair>(e);
+		state.stop_timer();
+	}
+}
+
+template <bool DontFragment>
+void BM_Query_SparsePairPayload_IterRead(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	setup_sparse_pair_entities<DontFragment>(w, entities, n);
+	GAIA_FOR(n)
+	w.add<PositionSparsePair>(entities[i], PositionSparse{(float)i, (float)(i + 1U), (float)(i + 2U)});
+
+	auto q = w.query().all<PositionSparsePair>();
+	uint64_t total = 0;
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		q.each([&](ecs::Iter& it) {
+			const auto view = it.view_any<PositionSparsePair>();
+			GAIA_EACH(view) sum += (uint64_t)(view[i].x + view[i].y + view[i].z);
+		});
+		total += sum;
+	}
+	dont_optimize(total);
+}
+
 template <bool DontFragment>
 void setup_runtime_sparse_component_entities(
 		ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count, ecs::Entity& component) {
@@ -537,11 +616,11 @@ void register_sparse(PerfRunMode mode) {
 
 	PICOBENCH_SUITE_REG("Structural changes");
 	PICOBENCH_REG(BM_SparseComponent_Add<false>)
-			.PICO_SETTINGS_FOCUS()
+			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("sparse frag add 10K");
 	PICOBENCH_REG(BM_SparseComponent_Add<true>)
-			.PICO_SETTINGS_FOCUS()
+			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("sparse dontfrag add 10K");
 	PICOBENCH_REG(BM_SparseComponent_Set<false>)
@@ -553,19 +632,19 @@ void register_sparse(PerfRunMode mode) {
 			.user_data(NEntitiesFew)
 			.label("sparse dontfrag set 10K");
 	PICOBENCH_REG(BM_SparseComponent_Del<false>)
-			.PICO_SETTINGS_FOCUS()
+			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("sparse frag del 10K");
 	PICOBENCH_REG(BM_SparseComponent_Del<true>)
-			.PICO_SETTINGS_FOCUS()
+			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("sparse dontfrag del 10K");
 	PICOBENCH_REG(BM_SparseComponent_DeleteEntity<false>)
-			.PICO_SETTINGS_FOCUS()
+			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("sparse frag del entity 10K");
 	PICOBENCH_REG(BM_SparseComponent_DeleteEntity<true>)
-			.PICO_SETTINGS_FOCUS()
+			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("sparse dontfrag del entity 10K");
 	PICOBENCH_REG(BM_Query_DirectSparse_All<false>)
@@ -640,12 +719,36 @@ void register_sparse(PerfRunMode mode) {
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("sparse dontfrag query or each 10K");
-	PICOBENCH_REG(BM_RuntimeSparseComponent_Add<false>)
+	PICOBENCH_REG(BM_SparsePair_Add<false>)
+			.PICO_SETTINGS_BATCH()
+			.user_data(NEntitiesFew)
+			.label("sparse pair frag add 10K");
+	PICOBENCH_REG(BM_SparsePair_Add<true>)
+			.PICO_SETTINGS_BATCH()
+			.user_data(NEntitiesFew)
+			.label("sparse pair dontfrag add 10K");
+	PICOBENCH_REG(BM_SparsePair_Del<false>)
+			.PICO_SETTINGS_BATCH()
+			.user_data(NEntitiesFew)
+			.label("sparse pair frag del 10K");
+	PICOBENCH_REG(BM_SparsePair_Del<true>)
+			.PICO_SETTINGS_BATCH()
+			.user_data(NEntitiesFew)
+			.label("sparse pair dontfrag del 10K");
+	PICOBENCH_REG(BM_Query_SparsePairPayload_IterRead<false>)
 			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("sparse pair frag iter payload read 10K");
+	PICOBENCH_REG(BM_Query_SparsePairPayload_IterRead<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("sparse pair dontfrag iter payload read 10K");
+	PICOBENCH_REG(BM_RuntimeSparseComponent_Add<false>)
+			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("runtime sparse frag add 10K");
 	PICOBENCH_REG(BM_RuntimeSparseComponent_Add<true>)
-			.PICO_SETTINGS_FOCUS()
+			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("runtime sparse dontfrag add 10K");
 	PICOBENCH_REG(BM_RuntimeSparseComponent_Set<false>)
@@ -657,19 +760,19 @@ void register_sparse(PerfRunMode mode) {
 			.user_data(NEntitiesFew)
 			.label("runtime sparse dontfrag set 10K");
 	PICOBENCH_REG(BM_RuntimeSparseComponent_Del<false>)
-			.PICO_SETTINGS_FOCUS()
+			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("runtime sparse frag del 10K");
 	PICOBENCH_REG(BM_RuntimeSparseComponent_Del<true>)
-			.PICO_SETTINGS_FOCUS()
+			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("runtime sparse dontfrag del 10K");
 	PICOBENCH_REG(BM_RuntimeSparseComponent_DeleteEntity<false>)
-			.PICO_SETTINGS_FOCUS()
+			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("runtime sparse frag del entity 10K");
 	PICOBENCH_REG(BM_RuntimeSparseComponent_DeleteEntity<true>)
-			.PICO_SETTINGS_FOCUS()
+			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("runtime sparse dontfrag del entity 10K");
 	PICOBENCH_REG(BM_RuntimeSparsePayload_Read<false>)

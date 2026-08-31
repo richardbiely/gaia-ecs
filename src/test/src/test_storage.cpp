@@ -111,6 +111,95 @@ TEST_CASE("Sparse DontFragment component and non-fragmenting relation storage") 
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 }
 
+TEST_CASE("Sparse DontFragment relationship payload stays outside archetype storage") {
+	SparseTestWorld twld;
+
+	const auto& relationItem = wld.add<PositionSparse>();
+	wld.add(relationItem.entity, ecs::Exclusive);
+	wld.add(relationItem.entity, ecs::DontFragment);
+
+	const auto target = wld.add();
+	const auto otherTarget = wld.add();
+	const auto pair = ecs::Pair(relationItem.entity, target);
+	const auto otherPair = ecs::Pair(relationItem.entity, otherTarget);
+	const auto entity = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(entity).pArchetype;
+
+	wld.add<PositionSparse>(entity, pair, {1.0f, 2.0f, 3.0f});
+	const auto* pPayloadBefore = wld.get_raw(entity, pair).data;
+	CHECK(wld.fetch(entity).pArchetype == pArchetypeBefore);
+	CHECK(wld.has(entity, pair));
+	CHECK(wld.get<PositionSparse>(entity, pair).y == doctest::Approx(2.0f));
+	CHECK(wld.query().all(pair).count() == 1);
+
+	const auto raw = wld.get_raw(entity, pair);
+	CHECK(raw.valid());
+	if (raw.valid()) {
+		CHECK(raw.size == sizeof(PositionSparse));
+		CHECK(((const PositionSparse*)raw.data)->z == doctest::Approx(3.0f));
+	}
+
+	// The relationship payload is not a chunk column, so unrelated archetype moves do not relocate it.
+	wld.add<Rotation>(entity, {4.0f, 5.0f, 6.0f});
+	CHECK(wld.fetch(entity).pArchetype != pArchetypeBefore);
+	CHECK(wld.get_raw(entity, pair).data == pPayloadBefore);
+
+	// Replacing an exclusive target removes the old exact-pair payload before constructing the new one.
+	wld.add<PositionSparse>(entity, otherPair, {7.0f, 8.0f, 9.0f});
+	CHECK_FALSE(wld.has(entity, pair));
+	CHECK_FALSE(wld.get_raw(entity, pair).valid());
+	CHECK(wld.has(entity, otherPair));
+	CHECK(wld.get<PositionSparse>(entity, otherPair).x == doctest::Approx(7.0f));
+
+	const auto copy = wld.copy(entity);
+	CHECK(wld.has(copy, otherPair));
+	CHECK(wld.get<PositionSparse>(copy, otherPair).z == doctest::Approx(9.0f));
+
+	wld.del(entity, otherPair);
+	CHECK_FALSE(wld.has(entity, otherPair));
+	CHECK_FALSE(wld.get_raw(entity, otherPair).valid());
+	CHECK(wld.has(copy, otherPair));
+}
+
+TEST_CASE("Sparse relationship payload keeps exact pair stores independent") {
+	SparseTestWorld twld;
+
+	const auto& relationItem = wld.add<PositionSparse>();
+	const auto targetA = wld.add();
+	const auto targetB = wld.add();
+	const auto pairA = ecs::Pair(relationItem.entity, targetA);
+	const auto pairB = ecs::Pair(relationItem.entity, targetB);
+	const auto entity = wld.add();
+
+	wld.add<PositionSparse>(entity, pairA, {1.0f, 2.0f, 3.0f});
+	wld.add<PositionSparse>(entity, pairB, {4.0f, 5.0f, 6.0f});
+
+	CHECK(wld.has(entity, pairA));
+	CHECK(wld.has(entity, pairB));
+	CHECK(wld.get<PositionSparse>(entity, pairA).x == doctest::Approx(1.0f));
+	CHECK(wld.get<PositionSparse>(entity, pairB).x == doctest::Approx(4.0f));
+	CHECK(wld.get_raw(entity, pairA).data != wld.get_raw(entity, pairB).data);
+	CHECK(wld.query().all(pairA).count() == 1);
+	CHECK(wld.query().all(pairB).count() == 1);
+
+	wld.del(entity, pairA);
+	CHECK_FALSE(wld.has(entity, pairA));
+	CHECK_FALSE(wld.get_raw(entity, pairA).valid());
+	CHECK(wld.has(entity, pairB));
+	CHECK(wld.get<PositionSparse>(entity, pairB).z == doctest::Approx(6.0f));
+	CHECK(wld.sparse_component_store<PositionSparse>((ecs::Entity)pairB) != nullptr);
+	wld.add<PositionSparse>(entity, pairA, {10.0f, 11.0f, 12.0f});
+
+	wld.del(targetB);
+	wld.update();
+	CHECK_FALSE(wld.has(entity, pairB));
+	const auto* pPairStore = wld.sparse_component_store<PositionSparse>((ecs::Entity)pairB);
+	const bool payloadRemoved = pPairStore == nullptr || !pPairStore->has(entity);
+	CHECK(payloadRemoved);
+	CHECK(wld.has(entity, pairA));
+	CHECK(wld.get<PositionSparse>(entity, pairA).x == doctest::Approx(10.0f));
+}
+
 TEST_CASE("Typed sparse mutable views reject touched-term capacity exhaustion") {
 	TestWorld twld;
 
@@ -541,7 +630,7 @@ TEST_CASE("Chunk-backed query view keeps contiguous data access") {
 	CHECK(hits == 1);
 }
 
-TEST_CASE("Out-of-line query view does not expose contiguous data") {
+TEST_CASE("Sparse query view does not expose contiguous data") {
 	SparseTestWorld twld;
 
 	const auto e = wld.add();

@@ -1067,10 +1067,10 @@ namespace gaia {
 				bool m_writeIm = true;
 				//! Which entity subset the iterator currently exposes from the chunk.
 				Constraints m_constraints = Constraints::EnabledOnly;
-	#if GAIA_OBSERVERS_ENABLED
+#if GAIA_OBSERVERS_ENABLED
 				//! Logical event exposed while an observer callback is running.
 				ObserverEvent m_observerEvent = ObserverEvent::None;
-	#endif
+#endif
 				//! Chunk-backed columns that were exposed as mutable during the current callback.
 				uint8_t m_touchedCompIndices[ChunkHeader::MAX_COMPONENTS];
 				uint8_t m_touchedCompCnt = 0;

@@ -331,9 +331,14 @@ namespace gaia {
 				void replay_data(Entity target, Entity object, uint32_t dataPos, bool finishWrite = true) {
 					auto serializer = ser::make_serializer(m_data);
 					serializer.seek(dataPos);
-					const auto& item = m_world.comp_cache().get(object);
+					const auto* pItem =
+							object.pair() ? m_world.comp_cache().find_pair_payload(object) : m_world.comp_cache().find(object);
+					GAIA_ASSERT(pItem != nullptr);
+					if (pItem == nullptr)
+						return;
+					const auto& item = *pItem;
 
-					if (!object.pair() && item.comp.storage_type() == DataStorageType::Sparse) {
+					if (m_world.component_uses_sparse_storage(object)) {
 						const auto payload = m_world.mut_raw(target, object);
 						GAIA_ASSERT(payload.valid());
 						if (payload.valid())
@@ -357,8 +362,13 @@ namespace gaia {
 				//! \param object Component id being added.
 				//! \param dataPos Serialized payload offset in the command-buffer data stream.
 				void replay_add_data(Entity target, Entity object, uint32_t dataPos) {
-					const auto& item = m_world.comp_cache().get(object);
-					if (!object.pair() && item.comp.storage_type() == DataStorageType::Sparse) {
+					const auto* pItem =
+							object.pair() ? m_world.comp_cache().find_pair_payload(object) : m_world.comp_cache().find(object);
+					GAIA_ASSERT(pItem != nullptr);
+					if (pItem == nullptr)
+						return;
+					const auto& item = *pItem;
+					if (m_world.component_uses_sparse_storage(object)) {
 						const auto mode = m_world.sparse_storage_mode(object);
 						GAIA_ASSERT(mode != World::SparseStorageMode::None);
 						auto& store = m_world.sparse_component_store_erased_mut(object, item);
