@@ -2329,6 +2329,36 @@ TEST_CASE("Serialization - semantic world json preserves sparse component payloa
 	}
 }
 
+TEST_CASE("Serialization - semantic world json only recognizes a top-level binary snapshot") {
+	ecs::World in;
+	const auto& binaryItem = add_runtime_component(
+			in, "binary", (uint32_t)sizeof(Position), ecs::DataStorageType::Table, (uint32_t)alignof(Position));
+	const auto binaryComponent = binaryItem.entity;
+	const auto entity = in.add();
+	in.name(entity, "BinaryKeyOwner");
+	in.add(entity, binaryComponent, Position{1.0f, 2.0f, 3.0f});
+
+	ser::ser_json writer;
+	CHECK(in.save_json(writer, ser::JsonSaveFlags::RawFallback));
+	CHECK(writer.str().find("\"binary\":{\"$raw\":[") != BadIndex);
+
+	ecs::World out;
+	const auto& outBinaryItem = add_runtime_component(
+			out, "binary", (uint32_t)sizeof(Position), ecs::DataStorageType::Table, (uint32_t)alignof(Position));
+	CHECK(outBinaryItem.entity == binaryComponent);
+	ser::JsonDiagnostics diagnostics;
+	CHECK(out.load_json(writer.str(), diagnostics));
+	const auto loaded = out.get("BinaryKeyOwner");
+	CHECK(loaded != ecs::EntityBad);
+	CHECK(out.has(loaded, binaryComponent));
+	if (out.has(loaded, binaryComponent)) {
+		const auto& value = out.get<Position>(loaded, binaryComponent);
+		CHECK(value.x == 1.0f);
+		CHECK(value.y == 2.0f);
+		CHECK(value.z == 3.0f);
+	}
+}
+
 TEST_CASE("Serialization - world json compatibility when core components are added later") {
 	TestWorld archetypeWorld;
 	const auto warmup = archetypeWorld.m_w.add();

@@ -1613,8 +1613,6 @@ namespace gaia {
 			}
 
 			const auto dataLen = len;
-			const auto* p = json;
-			const auto* end = json + dataLen;
 			auto warn = [&](ser::JsonDiagReason reason, ser::json_str_view path, const char* message) {
 				diagnostics.add(ser::JsonDiagSeverity::Warning, reason, path, message);
 			};
@@ -1622,7 +1620,10 @@ namespace gaia {
 				diagnostics.add(ser::JsonDiagSeverity::Error, reason, path, message);
 			};
 
-			// Validate top-level format version first.
+			ser::bin_stream binarySnapshot;
+			bool hasBinarySnapshot = false;
+
+			// Validate top-level metadata and collect the optional binary snapshot in one pass.
 			{
 				ser::ser_json header(json, dataLen);
 				if (!header.expect('{')) {
@@ -1653,6 +1654,12 @@ namespace gaia {
 								return false;
 							formatValue = v;
 							hasFormat = true;
+						} else if (key == "binary") {
+							if (hasBinarySnapshot)
+								return false;
+							hasBinarySnapshot = true;
+							if (!ser::detail::parse_json_byte_array(header, binarySnapshot))
+								return false;
 						} else {
 							if (!header.skip_value())
 								return false;
@@ -1684,35 +1691,8 @@ namespace gaia {
 				}
 			}
 
-			// Prefer fast-path: binary snapshot payload.
-			{
-				const char key[] = "\"binary\"";
-				const uint32_t keyLen = (uint32_t)(sizeof(key) - 1);
-				const char* keyPos = nullptr;
-				for (const char* it = p; it + keyLen <= end; ++it) {
-					if (memcmp(it, key, keyLen) == 0) {
-						keyPos = it;
-						break;
-					}
-				}
-				if (keyPos != nullptr) {
-					const char* arr = nullptr;
-					for (const char* it = keyPos + keyLen; it < end; ++it) {
-						if (*it == '[') {
-							arr = it;
-							break;
-						}
-					}
-					if (arr != nullptr) {
-						ser::bin_stream serializer;
-						ser::ser_json binaryReader(arr, (uint32_t)(end - arr));
-						if (!ser::detail::parse_json_byte_array(binaryReader, serializer))
-							return false;
-
-						return load(serializer);
-					}
-				}
-			}
+			if (hasBinarySnapshot)
+				return load(binarySnapshot);
 
 			// Fallback: semantic world JSON parser.
 			ser::ser_json jp(json, dataLen);
