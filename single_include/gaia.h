@@ -77804,7 +77804,7 @@ namespace gaia {
 			//! \param entity Entity to delete
 			//! \param invalidate If true all entity records are invalidated
 			void del_entity(EntityContainer& ec, Entity entity, bool invalidate) {
-				if (entity.pair() || entity == EntityBad)
+				if (entity == EntityBad)
 					return;
 
 				del_entity_inter(ec, entity, invalidate);
@@ -77815,7 +77815,7 @@ namespace gaia {
 			//! \param entity Entity to delete
 			//! \param invalidate If true, all entity records are deleted
 			void del_entity_inter(EntityContainer& ec, Entity entity, bool invalidate) {
-				GAIA_ASSERT(entity.id() > GAIA_ID(LastCoreComponent).id());
+				GAIA_ASSERT(entity.pair() || entity.id() > GAIA_ID(LastCoreComponent).id());
 
 				// if (!is_req_del(ec))
 				{
@@ -79696,32 +79696,42 @@ namespace gaia {
 #endif
 			}
 
-			//! Creates the entity container record for \a entity.
+			//! Creates or revives the entity container record for \a entity.
 			//! \param entity Pair entity.
 			//! \param archetype Archetype the pair record should use.
-			//! \return True when a new pair record was created. False if it already existed.
+			//! \return True when a pair record was created or revived. False when it is already live.
 			bool assign_pair_record(Entity entity, Archetype& archetype) {
 				GAIA_ASSERT(entity.pair());
 
 				// Pairs are always added to m_pEntityArchetype initially and this can't change.
 				GAIA_ASSERT(&archetype == m_pEntityArchetype);
 
-				if (m_recs.pair_record_contains(entity))
-					return false;
+				auto init_record = [&](EntityContainer& ec) {
+					ec = {};
+					ec.idx = entity.id();
+					ec.data.gen = entity.gen();
+					ec.data.pair = 1;
+					ec.data.ent = 1;
+					ec.data.kind = EntityKind::EK_Gen;
 
-				// Update the container record
+					auto* pChunk = archetype.foc_free_chunk();
+					store_entity(ec, entity, &archetype, pChunk);
+					pChunk->update_versions();
+					archetype.try_update_free_chunk_idx();
+				};
+
+				auto* pRecord = m_recs.pair_record_find(entity);
+				if (pRecord != nullptr) {
+					if ((pRecord->flags & EntityContainerFlags::DeleteRequested) == 0)
+						return false;
+
+					m_reqEntitiesToDel.erase(EntityLookupKey(entity));
+					init_record(*pRecord);
+					return true;
+				}
+
 				EntityContainer ec{};
-				ec.idx = entity.id();
-				ec.data.gen = entity.gen();
-				ec.data.pair = 1;
-				ec.data.ent = 1;
-				ec.data.kind = EntityKind::EK_Gen;
-
-				auto* pChunk = archetype.foc_free_chunk();
-				store_entity(ec, entity, &archetype, pChunk);
-				pChunk->update_versions();
-				archetype.try_update_free_chunk_idx();
-
+				init_record(ec);
 				m_recs.pair_record_add(entity, GAIA_MOV(ec));
 				return true;
 			}

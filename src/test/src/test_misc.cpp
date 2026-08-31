@@ -4265,6 +4265,52 @@ TEST_CASE("Exact pair records - runtime sparse payload identity and deletion") {
 	CHECK(query.count() == 1);
 }
 
+TEST_CASE("Exact pair records - recreate after deletion") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto ownerA = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(ownerA, pair);
+	wld.add<Position>(pair, {1.0f, 2.0f, 3.0f});
+	auto query = wld.query().all<Position>();
+	CHECK(query.count() == 1);
+
+	wld.del(pair);
+	wld.update();
+	CHECK_FALSE(wld.has(pair));
+	CHECK_FALSE(wld.has(ownerA, pair));
+	CHECK(query.count() == 0);
+
+	const auto ownerB = wld.add();
+	wld.add(ownerB, pair);
+	CHECK(wld.has(pair));
+	CHECK(wld.has(ownerB, pair));
+	CHECK(wld.target(ownerB, relation) == target);
+	CHECK_FALSE(wld.has<Position>(pair));
+	CHECK(query.count() == 0);
+	wld.update();
+	CHECK(wld.has(pair));
+	CHECK(wld.has(ownerB, pair));
+
+	wld.add<Position>(pair, {4.0f, 5.0f, 6.0f});
+	CHECK(wld.get<Position>(pair).x == 4.0f);
+	CHECK(query.count() == 1);
+
+	wld.del(pair);
+	CHECK_FALSE(wld.has(pair));
+	CHECK(query.count() == 0);
+	const auto ownerC = wld.add();
+	wld.add(ownerC, pair);
+	CHECK(wld.has(pair));
+	CHECK(wld.has(ownerC, pair));
+	CHECK_FALSE(wld.has<Position>(pair));
+	wld.update();
+	CHECK(wld.has(pair));
+	CHECK(wld.has(ownerC, pair));
+}
+
 TEST_CASE("Exact pair records - enable state and chunk lookup") {
 	TestWorld twld;
 
