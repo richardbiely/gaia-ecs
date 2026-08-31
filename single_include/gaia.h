@@ -24231,15 +24231,25 @@ namespace gaia {
 				return const_iterator((T*)&m_data[0], m_tail, m_size, m_size);
 			}
 
-			//! Compares corresponding physical storage positions.
+			//! Compares live elements in logical order.
 			//! \param other Ring buffer to compare with.
-			//! \return True when every corresponding physical element differs. False otherwise.
+			//! \return True when both buffers have the same size and values in logical order.
 			GAIA_NODISCARD constexpr bool operator==(const sringbuffer& other) const {
-				for (size_type i = 0; i < N; ++i) {
-					if (m_data[i] == other.m_data[i])
+				if (m_size != other.m_size)
+					return false;
+
+				for (size_type i = 0; i < m_size; ++i) {
+					if (!(m_data[(m_tail + i) % N] == other.m_data[(other.m_tail + i) % N]))
 						return false;
 				}
 				return true;
+			}
+
+			//! Checks whether live logical sequences differ.
+			//! \param other Ring buffer to compare with.
+			//! \return True when the buffers differ in size or logical values.
+			GAIA_NODISCARD constexpr bool operator!=(const sringbuffer& other) const {
+				return !operator==(other);
 			}
 		};
 

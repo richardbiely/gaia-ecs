@@ -2134,6 +2134,32 @@ TEST_CASE("Data layout - erased SoA field addressing matches typed policy") {
 
 TEST_CASE("Containers - sringbuffer") {
 	{
+		cnt::sringbuffer<uint32_t, 5> emptyA;
+		cnt::sringbuffer<uint32_t, 5> emptyB;
+		CHECK(emptyA == emptyB);
+		CHECK_FALSE(emptyA != emptyB);
+
+		cnt::sringbuffer<uint32_t, 5> wrapped = {0, 1, 2, 3, 4};
+		uint32_t val{};
+		wrapped.pop_front(val);
+		wrapped.pop_front(val);
+		wrapped.push_back(5);
+		wrapped.push_back(6);
+
+		cnt::sringbuffer<uint32_t, 5> contiguous = {2, 3, 4, 5, 6};
+		CHECK(wrapped == contiguous);
+		CHECK_FALSE(wrapped != contiguous);
+
+		cnt::sringbuffer<uint32_t, 5> differentValue = {2, 3, 4, 5, 7};
+		CHECK_FALSE(wrapped == differentValue);
+		CHECK(wrapped != differentValue);
+
+		contiguous.pop_back(val);
+		CHECK_FALSE(wrapped == contiguous);
+		CHECK(wrapped != contiguous);
+	}
+
+	{
 		cnt::sringbuffer<uint32_t, 5> arr = {0, 1, 2, 3, 4};
 		uint32_t copied{};
 		arr.pop_back(copied);
