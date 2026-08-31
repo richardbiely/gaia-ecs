@@ -88693,7 +88693,7 @@ namespace gaia {
 						return;
 					}
 
-					const auto& ec = m_world.m_recs.entities[target.id()];
+					const auto& ec = target.pair() ? m_world.fetch(target) : m_world.m_recs.entities[target.id()];
 					const auto row = target.kind() == EntityKind::EK_Uni ? 0U : ec.row;
 					const auto compIdx = ec.pChunk->comp_idx(object);
 					auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);

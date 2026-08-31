@@ -926,6 +926,34 @@ TEST_CASE("Command buffer sparse lifecycle does not leak across recycled entity 
 	CHECK(wld.get<PositionSparse>(recycled).x == doctest::Approx(7.0f));
 }
 
+TEST_CASE("Command buffer table payload replay addresses exact pair records") {
+	TestWorld twld;
+	(void)wld.add<Position>();
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto owner = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(owner, pair);
+
+	ecs::CommandBufferST commandBuffer(wld);
+	commandBuffer.add<Position>(pair, Position{1.0f, 2.0f, 3.0f});
+	commandBuffer.commit();
+	CHECK(wld.has<Position>(pair));
+	CHECK_FALSE(wld.has<Position>(relation));
+	CHECK(wld.get<Position>(pair).x == doctest::Approx(1.0f));
+
+	commandBuffer.set<Position>(pair, Position{4.0f, 5.0f, 6.0f});
+	commandBuffer.commit();
+	CHECK(wld.get<Position>(pair).x == doctest::Approx(4.0f));
+	CHECK(wld.get<Position>(pair).y == doctest::Approx(5.0f));
+	CHECK(wld.get<Position>(pair).z == doctest::Approx(6.0f));
+
+	commandBuffer.del<Position>(pair);
+	commandBuffer.commit();
+	CHECK_FALSE(wld.has<Position>(pair));
+	CHECK_FALSE(wld.has<Position>(relation));
+}
+
 TEST_CASE("Changed filters track direct and buffered sparse writes") {
 	SUBCASE("fragmenting sparse storage") {
 		SparseTestWorld twld;
