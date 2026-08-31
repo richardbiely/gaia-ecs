@@ -66399,6 +66399,59 @@ namespace gaia {
 				return ec.pChunk->template set<T>(ec.row, object);
 			}
 
+			//! Marks one table-backed typed component as modified.
+			//! \tparam T Component type.
+			//! \tparam TriggerSetEffects Triggers set side effects if true.
+			//! \param entity Entity or exact pair record being modified.
+			//! \param ec Current storage record for \a entity.
+			template <
+					typename T
+#if GAIA_ENABLE_HOOKS
+					,
+					bool TriggerSetEffects
+#endif
+					>
+			void modify_table_inter(Entity entity, EntityContainer& ec) {
+				ec.pChunk->template modify<
+						T
+#if GAIA_ENABLE_HOOKS
+						,
+						TriggerSetEffects
+#endif
+						>();
+
+#if GAIA_OBSERVERS_ENABLED
+				if constexpr (TriggerSetEffects) {
+					Entity term = EntityBad;
+					if constexpr (is_pair<T>::value) {
+						const auto rel = comp_cache().template get<typename T::rel>().entity;
+						const auto tgt = comp_cache().template get<typename T::tgt>().entity;
+						term = (Entity)Pair(rel, tgt);
+					} else
+						term = comp_cache().template get<T>().entity;
+
+					world_notify_on_set(*this, term, *ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
+				}
+#else
+				(void)entity;
+#endif
+			}
+
+			//! Marks one runtime-selected table component as modified.
+			//! \tparam TriggerSetEffects Triggers set side effects if true.
+			//! \param object Component entity selecting the payload.
+			//! \param ec Current storage record for the modified entity.
+			template <bool TriggerSetEffects>
+			void modify_table_inter(Entity object, EntityContainer& ec) {
+				const auto compIdx = ec.pChunk->comp_idx(object);
+				GAIA_ASSERT(compIdx != ComponentIndexBad);
+
+				if constexpr (TriggerSetEffects)
+					ec.pChunk->finish_write(compIdx, ec.row, (uint16_t)(ec.row + 1));
+				else
+					ec.pChunk->update_world_version(compIdx);
+			}
+
 			//! Marks a sparse write in the owning chunk's change-filter state.
 			//! Fragmenting sparse components have an archetype column whose version can be updated directly.
 			//! Non-fragmenting sparse components use the chunk entity-order version as the conservative
@@ -70020,6 +70073,16 @@ namespace gaia {
 				EntityBuilder(*this, entity).add<T>();
 			}
 
+			//! Attaches a new component \a T to an exact pair record.
+			//! \tparam T Component.
+			//! \param entity Pair record receiving the component.
+			//! \warning It is expected the component is not present on \a entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			template <typename T>
+			void add(Pair entity) {
+				add<T>((Entity)entity);
+			}
+
 			//! Attaches \a object to \a entity. Also sets its value.
 			//! \param object Object
 			//! \param entity Entity
@@ -70098,6 +70161,29 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 				m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
 #endif
+			}
+
+			//! Attaches a new component \a T to an exact pair record and initializes its value.
+			//! \tparam T Component.
+			//! \tparam U Component value type.
+			//! \param entity Pair record receiving the component.
+			//! \param value Initial component value.
+			//! \warning It is expected the component is not present on \a entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			template <typename T, typename U = typename actual_type_t<T>::Type>
+			void add(Pair entity, U&& value) {
+				using FT = typename component_type_t<T>::TypeFull;
+				const auto object = [&]() {
+					if constexpr (is_pair<FT>::value) {
+						const auto relation = reg_comp<typename FT::rel>().entity;
+						const auto target = reg_comp<typename FT::tgt>().entity;
+						return (Entity)Pair(relation, target);
+					} else
+						return reg_comp<FT>().entity;
+				}();
+
+				using ValueType = typename actual_type_t<T>::Type;
+				add<ValueType>((Entity)entity, object, GAIA_FWD(value));
 			}
 
 			//! Materializes an inherited id as directly owned storage on \p entity.
@@ -72288,27 +72374,50 @@ namespace gaia {
 				}
 
 				auto& ec = m_recs.entities[entity.id()];
-				ec.pChunk->template modify<
+				modify_table_inter<
 						T
 #if GAIA_ENABLE_HOOKS
 						,
 						TriggerSetEffects
 #endif
-						>();
+						>(entity, ec);
+			}
 
-#if GAIA_OBSERVERS_ENABLED
-				if constexpr (TriggerSetEffects) {
-					Entity term = EntityBad;
-					if constexpr (is_pair<T>::value) {
-						const auto rel = comp_cache().template get<typename T::rel>().entity;
-						const auto tgt = comp_cache().template get<typename T::tgt>().entity;
-						term = (Entity)Pair(rel, tgt);
-					} else
-						term = comp_cache().template get<T>().entity;
-
-					world_notify_on_set(*this, term, *ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
-				}
+			//! Marks component type `T` as modified on an exact pair record.
+			//! If `TriggerSetEffects` is true, also triggers set hooks and `OnSet` observers.
+			//! \tparam T Component type.
+			//! \tparam TriggerSetEffects Triggers set side effects if true.
+			//! \param entity Pair record whose component version is updated.
+			template <
+					typename T
+#if GAIA_ENABLE_HOOKS
+					,
+					bool TriggerSetEffects
 #endif
+					>
+			void modify(Pair entity) {
+				const auto source = (Entity)entity;
+				GAIA_ASSERT(valid(source));
+
+				if constexpr (uses_compile_time_sparse_storage<T>()) {
+					modify<
+							T
+#if GAIA_ENABLE_HOOKS
+							,
+							TriggerSetEffects
+#endif
+							>(source);
+					return;
+				}
+
+				auto& ec = fetch(source);
+				modify_table_inter<
+						T
+#if GAIA_ENABLE_HOOKS
+						,
+						TriggerSetEffects
+#endif
+						>(source, ec);
 			}
 
 			//! Marks the component associated with \p object as modified on \p entity.
@@ -72351,13 +72460,43 @@ namespace gaia {
 				}
 
 				auto& ec = m_recs.entities[entity.id()];
-				const auto compIdx = ec.pChunk->comp_idx(object);
-				GAIA_ASSERT(compIdx != ComponentIndexBad);
+				modify_table_inter<TriggerSetEffects>(object, ec);
+			}
 
-				if constexpr (TriggerSetEffects)
-					ec.pChunk->finish_write(compIdx, ec.row, (uint16_t)(ec.row + 1));
-				else
-					ec.pChunk->update_world_version(compIdx);
+			//! Marks a component selected by \p object as modified on an exact pair record.
+			//! If `TriggerSetEffects` is true, also triggers set hooks and `OnSet` observers.
+			//! \tparam T Component type represented by \p object.
+			//! \tparam TriggerSetEffects Triggers set side effects if true.
+			//! \param entity Pair record whose component version is updated.
+			//! \param object Component entity associated with \p T.
+			template <
+					typename T
+#if GAIA_ENABLE_HOOKS
+					,
+					bool TriggerSetEffects
+#endif
+					>
+			void modify(Pair entity, Entity object) {
+				const auto source = (Entity)entity;
+				GAIA_ASSERT(valid(source));
+				GAIA_ASSERT(valid(object));
+
+				using FT = typename component_type_t<T>::TypeFull;
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (can_use_sparse_component_storage<FT>(object)) {
+						modify<
+								T
+#if GAIA_ENABLE_HOOKS
+								,
+								TriggerSetEffects
+#endif
+								>(source, object);
+						return;
+					}
+				}
+
+				auto& ec = fetch(source);
+				modify_table_inter<TriggerSetEffects>(object, ec);
 			}
 
 			//----------------------------------------------------------------------
@@ -72372,6 +72511,19 @@ namespace gaia {
 
 				const auto& ec = m_recs.entities[entity.id()];
 				return ComponentSetter{*this, ec.pChunk, entity, ec.row};
+			}
+
+			//! Starts a bulk set operation on an exact pair record.
+			//! \param entity Pair record.
+			//! \return Pair-record-scoped ComponentSetter bound to current storage.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \a entity changes archetype after ComponentSetter is created.
+			GAIA_NODISCARD ComponentSetter acc_mut(Pair entity) {
+				const auto source = (Entity)entity;
+				GAIA_ASSERT(valid(source));
+
+				const auto& ec = fetch(source);
+				return ComponentSetter{*this, ec.pChunk, source, ec.row};
 			}
 
 			//! Returns a write-back proxy for the component \a T on \a entity.
@@ -72393,6 +72545,22 @@ namespace gaia {
 				return SetWriteProxyTyped<T, ValueType>{*this, entity, item.entity, get<T>(entity)};
 			}
 
+			//! Returns a write-back proxy for component \a T on an exact pair record.
+			//! \tparam T Component.
+			//! \param entity Pair record.
+			//! \return Write-back proxy.
+			//! \warning It is expected the component is present on \a entity. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			template <typename T>
+			GAIA_NODISCARD auto set(Pair entity) {
+				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+				using ValueType = typename actual_type_t<T>::Type;
+				const auto& item = add<FT>();
+				const auto source = (Entity)entity;
+				return SetWriteProxyTyped<T, ValueType>{*this, source, item.entity, get<T>(entity)};
+			}
+
 			//! Returns a write-back proxy for the component associated with \a object on \a entity.
 			//! The proxy copies the current value, lets the caller mutate it, then writes it back at the end of the
 			//! full expression or scope. `OnSet` observers and chunk-backed set hooks are triggered only after the
@@ -72408,6 +72576,20 @@ namespace gaia {
 			GAIA_NODISCARD auto set(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
 				return SetWriteProxyObject<typename actual_type_t<T>::Type>{*this, entity, object, get<T>(entity, object)};
+			}
+
+			//! Returns a write-back proxy for a runtime-selected component on an exact pair record.
+			//! \tparam T Component type represented by \a object.
+			//! \param entity Pair record.
+			//! \param object Component entity.
+			//! \return Write-back proxy.
+			//! \warning It is expected the component is present on \a entity. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			template <typename T>
+			GAIA_NODISCARD auto set(Pair entity, Entity object) {
+				static_assert(!is_pair<T>::value);
+				const auto source = (Entity)entity;
+				return SetWriteProxyObject<typename actual_type_t<T>::Type>{*this, source, object, get<T>(entity, object)};
 			}
 
 			//! Returns silent mutable access to component type `T` on \p entity.
@@ -72428,6 +72610,22 @@ namespace gaia {
 				return acc_mut(entity).smut<T>();
 			}
 
+			//! Returns silent mutable access to component type `T` on an exact pair record.
+			//! \tparam T Component.
+			//! \param entity Pair record.
+			//! \return Mutable reference or proxy to the component payload.
+			//! \warning It is expected the component is present on \a entity. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) sset(Pair entity) {
+				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+				const auto& item = add<FT>();
+				if constexpr (uses_compile_time_sparse_storage<FT>())
+					return sparse_component_store_mut<FT>(item.entity).mut((Entity)entity);
+				return acc_mut(entity).smut<T>();
+			}
+
 			//! Sets the value of the component associated with \p object on \p entity without updating world version.
 			//! This is a silent write and does not trigger set hooks or `OnSet` observers.
 			//! \tparam T Component type represented by \p object.
@@ -72441,6 +72639,23 @@ namespace gaia {
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (can_use_sparse_component_storage<FT>(object))
 						return sparse_component_mut_value<FT>(object, entity);
+				}
+				return acc_mut(entity).smut<T>(object);
+			}
+
+			//! Silently accesses a runtime-selected component on an exact pair record.
+			//! \tparam T Component type represented by \a object.
+			//! \param entity Pair record.
+			//! \param object Component entity selecting the payload.
+			//! \return Mutable reference or proxy to the component payload.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) sset(Pair entity, Entity object) {
+				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+				const auto source = (Entity)entity;
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (can_use_sparse_component_storage<FT>(object))
+						return sparse_component_mut_value<FT>(object, source);
 				}
 				return acc_mut(entity).smut<T>(object);
 			}
@@ -72461,6 +72676,16 @@ namespace gaia {
 				return sset<T>(entity);
 			}
 
+			//! Returns silent mutable access to a component on an exact pair record.
+			//! \tparam T Component.
+			//! \param entity Pair record.
+			//! \return Mutable reference or proxy to the component payload.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) mut(Pair entity) {
+				static_assert(!is_pair<T>::value);
+				return sset<T>(entity);
+			}
+
 			//! Returns a mutable reference or proxy to the component associated with \p object on \p entity.
 			//! This is a silent raw write path. Call `modify<T, true>(entity, object)` when you need hooks or `OnSet`.
 			//! \tparam T Component type represented by \p object.
@@ -72469,6 +72694,17 @@ namespace gaia {
 			//! \return Mutable reference or proxy to the component payload.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) mut(Entity entity, Entity object) {
+				static_assert(!is_pair<T>::value);
+				return sset<T>(entity, object);
+			}
+
+			//! Returns silent mutable access to a runtime-selected component on an exact pair record.
+			//! \tparam T Component type represented by \a object.
+			//! \param entity Pair record.
+			//! \param object Component entity selecting the payload.
+			//! \return Mutable reference or proxy to the component payload.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) mut(Pair entity, Entity object) {
 				static_assert(!is_pair<T>::value);
 				return sset<T>(entity, object);
 			}
@@ -72728,6 +72964,19 @@ namespace gaia {
 				return ComponentGetter{*this, ec.pChunk, entity, ec.row};
 			}
 
+			//! Starts a bulk get operation on an exact pair record.
+			//! \param entity Pair record.
+			//! \return Pair-record-scoped ComponentGetter bound to current storage.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \a entity changes archetype after ComponentGetter is created.
+			ComponentGetter acc(Pair entity) const {
+				const auto source = (Entity)entity;
+				GAIA_ASSERT(valid(source));
+
+				const auto& ec = fetch(source);
+				return ComponentGetter{*this, ec.pChunk, source, ec.row};
+			}
+
 			//! Returns the value stored in the component T on entity.
 			//! \tparam T Component
 			//! \param entity Entity
@@ -72760,6 +73009,39 @@ namespace gaia {
 				return acc(owner).template get<T>();
 			}
 
+			//! Returns the value stored in component `T` on an exact pair record.
+			//! \tparam T Component.
+			//! \param entity Pair record.
+			//! \return Value stored in the component.
+			//! \warning It is expected the component is present on \a entity. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) get(Pair entity) const {
+				using FT = typename component_type_t<T>::TypeFull;
+				const auto compEntity = [&]() {
+					if constexpr (is_pair<FT>::value) {
+						const auto rel = comp_cache().template get<typename FT::rel>().entity;
+						const auto tgt = comp_cache().template get<typename FT::tgt>().entity;
+						return (Entity)Pair(rel, tgt);
+					} else {
+						return comp_cache().template get<FT>().entity;
+					}
+				}();
+				const auto source = (Entity)entity;
+				if constexpr (uses_compile_time_sparse_storage<FT>()) {
+					const auto owner = id_owner_inter(source, compEntity);
+					GAIA_ASSERT(owner != EntityBad);
+					const auto* pStore = sparse_component_store<FT>(compEntity);
+					GAIA_ASSERT(pStore != nullptr);
+					return pStore->get(owner);
+				}
+
+				const auto owner = id_owner_inter(source, compEntity);
+				GAIA_ASSERT(owner != EntityBad);
+				const auto& ec = fetch(owner);
+				return ComponentGetter{*this, ec.pChunk, owner, ec.row}.template get<T>();
+			}
+
 			//! Returns the value stored in the component associated with \p object on \p entity.
 			//! \tparam T Component type represented by \p object.
 			//! \param entity Entity to read, resolving inherited ownership when necessary.
@@ -72779,6 +73061,29 @@ namespace gaia {
 				const auto owner = id_owner_inter(entity, object);
 				GAIA_ASSERT(owner != EntityBad);
 				return acc(owner).template get<T>(object);
+			}
+
+			//! Returns a runtime-selected component value from an exact pair record.
+			//! \tparam T Component type represented by \a object.
+			//! \param entity Pair record to read, resolving inherited ownership when necessary.
+			//! \param object Component entity selecting the payload.
+			//! \return Read-only component value or proxy.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) get(Pair entity, Entity object) const {
+				using FT = typename component_type_t<T>::TypeFull;
+				const auto source = (Entity)entity;
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (can_use_sparse_component_storage<FT>(object)) {
+						const auto owner = id_owner_inter(source, object);
+						GAIA_ASSERT(owner != EntityBad);
+						return sparse_component_get_value<FT>(object, owner);
+					}
+				}
+
+				const auto owner = id_owner_inter(source, object);
+				GAIA_ASSERT(owner != EntityBad);
+				const auto& ec = fetch(owner);
+				return ComponentGetter{*this, ec.pChunk, owner, ec.row}.template get<T>(object);
 			}
 
 			//----------------------------------------------------------------------
@@ -86943,6 +87248,26 @@ namespace gaia {
 			return it->second[idx].matchCount;
 		}
 
+		//! Reconstructs the typed pair wrapper for an exact pair entity.
+		//! \param world World containing the pair endpoints.
+		//! \param entity Exact pair entity.
+		//! \return Pair wrapper containing the current endpoint handles.
+		inline Pair world_pair_record(const World& world, Entity entity) {
+			GAIA_ASSERT(entity.pair());
+			return Pair(world.get(entity.id()), world.get(entity.gen()));
+		}
+
+		//! Returns a typed query argument from the cold exact-pair record path.
+		//! \tparam T Component type represented by \a term.
+		//! \param world World containing the pair record.
+		//! \param entity Exact pair entity.
+		//! \param term Component or relationship id selecting the payload.
+		//! \return Read-only component value or proxy.
+		template <typename T>
+		GAIA_NOINLINE decltype(auto) world_query_pair_record_arg_by_id_const(World& world, Entity entity, Entity term) {
+			return world.template get<T>(world_pair_record(world, entity), term);
+		}
+
 		//! Returns typed inherited component data for a resolved owner entity.
 		//! \tparam T Component type.
 		//! \param world World to query.
@@ -87093,8 +87418,11 @@ namespace gaia {
 				}
 
 				return world.template mut_im<Arg>(entity, termId);
-			} else
+			} else {
+				if GAIA_UNLIKELY (entity.pair())
+					return world_query_pair_record_arg_by_id_const<Arg>(world, entity, termId);
 				return world.template get<Arg>(entity, termId);
+			}
 		}
 
 		//! Returns the query argument for \a entity using explicit term id \a id and raw mutable access.

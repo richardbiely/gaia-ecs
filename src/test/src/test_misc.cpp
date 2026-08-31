@@ -4072,6 +4072,112 @@ TEST_CASE("Runtime pair SoA fields expose direct field views and cursors") {
 		CHECK(*(const uint32_t*)targetCountRead.data == 42);
 }
 
+TEST_CASE("Exact pair records - typed payload access") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto pairDesc = ecs::Pair(relation, target);
+	const auto pair = pairDesc;
+	wld.add(source, pairDesc);
+
+	wld.add<Position>(pair, {1.0f, 2.0f, 3.0f});
+	CHECK(wld.has<Position>(pair));
+	{
+		const auto& value = wld.get<Position>(pair);
+		CHECK(value.x == 1.0f);
+		CHECK(value.y == 2.0f);
+		CHECK(value.z == 3.0f);
+	}
+
+#if GAIA_OBSERVERS_ENABLED && GAIA_ENABLE_HOOKS
+	uint32_t onSetHits = 0;
+	const auto onSetObserver = wld.observer()
+												.event(ecs::ObserverEvent::OnSet)
+												.all<Position>()
+												.on_each([&](ecs::Entity entity, const Position&) {
+													CHECK(entity == (ecs::Entity)pair);
+													++onSetHits;
+												})
+												.entity();
+	(void)onSetObserver;
+#endif
+
+	wld.sset<Position>(pair).x = 4.0f;
+	wld.acc_mut(pair).sset<Position>({4.0f, 5.0f, 6.0f});
+	{
+		const auto& value = wld.acc(pair).get<Position>();
+		CHECK(value.x == 4.0f);
+		CHECK(value.y == 5.0f);
+		CHECK(value.z == 6.0f);
+	}
+	{
+		auto value = wld.set<Position>(pair);
+		value.z = 7.0f;
+	}
+#if GAIA_OBSERVERS_ENABLED && GAIA_ENABLE_HOOKS
+	CHECK(onSetHits == 1);
+#endif
+	wld.modify<Position, false>(pair);
+#if GAIA_OBSERVERS_ENABLED && GAIA_ENABLE_HOOKS
+	CHECK(onSetHits == 1);
+	wld.modify<Position, true>(pair);
+	CHECK(onSetHits == 2);
+#endif
+	CHECK(wld.get<Position>(pair).z == 7.0f);
+
+	uint32_t queryMatches = 0;
+	wld.query().all<Position&>().each([&](ecs::Entity entity, Position& value) {
+		CHECK(entity == (ecs::Entity)pair);
+		value.y = 8.0f;
+		++queryMatches;
+	});
+	CHECK(queryMatches == 1);
+	CHECK(wld.get<Position>(pair).y == 8.0f);
+
+	using PairPayloadType = ecs::pair<ErasedPairRelationTag, ErasedPairPayload>;
+	wld.add<PairPayloadType>(pair, {14.0f, 15.0f});
+	const auto& pairPayload = wld.get<PairPayloadType>(pair);
+	CHECK(pairPayload.x == 14.0f);
+	CHECK(pairPayload.y == 15.0f);
+
+	wld.add<PositionSparse>(pair, {16.0f, 17.0f, 18.0f});
+	CHECK(wld.has<PositionSparse>(pair));
+	wld.sset<PositionSparse>(pair).x = 19.0f;
+	{
+		auto value = wld.set<PositionSparse>(pair);
+		value.y = 20.0f;
+	}
+	wld.modify<PositionSparse, false>(pair);
+	const auto& sparseValue = wld.get<PositionSparse>(pair);
+	CHECK(sparseValue.x == 19.0f);
+	CHECK(sparseValue.y == 20.0f);
+	CHECK(sparseValue.z == 18.0f);
+
+	const auto position = wld.get<Position>();
+	wld.del<Position>(pair);
+	wld.add<Position>(pair, position, {9.0f, 10.0f, 11.0f});
+	{
+		const auto& value = wld.get<Position>(pair, position);
+		CHECK(value.x == 9.0f);
+		CHECK(value.y == 10.0f);
+		CHECK(value.z == 11.0f);
+	}
+	wld.sset<Position>(pair, position).x = 12.0f;
+	{
+		auto value = wld.set<Position>(pair, position);
+		value.y = 13.0f;
+	}
+	wld.modify<Position, false>(pair, position);
+	{
+		const auto& value = wld.get<Position>(pair, position);
+		CHECK(value.x == 12.0f);
+		CHECK(value.y == 13.0f);
+		CHECK(value.z == 11.0f);
+	}
+}
+
 TEST_CASE("ArchetypeGraph") {
 	TestWorld twld;
 
