@@ -9903,17 +9903,96 @@ namespace gaia {
 			}
 
 		private:
-			static constexpr uint32_t WorldSerializerVersion = 4;
+			static constexpr uint32_t WorldSerializerVersion = 5;
 #if GAIA_JSON_ENABLED
 			static constexpr uint32_t WorldSerializerJSONVersion = 1;
 #endif
+
+			//! Serializes every populated sparse component store in deterministic component and owner order.
+			//! \param s Destination serializer.
+			void save_sparse_component_stores(ser::serializer& s) const {
+				if (m_sparseComponentsByComp.empty()) {
+					s.save((uint32_t)0);
+					return;
+				}
+
+				cnt::darray<Entity> components;
+				components.reserve((uint32_t)m_sparseComponentsByComp.size());
+				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
+					if (store.func_count(store.pStore) != 0)
+						components.push_back(compKey.entity());
+				}
+				core::sort(components, [](Entity left, Entity right) {
+					return left.value() < right.value();
+				});
+
+				s.save((uint32_t)components.size());
+				for (auto component: components) {
+					const auto storeIt = m_sparseComponentsByComp.find(EntityLookupKey(component));
+					GAIA_ASSERT(storeIt != m_sparseComponentsByComp.end());
+					const auto& store = storeIt->second;
+					const auto* pItem = comp_cache().find(component);
+					GAIA_ASSERT(pItem != nullptr);
+
+					cnt::darray<Entity> owners;
+					store.func_collect_entities(store.pStore, owners);
+					core::sort(owners, [](Entity left, Entity right) {
+						return left.value() < right.value();
+					});
+
+					s.save(component);
+					s.save((uint32_t)owners.size());
+					for (auto owner: owners) {
+						GAIA_ASSERT(valid(owner));
+						s.save(owner);
+						if (pItem->comp.size() == 0)
+							continue;
+
+						const auto* pData = store.func_get(store.pStore, owner);
+						GAIA_ASSERT(pData != nullptr);
+						pItem->save(s, pData, 0, 1, 1);
+					}
+				}
+			}
+
+			//! Restores sparse component stores serialized by save_sparse_component_stores().
+			//! \param s Source serializer.
+			//! \return True when every serialized sparse component has registered metadata.
+			bool load_sparse_component_stores(ser::serializer& s) {
+				uint32_t componentCnt = 0;
+				s.load(componentCnt);
+				GAIA_FOR(componentCnt) {
+					Entity component;
+					uint32_t ownerCnt = 0;
+					s.load(component);
+					s.load(ownerCnt);
+
+					const auto* pItem = comp_cache().find(component);
+					if (pItem == nullptr || pItem->comp.storage_type() != DataStorageType::Sparse) {
+						GAIA_LOG_E("Missing sparse component metadata for entity %u", component.id());
+						return false;
+					}
+					auto& store = sparse_component_store_erased_mut(component, *pItem);
+					GAIA_FOR(ownerCnt) {
+						Entity owner;
+						s.load(owner);
+						auto* pData = store.func_add(store.pStore, owner);
+						if (pItem->comp.size() == 0)
+							continue;
+
+						GAIA_ASSERT(pData != nullptr);
+						pItem->load(s, pData, 0, 1, 1);
+					}
+				}
+				return true;
+			}
 
 			//! Serializes the complete world into an initialized serializer.
 			//! \param s Destination serializer.
 			void save_to(ser::serializer s) const {
 				GAIA_ASSERT(s.valid());
 
-				// Version number, currently unused
+				// Snapshot format version.
 				s.save((uint32_t)WorldSerializerVersion);
 
 				// Store the index of the last core component.
@@ -9996,6 +10075,9 @@ namespace gaia {
 
 					s.save(m_worldVersion);
 				}
+
+				// Sparse payloads live outside chunk columns and need their own snapshot section.
+				save_sparse_component_stores(s);
 
 				// Non-fragmenting exclusive relation edges.
 				{
@@ -10203,7 +10285,7 @@ namespace gaia {
 				// Move back to the beginning of the stream
 				s.seek(0);
 
-				// Version number, currently unused
+				// Snapshot format version.
 				uint32_t version = 0;
 				s.load(version);
 				if (version < 2 || version > WorldSerializerVersion) {
@@ -10345,6 +10427,9 @@ namespace gaia {
 
 					s.load(m_worldVersion);
 				}
+
+				if (version >= 5 && !load_sparse_component_stores(s))
+					return false;
 
 				// Update entity records.
 				// We previously encoded the archetype id into refCnt.

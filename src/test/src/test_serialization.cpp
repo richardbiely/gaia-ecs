@@ -109,6 +109,21 @@ struct RuntimeRejectingOpaque {
 	float value;
 };
 
+struct SparseSerializedValue {
+	GAIA_STORAGE(Sparse);
+	uint32_t value = 0;
+
+	template <typename Serializer>
+	void save(Serializer& s) const {
+		s.save(value);
+	}
+
+	template <typename Serializer>
+	void load(Serializer& s) {
+		s.load(value);
+	}
+};
+
 bool operator==(const CustomStruct& a, const CustomStruct& b) {
 	return a.size == b.size && 0 == memcmp(a.ptr, b.ptr, a.size);
 }
@@ -1949,6 +1964,108 @@ TEST_CASE("Serialization - world preserves exact pair records") {
 	CHECK(position.y == 2.0f);
 	CHECK(position.z == 3.0f);
 	CHECK(wld.query().all<Position>().count() == 1);
+}
+
+TEST_CASE("Serialization - world preserves sparse component payloads") {
+	SUBCASE("fragmenting typed sparse payload") {
+		ecs::World in;
+		(void)in.add<PositionSparse>();
+		const auto entity = in.add();
+		in.add<PositionSparse>(entity, {1.0f, 2.0f, 3.0f});
+
+		ser::bin_stream buffer;
+		in.set_serializer(buffer);
+		in.save();
+
+		ecs::World out;
+		(void)out.add<PositionSparse>();
+		CHECK(out.load(buffer));
+		CHECK(out.has<PositionSparse>(entity));
+		if (out.has<PositionSparse>(entity)) {
+			const auto& value = out.get<PositionSparse>(entity);
+			CHECK(value.x == 1.0f);
+			CHECK(value.y == 2.0f);
+			CHECK(value.z == 3.0f);
+		}
+	}
+
+	SUBCASE("non-fragmenting typed sparse payloads on entity and exact pair") {
+		ecs::World in;
+		const auto sparse = in.add<PositionSparse>().entity;
+		in.add(sparse, ecs::DontFragment);
+		const auto relation = in.add();
+		const auto target = in.add();
+		const auto owner = in.add();
+		const auto pair = ecs::Pair(relation, target);
+		in.add(owner, pair);
+		in.add<PositionSparse>(relation, {4.0f, 5.0f, 6.0f});
+		in.add<PositionSparse>(pair, {7.0f, 8.0f, 9.0f});
+
+		ser::bin_stream buffer;
+		in.set_serializer(buffer);
+		in.save();
+
+		ecs::World out;
+		const auto outSparse = out.add<PositionSparse>().entity;
+		out.add(outSparse, ecs::DontFragment);
+		CHECK(out.load(buffer));
+		CHECK(out.has<PositionSparse>(relation));
+		CHECK(out.has<PositionSparse>(pair));
+		if (out.has<PositionSparse>(relation) && out.has<PositionSparse>(pair)) {
+			CHECK(out.get<PositionSparse>(relation).x == 4.0f);
+			CHECK(out.get<PositionSparse>(pair).x == 7.0f);
+		}
+		CHECK(out.query().all<PositionSparse>().count() == 2);
+	}
+
+	SUBCASE("non-fragmenting runtime sparse payload") {
+		ecs::World in;
+		const auto& runtimeItem = add_runtime_component(
+				in, "Serialized_Runtime_Sparse_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse,
+				(uint32_t)alignof(Position));
+		const auto runtime = runtimeItem.entity;
+		in.add(runtime, ecs::DontFragment);
+		const auto entity = in.add();
+		in.add(entity, runtime, Position{10.0f, 11.0f, 12.0f});
+
+		ser::bin_stream buffer;
+		in.set_serializer(buffer);
+		in.save();
+
+		ecs::World out;
+		const auto& outRuntimeItem = add_runtime_component(
+				out, "Serialized_Runtime_Sparse_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse,
+				(uint32_t)alignof(Position));
+		const auto outRuntime = outRuntimeItem.entity;
+		out.add(outRuntime, ecs::DontFragment);
+		CHECK(outRuntime == runtime);
+		CHECK(out.load(buffer));
+		CHECK(out.has(entity, runtime));
+		if (out.has(entity, runtime)) {
+			const auto& value = out.get<Position>(entity, runtime);
+			CHECK(value.x == 10.0f);
+			CHECK(value.y == 11.0f);
+			CHECK(value.z == 12.0f);
+		}
+	}
+
+	SUBCASE("custom sparse serializer") {
+		ecs::World in;
+		(void)in.add<SparseSerializedValue>();
+		const auto entity = in.add();
+		in.add<SparseSerializedValue>(entity, {42});
+
+		ser::bin_stream buffer;
+		in.set_serializer(buffer);
+		in.save();
+
+		ecs::World out;
+		(void)out.add<SparseSerializedValue>();
+		CHECK(out.load(buffer));
+		CHECK(out.has<SparseSerializedValue>(entity));
+		if (out.has<SparseSerializedValue>(entity))
+			CHECK(out.get<SparseSerializedValue>(entity).value == 42);
+	}
 }
 
 TEST_CASE("Serialization - world preserves non-fragmenting edges on exact pair sources") {
