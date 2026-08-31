@@ -121,7 +121,13 @@ namespace gaia {
 			//! Exact reverse of TravOrder::Down.
 			ReverseDown,
 			//! Alias for TravOrder::ReverseDown.
-			ReversePreorder = ReverseDown
+			ReversePreorder = ReverseDown,
+			//! Visit targets before sources in breadth-first levels.
+			BreadthFirstDown,
+			//! Alias for TravOrder::BreadthFirstDown.
+			BreadthFirst = BreadthFirstDown,
+			//! Exact reverse of TravOrder::BreadthFirstDown.
+			ReverseBreadthFirstDown
 		};
 
 		//! Cache policy selected for a prepared query.
@@ -5770,6 +5776,17 @@ namespace gaia {
 					return all(Pair(Is, entity), options);
 				}
 
+				//! Adds a semantic direct-child requirement across both Gaia hierarchy storage kinds.
+				//! Exact `Pair(ChildOf, parent)` and `Pair(Parent, parent)` terms remain available when
+				//! storage-specific semantics or costs are required.
+				//! \param parent Parent entity matched through `ChildOf` or non-fragmenting `Parent`.
+				//! \return Self reference.
+				QueryImpl& children_of(Entity parent) {
+					or_(Pair(ChildOf, parent));
+					or_(Pair(Parent, parent));
+					return *this;
+				}
+
 				//------------------------------------------------
 
 				//! Adds a required entity or pair term.
@@ -6769,8 +6786,11 @@ namespace gaia {
 
 						ordered.reserve(cnt);
 
+						const bool isBreadthFirst =
+								order == TravOrder::BreadthFirstDown || order == TravOrder::ReverseBreadthFirstDown;
 						const bool isUp = order == TravOrder::Up || order == TravOrder::ReverseUp;
-						const bool needsReverse = order == TravOrder::ReverseUp || order == TravOrder::ReverseDown;
+						const bool needsReverse = order == TravOrder::ReverseUp || order == TravOrder::ReverseDown ||
+								order == TravOrder::ReverseBreadthFirstDown;
 
 						auto& visited = walkData.scratchWriteCursor;
 						visited.resize(cnt);
@@ -6782,51 +6802,81 @@ namespace gaia {
 						auto& cursorStack = walkData.scratchNextLevel;
 						cursorStack.clear();
 
-						auto append_from_root = [&](uint32_t rootIdx) {
-							stack.push_back(rootIdx);
-							cursorStack.push_back(offsets[rootIdx]);
+						if (isBreadthFirst) {
+							for (uint32_t i = 0; i < cnt; ++i) {
+								if (indegree[i] == 0)
+									stack.push_back(i);
+							}
 
 							while (!stack.empty()) {
-								const auto idx = stack.back();
-								if (visited[idx] == 0) {
+								cursorStack.clear();
+								for (const auto idx: stack) {
+									if (visited[idx] != 0)
+										continue;
 									visited[idx] = 1;
-									if (!isUp)
-										ordered.push_back(entities[idx]);
+									ordered.push_back(entities[idx]);
+									for (auto edgeIdx = offsets[idx]; edgeIdx < offsets[idx + 1]; ++edgeIdx) {
+										const auto childIdx = edges[edgeIdx];
+										GAIA_ASSERT(indegree[childIdx] > 0);
+										if (--indegree[childIdx] == 0)
+											cursorStack.push_back(childIdx);
+									}
 								}
+								stack = cursorStack;
+							}
 
-								bool pushedChild = false;
-								auto& cursor = cursorStack.back();
-								while (cursor < offsets[idx + 1]) {
-									const auto childIdx = edges[cursor++];
-									if (visited[childIdx] != 0)
+							// Cycles are invalid relation data. Keep release traversal deterministic by appending leftovers by id.
+							for (uint32_t i = 0; i < cnt; ++i) {
+								if (visited[i] == 0)
+									ordered.push_back(entities[i]);
+							}
+						} else {
+							auto append_from_root = [&](uint32_t rootIdx) {
+								stack.push_back(rootIdx);
+								cursorStack.push_back(offsets[rootIdx]);
+
+								while (!stack.empty()) {
+									const auto idx = stack.back();
+									if (visited[idx] == 0) {
+										visited[idx] = 1;
+										if (!isUp)
+											ordered.push_back(entities[idx]);
+									}
+
+									bool pushedChild = false;
+									auto& cursor = cursorStack.back();
+									while (cursor < offsets[idx + 1]) {
+										const auto childIdx = edges[cursor++];
+										if (visited[childIdx] != 0)
+											continue;
+
+										stack.push_back(childIdx);
+										cursorStack.push_back(offsets[childIdx]);
+										pushedChild = true;
+										break;
+									}
+
+									if (pushedChild)
 										continue;
 
-									stack.push_back(childIdx);
-									cursorStack.push_back(offsets[childIdx]);
-									pushedChild = true;
-									break;
+									if (isUp)
+										ordered.push_back(entities[idx]);
+									visited[idx] = 2;
+									stack.pop_back();
+									cursorStack.pop_back();
 								}
+							};
 
-								if (pushedChild)
-									continue;
-
-								if (isUp)
-									ordered.push_back(entities[idx]);
-								visited[idx] = 2;
-								stack.pop_back();
-								cursorStack.pop_back();
+							for (uint32_t i = 0; i < cnt; ++i) {
+								if (indegree[i] == 0 && visited[i] == 0)
+									append_from_root(i);
 							}
-						};
 
-						for (uint32_t i = 0; i < cnt; ++i) {
-							if (indegree[i] == 0 && visited[i] == 0)
-								append_from_root(i);
-						}
-
-						// Cycles are invalid relationship data, but keep traversal deterministic by visiting leftovers by id.
-						for (uint32_t i = 0; i < cnt; ++i) {
-							if (visited[i] == 0)
-								append_from_root(i);
+							// Cycles are invalid relationship data, but keep traversal deterministic by visiting leftovers by id.
+							for (uint32_t i = 0; i < cnt; ++i) {
+								if (visited[i] == 0)
+									append_from_root(i);
+							}
 						}
 
 						if (needsReverse) {

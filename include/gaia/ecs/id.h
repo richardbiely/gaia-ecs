@@ -674,6 +674,10 @@ namespace gaia {
 		template <typename T>
 		using actual_type_t = typename detail::actual_type<T>::type;
 
+		//! Opt-in marker for parents whose direct non-fragmenting `Parent` children preserve authored order.
+		//! The default `Parent` storage remains unordered so removal can use the constant-time swap path.
+		struct GAIA_API OrderedChildren {};
+
 		//----------------------------------------------------------------------
 		// Core components
 		//----------------------------------------------------------------------

@@ -4347,6 +4347,7 @@ TEST_CASE("Query traversal order variants") {
 	static_assert(ecs::TravOrder::Postorder == ecs::TravOrder::Up);
 	static_assert(ecs::TravOrder::ReversePreorder == ecs::TravOrder::ReverseDown);
 	static_assert(ecs::TravOrder::ReversePostorder == ecs::TravOrder::ReverseUp);
+	static_assert(ecs::TravOrder::BreadthFirst == ecs::TravOrder::BreadthFirstDown);
 
 	TestWorld twld;
 
@@ -4417,6 +4418,26 @@ TEST_CASE("Query traversal order variants") {
 		CHECK(ents[2] == b);
 		CHECK(ents[3] == c);
 		CHECK(ents[4] == a);
+		CHECK(ents[5] == root);
+	}
+	{
+		auto ents = collect(ecs::TravOrder::BreadthFirstDown);
+		CHECK(ents.size() == 6);
+		CHECK(ents[0] == root);
+		CHECK(ents[1] == root2);
+		CHECK(ents[2] == a);
+		CHECK(ents[3] == b);
+		CHECK(ents[4] == d);
+		CHECK(ents[5] == c);
+	}
+	{
+		auto ents = collect(ecs::TravOrder::ReverseBreadthFirstDown);
+		CHECK(ents.size() == 6);
+		CHECK(ents[0] == c);
+		CHECK(ents[1] == d);
+		CHECK(ents[2] == b);
+		CHECK(ents[3] == a);
+		CHECK(ents[4] == root2);
 		CHECK(ents[5] == root);
 	}
 }

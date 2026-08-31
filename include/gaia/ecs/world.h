@@ -131,6 +131,7 @@ namespace gaia {
 			using CopyIterGroupState = detail::CopyIterGroupState;
 			using PrefabChildEdge = detail::PrefabChildEdge;
 			using PrefabInstantiatePlanNode = detail::PrefabInstantiatePlanNode;
+			using PrefabInstantiatePlanCacheEntry = detail::PrefabInstantiatePlanCacheEntry;
 
 			template <
 					typename TApi, typename TValue, bool DeriveFromValue = std::is_class_v<TValue> && !std::is_final_v<TValue>>
@@ -686,6 +687,8 @@ namespace gaia {
 			bool m_hasCantCombinePolicy = false;
 			//! True once any entity has a `(Requires, target)` pair and dependency paths must inspect relation targets.
 			bool m_hasRequiresPolicy = false;
+			//! True once Parent mutations need ordered-child or prefab-plan bookkeeping.
+			bool m_hasManagedParentMutations = false;
 			//! Relation-target lookup for stored pair records.
 			PairLookup m_pairLookup;
 			//! Non-fragmenting exclusive relation stores keyed by the relation entity.
@@ -701,6 +704,16 @@ namespace gaia {
 			//! Sparse archetype-membership versions tracked only for entities used by source-cached queries.
 			//! Entries are created lazily on first snapshot to avoid any global per-entity tax.
 			mutable cnt::map<EntityLookupKey, uint32_t> m_srcEntityVersions;
+			//! Persistent depth-first prefab plans keyed by root prefab entity.
+			cnt::map<EntityLookupKey, PrefabInstantiatePlanCacheEntry> m_prefabInstantiatePlanCache;
+			//! Prefab nodes captured by at least one persistent instantiation plan.
+			cnt::set<EntityLookupKey> m_prefabPlanTrackedEntities;
+			//! True after at least one prefab plan has registered source nodes for invalidation.
+			bool m_prefabPlanTrackingActive = false;
+#if GAIA_ECS_TEST_HOOKS
+			//! Number of persistent prefab plans built, exposed only to unit tests.
+			uint32_t m_testPrefabPlanBuildCount = 0;
+#endif
 
 			enum class SparseStorageMode : uint8_t { None, Fragmenting, NonFragmenting };
 
@@ -821,6 +834,10 @@ namespace gaia {
 			uint32_t m_enabledHierarchyVersion = 0;
 			//! Increments whenever an archetype enters or leaves the deletion-request set.
 			uint32_t m_archetypeDeleteVersion = 0;
+			//! Increments whenever a direct OnInstantiate policy edge changes.
+			uint32_t m_prefabPlanPolicyVersion = 0;
+			//! Increments when a prefab node captured by a persistent plan changes directly.
+			uint32_t m_prefabPlanStructureVersion = 0;
 
 			uint32_t m_structuralChangesLocked = 0;
 
@@ -876,6 +893,12 @@ namespace gaia {
 			//! \return Number of live cached-query records.
 			GAIA_NODISCARD uint32_t test_query_cache_count() const {
 				return m_queryCache.test_query_count();
+			}
+
+			//! Returns how many persistent prefab instantiation plans were built.
+			//! \return Number of plan builds since world initialization.
+			GAIA_NODISCARD uint32_t test_prefab_plan_build_count() const {
+				return m_testPrefabPlanBuildCount;
 			}
 #endif
 
@@ -1460,7 +1483,8 @@ namespace gaia {
 					EntityBuilder eb(*this, entity);
 					eb.add_inter_init(object);
 					eb.commit();
-				}
+				} else
+					update_prefab_plan_structure_version(entity);
 
 				notify_add_single(entity, object);
 #if GAIA_OBSERVERS_ENABLED
@@ -1507,6 +1531,12 @@ namespace gaia {
 				return m_nonFragmentingRelationsByRel[EntityLookupKey(relation)];
 			}
 
+			//! Returns whether \a parentEntity opted into stable direct `Parent` child ordering.
+			GAIA_NODISCARD bool parent_children_ordered(Entity parentEntity) const {
+				const auto* pItem = comp_cache().find<OrderedChildren>();
+				return pItem != nullptr && has_direct(parentEntity, pItem->entity);
+			}
+
 			//! Sets an exclusive non-fragmenting relation target in an existing store.
 			//! \param store Relation store to update.
 			//! \param source Source entity whose target is replaced.
@@ -1515,8 +1545,31 @@ namespace gaia {
 			void
 			nonfragmenting_relation_set(NonFragmentingRelationStore& store, Entity source, Entity relation, Entity target) {
 				GAIA_ASSERT(relation_uses_non_fragmenting_storage(relation));
-				if (store.set(source, target))
+				if GAIA_LIKELY (!m_hasManagedParentMutations) {
+					if (store.set(source, target))
+						invalidate_relation_caches(relation);
+					return;
+				}
+				if (relation != Parent) {
+					if (store.set(source, target))
+						invalidate_relation_caches(relation);
+					return;
+				}
+
+				Entity oldTarget = EntityBad;
+				if (store.set_with_old_target_policy(
+							source, target, [&](Entity previousTarget) {
+								return parent_children_ordered(previousTarget);
+							},
+							oldTarget)) {
+					if (m_prefabPlanTrackingActive) {
+						update_prefab_plan_structure_version(source);
+						if (oldTarget != EntityBad)
+							update_prefab_plan_structure_version(oldTarget);
+						update_prefab_plan_structure_version(target);
+					}
 					invalidate_relation_caches(relation);
+				}
 			}
 
 			//! Sets an exclusive non-fragmenting relation target, creating its store when necessary.
@@ -1539,8 +1592,27 @@ namespace gaia {
 					return false;
 
 				auto& store = itStore->second;
-				if (!store.remove(source, target))
-					return false;
+				Entity oldTarget = EntityBad;
+				if GAIA_LIKELY (!m_hasManagedParentMutations) {
+					if (!store.remove(source, target))
+						return false;
+				} else if (relation == Parent) {
+					if (!store.remove_with_old_target_policy(
+								source, target, [&](Entity previousTarget) {
+									return parent_children_ordered(previousTarget);
+								},
+								oldTarget))
+						return false;
+				} else {
+					if (!store.remove(source, target))
+						return false;
+				}
+
+				if (m_prefabPlanTrackingActive) {
+					update_prefab_plan_structure_version(source);
+					if (oldTarget != EntityBad)
+						update_prefab_plan_structure_version(oldTarget);
+				}
 
 				if (store.empty())
 					m_nonFragmentingRelationsByRel.erase(itStore);
@@ -2768,6 +2840,11 @@ namespace gaia {
 					GAIA_ASSERT(entity.pair());
 
 					auto relation = m_world.m_recs.entities.handle(entity.id());
+					const auto target = m_world.try_get(entity.gen());
+					if (target != EntityBad)
+						m_world.update_prefab_plan_structure_version(target);
+					if (relation == OnInstantiate)
+						update_version(m_world.m_prefabPlanPolicyVersion);
 					m_world.invalidate_relation_caches(relation);
 				}
 
@@ -5675,6 +5752,46 @@ namespace gaia {
 					build_prefab_instantiate_plan(child.prefab, nodeIdx, child.relation, plan);
 			}
 
+			//! Returns whether a persistent prefab plan still matches all direct prefab structure it captured.
+			//! \param entry Cached plan and structural snapshots.
+			//! \return True when the plan can be reused safely.
+			GAIA_NODISCARD bool prefab_instantiate_plan_valid(const PrefabInstantiatePlanCacheEntry& entry) const {
+				if (entry.nodes.empty() || entry.structureVersion != m_prefabPlanStructureVersion ||
+						entry.archetypeDeleteVersion != m_archetypeDeleteVersion ||
+						entry.policyVersion != m_prefabPlanPolicyVersion)
+					return false;
+
+				return valid(entry.nodes[0].prefab) && has_direct(entry.nodes[0].prefab, Prefab);
+			}
+
+			//! Returns a persistent depth-first prefab plan, rebuilding it only after relevant structural changes.
+			//! Add-hook ids are refreshed on every use because hook registration is mutable metadata rather than ECS structure.
+			//! \param prefabEntity Root prefab entity.
+			//! \return Valid plan for batch instantiation.
+			GAIA_NODISCARD const cnt::darray<PrefabInstantiatePlanNode>&
+			prefab_instantiate_plan(Entity prefabEntity) {
+				auto& entry = m_prefabInstantiatePlanCache[EntityLookupKey(prefabEntity)];
+				if (!prefab_instantiate_plan_valid(entry)) {
+					entry.nodes.clear();
+					build_prefab_instantiate_plan(prefabEntity, BadIndex, EntityBad, entry.nodes);
+					for (const auto& node: entry.nodes)
+						m_prefabPlanTrackedEntities.insert(EntityLookupKey(node.prefab));
+					m_prefabPlanTrackingActive = true;
+					m_hasManagedParentMutations = true;
+					entry.structureVersion = m_prefabPlanStructureVersion;
+					entry.archetypeDeleteVersion = m_archetypeDeleteVersion;
+					entry.policyVersion = m_prefabPlanPolicyVersion;
+#if GAIA_ECS_TEST_HOOKS
+					++m_testPrefabPlanBuildCount;
+#endif
+				}
+
+				for (auto& node: entry.nodes)
+					collect_prefab_add_hook_ids(EntitySpan{node.addedIds}, node.addHookIds);
+
+				return entry.nodes;
+			}
+
 			//! Returns whether \a parentInstance already has a child instance of \a childPrefab through \a relation.
 			//! \param parentInstance Instance subtree parent to inspect.
 			//! \param relation Hierarchy relation used for the child edge.
@@ -5883,8 +6000,7 @@ namespace gaia {
 					return;
 				}
 
-				cnt::darray_ext<PrefabInstantiatePlanNode, 16> plan;
-				build_prefab_instantiate_plan(prefabEntity, BadIndex, EntityBad, plan);
+				const auto& plan = prefab_instantiate_plan(prefabEntity);
 				if (plan.size() == 1) {
 					instantiate_prefab_n_inter(plan[0], parentInstance, count, func);
 					return;
@@ -6047,6 +6163,7 @@ namespace gaia {
 						notify_inherited_del_dependents(entity, object);
 						notify_del_single(entity, object);
 						itSparseStore->second.func_del(itSparseStore->second.pStore, entity);
+						update_prefab_plan_structure_version(entity);
 #if GAIA_OBSERVERS_ENABLED
 						m_observers.finish_diff(*this, GAIA_MOV(delDiffCtx));
 #endif
@@ -6158,6 +6275,132 @@ namespace gaia {
 			//! \return True if \a entity references \a parentEntity through `Parent`. False otherwise.
 			GAIA_NODISCARD bool parent(Entity entity, Entity parentEntity) const {
 				return has_direct(entity, Pair(Parent, parentEntity));
+			}
+
+			//! Returns the semantic hierarchy parent of \a entity.
+			//! Non-fragmenting `Parent` takes precedence when both hierarchy kinds are present.
+			//! \param entity Child entity to inspect.
+			//! \return Direct hierarchy parent, or EntityBad when the entity is unparented.
+			GAIA_NODISCARD Entity parent(Entity entity) const {
+				auto result = target(entity, Parent);
+				return result != EntityBad ? result : target(entity, ChildOf);
+			}
+
+			//! Iterates direct children across `Parent` and `ChildOf` storage.
+			//! Results are unique and deterministic. Parents marked with `OrderedChildren` preserve the
+			//! authored order of their direct non-fragmenting `Parent` children; remaining children follow by id.
+			//! \tparam Func Callable accepting `Entity`.
+			//! \param parentEntity Parent whose direct children are visited.
+			//! \param func Callback invoked once per direct child.
+			template <typename Func>
+			void children(Entity parentEntity, Func func) const {
+				GAIA_ASSERT(valid(parentEntity));
+				cnt::darray_ext<Entity, 32> result;
+
+				if (parent_children_ordered(parentEntity)) {
+					sources(Parent, parentEntity, [&](Entity childEntity) {
+						result.push_back(childEntity);
+					});
+
+					cnt::darray_ext<Entity, 16> fragmenting;
+					sources(ChildOf, parentEntity, [&](Entity childEntity) {
+						if (!has_direct(childEntity, Pair(Parent, parentEntity)))
+							fragmenting.push_back(childEntity);
+					});
+					core::sort(fragmenting, [](Entity left, Entity right) {
+						return left.id() < right.id();
+					});
+					for (const auto childEntity: fragmenting)
+						result.push_back(childEntity);
+				} else {
+					sources(Parent, parentEntity, [&](Entity childEntity) {
+						result.push_back(childEntity);
+					});
+					sources(ChildOf, parentEntity, [&](Entity childEntity) {
+						result.push_back(childEntity);
+					});
+					core::sort(result, [](Entity left, Entity right) {
+						return left.id() < right.id();
+					});
+				}
+
+				Entity previous = EntityBad;
+				for (const auto childEntity: result) {
+					if (childEntity == previous)
+						continue;
+					func(childEntity);
+					previous = childEntity;
+				}
+			}
+
+			//! Enables or disables stable direct ordering for non-fragmenting `Parent` children.
+			//! Enabling preserves the current bucket order. Future removals from this parent use an ordered linear erase.
+			//! \param parentEntity Parent whose direct children should preserve order.
+			//! \param enable True to preserve order, false to restore the default unordered path.
+			void ordered_children(Entity parentEntity, bool enable = true) {
+				GAIA_ASSERT(valid(parentEntity));
+				const auto orderedId = add<OrderedChildren>().entity;
+				const bool enabled = has_direct(parentEntity, orderedId);
+				if (enabled == enable)
+					return;
+				if (enable)
+					m_hasManagedParentMutations = true;
+				if (enable)
+					add(parentEntity, orderedId);
+				else
+					del(parentEntity, orderedId);
+			}
+
+			//! Replaces the authored order of all direct non-fragmenting `Parent` children.
+			//! \param parentEntity Ordered parent whose children are reordered.
+			//! \param order Exact permutation of all current direct `Parent` children.
+			//! \return True when the order changed. False for an invalid permutation or unchanged order.
+			GAIA_NODISCARD bool set_child_order(Entity parentEntity, EntitySpan order) {
+				GAIA_ASSERT(valid(parentEntity));
+				if (!parent_children_ordered(parentEntity))
+					return false;
+				auto* pStore = const_cast<NonFragmentingRelationStore*>(nonfragmenting_relation_store(Parent));
+				if (pStore == nullptr)
+					return false;
+				if (!pStore->reorder_sources(parentEntity, order))
+					return false;
+				invalidate_relation_caches(Parent);
+				return true;
+			}
+
+			//! Iterates every id stored directly on \a entity exactly once in deterministic id order.
+			//! This merges archetype ids, sparse ids, and exclusive non-fragmenting relation pairs.
+			//! \tparam Func Callable accepting `Entity`.
+			//! \param entity Entity whose direct ids are enumerated.
+			//! \param func Callback invoked once per direct id.
+			template <typename Func>
+			void each_direct_id(Entity entity, Func func) const {
+				GAIA_ASSERT(valid(entity));
+				cnt::darray_ext<Entity, 32> ids;
+				for (const auto id: fetch(entity).pArchetype->ids_view())
+					ids.push_back(id);
+
+				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
+					if (store.func_has(store.pStore, entity))
+						ids.push_back(compKey.entity());
+				}
+
+				for (const auto& [relKey, store]: m_nonFragmentingRelationsByRel) {
+					const auto relationTarget = store.target(entity);
+					if (relationTarget != EntityBad)
+						ids.push_back(Pair(relKey.entity(), relationTarget));
+				}
+
+				core::sort(ids, [](Entity left, Entity right) {
+					return left < right;
+				});
+				Entity previous = EntityBad;
+				for (const auto id: ids) {
+					if (id == previous)
+						continue;
+					func(id);
+					previous = id;
+				}
 			}
 
 			//----------------------------------------------------------------------
@@ -8839,10 +9082,20 @@ namespace gaia {
 			friend uint32_t world_archetype_delete_version(const World& world);
 			friend uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
+			//! Advances prefab-plan structure state when a captured prefab node changes.
+			//! \param entity Entity whose direct structure changed.
+			void update_prefab_plan_structure_version(Entity entity) {
+				if (!m_prefabPlanTrackingActive)
+					return;
+				if (m_prefabPlanTrackedEntities.find(EntityLookupKey(entity)) != m_prefabPlanTrackedEntities.end())
+					update_version(m_prefabPlanStructureVersion);
+			}
+
 			//! Updates a tracked source-entity version after the entity changes archetype membership.
 			//! \param entity Source entity whose existing tracked version is incremented.
 			void update_src_entity_version(Entity entity) {
 				const auto key = EntityLookupKey(entity);
+				update_prefab_plan_structure_version(entity);
 				const auto it = m_srcEntityVersions.find(key);
 				if (it == m_srcEntityVersions.end())
 					return;
@@ -8853,7 +9106,12 @@ namespace gaia {
 			//! Removes sparse source-version state for an entity that is being destroyed.
 			//! \param entity Source entity whose tracked version entry is removed.
 			void remove_src_entity_version(Entity entity) {
-				m_srcEntityVersions.erase(EntityLookupKey(entity));
+				const auto key = EntityLookupKey(entity);
+				if (m_prefabPlanTrackedEntities.erase(key) != 0)
+					update_version(m_prefabPlanStructureVersion);
+				m_prefabPlanTrackingActive = !m_prefabPlanTrackedEntities.empty();
+				m_srcEntityVersions.erase(key);
+				m_prefabInstantiatePlanCache.erase(key);
 			}
 
 			//! Sets maximal lifespan of an archetype \a entity belongs to.
@@ -8990,6 +9248,12 @@ namespace gaia {
 				m_worldVersion = 0;
 				m_enabledHierarchyVersion = 0;
 				m_archetypeDeleteVersion = 0;
+				m_prefabPlanPolicyVersion = 0;
+				m_prefabPlanStructureVersion = 0;
+				m_prefabPlanTrackingActive = false;
+#if GAIA_ECS_TEST_HOOKS
+				m_testPrefabPlanBuildCount = 0;
+#endif
 				init();
 			}
 
@@ -9084,6 +9348,7 @@ namespace gaia {
 					m_relationCachesPopulated = false;
 					m_hasOnDeleteTargetPolicy = false;
 					m_hasCantCombinePolicy = false;
+					m_hasManagedParentMutations = false;
 					m_pairLookup.clear();
 					m_nonFragmentingRelationsByRel = {};
 					for (auto& [compKey, store]: m_sparseComponentsByComp) {
@@ -9096,6 +9361,9 @@ namespace gaia {
 					m_lastRelationVersionRelation = EntityBad;
 					m_pLastRelationVersion = nullptr;
 					m_srcEntityVersions = {};
+					m_prefabInstantiatePlanCache = {};
+					m_prefabPlanTrackedEntities = {};
+					m_prefabPlanTrackingActive = false;
 
 					m_archetypes = {};
 					m_archetypesById = {};
@@ -9998,6 +10266,7 @@ namespace gaia {
 					ec.pChunk = nullptr;
 					ec.pEntity = nullptr;
 				}
+				update_version(m_archetypeDeleteVersion);
 				Archetype::destroy(pArchetype);
 			}
 

@@ -49,6 +49,18 @@ namespace gaia {
 				//! Archetype component or pair ids reported to add hooks and observers.
 				cnt::darray_ext<Entity, 16> addHookIds;
 			};
+
+			//! Persistent prefab instantiation plan plus the structural snapshots that keep it valid.
+			struct PrefabInstantiatePlanCacheEntry {
+				//! Depth-first prefab nodes reused by repeated batch instantiation.
+				cnt::darray<PrefabInstantiatePlanNode> nodes;
+				//! Prefab-plan structural version captured when \a nodes was built.
+				uint32_t structureVersion = 0;
+				//! Archetype deletion version captured with destination archetype pointers.
+				uint32_t archetypeDeleteVersion = 0;
+				//! Instantiation-policy version captured while copied ids were derived.
+				uint32_t policyVersion = 0;
+			};
 		} // namespace detail
 	} // namespace ecs
 } // namespace gaia

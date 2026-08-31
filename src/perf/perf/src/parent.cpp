@@ -321,6 +321,36 @@ void BM_HierarchyBatch_SpawnParentPrefab(picobench::state& state) {
 	dont_optimize(total);
 }
 
+//! Benchmarks repeated small prefab-tree batches from one unchanged source tree.
+//! This isolates reuse of the persistent instantiation plan from large-batch copy throughput.
+void BM_HierarchyBatch_SpawnParentPrefabRepeated(picobench::state& state) {
+	const uint32_t batchCount = (uint32_t)state.user_data();
+	static constexpr uint32_t RootsPerBatch = 4U;
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		const auto scene = w.add();
+		ecs::Entity rootPrefab = ecs::EntityBad;
+		create_hierarchy_batch_parent_prefab(w, rootPrefab);
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		GAIA_FOR_(batchCount, batchIdx) {
+			(void)batchIdx;
+			w.instantiate_n(rootPrefab, scene, RootsPerBatch, [&](ecs::Entity instance) {
+				entitySum += instance.id();
+			});
+		}
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
 //! Benchmarks the manual root-only part of the hierarchy-batch `Parent` spawn shape.
 //! This isolates root creation plus the scene-parent edge from the per-root prefab-child work.
 void BM_HierarchyBatch_SpawnParentRootOnly(picobench::state& state) {
@@ -1799,6 +1829,10 @@ void register_parent(PerfRunMode mode) {
 			.PICO_SETTINGS_HEAVY()
 			.user_data(40'000)
 			.label("hierarchy batch parent prefab spawn 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_SpawnParentPrefabRepeated)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(256)
+			.label("hierarchy batch parent prefab repeated 256x4 roots");
 	PICOBENCH_REG(BM_HierarchyBatch_SpawnParentRootOnly)
 			.PICO_SETTINGS_HEAVY()
 			.user_data(40'000)

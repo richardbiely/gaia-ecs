@@ -1632,3 +1632,189 @@ TEST_CASE("ChildOf and Parent - hierarchical name lookup resolves nested childre
 	CHECK(wld.get("childof_root.parent_child") == ecs::EntityBad);
 	CHECK(wld.get("parent_root.childof_child") == ecs::EntityBad);
 }
+
+TEST_CASE("ChildOf and Parent - semantic hierarchy facade covers both storage kinds") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto childOfChild = wld.add();
+	const auto parentChild = wld.add();
+	const auto mixedChild = wld.add();
+	const auto otherRoot = wld.add();
+
+	wld.child(childOfChild, root);
+	wld.parent(parentChild, root);
+	wld.child(mixedChild, root);
+	wld.parent(mixedChild, otherRoot);
+
+	CHECK(wld.parent(childOfChild) == root);
+	CHECK(wld.parent(parentChild) == root);
+	CHECK(wld.parent(mixedChild) == otherRoot);
+	CHECK(wld.parent(root) == ecs::EntityBad);
+
+	cnt::darray<ecs::Entity> children;
+	wld.children(root, [&](ecs::Entity child) {
+		children.push_back(child);
+	});
+	CHECK(children.size() == 3);
+	if (children.size() != 3)
+		return;
+	CHECK(children[0] == childOfChild);
+	CHECK(children[1] == parentChild);
+	CHECK(children[2] == mixedChild);
+
+	auto query = wld.query().children_of(root);
+	cnt::darray<ecs::Entity> queried;
+	query.each([&](ecs::Entity child) {
+		queried.push_back(child);
+	});
+	core::sort(queried, [](ecs::Entity left, ecs::Entity right) {
+		return left.id() < right.id();
+	});
+	CHECK(queried.size() == 3);
+	if (queried.size() != 3)
+		return;
+	CHECK(queried[0] == childOfChild);
+	CHECK(queried[1] == parentChild);
+	CHECK(queried[2] == mixedChild);
+
+	wld.parent(parentChild, otherRoot);
+	queried.clear();
+	query.each([&](ecs::Entity child) {
+		queried.push_back(child);
+	});
+	CHECK(queried.size() == 2);
+}
+
+TEST_CASE("Parent - ordered children preserve authored order only when opted in") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto otherRoot = wld.add();
+	const auto child1 = wld.add();
+	const auto child2 = wld.add();
+	const auto child3 = wld.add();
+
+	wld.ordered_children(root);
+	wld.parent(child1, root);
+	wld.parent(child2, root);
+	wld.parent(child3, root);
+
+	auto collect = [&]() {
+		cnt::darray<ecs::Entity> result;
+		wld.children(root, [&](ecs::Entity child) {
+			result.push_back(child);
+		});
+		return result;
+	};
+
+	auto children = collect();
+	CHECK(children.size() == 3);
+	if (children.size() != 3)
+		return;
+	CHECK(children[0] == child1);
+	CHECK(children[1] == child2);
+	CHECK(children[2] == child3);
+
+	// Ordered removal shifts the remaining children instead of swap-removing the last child.
+	wld.parent(child2, otherRoot);
+	children = collect();
+	CHECK(children.size() == 2);
+	if (children.size() != 2)
+		return;
+	CHECK(children[0] == child1);
+	CHECK(children[1] == child3);
+
+	wld.parent(child2, root);
+	wld.add<Position>(child1);
+	children = collect();
+	CHECK(children.size() == 3);
+	if (children.size() != 3)
+		return;
+	CHECK(children[0] == child1);
+	CHECK(children[1] == child3);
+	CHECK(children[2] == child2);
+
+	const ecs::Entity requested[] = {child2, child1, child3};
+	CHECK(wld.set_child_order(root, requested));
+	children = collect();
+	CHECK(children.size() == 3);
+	if (children.size() != 3)
+		return;
+	CHECK(children[0] == child2);
+	CHECK(children[1] == child1);
+	CHECK(children[2] == child3);
+	CHECK_FALSE(wld.set_child_order(root, requested));
+
+	const ecs::Entity invalid[] = {child1, child1, child3};
+	CHECK_FALSE(wld.set_child_order(root, invalid));
+}
+
+TEST_CASE("World - direct id introspection merges every storage kind once") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto entity = wld.add();
+	const auto position = wld.add<Position>().entity;
+	const auto sparsePosition = wld.add<PositionSparse>().entity;
+	wld.add(sparsePosition, ecs::DontFragment);
+	wld.add<Position>(entity, {1, 2, 3});
+	wld.add<PositionSparse>(entity, {4, 5, 6});
+	wld.parent(entity, root);
+
+	cnt::darray<ecs::Entity> ids;
+	wld.each_direct_id(entity, [&](ecs::Entity id) {
+		ids.push_back(id);
+	});
+
+	CHECK(core::has(ids, position));
+	CHECK(core::has(ids, sparsePosition));
+	CHECK(core::has(ids, ecs::Pair(ecs::Parent, root)));
+	GAIA_FOR2(1, (uint32_t)ids.size()) {
+		CHECK(ids[i - 1] < ids[i]);
+	}
+}
+
+TEST_CASE("Parent - cached breadth-first query ordering refreshes after reparent") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto branch = wld.add();
+	const auto deep = wld.add();
+	const auto sibling = wld.add();
+	for (const auto entity: {root, branch, deep, sibling})
+		wld.add<Position>(entity);
+
+	wld.parent(branch, root);
+	wld.parent(deep, branch);
+	wld.parent(sibling, root);
+
+	auto query = wld.query().all<Position>();
+	auto collect = [&]() {
+		cnt::darray<ecs::Entity> result;
+		query.order_by(ecs::Parent, ecs::TravOrder::BreadthFirstDown).each([&](ecs::Entity entity) {
+			result.push_back(entity);
+		});
+		return result;
+	};
+
+	auto ordered = collect();
+	CHECK(ordered.size() == 4);
+	if (ordered.size() != 4)
+		return;
+	CHECK(ordered[0] == root);
+	CHECK(ordered[1] == branch);
+	CHECK(ordered[2] == sibling);
+	CHECK(ordered[3] == deep);
+
+	// Rebuild the same cached query after changing only the non-fragmenting topology.
+	wld.parent(deep, root);
+	ordered = collect();
+	CHECK(ordered.size() == 4);
+	if (ordered.size() != 4)
+		return;
+	CHECK(ordered[0] == root);
+	CHECK(ordered[1] == branch);
+	CHECK(ordered[2] == deep);
+	CHECK(ordered[3] == sibling);
+}

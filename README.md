@@ -1488,8 +1488,10 @@ A relation pair `Pair(Rel, X)` on entity `E` means `E` points at `X`. In the nam
 - `TravOrder::Up`: visit sources before their targets. For `ChildOf`, this means children before parents. This is DFS postorder. `TravOrder::Postorder` is the alias.
 - `TravOrder::ReverseDown`: exact reverse of `Down`. This is reverse DFS preorder. `TravOrder::ReversePreorder` is the alias.
 - `TravOrder::ReverseUp`: exact reverse of `Up`. This is reverse DFS postorder. `TravOrder::ReversePostorder` is the alias.
+- `TravOrder::BreadthFirstDown`: visit targets before sources one breadth level at a time. `TravOrder::BreadthFirst` is the alias.
+- `TravOrder::ReverseBreadthFirstDown`: exact reverse of `BreadthFirstDown`.
 
-There is no breadth-first traversal alias for `order_by(...)`. Use `depth_order(...)` for cached breadth-first top-down ordering on fragmenting acyclic relations.
+`BreadthFirstDown` works with non-fragmenting relations such as `Parent` and reuses the query's cached traversal result until the relation changes. `depth_order(...)` remains the archetype-level breadth-first path for fragmenting acyclic relations.
 
 `order_by(...)` supports entity callbacks, typed callbacks, and regular `ecs::Iter&`.
 Entity and typed callbacks are the best optimized paths.
@@ -1584,7 +1586,7 @@ q.each([&](ecs::Entity entity) {
 ecs::Query qParent = wld.query().all<Time>();
 
 // Parent is non-fragmenting, so order_by(...) is the supported per-entity traversal path.
-qParent.order_by(ecs::Parent, ecs::TravOrder::Down).each([&](ecs::Entity entity) {
+qParent.order_by(ecs::Parent, ecs::TravOrder::BreadthFirstDown).each([&](ecs::Entity entity) {
   ...
 });
 ```
@@ -2728,6 +2730,8 @@ w.instantiate_n(prefab, 10, [](ecs::CopyIter& it) {
 });
 ```
 
+Repeated `instantiate_n(...)` calls for the same prefab root reuse a persistent depth-first spawn plan. Gaia-ECS rebuilds that plan when a prefab node's direct table or sparse ids change, when `Parent`/`ChildOf` prefab topology changes, when an `OnInstantiate` policy changes, or when cached destination archetypes can no longer be reused. Instance creation itself does not invalidate the source prefab plan.
+
 All `instantiate(...)` and `instantiate_n(...)` overloads follow the same rules:
 - prefab names are not copied to spawned instances
 - `Override`, `Inherit`, and `DontInherit` are applied per spawned instance
@@ -2907,7 +2911,32 @@ Properites of `Parent`:
 
 More generally, hierarchy semantics come from traversable exclusive parent-chain relations. `ChildOf` and `Parent` are the native built-ins:
 - `ChildOf`: hierarchy + fragmenting, so cached `depth_order(...)` can work at archetype level
-- `Parent`: hierarchy + non-fragmenting, so `order_by(...)` is the supported path
+- `Parent`: hierarchy + non-fragmenting, so `order_by(...)` is the supported path, including cached breadth-first entity ordering
+
+When code should accept either native hierarchy representation, use the semantic facade:
+
+```cpp
+ecs::Entity directParent = w.parent(child);
+
+w.children(root, [&](ecs::Entity directChild) {
+  // Visits the union of direct Parent and ChildOf children once, deterministically.
+});
+
+auto qChildren = w.query().children_of(root);
+```
+
+If a system needs to inspect the exact stored shape rather than inherited or semantic data, `each_direct_id(entity, func)` visits each direct table id, sparse component id, and non-fragmenting relationship pair once in deterministic id order.
+
+Direct `Parent` children normally use an unordered O(1) removal path. Editors and UI trees can opt a parent into stable insertion order and explicitly reorder its direct `Parent` children:
+
+```cpp
+w.ordered_children(root, true);
+
+ecs::Entity order[] = {third, first, second};
+bool changed = w.set_child_order(root, order);
+```
+
+The ordered mode is deliberately opt-in: removing a direct child shifts later children and therefore costs O(number of following children). `ChildOf` children are still appended deterministically after the ordered `Parent` children by `World::children(...)`.
 
 Use `Parent` for:
 - prefab ownership

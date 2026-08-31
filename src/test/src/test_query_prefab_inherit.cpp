@@ -2,6 +2,10 @@
 
 #define TestWorld SparseTestWorld
 
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+static uint32_t s_prefabCachedPlanAddHookHits = 0;
+#endif
+
 TEST_CASE("Prefab - instantiate creates a non-prefab instance with copied data") {
 	TestWorld twld;
 
@@ -1784,3 +1788,146 @@ TEST_CASE("Prefab - child instantiation respects DontInherit policy") {
 	CHECK_FALSE(wld.has<Position>(childInstance));
 	CHECK(wld.has_direct(childInstance, ecs::Pair(ecs::Is, childPrefab)));
 }
+
+TEST_CASE("Prefab - repeated batch instantiation reuses its persistent plan") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	wld.parent(childPrefab, rootPrefab);
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+
+	wld.instantiate_n(rootPrefab, 2);
+	CHECK(wld.test_prefab_plan_build_count() == 1);
+	wld.instantiate_n(rootPrefab, 2);
+	CHECK(wld.test_prefab_plan_build_count() == 1);
+}
+
+TEST_CASE("Prefab - cached batch plan refreshes component sparse and policy metadata") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.parent(childPrefab, rootPrefab);
+	wld.add<Position>(childPrefab, {2, 0, 0});
+
+	wld.instantiate_n(rootPrefab, 1);
+	CHECK(wld.test_prefab_plan_build_count() == 1);
+
+	wld.add<Scale>(childPrefab, {3, 0, 0});
+	wld.add<PositionSparse>(childPrefab, {4, 5, 6});
+
+	ecs::Entity rootInstance = ecs::EntityBad;
+	wld.instantiate_n(rootPrefab, 1, [&](ecs::Entity entity) {
+		rootInstance = entity;
+	});
+	CHECK(wld.test_prefab_plan_build_count() == 2);
+	const auto childInstance = wld.find_prefab_instance(rootInstance, childPrefab);
+	CHECK(childInstance != ecs::EntityBad);
+	if (childInstance == ecs::EntityBad)
+		return;
+	CHECK(wld.has_direct(childInstance, wld.add<Scale>().entity));
+	CHECK(wld.has_direct(childInstance, wld.add<PositionSparse>().entity));
+	CHECK(wld.get<PositionSparse>(childInstance).x == doctest::Approx(4.0f));
+
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::DontInherit));
+	wld.instantiate_n(rootPrefab, 1, [&](ecs::Entity entity) {
+		rootInstance = entity;
+	});
+	CHECK(wld.test_prefab_plan_build_count() == 3);
+	const auto policyChild = wld.find_prefab_instance(rootInstance, childPrefab);
+	CHECK(policyChild != ecs::EntityBad);
+	if (policyChild != ecs::EntityBad)
+		CHECK_FALSE(wld.has<Position>(policyChild));
+}
+
+TEST_CASE("Prefab - cached batch plans refresh after hierarchy changes") {
+	TestWorld twld;
+
+	const auto rootA = wld.prefab();
+	const auto rootB = wld.prefab();
+	const auto child = wld.prefab();
+	wld.parent(child, rootA);
+	wld.add<Position>(child, {7, 0, 0});
+
+	wld.instantiate_n(rootA, 1);
+	wld.instantiate_n(rootB, 1);
+	CHECK(wld.test_prefab_plan_build_count() == 2);
+
+	wld.parent(child, rootB);
+
+	ecs::Entity instanceA = ecs::EntityBad;
+	ecs::Entity instanceB = ecs::EntityBad;
+	wld.instantiate_n(rootA, 1, [&](ecs::Entity entity) {
+		instanceA = entity;
+	});
+	wld.instantiate_n(rootB, 1, [&](ecs::Entity entity) {
+		instanceB = entity;
+	});
+	CHECK(wld.test_prefab_plan_build_count() == 4);
+	CHECK(wld.find_prefab_instance(instanceA, child) == ecs::EntityBad);
+	CHECK(wld.find_prefab_instance(instanceB, child) != ecs::EntityBad);
+
+	const auto lateChild = wld.prefab();
+	wld.child(lateChild, rootB);
+	wld.instantiate_n(rootB, 1, [&](ecs::Entity entity) {
+		instanceB = entity;
+	});
+	CHECK(wld.test_prefab_plan_build_count() == 5);
+	CHECK(wld.find_prefab_instance(instanceB, lateChild) != ecs::EntityBad);
+}
+
+TEST_CASE("Prefab - cached batch plan refreshes after destination archetype deletion") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	wld.add<Position>(prefab, {3, 4, 5});
+
+	ecs::Entity instance = ecs::EntityBad;
+	wld.instantiate_n(prefab, 1, [&](ecs::Entity entity) {
+		instance = entity;
+	});
+	CHECK(wld.test_prefab_plan_build_count() == 1);
+	const auto archetypeDeleteVersion = wld.archetype_delete_version();
+	wld.set_max_lifespan(instance, 1);
+	CHECK(wld.valid(instance));
+	wld.del(instance);
+	CHECK_FALSE(wld.valid(instance));
+	twld.update();
+	CHECK_FALSE(wld.valid(instance));
+	CHECK(wld.archetype_delete_version() != archetypeDeleteVersion);
+
+	wld.instantiate_n(prefab, 1, [&](ecs::Entity entity) {
+		instance = entity;
+	});
+	CHECK(wld.test_prefab_plan_build_count() == 2);
+	CHECK(wld.valid(instance));
+	CHECK(wld.get<Position>(instance).x == doctest::Approx(3.0f));
+}
+
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+TEST_CASE("Prefab - cached batch plan refreshes late add-hook metadata") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto& positionItem = wld.add<Position>();
+	wld.add<Position>(prefab, {1, 2, 3});
+	wld.instantiate_n(prefab, 1);
+	CHECK(wld.test_prefab_plan_build_count() == 1);
+
+	auto& hooks = ecs::ComponentCache::hooks(positionItem);
+	const auto previousAddHook = hooks.func_add;
+	s_prefabCachedPlanAddHookHits = 0;
+	hooks.func_add = [](const ecs::World&, const ecs::ComponentCacheItem&, ecs::Entity) {
+		++s_prefabCachedPlanAddHookHits;
+	};
+
+	wld.instantiate_n(prefab, 1);
+	hooks.func_add = previousAddHook;
+
+	CHECK(wld.test_prefab_plan_build_count() == 1);
+	CHECK(s_prefabCachedPlanAddHookHits == 1);
+}
+#endif
