@@ -4178,6 +4178,34 @@ TEST_CASE("Exact pair records - typed payload access") {
 	}
 }
 
+TEST_CASE("Exact pair records - fixed query source") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto owner = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(owner, pair);
+
+	const auto entityA = wld.add();
+	const auto entityB = wld.add();
+	wld.add<Position>(entityA, {1.0f, 2.0f, 3.0f});
+	wld.add<Position>(entityB, {4.0f, 5.0f, 6.0f});
+
+	auto query = wld.query().all<Position>().all<Scale>(ecs::QueryTermOptions{}.src(pair));
+	CHECK(query.count() == 0);
+	wld.add<Scale>(pair, {7.0f, 8.0f, 9.0f});
+	CHECK(query.count() == 2);
+	uint32_t hits = 0;
+	query.each([&](const Position&) {
+		++hits;
+	});
+	CHECK(hits == 2);
+	CHECK(wld.get<Scale>(pair).x == 7.0f);
+	wld.del<Scale>(pair);
+	CHECK(query.count() == 0);
+}
+
 TEST_CASE("Exact pair records - sparse payload identity and deletion") {
 	TestWorld twld;
 
