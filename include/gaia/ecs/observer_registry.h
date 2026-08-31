@@ -82,6 +82,8 @@ namespace gaia {
 					Entity observer = EntityBad;
 					//! Logical membership event requested by the observer.
 					ObserverEvent event = ObserverEvent::OnAdd;
+					//! True when both exact membership transition directions are reported.
+					bool monitorsQuery = false;
 					//! Index of the shared before-mutation match list.
 					uint32_t matchesBeforeIdx = UINT32_MAX;
 				};
@@ -356,7 +358,8 @@ namespace gaia {
 				//! \param world World supplied to the observer iterator.
 				//! \param obs Observer callback and runtime state.
 				//! \param targets Entities supplied to the callback.
-				static void execute_targets(World& world, ObserverRuntimeData& obs, EntitySpan targets);
+				//! \param event Logical event reported by the callback iterator.
+				static void execute_targets(World& world, ObserverRuntimeData& obs, EntitySpan targets, ObserverEvent event);
 
 				//! Checks whether a direct observer plan accepts the changed entities.
 				//! \param obs Observer whose execution plan is evaluated.
@@ -538,7 +541,7 @@ namespace gaia {
 			//! \param op Query operation applied to the indexed term.
 			//! \return Structural add or delete event used for index lookup.
 			GAIA_NODISCARD static ObserverEvent structural_event(ObserverEvent event, QueryOpKind op) {
-				if (op != QueryOpKind::Not || event == ObserverEvent::OnSet)
+				if (op != QueryOpKind::Not || event == ObserverEvent::OnSet || event == ObserverEvent::None)
 					return event;
 				return event == ObserverEvent::OnAdd ? ObserverEvent::OnDel : ObserverEvent::OnAdd;
 			}

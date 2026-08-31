@@ -5,6 +5,7 @@
 #include <cinttypes>
 
 #include "gaia/ecs/id.h"
+#include "gaia/ecs/observer_event.h"
 #include "gaia/ecs/query.h"
 #include "gaia/util/move_func.h"
 
@@ -18,20 +19,6 @@ namespace gaia {
 		inline constexpr const char* sc_observer_query_func_str = "Observer_exec";
 		util::str_view entity_name(const World& world, Entity entity);
 	#endif
-
-		//! Observer event types.
-		//! `OnSet` is emitted for explicit value writes to an already present component,
-		//! such as `set<T>(entity)`, `set<T>(entity, object)`, `acc_mut(entity).set<T>(...)`,
-		//! `modify<T, true>(entity)`, or `modify<T, true>(entity, object)`.
-		//! Setter-style APIs emit the event after the new value has been written back.
-		//! Query and observer write callbacks emit the event after the callback finishes.
-		//! It is not emitted by silent writes such as `sset(...)`, and it is not emitted just because
-		//! a component was added for the first time.
-		enum class ObserverEvent : uint8_t {
-			OnAdd, //!< Entity enters the observer query.
-			OnDel, //!< Entity leaves the observer query.
-			OnSet, //!< Component value changed on an already present component.
-		};
 
 		//! Observer context passed to callbacks.
 		//! TODO: `old_ptr` is reserved for `OnSet` previous-value access but is not populated yet.
@@ -86,13 +73,15 @@ namespace gaia {
 			uint8_t termCount = 0;
 			//! True when at least one query term excludes matches.
 			bool hasNegativeTerm = false;
+			//! True when both exact whole-query membership transitions are observed.
+			bool monitorsQuery = false;
 			//! Chosen observer execution class.
 			ExecKind execKind = ExecKind::DirectQuery;
 			//! Dynamic/propagated execution metadata.
 			DiffPlan diff;
 
 			void refresh_exec_kind() {
-				if (diff.enabled) {
+				if (monitorsQuery || diff.enabled) {
 					switch (diff.dispatchKind) {
 						case DiffPlan::DispatchKind::LocalTargets:
 							execKind = ExecKind::DiffLocal;
@@ -217,7 +206,11 @@ namespace gaia {
 			//! Hot-path stamp used for O(1) deduplication during observer candidate collection.
 			uint64_t lastMatchStamp = 0;
 
-			void exec(Iter& iter, EntitySpan targets);
+			//! Executes the observer callback for targets with the reported logical event.
+			//! \param iter Iterator reused for each target entity.
+			//! \param targets Entities passed to the callback.
+			//! \param reportedEvent Event visible through Iter::event().
+			void exec(Iter& iter, EntitySpan targets, ObserverEvent reportedEvent);
 		};
 
 		//! Compact ECS-stored observer header.
@@ -226,6 +219,8 @@ namespace gaia {
 			Entity entity = EntityBad;
 			//! Event type
 			ObserverEvent event = ObserverEvent::OnAdd;
+			//! True when the observer tracks exact whole-query membership transitions.
+			bool monitorsQuery = false;
 
 			//! Disable automatic Observer_ serialization
 			template <typename Serializer>

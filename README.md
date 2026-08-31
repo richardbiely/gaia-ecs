@@ -669,9 +669,29 @@ Because observers are query-backed, query shaping helpers such as `depth_order(.
 Observers also expose the same query cache controls as plain queries. By default an observer keeps cached query state locally. Use `scope(ecs::QueryCacheScope::Shared)` only when many identical observer query shapes are rebuilt and you want them to reuse one shared cache entry. Use `kind(ecs::QueryCacheKind::None)` only for special cases where you explicitly do not want observer query caches.
 
 Observer events currently mean:
-* `OnAdd` - an entity starts matching because ids were added
-* `OnDel` - an entity stops matching because ids were removed
+* `OnAdd` - observe the query's add-side event. A negative term maps removal of its excluded id to this event
+* `OnDel` - observe the query's delete-side event. A negative term maps addition of its excluded id to this event
 * `OnSet` - a value of an already present component was explicitly written
+
+Use `.monitor()` when the callback must run only when the complete query changes from
+unmatched to matched or from matched to unmatched. The callback reads the actual
+transition from `it.event()`: `OnAdd` means the entity entered the result and `OnDel`
+means it left. Monitoring observers evaluate membership before and after a relevant
+structural change, so they cost more than ordinary event observers.
+
+```cpp
+w.observer()
+  .monitor()
+  .all<Position>()
+  .no<Frozen>()
+  .on_each([](ecs::Iter& it) {
+    if (it.event() == ecs::ObserverEvent::OnAdd) {
+      // The entity now matches both terms.
+    } else {
+      // The entity no longer matches both terms.
+    }
+  });
+```
 
 `OnSet` is triggered by APIs such as `set<T>(entity)`, `set<T>(entity, object)`, `acc_mut(entity).set<T>(...)`,
 `modify<T, true>(entity)`, and `modify<T, true>(entity, object)`.

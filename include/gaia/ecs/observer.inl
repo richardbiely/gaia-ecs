@@ -41,7 +41,7 @@ namespace gaia {
 			}
 		}
 
-		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets) {
+		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets, ObserverEvent reportedEvent) {
 			const auto& queryInfo = query.fetch();
 
 	#if GAIA_PROFILER_CPU
@@ -55,6 +55,7 @@ namespace gaia {
 			pWorld->observer_callback_enter();
 	#endif
 			const auto queryIdCnt = (uint32_t)plan.termCount;
+			iter.event(reportedEvent);
 			const auto& termIds = queryTermIds;
 			const auto terms = queryInfo.ctx().data.terms_view();
 			const QueryTerm* termsByField[MAX_ITEMS_IN_QUERY]{};
@@ -234,6 +235,14 @@ namespace gaia {
 			}
 
 			void register_diff_term(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
+				if (data.plan.monitorsQuery) {
+					const bool compoundNegative = data.plan.hasNegativeTerm && data.plan.termCount > 1;
+					if (requires_diff_dispatch(term, options) || compoundNegative)
+						data.plan.diff.enabled = true;
+					register_diff_term_index(data, op, term, options);
+					return;
+				}
+
 				const bool compoundNegative = data.plan.hasNegativeTerm && data.plan.termCount > 1;
 				if (data.plan.diff.enabled) {
 					register_diff_term_index(data, op, term, options);
@@ -364,28 +373,13 @@ namespace gaia {
 				m_world.observers().add(m_world, term, m_entity, op, options.matchKind);
 			}
 
-		public:
-			ObserverBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
-
-			//------------------------------------------------
-
-			ObserverBuilder& event(ObserverEvent event) {
-				validate();
-				auto& observer = data();
-				if (observer.event == event)
-					return *this;
-
-				auto& runtime = runtime_data();
-				if (runtime.plan.termCount != 0)
-					m_world.observers().remove_observer_indices(m_world, m_entity);
-
-				observer.event = event;
-				if (runtime.plan.termCount == 0)
-					return *this;
+			void rebuild_indices(ObserverRuntimeData& data) {
+				if (data.plan.termCount == 0)
+					return;
 
 				// Terms are registered as they are added to the builder. Rebuild those indexes
-				// when the event is selected later so fluent-call order does not change behavior.
-				const auto terms = runtime.query.fetch().ctx().data.terms_view();
+				// when the mode is selected later so fluent-call order does not change behavior.
+				const auto terms = data.query.fetch().ctx().data.terms_view();
 				for (const auto& term: terms) {
 					QueryTermOptions options{};
 					options.entSrc = term.src;
@@ -395,9 +389,56 @@ namespace gaia {
 					options.matchKind = term.matchKind;
 
 					m_world.observers().add(m_world, term.id, m_entity, term.op, term.matchKind);
-					if (runtime.plan.uses_diff_dispatch())
+					if (data.plan.uses_diff_dispatch())
 						m_world.observers().add_diff_observer_term(m_world, m_entity, term.op, term.id, options);
 				}
+			}
+
+		public:
+			ObserverBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
+
+			//------------------------------------------------
+
+			//! Selects the event reported by the observer.
+			//! Calling this after monitor() switches the observer back to single-event mode.
+			//! \param event Event to report.
+			//! \return Self reference.
+			ObserverBuilder& event(ObserverEvent event) {
+				validate();
+				auto& observer = data();
+				if (!observer.monitorsQuery && observer.event == event)
+					return *this;
+
+				auto& runtime = runtime_data();
+				if (runtime.plan.termCount != 0)
+					m_world.observers().remove_observer_indices(m_world, m_entity);
+
+				observer.event = event;
+				observer.monitorsQuery = false;
+				runtime.plan.monitorsQuery = false;
+				runtime.plan.refresh_exec_kind();
+				rebuild_indices(runtime);
+				return *this;
+			}
+
+			//! Tracks exact whole-query membership transitions in both directions.
+			//! The callback receives OnAdd when an entity starts matching and OnDel when it stops matching.
+			//! Calling event() afterwards switches the observer back to single-event mode.
+			//! \return Self reference.
+			ObserverBuilder& monitor() {
+				validate();
+				auto& observer = data();
+				if (observer.monitorsQuery)
+					return *this;
+
+				auto& runtime = runtime_data();
+				if (runtime.plan.termCount != 0)
+					m_world.observers().remove_observer_indices(m_world, m_entity);
+
+				observer.monitorsQuery = true;
+				runtime.plan.monitorsQuery = true;
+				runtime.plan.refresh_exec_kind();
+				rebuild_indices(runtime);
 				return *this;
 			}
 
@@ -570,7 +611,7 @@ namespace gaia {
 
 			void exec(Iter& iter, EntitySpan targets) {
 				auto& ctx = runtime_data();
-				ctx.exec(iter, targets);
+				ctx.exec(iter, targets, data().event);
 			}
 		};
 

@@ -41693,6 +41693,29 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+#include <cstdint>
+
+#if GAIA_OBSERVERS_ENABLED
+namespace gaia {
+	namespace ecs {
+		//! Observer event types.
+		//! `OnSet` is emitted for explicit value writes to an already present component,
+		//! such as `set<T>(entity)`, `set<T>(entity, object)`, `acc_mut(entity).set<T>(...)`,
+		//! `modify<T, true>(entity)`, or `modify<T, true>(entity, object)`.
+		//! Setter-style APIs emit the event after the new value has been written back.
+		//! Query and observer write callbacks emit the event after the callback finishes.
+		//! It is not emitted by silent writes such as `sset(...)`, and it is not emitted just because
+		//! a component was added for the first time.
+		enum class ObserverEvent : uint8_t {
+			OnAdd = 0, //!< Add-side event. Negative terms map removal of the excluded id here.
+			OnDel = 1, //!< Delete-side event. Negative terms map addition of the excluded id here.
+			OnSet = 2, //!< Component value changed on an already present component.
+			None = UINT8_MAX //!< Iterator sentinel used outside observer callbacks.
+		};
+	} // namespace ecs
+} // namespace gaia
+#endif
+
 #include <type_traits>
 
 namespace gaia {
@@ -44784,6 +44807,10 @@ namespace gaia {
 				bool m_writeIm = true;
 				//! Which entity subset the iterator currently exposes from the chunk.
 				Constraints m_constraints = Constraints::EnabledOnly;
+#if GAIA_OBSERVERS_ENABLED
+				//! Logical event exposed while an observer callback is running.
+				ObserverEvent m_observerEvent = ObserverEvent::None;
+#endif
 				//! Chunk-backed columns that were exposed as mutable during the current callback.
 				uint8_t m_touchedCompIndices[ChunkHeader::MAX_COMPONENTS];
 				uint8_t m_touchedCompCnt = 0;
@@ -45693,6 +45720,24 @@ namespace gaia {
 			Iter() {
 				set_constraints(ConstraintMode);
 			}
+
+#if GAIA_OBSERVERS_ENABLED
+			//! Sets the observer event reported by this iterator.
+			//! Query and system iterators leave the value as ObserverEvent::None.
+			//! \param value Logical event to expose to the callback.
+			void event(ObserverEvent value) noexcept {
+				m_observerEvent = value;
+			}
+
+			//! Returns the logical observer event for the current callback.
+			//! Monitoring callbacks receive OnAdd when an entity starts matching the complete query
+			//! and OnDel when an entity stops matching it. Ordinary query and system iterators
+			//! return ObserverEvent::None.
+			//! \return Event associated with the current observer callback.
+			GAIA_NODISCARD ObserverEvent event() const noexcept {
+				return m_observerEvent;
+			}
+#endif
 
 			//! Returns the first enabled row in a chunk.
 			//! \param pChunk Chunk whose enabled range is inspected.
@@ -64473,20 +64518,6 @@ namespace gaia {
 		util::str_view entity_name(const World& world, Entity entity);
 	#endif
 
-		//! Observer event types.
-		//! `OnSet` is emitted for explicit value writes to an already present component,
-		//! such as `set<T>(entity)`, `set<T>(entity, object)`, `acc_mut(entity).set<T>(...)`,
-		//! `modify<T, true>(entity)`, or `modify<T, true>(entity, object)`.
-		//! Setter-style APIs emit the event after the new value has been written back.
-		//! Query and observer write callbacks emit the event after the callback finishes.
-		//! It is not emitted by silent writes such as `sset(...)`, and it is not emitted just because
-		//! a component was added for the first time.
-		enum class ObserverEvent : uint8_t {
-			OnAdd, //!< Entity enters the observer query.
-			OnDel, //!< Entity leaves the observer query.
-			OnSet, //!< Component value changed on an already present component.
-		};
-
 		//! Observer context passed to callbacks.
 		//! TODO: `old_ptr` is reserved for `OnSet` previous-value access but is not populated yet.
 		struct ObserverContext {
@@ -64540,13 +64571,15 @@ namespace gaia {
 			uint8_t termCount = 0;
 			//! True when at least one query term excludes matches.
 			bool hasNegativeTerm = false;
+			//! True when both exact whole-query membership transitions are observed.
+			bool monitorsQuery = false;
 			//! Chosen observer execution class.
 			ExecKind execKind = ExecKind::DirectQuery;
 			//! Dynamic/propagated execution metadata.
 			DiffPlan diff;
 
 			void refresh_exec_kind() {
-				if (diff.enabled) {
+				if (monitorsQuery || diff.enabled) {
 					switch (diff.dispatchKind) {
 						case DiffPlan::DispatchKind::LocalTargets:
 							execKind = ExecKind::DiffLocal;
@@ -64671,7 +64704,11 @@ namespace gaia {
 			//! Hot-path stamp used for O(1) deduplication during observer candidate collection.
 			uint64_t lastMatchStamp = 0;
 
-			void exec(Iter& iter, EntitySpan targets);
+			//! Executes the observer callback for targets with the reported logical event.
+			//! \param iter Iterator reused for each target entity.
+			//! \param targets Entities passed to the callback.
+			//! \param reportedEvent Event visible through Iter::event().
+			void exec(Iter& iter, EntitySpan targets, ObserverEvent reportedEvent);
 		};
 
 		//! Compact ECS-stored observer header.
@@ -64680,6 +64717,8 @@ namespace gaia {
 			Entity entity = EntityBad;
 			//! Event type
 			ObserverEvent event = ObserverEvent::OnAdd;
+			//! True when the observer tracks exact whole-query membership transitions.
+			bool monitorsQuery = false;
 
 			//! Disable automatic Observer_ serialization
 			template <typename Serializer>
@@ -64778,6 +64817,8 @@ namespace gaia {
 					Entity observer = EntityBad;
 					//! Logical membership event requested by the observer.
 					ObserverEvent event = ObserverEvent::OnAdd;
+					//! True when both exact membership transition directions are reported.
+					bool monitorsQuery = false;
 					//! Index of the shared before-mutation match list.
 					uint32_t matchesBeforeIdx = UINT32_MAX;
 				};
@@ -65052,7 +65093,8 @@ namespace gaia {
 				//! \param world World supplied to the observer iterator.
 				//! \param obs Observer callback and runtime state.
 				//! \param targets Entities supplied to the callback.
-				static void execute_targets(World& world, ObserverRuntimeData& obs, EntitySpan targets);
+				//! \param event Logical event reported by the callback iterator.
+				static void execute_targets(World& world, ObserverRuntimeData& obs, EntitySpan targets, ObserverEvent event);
 
 				//! Checks whether a direct observer plan accepts the changed entities.
 				//! \param obs Observer whose execution plan is evaluated.
@@ -65234,7 +65276,7 @@ namespace gaia {
 			//! \param op Query operation applied to the indexed term.
 			//! \return Structural add or delete event used for index lookup.
 			GAIA_NODISCARD static ObserverEvent structural_event(ObserverEvent event, QueryOpKind op) {
-				if (op != QueryOpKind::Not || event == ObserverEvent::OnSet)
+				if (op != QueryOpKind::Not || event == ObserverEvent::OnSet || event == ObserverEvent::None)
 					return event;
 				return event == ObserverEvent::OnAdd ? ObserverEvent::OnDel : ObserverEvent::OnAdd;
 			}
@@ -81205,6 +81247,7 @@ namespace gaia {
 				const auto& observerData =
 						*reinterpret_cast<const Observer_*>(ecObserver.pChunk->comp_ptr(observerCompIdx, ecObserver.row));
 				snapshot.event = observerData.event;
+				snapshot.monitorsQuery = observerData.monitorsQuery;
 				if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
 					ctx.resetTraversalCaches = true;
 
@@ -81284,7 +81327,7 @@ namespace gaia {
 				const auto& observerData =
 						*reinterpret_cast<const Observer_*>(ecObserver.pChunk->comp_ptr(observerCompIdx, ecObserver.row));
 				// A newly created entity cannot leave a query because it had no prior membership.
-				if (observerData.event != ObserverEvent::OnAdd)
+				if (observerData.event != ObserverEvent::OnAdd && !observerData.monitorsQuery)
 					continue;
 
 				if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
@@ -81292,6 +81335,7 @@ namespace gaia {
 				ctx.observers.push_back({});
 				ctx.observers.back().observer = pObs->entity;
 				ctx.observers.back().event = observerData.event;
+				ctx.observers.back().monitorsQuery = observerData.monitorsQuery;
 			}
 			ctx.active = !ctx.observers.empty();
 
@@ -81327,6 +81371,7 @@ namespace gaia {
 			// As with the before snapshot, equivalent observer queries share one result.
 			cnt::darray<MatchCacheEntry> matchesAfterCache;
 			cnt::darray<Entity> delta;
+			cnt::darray<Entity> monitorLeft;
 
 			for (auto& snapshot: ctx.observers) {
 				auto* pObs = world.m_observers.data_try(snapshot.observer);
@@ -81335,10 +81380,10 @@ namespace gaia {
 
 				// Some removal paths delete the target before this function runs. Their last
 				// valid matches were captured in the before snapshot and are the event targets.
-				if (ctx.targetsRemovedAfterPrepare && snapshot.event == ObserverEvent::OnDel) {
+				if (ctx.targetsRemovedAfterPrepare && (snapshot.event == ObserverEvent::OnDel || snapshot.monitorsQuery)) {
 					GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
 					const auto& matchesBefore = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
-					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesBefore});
+					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesBefore}, ObserverEvent::OnDel);
 					continue;
 				}
 
@@ -81361,21 +81406,22 @@ namespace gaia {
 
 				// Newly created entities have no meaningful before result. Every matching
 				// entity in the after snapshot is therefore an added match.
-				if (ctx.targetsAddedAfterPrepare && snapshot.event == ObserverEvent::OnAdd) {
-					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesAfter});
+				if (ctx.targetsAddedAfterPrepare && (snapshot.event == ObserverEvent::OnAdd || snapshot.monitorsQuery)) {
+					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesAfter}, ObserverEvent::OnAdd);
 					continue;
 				}
 
-				// Both lists are sorted. Walk them together to collect only entities that
-				// entered the query for OnAdd or left it for OnDel.
+				// Both lists are sorted. Walk them together once. A monitor keeps additions
+				// and removals separate because each group reports a different event.
 				GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
 				const auto& before = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
 				delta.clear();
+				monitorLeft.clear();
 				uint32_t beforeIdx = 0;
 				uint32_t afterMatchIdx = 0;
 				while (beforeIdx < before.size() || afterMatchIdx < matchesAfter.size()) {
 					if (beforeIdx == before.size()) {
-						if (snapshot.event == ObserverEvent::OnAdd)
+						if (snapshot.event == ObserverEvent::OnAdd || snapshot.monitorsQuery)
 							delta.push_back(matchesAfter[afterMatchIdx]);
 						++afterMatchIdx;
 						continue;
@@ -81384,6 +81430,8 @@ namespace gaia {
 					if (afterMatchIdx == matchesAfter.size()) {
 						if (snapshot.event == ObserverEvent::OnDel)
 							delta.push_back(before[beforeIdx]);
+						else if (snapshot.monitorsQuery)
+							monitorLeft.push_back(before[beforeIdx]);
 						++beforeIdx;
 						continue;
 					}
@@ -81399,15 +81447,23 @@ namespace gaia {
 					if (beforeEntity < afterEntity) {
 						if (snapshot.event == ObserverEvent::OnDel)
 							delta.push_back(beforeEntity);
+						else if (snapshot.monitorsQuery)
+							monitorLeft.push_back(beforeEntity);
 						++beforeIdx;
 					} else {
-						if (snapshot.event == ObserverEvent::OnAdd)
+						if (snapshot.event == ObserverEvent::OnAdd || snapshot.monitorsQuery)
 							delta.push_back(afterEntity);
 						++afterMatchIdx;
 					}
 				}
 
-				SharedDispatch::execute_targets(world, *pObs, EntitySpan{delta.data(), delta.size()});
+				if (snapshot.monitorsQuery) {
+					SharedDispatch::execute_targets(world, *pObs, EntitySpan{delta.data(), delta.size()}, ObserverEvent::OnAdd);
+					SharedDispatch::execute_targets(
+							world, *pObs, EntitySpan{monitorLeft.data(), monitorLeft.size()}, ObserverEvent::OnDel);
+				} else {
+					SharedDispatch::execute_targets(world, *pObs, EntitySpan{delta.data(), delta.size()}, snapshot.event);
+				}
 			}
 		}
 
@@ -81477,7 +81533,8 @@ namespace gaia {
 					matches = true;
 
 				if (matches)
-					SharedDispatch::execute_targets(world, obs, targets);
+					SharedDispatch::execute_targets(
+							world, obs, targets, obs.plan.hasNegativeTerm ? ObserverEvent::OnDel : ObserverEvent::OnAdd);
 			}
 		}
 
@@ -81543,7 +81600,8 @@ namespace gaia {
 					matches = true;
 
 				if (matches)
-					SharedDispatch::execute_targets(world, obs, targets);
+					SharedDispatch::execute_targets(
+							world, obs, targets, obs.plan.hasNegativeTerm ? ObserverEvent::OnAdd : ObserverEvent::OnDel);
 			}
 		}
 
@@ -81596,7 +81654,7 @@ namespace gaia {
 					if (!obs.query.matches_any(queryInfo, *ec.pArchetype, EntitySpan{&entity, 1}))
 						continue;
 
-					SharedDispatch::execute_targets(world, obs, EntitySpan{&entity, 1});
+					SharedDispatch::execute_targets(world, obs, EntitySpan{&entity, 1}, ObserverEvent::OnSet);
 				}
 			}
 		}
@@ -81777,8 +81835,8 @@ namespace gaia {
 			});
 		}
 
-		inline void
-		ObserverRegistry::SharedDispatch::execute_targets(World& world, ObserverRuntimeData& obs, EntitySpan targets) {
+		inline void ObserverRegistry::SharedDispatch::execute_targets(
+				World& world, ObserverRuntimeData& obs, EntitySpan targets, ObserverEvent event) {
 			if (targets.empty())
 				return;
 
@@ -81786,7 +81844,7 @@ namespace gaia {
 			it.set_world(&world);
 			it.set_group_id(0);
 			it.set_comp_indices(0);
-			obs.exec(it, targets);
+			obs.exec(it, targets, event);
 		}
 
 		inline bool ObserverRegistry::SharedDispatch::matches_direct_targets(
@@ -82114,58 +82172,71 @@ namespace gaia {
 			const auto compIdx = ec.pChunk->comp_idx(Observer);
 			const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
 
-			switch (obs.event) {
-				case ObserverEvent::OnAdd:
-				case ObserverEvent::OnDel:
-					break;
-				case ObserverEvent::OnSet:
-					return;
+			if (!obs.monitorsQuery) {
+				switch (obs.event) {
+					case ObserverEvent::OnAdd:
+					case ObserverEvent::OnDel:
+						break;
+					case ObserverEvent::OnSet:
+					case ObserverEvent::None:
+						return;
+				}
 			}
 
-			// Every diff observer remains available through the complete list for mutation
-			// paths that cannot provide precise changed terms.
-			auto& index = diff_index(structural_event(obs.event, op));
-			add_observer_to_list(index.all, observer);
+			const auto register_index = [&](DiffObserverIndex& index) {
+				// Every diff observer remains available through the complete list for mutation
+				// paths that cannot provide precise changed terms.
+				add_observer_to_list(index.all, observer);
 
-			bool registered = false;
+				bool registered = false;
 
-			// Add every index key that can identify this dependency. Registration is
-			// unique because one term may describe the same dependency in several ways.
-			if (term != EntityBad && term != All) {
-				add_observer_to_map_unique(index.direct, term, observer);
-				registered = true;
-			}
+				// Add every index key that can identify this dependency. Registration is
+				// unique because one term may describe the same dependency in several ways.
+				if (term != EntityBad && term != All) {
+					add_observer_to_map_unique(index.direct, term, observer);
+					registered = true;
+				}
 
-			if (term != EntityBad && term != All && options.entSrc != EntityBad) {
-				add_observer_to_map_unique(index.sourceTerm, term, observer);
-				registered = true;
-			}
-
-			if (options.entTrav != EntityBad) {
-				if (term != EntityBad && term != All)
+				if (term != EntityBad && term != All && options.entSrc != EntityBad) {
 					add_observer_to_map_unique(index.sourceTerm, term, observer);
-				add_observer_to_map_unique(index.traversalRelation, options.entTrav, observer);
-				registered = true;
-			}
-
-			if (term.pair()) {
-				const bool relDynamic = is_dynamic_pair_endpoint(term.id());
-				const bool tgtDynamic = is_dynamic_pair_endpoint(term.gen());
-
-				if (relDynamic && !tgtDynamic) {
-					add_observer_to_map_unique(index.pairTarget, world.get(term.gen()), observer);
 					registered = true;
 				}
 
-				if (tgtDynamic && !relDynamic) {
-					add_observer_to_map_unique(index.pairRelation, entity_from_id(world, term.id()), observer);
+				if (options.entTrav != EntityBad) {
+					if (term != EntityBad && term != All)
+						add_observer_to_map_unique(index.sourceTerm, term, observer);
+					add_observer_to_map_unique(index.traversalRelation, options.entTrav, observer);
 					registered = true;
 				}
-			}
 
-			// Fully dynamic terms cannot be found from a concrete changed term alone.
-			if (!registered || is_observer_term_globally_dynamic(term))
-				add_observer_to_list(index.global, observer);
+				if (term.pair()) {
+					const bool relDynamic = is_dynamic_pair_endpoint(term.id());
+					const bool tgtDynamic = is_dynamic_pair_endpoint(term.gen());
+
+					if (relDynamic && !tgtDynamic) {
+						add_observer_to_map_unique(index.pairTarget, world.get(term.gen()), observer);
+						registered = true;
+					}
+
+					if (tgtDynamic && !relDynamic) {
+						add_observer_to_map_unique(index.pairRelation, entity_from_id(world, term.id()), observer);
+						registered = true;
+					}
+				}
+
+				// Fully dynamic terms cannot be found from a concrete changed term alone.
+				if (!registered || is_observer_term_globally_dynamic(term))
+					add_observer_to_list(index.global, observer);
+			};
+
+			if (obs.monitorsQuery) {
+				// Whole-query membership can change in either direction for every term,
+				// including negative terms, so monitors listen to both mutation indexes.
+				register_index(m_diff_index_add);
+				register_index(m_diff_index_del);
+			} else {
+				register_index(diff_index(structural_event(obs.event, op)));
+			}
 		}
 
 		inline ObserverRegistry::DiffDispatchCtx
@@ -82222,22 +82293,33 @@ namespace gaia {
 			const auto& ec = world.fetch(observer);
 			const auto compIdx = ec.pChunk->comp_idx(Observer);
 			const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
-			switch (structural_event(obs.event, op)) {
-				case ObserverEvent::OnAdd:
-					add_observer_to_map(m_observer_map_add, term, observer);
-					if (is_semantic_is_term(term, matchKind))
-						add_observer_to_map(m_observer_map_add_is, world.get(term.gen()), observer);
-					break;
-				case ObserverEvent::OnDel:
-					add_observer_to_map(m_observer_map_del, term, observer);
-					if (is_semantic_is_term(term, matchKind))
-						add_observer_to_map(m_observer_map_del_is, world.get(term.gen()), observer);
-					break;
-				case ObserverEvent::OnSet:
-					add_observer_to_map(m_observer_map_set, term, observer);
-					m_hasOnSetObservers = true;
-					break;
-			}
+			if (obs.monitorsQuery) {
+				add_observer_to_map(m_observer_map_add, term, observer);
+				add_observer_to_map(m_observer_map_del, term, observer);
+				if (is_semantic_is_term(term, matchKind)) {
+					const auto target = world.get(term.gen());
+					add_observer_to_map(m_observer_map_add_is, target, observer);
+					add_observer_to_map(m_observer_map_del_is, target, observer);
+				}
+			} else
+				switch (structural_event(obs.event, op)) {
+					case ObserverEvent::OnAdd:
+						add_observer_to_map(m_observer_map_add, term, observer);
+						if (is_semantic_is_term(term, matchKind))
+							add_observer_to_map(m_observer_map_add_is, world.get(term.gen()), observer);
+						break;
+					case ObserverEvent::OnDel:
+						add_observer_to_map(m_observer_map_del, term, observer);
+						if (is_semantic_is_term(term, matchKind))
+							add_observer_to_map(m_observer_map_del_is, world.get(term.gen()), observer);
+						break;
+					case ObserverEvent::OnSet:
+						add_observer_to_map(m_observer_map_set, term, observer);
+						m_hasOnSetObservers = true;
+						break;
+					case ObserverEvent::None:
+						break;
+				}
 			if (!wasObserved && canMarkObserved)
 				mark_term_observed(world, term, true);
 		}
@@ -82334,7 +82416,7 @@ namespace gaia {
 			}
 		}
 
-		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets) {
+		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets, ObserverEvent reportedEvent) {
 			const auto& queryInfo = query.fetch();
 
 	#if GAIA_PROFILER_CPU
@@ -82348,6 +82430,7 @@ namespace gaia {
 			pWorld->observer_callback_enter();
 	#endif
 			const auto queryIdCnt = (uint32_t)plan.termCount;
+			iter.event(reportedEvent);
 			const auto& termIds = queryTermIds;
 			const auto terms = queryInfo.ctx().data.terms_view();
 			const QueryTerm* termsByField[MAX_ITEMS_IN_QUERY]{};
@@ -82527,6 +82610,14 @@ namespace gaia {
 			}
 
 			void register_diff_term(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
+				if (data.plan.monitorsQuery) {
+					const bool compoundNegative = data.plan.hasNegativeTerm && data.plan.termCount > 1;
+					if (requires_diff_dispatch(term, options) || compoundNegative)
+						data.plan.diff.enabled = true;
+					register_diff_term_index(data, op, term, options);
+					return;
+				}
+
 				const bool compoundNegative = data.plan.hasNegativeTerm && data.plan.termCount > 1;
 				if (data.plan.diff.enabled) {
 					register_diff_term_index(data, op, term, options);
@@ -82657,28 +82748,13 @@ namespace gaia {
 				m_world.observers().add(m_world, term, m_entity, op, options.matchKind);
 			}
 
-		public:
-			ObserverBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
-
-			//------------------------------------------------
-
-			ObserverBuilder& event(ObserverEvent event) {
-				validate();
-				auto& observer = data();
-				if (observer.event == event)
-					return *this;
-
-				auto& runtime = runtime_data();
-				if (runtime.plan.termCount != 0)
-					m_world.observers().remove_observer_indices(m_world, m_entity);
-
-				observer.event = event;
-				if (runtime.plan.termCount == 0)
-					return *this;
+			void rebuild_indices(ObserverRuntimeData& data) {
+				if (data.plan.termCount == 0)
+					return;
 
 				// Terms are registered as they are added to the builder. Rebuild those indexes
-				// when the event is selected later so fluent-call order does not change behavior.
-				const auto terms = runtime.query.fetch().ctx().data.terms_view();
+				// when the mode is selected later so fluent-call order does not change behavior.
+				const auto terms = data.query.fetch().ctx().data.terms_view();
 				for (const auto& term: terms) {
 					QueryTermOptions options{};
 					options.entSrc = term.src;
@@ -82688,9 +82764,56 @@ namespace gaia {
 					options.matchKind = term.matchKind;
 
 					m_world.observers().add(m_world, term.id, m_entity, term.op, term.matchKind);
-					if (runtime.plan.uses_diff_dispatch())
+					if (data.plan.uses_diff_dispatch())
 						m_world.observers().add_diff_observer_term(m_world, m_entity, term.op, term.id, options);
 				}
+			}
+
+		public:
+			ObserverBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
+
+			//------------------------------------------------
+
+			//! Selects the event reported by the observer.
+			//! Calling this after monitor() switches the observer back to single-event mode.
+			//! \param event Event to report.
+			//! \return Self reference.
+			ObserverBuilder& event(ObserverEvent event) {
+				validate();
+				auto& observer = data();
+				if (!observer.monitorsQuery && observer.event == event)
+					return *this;
+
+				auto& runtime = runtime_data();
+				if (runtime.plan.termCount != 0)
+					m_world.observers().remove_observer_indices(m_world, m_entity);
+
+				observer.event = event;
+				observer.monitorsQuery = false;
+				runtime.plan.monitorsQuery = false;
+				runtime.plan.refresh_exec_kind();
+				rebuild_indices(runtime);
+				return *this;
+			}
+
+			//! Tracks exact whole-query membership transitions in both directions.
+			//! The callback receives OnAdd when an entity starts matching and OnDel when it stops matching.
+			//! Calling event() afterwards switches the observer back to single-event mode.
+			//! \return Self reference.
+			ObserverBuilder& monitor() {
+				validate();
+				auto& observer = data();
+				if (observer.monitorsQuery)
+					return *this;
+
+				auto& runtime = runtime_data();
+				if (runtime.plan.termCount != 0)
+					m_world.observers().remove_observer_indices(m_world, m_entity);
+
+				observer.monitorsQuery = true;
+				runtime.plan.monitorsQuery = true;
+				runtime.plan.refresh_exec_kind();
+				rebuild_indices(runtime);
 				return *this;
 			}
 
@@ -82863,7 +82986,7 @@ namespace gaia {
 
 			void exec(Iter& iter, EntitySpan targets) {
 				auto& ctx = runtime_data();
-				ctx.exec(iter, targets);
+				ctx.exec(iter, targets, data().event);
 			}
 		};
 

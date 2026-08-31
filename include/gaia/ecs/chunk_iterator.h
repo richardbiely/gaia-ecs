@@ -13,6 +13,7 @@
 #include "gaia/ecs/component_cache_item.h"
 #include "gaia/ecs/component_cursor.h"
 #include "gaia/ecs/id.h"
+#include "gaia/ecs/observer_event.h"
 #include "gaia/ecs/query_common.h"
 #include "gaia/mem/data_layout_policy.h"
 
@@ -1066,6 +1067,10 @@ namespace gaia {
 				bool m_writeIm = true;
 				//! Which entity subset the iterator currently exposes from the chunk.
 				Constraints m_constraints = Constraints::EnabledOnly;
+	#if GAIA_OBSERVERS_ENABLED
+				//! Logical event exposed while an observer callback is running.
+				ObserverEvent m_observerEvent = ObserverEvent::None;
+	#endif
 				//! Chunk-backed columns that were exposed as mutable during the current callback.
 				uint8_t m_touchedCompIndices[ChunkHeader::MAX_COMPONENTS];
 				uint8_t m_touchedCompCnt = 0;
@@ -1975,6 +1980,24 @@ namespace gaia {
 			Iter() {
 				set_constraints(ConstraintMode);
 			}
+
+#if GAIA_OBSERVERS_ENABLED
+			//! Sets the observer event reported by this iterator.
+			//! Query and system iterators leave the value as ObserverEvent::None.
+			//! \param value Logical event to expose to the callback.
+			void event(ObserverEvent value) noexcept {
+				m_observerEvent = value;
+			}
+
+			//! Returns the logical observer event for the current callback.
+			//! Monitoring callbacks receive OnAdd when an entity starts matching the complete query
+			//! and OnDel when an entity stops matching it. Ordinary query and system iterators
+			//! return ObserverEvent::None.
+			//! \return Event associated with the current observer callback.
+			GAIA_NODISCARD ObserverEvent event() const noexcept {
+				return m_observerEvent;
+			}
+#endif
 
 			//! Returns the first enabled row in a chunk.
 			//! \param pChunk Chunk whose enabled range is inspected.

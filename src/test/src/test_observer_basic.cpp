@@ -2105,4 +2105,188 @@ TEST_CASE("Observer - direct matching evaluates all query terms") {
 	}
 }
 
+TEST_CASE("Observer - monitor exact query membership transitions") {
+	SUBCASE("Positive and negative terms") {
+		TestWorld twld;
+
+		uint32_t addHits = 0;
+		uint32_t delHits = 0;
+		ecs::Entity callbackEntity = ecs::EntityBad;
+		const auto observer = wld.observer()
+			.monitor()
+			.all<Position>()
+			.no<Acceleration>()
+			.on_each([&](ecs::Iter& it) {
+				callbackEntity = it.view<ecs::Entity>()[0];
+				if (it.event() == ecs::ObserverEvent::OnAdd)
+					++addHits;
+				else if (it.event() == ecs::ObserverEvent::OnDel)
+					++delHits;
+			})
+			.entity();
+
+		const auto entity = wld.add();
+		wld.add<Position>(entity);
+		CHECK(addHits == 1);
+		CHECK(delHits == 0);
+		CHECK(callbackEntity == entity);
+
+		wld.add<Rotation>(entity);
+		CHECK(addHits == 1);
+		CHECK(delHits == 0);
+
+		wld.add<Acceleration>(entity);
+		CHECK(addHits == 1);
+		CHECK(delHits == 1);
+		CHECK(callbackEntity == entity);
+
+		wld.del<Acceleration>(entity);
+		CHECK(addHits == 2);
+		CHECK(delHits == 1);
+
+		wld.del<Position>(entity);
+		CHECK(addHits == 2);
+		CHECK(delHits == 2);
+		(void)observer;
+	}
+
+	SUBCASE("Wildcard pair remains matched until the last pair is removed") {
+		TestWorld twld;
+
+		const auto relation = wld.add();
+		const auto targetA = wld.add();
+		const auto targetB = wld.add();
+		uint32_t addHits = 0;
+		uint32_t delHits = 0;
+		const auto observer = wld.observer()
+			.monitor()
+			.all<Position>()
+			.all(ecs::Pair(relation, ecs::All))
+			.on_each([&](ecs::Iter& it) {
+				if (it.event() == ecs::ObserverEvent::OnAdd)
+					++addHits;
+				else if (it.event() == ecs::ObserverEvent::OnDel)
+					++delHits;
+			})
+			.entity();
+
+		const auto entity = wld.add();
+		wld.add<Position>(entity);
+		CHECK(addHits == 0);
+		CHECK(delHits == 0);
+
+		const auto pairA = ecs::Pair(relation, targetA);
+		const auto pairB = ecs::Pair(relation, targetB);
+		wld.add(entity, pairA);
+		CHECK(addHits == 1);
+		CHECK(delHits == 0);
+
+		wld.add(entity, pairB);
+		CHECK(addHits == 1);
+		CHECK(delHits == 0);
+
+		wld.del(entity, pairA);
+		CHECK(addHits == 1);
+		CHECK(delHits == 0);
+
+		wld.del(entity, pairB);
+		CHECK(addHits == 1);
+		CHECK(delHits == 1);
+		(void)observer;
+	}
+
+	SUBCASE("Event selected after terms") {
+		TestWorld twld;
+
+		uint32_t addHits = 0;
+		uint32_t delHits = 0;
+		const auto observer = wld.observer()
+			.all<Position>()
+			.no<Acceleration>()
+			.monitor()
+			.on_each([&](ecs::Iter& it) {
+				addHits += it.event() == ecs::ObserverEvent::OnAdd;
+				delHits += it.event() == ecs::ObserverEvent::OnDel;
+			})
+			.entity();
+
+		const auto entity = wld.add();
+		wld.add<Position>(entity);
+		wld.add<Acceleration>(entity);
+		CHECK(addHits == 1);
+		CHECK(delHits == 1);
+		(void)observer;
+	}
+
+	SUBCASE("Changing away from monitor restores ordinary dispatch") {
+		TestWorld twld;
+
+		uint32_t hits = 0;
+		const auto observer = wld.observer()
+			.monitor()
+			.all<Position>()
+			.no<Acceleration>()
+			.event(ecs::ObserverEvent::OnAdd)
+			.on_each([&](ecs::Iter& it) {
+				CHECK(it.event() == ecs::ObserverEvent::OnAdd);
+				++hits;
+			})
+			.entity();
+
+		CHECK(wld.observers().data(observer).plan.uses_diff_dispatch());
+		const auto entity = wld.add();
+		wld.add<Acceleration>(entity);
+		wld.add<Position>(entity);
+		CHECK(hits == 0);
+		wld.del<Acceleration>(entity);
+		CHECK(hits == 1);
+	}
+
+	SUBCASE("Entity creation and deletion") {
+		TestWorld twld;
+
+		uint32_t addHits = 0;
+		uint32_t delHits = 0;
+		const auto observer = wld.observer()
+			.monitor()
+			.all<Position>()
+			.on_each([&](ecs::Iter& it) {
+				addHits += it.event() == ecs::ObserverEvent::OnAdd;
+				delHits += it.event() == ecs::ObserverEvent::OnDel;
+			})
+			.entity();
+
+		const auto entity = wld.add();
+		wld.add<Position>(entity);
+		CHECK(addHits == 1);
+		CHECK(delHits == 0);
+
+		wld.del(entity);
+		CHECK(addHits == 1);
+		CHECK(delHits == 1);
+		wld.update();
+		CHECK(delHits == 1);
+		(void)observer;
+	}
+
+	SUBCASE("Ordinary negative observer reports its logical event") {
+		TestWorld twld;
+
+		ecs::ObserverEvent reported = ecs::ObserverEvent::None;
+		const auto observer = wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.no<Position>()
+			.on_each([&](ecs::Iter& it) {
+				reported = it.event();
+			})
+			.entity();
+
+		const auto entity = wld.add();
+		wld.add<Position>(entity);
+		wld.del<Position>(entity);
+		CHECK(reported == ecs::ObserverEvent::OnAdd);
+		(void)observer;
+	}
+}
+
 #endif

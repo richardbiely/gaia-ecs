@@ -296,6 +296,7 @@ namespace gaia {
 				const auto& observerData =
 						*reinterpret_cast<const Observer_*>(ecObserver.pChunk->comp_ptr(observerCompIdx, ecObserver.row));
 				snapshot.event = observerData.event;
+				snapshot.monitorsQuery = observerData.monitorsQuery;
 				if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
 					ctx.resetTraversalCaches = true;
 
@@ -375,7 +376,7 @@ namespace gaia {
 				const auto& observerData =
 						*reinterpret_cast<const Observer_*>(ecObserver.pChunk->comp_ptr(observerCompIdx, ecObserver.row));
 				// A newly created entity cannot leave a query because it had no prior membership.
-				if (observerData.event != ObserverEvent::OnAdd)
+				if (observerData.event != ObserverEvent::OnAdd && !observerData.monitorsQuery)
 					continue;
 
 				if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
@@ -383,6 +384,7 @@ namespace gaia {
 				ctx.observers.push_back({});
 				ctx.observers.back().observer = pObs->entity;
 				ctx.observers.back().event = observerData.event;
+				ctx.observers.back().monitorsQuery = observerData.monitorsQuery;
 			}
 			ctx.active = !ctx.observers.empty();
 
@@ -418,6 +420,7 @@ namespace gaia {
 			// As with the before snapshot, equivalent observer queries share one result.
 			cnt::darray<MatchCacheEntry> matchesAfterCache;
 			cnt::darray<Entity> delta;
+			cnt::darray<Entity> monitorLeft;
 
 			for (auto& snapshot: ctx.observers) {
 				auto* pObs = world.m_observers.data_try(snapshot.observer);
@@ -426,10 +429,11 @@ namespace gaia {
 
 				// Some removal paths delete the target before this function runs. Their last
 				// valid matches were captured in the before snapshot and are the event targets.
-				if (ctx.targetsRemovedAfterPrepare && snapshot.event == ObserverEvent::OnDel) {
+				if (ctx.targetsRemovedAfterPrepare &&
+						(snapshot.event == ObserverEvent::OnDel || snapshot.monitorsQuery)) {
 					GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
 					const auto& matchesBefore = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
-					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesBefore});
+					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesBefore}, ObserverEvent::OnDel);
 					continue;
 				}
 
@@ -452,21 +456,23 @@ namespace gaia {
 
 				// Newly created entities have no meaningful before result. Every matching
 				// entity in the after snapshot is therefore an added match.
-				if (ctx.targetsAddedAfterPrepare && snapshot.event == ObserverEvent::OnAdd) {
-					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesAfter});
+				if (ctx.targetsAddedAfterPrepare &&
+						(snapshot.event == ObserverEvent::OnAdd || snapshot.monitorsQuery)) {
+					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesAfter}, ObserverEvent::OnAdd);
 					continue;
 				}
 
-				// Both lists are sorted. Walk them together to collect only entities that
-				// entered the query for OnAdd or left it for OnDel.
+				// Both lists are sorted. Walk them together once. A monitor keeps additions
+				// and removals separate because each group reports a different event.
 				GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
 				const auto& before = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
 				delta.clear();
+				monitorLeft.clear();
 				uint32_t beforeIdx = 0;
 				uint32_t afterMatchIdx = 0;
 				while (beforeIdx < before.size() || afterMatchIdx < matchesAfter.size()) {
 					if (beforeIdx == before.size()) {
-						if (snapshot.event == ObserverEvent::OnAdd)
+						if (snapshot.event == ObserverEvent::OnAdd || snapshot.monitorsQuery)
 							delta.push_back(matchesAfter[afterMatchIdx]);
 						++afterMatchIdx;
 						continue;
@@ -475,6 +481,8 @@ namespace gaia {
 					if (afterMatchIdx == matchesAfter.size()) {
 						if (snapshot.event == ObserverEvent::OnDel)
 							delta.push_back(before[beforeIdx]);
+						else if (snapshot.monitorsQuery)
+							monitorLeft.push_back(before[beforeIdx]);
 						++beforeIdx;
 						continue;
 					}
@@ -490,15 +498,23 @@ namespace gaia {
 					if (beforeEntity < afterEntity) {
 						if (snapshot.event == ObserverEvent::OnDel)
 							delta.push_back(beforeEntity);
+						else if (snapshot.monitorsQuery)
+							monitorLeft.push_back(beforeEntity);
 						++beforeIdx;
 					} else {
-						if (snapshot.event == ObserverEvent::OnAdd)
+						if (snapshot.event == ObserverEvent::OnAdd || snapshot.monitorsQuery)
 							delta.push_back(afterEntity);
 						++afterMatchIdx;
 					}
 				}
 
-				SharedDispatch::execute_targets(world, *pObs, EntitySpan{delta.data(), delta.size()});
+				if (snapshot.monitorsQuery) {
+					SharedDispatch::execute_targets(world, *pObs, EntitySpan{delta.data(), delta.size()}, ObserverEvent::OnAdd);
+					SharedDispatch::execute_targets(
+							world, *pObs, EntitySpan{monitorLeft.data(), monitorLeft.size()}, ObserverEvent::OnDel);
+				} else {
+					SharedDispatch::execute_targets(world, *pObs, EntitySpan{delta.data(), delta.size()}, snapshot.event);
+				}
 			}
 		}
 
@@ -568,7 +584,9 @@ namespace gaia {
 					matches = true;
 
 				if (matches)
-					SharedDispatch::execute_targets(world, obs, targets);
+					SharedDispatch::execute_targets(
+							world, obs, targets,
+							obs.plan.hasNegativeTerm ? ObserverEvent::OnDel : ObserverEvent::OnAdd);
 			}
 		}
 
@@ -634,7 +652,9 @@ namespace gaia {
 					matches = true;
 
 				if (matches)
-					SharedDispatch::execute_targets(world, obs, targets);
+					SharedDispatch::execute_targets(
+							world, obs, targets,
+							obs.plan.hasNegativeTerm ? ObserverEvent::OnAdd : ObserverEvent::OnDel);
 			}
 		}
 
@@ -687,7 +707,7 @@ namespace gaia {
 					if (!obs.query.matches_any(queryInfo, *ec.pArchetype, EntitySpan{&entity, 1}))
 						continue;
 
-					SharedDispatch::execute_targets(world, obs, EntitySpan{&entity, 1});
+					SharedDispatch::execute_targets(world, obs, EntitySpan{&entity, 1}, ObserverEvent::OnSet);
 				}
 			}
 		}
@@ -868,8 +888,8 @@ namespace gaia {
 			});
 		}
 
-		inline void
-		ObserverRegistry::SharedDispatch::execute_targets(World& world, ObserverRuntimeData& obs, EntitySpan targets) {
+		inline void ObserverRegistry::SharedDispatch::execute_targets(
+				World& world, ObserverRuntimeData& obs, EntitySpan targets, ObserverEvent event) {
 			if (targets.empty())
 				return;
 
@@ -877,7 +897,7 @@ namespace gaia {
 			it.set_world(&world);
 			it.set_group_id(0);
 			it.set_comp_indices(0);
-			obs.exec(it, targets);
+			obs.exec(it, targets, event);
 		}
 
 		inline bool ObserverRegistry::SharedDispatch::matches_direct_targets(
@@ -1205,58 +1225,71 @@ namespace gaia {
 			const auto compIdx = ec.pChunk->comp_idx(Observer);
 			const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
 
-			switch (obs.event) {
-				case ObserverEvent::OnAdd:
-				case ObserverEvent::OnDel:
-					break;
-				case ObserverEvent::OnSet:
-					return;
+			if (!obs.monitorsQuery) {
+				switch (obs.event) {
+					case ObserverEvent::OnAdd:
+					case ObserverEvent::OnDel:
+						break;
+					case ObserverEvent::OnSet:
+					case ObserverEvent::None:
+						return;
+				}
 			}
 
-			// Every diff observer remains available through the complete list for mutation
-			// paths that cannot provide precise changed terms.
-			auto& index = diff_index(structural_event(obs.event, op));
-			add_observer_to_list(index.all, observer);
+			const auto register_index = [&](DiffObserverIndex& index) {
+				// Every diff observer remains available through the complete list for mutation
+				// paths that cannot provide precise changed terms.
+				add_observer_to_list(index.all, observer);
 
-			bool registered = false;
+				bool registered = false;
 
-			// Add every index key that can identify this dependency. Registration is
-			// unique because one term may describe the same dependency in several ways.
-			if (term != EntityBad && term != All) {
-				add_observer_to_map_unique(index.direct, term, observer);
-				registered = true;
-			}
+				// Add every index key that can identify this dependency. Registration is
+				// unique because one term may describe the same dependency in several ways.
+				if (term != EntityBad && term != All) {
+					add_observer_to_map_unique(index.direct, term, observer);
+					registered = true;
+				}
 
-			if (term != EntityBad && term != All && options.entSrc != EntityBad) {
-				add_observer_to_map_unique(index.sourceTerm, term, observer);
-				registered = true;
-			}
-
-			if (options.entTrav != EntityBad) {
-				if (term != EntityBad && term != All)
+				if (term != EntityBad && term != All && options.entSrc != EntityBad) {
 					add_observer_to_map_unique(index.sourceTerm, term, observer);
-				add_observer_to_map_unique(index.traversalRelation, options.entTrav, observer);
-				registered = true;
-			}
-
-			if (term.pair()) {
-				const bool relDynamic = is_dynamic_pair_endpoint(term.id());
-				const bool tgtDynamic = is_dynamic_pair_endpoint(term.gen());
-
-				if (relDynamic && !tgtDynamic) {
-					add_observer_to_map_unique(index.pairTarget, world.get(term.gen()), observer);
 					registered = true;
 				}
 
-				if (tgtDynamic && !relDynamic) {
-					add_observer_to_map_unique(index.pairRelation, entity_from_id(world, term.id()), observer);
+				if (options.entTrav != EntityBad) {
+					if (term != EntityBad && term != All)
+						add_observer_to_map_unique(index.sourceTerm, term, observer);
+					add_observer_to_map_unique(index.traversalRelation, options.entTrav, observer);
 					registered = true;
 				}
-			}
 
-			// Fully dynamic terms cannot be found from a concrete changed term alone.
-			if (!registered || is_observer_term_globally_dynamic(term))
-				add_observer_to_list(index.global, observer);
+				if (term.pair()) {
+					const bool relDynamic = is_dynamic_pair_endpoint(term.id());
+					const bool tgtDynamic = is_dynamic_pair_endpoint(term.gen());
+
+					if (relDynamic && !tgtDynamic) {
+						add_observer_to_map_unique(index.pairTarget, world.get(term.gen()), observer);
+						registered = true;
+					}
+
+					if (tgtDynamic && !relDynamic) {
+						add_observer_to_map_unique(index.pairRelation, entity_from_id(world, term.id()), observer);
+						registered = true;
+					}
+				}
+
+				// Fully dynamic terms cannot be found from a concrete changed term alone.
+				if (!registered || is_observer_term_globally_dynamic(term))
+					add_observer_to_list(index.global, observer);
+			};
+
+			if (obs.monitorsQuery) {
+				// Whole-query membership can change in either direction for every term,
+				// including negative terms, so monitors listen to both mutation indexes.
+				register_index(m_diff_index_add);
+				register_index(m_diff_index_del);
+			} else {
+				register_index(diff_index(structural_event(obs.event, op)));
+			}
 		}
 
 		inline ObserverRegistry::DiffDispatchCtx
@@ -1313,22 +1346,33 @@ namespace gaia {
 			const auto& ec = world.fetch(observer);
 			const auto compIdx = ec.pChunk->comp_idx(Observer);
 			const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
-			switch (structural_event(obs.event, op)) {
-				case ObserverEvent::OnAdd:
-					add_observer_to_map(m_observer_map_add, term, observer);
-					if (is_semantic_is_term(term, matchKind))
-						add_observer_to_map(m_observer_map_add_is, world.get(term.gen()), observer);
-					break;
-				case ObserverEvent::OnDel:
-					add_observer_to_map(m_observer_map_del, term, observer);
-					if (is_semantic_is_term(term, matchKind))
-						add_observer_to_map(m_observer_map_del_is, world.get(term.gen()), observer);
-					break;
-				case ObserverEvent::OnSet:
-					add_observer_to_map(m_observer_map_set, term, observer);
-					m_hasOnSetObservers = true;
-					break;
-			}
+			if (obs.monitorsQuery) {
+				add_observer_to_map(m_observer_map_add, term, observer);
+				add_observer_to_map(m_observer_map_del, term, observer);
+				if (is_semantic_is_term(term, matchKind)) {
+					const auto target = world.get(term.gen());
+					add_observer_to_map(m_observer_map_add_is, target, observer);
+					add_observer_to_map(m_observer_map_del_is, target, observer);
+				}
+			} else
+				switch (structural_event(obs.event, op)) {
+					case ObserverEvent::OnAdd:
+						add_observer_to_map(m_observer_map_add, term, observer);
+						if (is_semantic_is_term(term, matchKind))
+							add_observer_to_map(m_observer_map_add_is, world.get(term.gen()), observer);
+						break;
+					case ObserverEvent::OnDel:
+						add_observer_to_map(m_observer_map_del, term, observer);
+						if (is_semantic_is_term(term, matchKind))
+							add_observer_to_map(m_observer_map_del_is, world.get(term.gen()), observer);
+						break;
+					case ObserverEvent::OnSet:
+						add_observer_to_map(m_observer_map_set, term, observer);
+						m_hasOnSetObservers = true;
+						break;
+					case ObserverEvent::None:
+						break;
+				}
 			if (!wasObserved && canMarkObserved)
 				mark_term_observed(world, term, true);
 		}
