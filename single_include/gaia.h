@@ -64247,9 +64247,12 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		class Archetype;
+		class ObserverBuilder;
 
 		//! Runtime storage for observer callbacks and dispatch indexes kept outside ECS component storage.
 		class ObserverRegistry {
+			friend class ObserverBuilder;
+
 			struct DiffObserverIndex {
 				//! Exact direct term to diff observer mapping.
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> direct;
@@ -64788,6 +64791,11 @@ namespace gaia {
 			//! \param term Concrete component or pair term.
 			//! \param observed New observed state.
 			void mark_term_observed(World& world, Entity term, bool observed);
+
+			//! Removes an observer from every dispatch index without deleting its runtime data.
+			//! \param world World that owns the observer and observed-term flags.
+			//! \param observer Observer entity to remove from the indexes.
+			void remove_observer_indices(World& world, Entity observer);
 
 			//! Adds an observer to the list stored under a term.
 			//! Duplicate entries are allowed by this helper.
@@ -80261,6 +80269,44 @@ namespace gaia {
 			}
 		}
 
+		inline void ObserverRegistry::remove_observer_indices(World& world, Entity observer) {
+			auto remove_from_map = [&](auto& map) {
+				for (auto it = map.begin(); it != map.end();) {
+					auto& observers = it->second;
+					remove_observer_from_list(observers, observer);
+
+					if (observers.empty()) {
+						const auto mappedTerm = it->first.entity();
+						auto itToErase = it++;
+						map.erase(itToErase);
+
+						if (can_mark_term_observed(world, mappedTerm) && !has_observers_for_term(mappedTerm))
+							mark_term_observed(world, mappedTerm, false);
+					} else
+						++it;
+				}
+			};
+
+			remove_from_map(m_observer_map_add);
+			remove_from_map(m_observer_map_del);
+			remove_from_map(m_observer_map_set);
+			m_hasOnSetObservers = !m_observer_map_set.empty();
+			remove_from_map(m_observer_map_add_is);
+			remove_from_map(m_observer_map_del_is);
+
+			auto remove_from_diff_index = [&](auto& index) {
+				remove_from_map(index.direct);
+				remove_from_map(index.sourceTerm);
+				remove_from_map(index.traversalRelation);
+				remove_from_map(index.pairRelation);
+				remove_from_map(index.pairTarget);
+				remove_observer_from_list(index.all, observer);
+				remove_observer_from_list(index.global, observer);
+			};
+			remove_from_diff_index(m_diff_index_add);
+			remove_from_diff_index(m_diff_index_del);
+		}
+
 		inline void ObserverRegistry::collect_traversal_descendants(
 				World& world, Entity relation, Entity root, QueryTravKind travKind, uint8_t travDepth, uint64_t visitStamp,
 				cnt::darray<Entity>& outTargets) {
@@ -80642,44 +80688,7 @@ namespace gaia {
 
 			// The observer may appear under several query dependencies. Remove every
 			// occurrence and clear observed flags when the last registration disappears.
-			auto remove_observer_from_map = [&](auto& map) {
-				for (auto it = map.begin(); it != map.end();) {
-					auto& observers = it->second;
-					for (uint32_t i = 0; i < observers.size();) {
-						if (observers[i] == term)
-							core::swap_erase_unsafe(observers, i);
-						else
-							++i;
-					}
-
-					if (observers.empty()) {
-						const auto mappedTerm = it->first.entity();
-						auto itToErase = it++;
-						map.erase(itToErase);
-
-						if (can_mark_term_observed(world, mappedTerm) && !has_observers_for_term(mappedTerm))
-							mark_term_observed(world, mappedTerm, false);
-					} else
-						++it;
-				}
-			};
-			remove_observer_from_map(m_observer_map_add);
-			remove_observer_from_map(m_observer_map_del);
-			remove_observer_from_map(m_observer_map_set);
-			m_hasOnSetObservers = !m_observer_map_set.empty();
-			remove_observer_from_map(m_observer_map_add_is);
-			remove_observer_from_map(m_observer_map_del_is);
-			auto remove_observer_from_diff_index = [&](auto& index) {
-				remove_observer_from_map(index.direct);
-				remove_observer_from_map(index.sourceTerm);
-				remove_observer_from_map(index.traversalRelation);
-				remove_observer_from_map(index.pairRelation);
-				remove_observer_from_map(index.pairTarget);
-				remove_observer_from_list(index.all, term);
-				remove_observer_from_list(index.global, term);
-			};
-			remove_observer_from_diff_index(m_diff_index_add);
-			remove_observer_from_diff_index(m_diff_index_del);
+			remove_observer_indices(world, term);
 			retire_observer_data(erasedData);
 		}
 
@@ -81039,7 +81048,33 @@ namespace gaia {
 
 			ObserverBuilder& event(ObserverEvent event) {
 				validate();
-				data().event = event;
+				auto& observer = data();
+				if (observer.event == event)
+					return *this;
+
+				auto& runtime = runtime_data();
+				if (runtime.plan.termCount != 0)
+					m_world.observers().remove_observer_indices(m_world, m_entity);
+
+				observer.event = event;
+				if (runtime.plan.termCount == 0)
+					return *this;
+
+				// Terms are registered as they are added to the builder. Rebuild those indexes
+				// when the event is selected later so fluent-call order does not change behavior.
+				const auto terms = runtime.query.fetch().ctx().data.terms_view();
+				for (const auto& term: terms) {
+					QueryTermOptions options{};
+					options.entSrc = term.src;
+					options.entTrav = term.entTrav;
+					options.travKind = term.travKind;
+					options.travDepth = term.travDepth;
+					options.matchKind = term.matchKind;
+
+					m_world.observers().add(m_world, term.id, m_entity, term.matchKind);
+					if (requires_diff_dispatch(term.id, options))
+						m_world.observers().add_diff_observer_term(m_world, m_entity, term.id, options);
+				}
 				return *this;
 			}
 

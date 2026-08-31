@@ -339,7 +339,33 @@ namespace gaia {
 
 			ObserverBuilder& event(ObserverEvent event) {
 				validate();
-				data().event = event;
+				auto& observer = data();
+				if (observer.event == event)
+					return *this;
+
+				auto& runtime = runtime_data();
+				if (runtime.plan.termCount != 0)
+					m_world.observers().remove_observer_indices(m_world, m_entity);
+
+				observer.event = event;
+				if (runtime.plan.termCount == 0)
+					return *this;
+
+				// Terms are registered as they are added to the builder. Rebuild those indexes
+				// when the event is selected later so fluent-call order does not change behavior.
+				const auto terms = runtime.query.fetch().ctx().data.terms_view();
+				for (const auto& term: terms) {
+					QueryTermOptions options{};
+					options.entSrc = term.src;
+					options.entTrav = term.entTrav;
+					options.travKind = term.travKind;
+					options.travDepth = term.travDepth;
+					options.matchKind = term.matchKind;
+
+					m_world.observers().add(m_world, term.id, m_entity, term.matchKind);
+					if (requires_diff_dispatch(term.id, options))
+						m_world.observers().add_diff_observer_term(m_world, m_entity, term.id, options);
+				}
 				return *this;
 			}
 

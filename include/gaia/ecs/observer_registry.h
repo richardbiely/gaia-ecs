@@ -12,9 +12,12 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		class Archetype;
+		class ObserverBuilder;
 
 		//! Runtime storage for observer callbacks and dispatch indexes kept outside ECS component storage.
 		class ObserverRegistry {
+			friend class ObserverBuilder;
+
 			struct DiffObserverIndex {
 				//! Exact direct term to diff observer mapping.
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> direct;
@@ -553,6 +556,11 @@ namespace gaia {
 			//! \param term Concrete component or pair term.
 			//! \param observed New observed state.
 			void mark_term_observed(World& world, Entity term, bool observed);
+
+			//! Removes an observer from every dispatch index without deleting its runtime data.
+			//! \param world World that owns the observer and observed-term flags.
+			//! \param observer Observer entity to remove from the indexes.
+			void remove_observer_indices(World& world, Entity observer);
 
 			//! Adds an observer to the list stored under a term.
 			//! Duplicate entries are allowed by this helper.

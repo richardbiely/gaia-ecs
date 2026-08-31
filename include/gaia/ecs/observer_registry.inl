@@ -925,6 +925,44 @@ namespace gaia {
 			}
 		}
 
+		inline void ObserverRegistry::remove_observer_indices(World& world, Entity observer) {
+			auto remove_from_map = [&](auto& map) {
+				for (auto it = map.begin(); it != map.end();) {
+					auto& observers = it->second;
+					remove_observer_from_list(observers, observer);
+
+					if (observers.empty()) {
+						const auto mappedTerm = it->first.entity();
+						auto itToErase = it++;
+						map.erase(itToErase);
+
+						if (can_mark_term_observed(world, mappedTerm) && !has_observers_for_term(mappedTerm))
+							mark_term_observed(world, mappedTerm, false);
+					} else
+						++it;
+				}
+			};
+
+			remove_from_map(m_observer_map_add);
+			remove_from_map(m_observer_map_del);
+			remove_from_map(m_observer_map_set);
+			m_hasOnSetObservers = !m_observer_map_set.empty();
+			remove_from_map(m_observer_map_add_is);
+			remove_from_map(m_observer_map_del_is);
+
+			auto remove_from_diff_index = [&](auto& index) {
+				remove_from_map(index.direct);
+				remove_from_map(index.sourceTerm);
+				remove_from_map(index.traversalRelation);
+				remove_from_map(index.pairRelation);
+				remove_from_map(index.pairTarget);
+				remove_observer_from_list(index.all, observer);
+				remove_observer_from_list(index.global, observer);
+			};
+			remove_from_diff_index(m_diff_index_add);
+			remove_from_diff_index(m_diff_index_del);
+		}
+
 		inline void ObserverRegistry::collect_traversal_descendants(
 				World& world, Entity relation, Entity root, QueryTravKind travKind, uint8_t travDepth, uint64_t visitStamp,
 				cnt::darray<Entity>& outTargets) {
@@ -1306,44 +1344,7 @@ namespace gaia {
 
 			// The observer may appear under several query dependencies. Remove every
 			// occurrence and clear observed flags when the last registration disappears.
-			auto remove_observer_from_map = [&](auto& map) {
-				for (auto it = map.begin(); it != map.end();) {
-					auto& observers = it->second;
-					for (uint32_t i = 0; i < observers.size();) {
-						if (observers[i] == term)
-							core::swap_erase_unsafe(observers, i);
-						else
-							++i;
-					}
-
-					if (observers.empty()) {
-						const auto mappedTerm = it->first.entity();
-						auto itToErase = it++;
-						map.erase(itToErase);
-
-						if (can_mark_term_observed(world, mappedTerm) && !has_observers_for_term(mappedTerm))
-							mark_term_observed(world, mappedTerm, false);
-					} else
-						++it;
-				}
-			};
-			remove_observer_from_map(m_observer_map_add);
-			remove_observer_from_map(m_observer_map_del);
-			remove_observer_from_map(m_observer_map_set);
-			m_hasOnSetObservers = !m_observer_map_set.empty();
-			remove_observer_from_map(m_observer_map_add_is);
-			remove_observer_from_map(m_observer_map_del_is);
-			auto remove_observer_from_diff_index = [&](auto& index) {
-				remove_observer_from_map(index.direct);
-				remove_observer_from_map(index.sourceTerm);
-				remove_observer_from_map(index.traversalRelation);
-				remove_observer_from_map(index.pairRelation);
-				remove_observer_from_map(index.pairTarget);
-				remove_observer_from_list(index.all, term);
-				remove_observer_from_list(index.global, term);
-			};
-			remove_observer_from_diff_index(m_diff_index_add);
-			remove_observer_from_diff_index(m_diff_index_del);
+			remove_observer_indices(world, term);
 			retire_observer_data(erasedData);
 		}
 

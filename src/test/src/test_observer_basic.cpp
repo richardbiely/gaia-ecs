@@ -180,6 +180,97 @@ TEST_CASE("Observer - builder exposes kind and scope") {
 	CHECK(obsData.query.scope() == ecs::QueryCacheScope::Shared);
 }
 
+TEST_CASE("Observer - event can be selected after query terms") {
+	SUBCASE("OnDel") {
+		TestWorld twld;
+
+		uint32_t hits = 0;
+		const auto observer = wld.observer()
+									 .all<Position>()
+									 .event(ecs::ObserverEvent::OnDel)
+									 .on_each([&](ecs::Iter&) {
+										 ++hits;
+									 })
+									 .entity();
+
+		const auto entity = wld.add();
+		wld.add<Position>(entity);
+		CHECK(hits == 0);
+
+		wld.del<Position>(entity);
+		CHECK(hits == 1);
+		(void)observer;
+	}
+
+	SUBCASE("OnSet") {
+		TestWorld twld;
+
+		uint32_t hits = 0;
+		const auto observer = wld.observer()
+									 .all<Position>()
+									 .event(ecs::ObserverEvent::OnSet)
+									 .on_each([&](ecs::Iter&) {
+										 ++hits;
+									 })
+									 .entity();
+
+		const auto entity = wld.add();
+		wld.add<Position>(entity);
+		CHECK(hits == 0);
+
+		wld.set<Position>(entity) = {1.0f, 2.0f, 3.0f};
+		CHECK(hits == 1);
+		(void)observer;
+	}
+
+	SUBCASE("event changed more than once") {
+		TestWorld twld;
+
+		uint32_t hits = 0;
+		const auto observer = wld.observer()
+									 .event(ecs::ObserverEvent::OnSet)
+									 .all<Position>()
+									 .event(ecs::ObserverEvent::OnDel)
+									 .on_each([&](ecs::Iter&) {
+										 ++hits;
+									 })
+									 .entity();
+
+		const auto entity = wld.add();
+		wld.add<Position>(entity);
+		wld.set<Position>(entity) = {1.0f, 2.0f, 3.0f};
+		CHECK(hits == 0);
+
+		wld.del<Position>(entity);
+		CHECK(hits == 1);
+		(void)observer;
+	}
+
+	SUBCASE("dynamic pair term") {
+		TestWorld twld;
+
+		const auto relation = wld.add();
+		const auto target = wld.add();
+		const auto entity = wld.add();
+		const auto pair = ecs::Pair(relation, target);
+		uint32_t hits = 0;
+		const auto observer = wld.observer()
+									 .all(ecs::Pair(relation, ecs::All))
+									 .event(ecs::ObserverEvent::OnDel)
+									 .on_each([&](ecs::Iter&) {
+										 ++hits;
+									 })
+									 .entity();
+
+		wld.add(entity, pair);
+		CHECK(hits == 0);
+
+		wld.del(entity, pair);
+		CHECK(hits == 1);
+		(void)observer;
+	}
+}
+
 TEST_CASE("Observer - invalid kind reports reason") {
 	TestWorld twld;
 
