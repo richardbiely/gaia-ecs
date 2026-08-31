@@ -1350,8 +1350,7 @@ namespace gaia {
 			//! \return True when `GAIA_STORAGE(Sparse)` is authoritative for \a T.
 			template <typename T>
 			GAIA_NODISCARD static constexpr bool uses_compile_time_sparse_storage() {
-				using U = typename actual_type_t<T>::Type;
-				return auto_storage_policy_v<U> == DataStorageType::Sparse;
+				return uses_compile_time_sparse_storage_v<T>;
 			}
 
 			//! Returns the fragmentation mode for a component known at compile time to use sparse storage.
@@ -6883,9 +6882,7 @@ namespace gaia {
 				const auto* pItem = component_item(owner, component);
 				if (pItem == nullptr || !raw_component_supported(*pItem))
 					return {};
-				if (pItem->comp.storage_type() == DataStorageType::Sparse) {
-					if (component.pair())
-						return {};
+				if (component_uses_sparse_storage(component)) {
 					const auto* pStore = sparse_component_store_erased(component);
 					if (pStore == nullptr || !pStore->func_has(pStore->pStore, owner))
 						return {};
@@ -6921,9 +6918,7 @@ namespace gaia {
 				const auto* pItem = component_item(entity, component);
 				if (pItem == nullptr || !raw_component_supported(*pItem))
 					return {};
-				if (pItem->comp.storage_type() == DataStorageType::Sparse) {
-					if (component.pair())
-						return {};
+				if (component_uses_sparse_storage(component)) {
 					const auto* pStore = sparse_component_store_erased(component);
 					if (pStore == nullptr || !pStore->func_has(pStore->pStore, entity))
 						return {};
@@ -7036,9 +7031,7 @@ namespace gaia {
 
 				if (has_direct(entity, component))
 					return false;
-				if (pItem->comp.storage_type() == DataStorageType::Sparse) {
-					if (component.pair())
-						return false;
+				if (component_uses_sparse_storage(component)) {
 					const auto mode = sparse_storage_mode(component);
 					if (mode == SparseStorageMode::None)
 						return false;

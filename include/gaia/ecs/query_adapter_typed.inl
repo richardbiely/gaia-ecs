@@ -28,12 +28,8 @@ namespace gaia {
 		template <typename T>
 		const T* world_typed_sparse_store_try_get(const void* pStore, Entity entity);
 
-		template <typename T, bool IsEntity = std::is_same_v<typename actual_type_t<T>::Type, Entity>>
-		struct typed_query_arg_uses_sparse_storage: std::false_type {};
-
 		template <typename T>
-		struct typed_query_arg_uses_sparse_storage<T, false>:
-				std::bool_constant<auto_storage_policy_v<typename actual_type_t<T>::Type> == DataStorageType::Sparse> {};
+		struct typed_query_arg_uses_sparse_storage: std::bool_constant<uses_compile_time_sparse_storage_v<T>> {};
 
 		template <typename... T>
 		inline constexpr bool typed_query_args_use_sparse_storage_v =
@@ -84,8 +80,7 @@ namespace gaia {
 					return TypedQueryArgMeta{EntityBad, isWrite, false, true, false};
 				else {
 					const auto termId = world_query_arg_id<Arg>(world);
-					constexpr bool UsesSparseStorage =
-							auto_storage_policy_v<typename actual_type_t<Arg>::Type> == DataStorageType::Sparse;
+					constexpr bool UsesSparseStorage = uses_compile_time_sparse_storage_v<Arg>;
 					return TypedQueryArgMeta{termId, isWrite, false, false, UsesSparseStorage};
 				}
 			}
@@ -108,7 +103,7 @@ namespace gaia {
 				TypedQueryExecState& state, World& world, core::func_type_list<T...>, std::index_sequence<I...>) {
 			(([&]() {
 				 using U = typename actual_type_t<T>::Type;
-				 if constexpr (!std::is_same_v<U, Entity> && auto_storage_policy_v<U> == DataStorageType::Sparse)
+				 if constexpr (uses_compile_time_sparse_storage_v<T>)
 					 state.sparseStores[I] = world_typed_sparse_store_ptr<U>(world, state.argIds[I]);
 			 }()),
 			 ...);

@@ -108,8 +108,9 @@ namespace gaia {
 				if (cntEntities > 0) {
 					auto* dst = m_records.pRecords = (ComponentRecord*)&data(headerOffsets.firstByte_Records);
 					GAIA_FOR_(cntEntities, j) {
-						dst[j].comp =
-								pItems[j] == nullptr ? Component(IdentifierIdBad, 0, 0, 0, DataStorageType::Table) : pItems[j]->comp;
+						dst[j].comp = pItems[j] == nullptr
+								? Component(IdentifierIdBad, 0, 0, 0, DataStorageType::Table)
+								: archetype_component(ids[j], pItems[j]->comp);
 						dst[j].pData = &data(compOffs[j]);
 						dst[j].pItem = pItems[j];
 					}

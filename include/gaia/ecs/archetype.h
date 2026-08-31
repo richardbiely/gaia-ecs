@@ -123,8 +123,8 @@ namespace gaia {
 				return Component(IdentifierIdBad, 0, 0, 0, DataStorageType::Table);
 			}
 
-			GAIA_NODISCARD static Component comp_from_item(const ComponentCacheItem* pItem) noexcept {
-				return pItem == nullptr ? empty_comp() : pItem->comp;
+			GAIA_NODISCARD static Component comp_from_item(Entity term, const ComponentCacheItem* pItem) noexcept {
+				return pItem == nullptr ? empty_comp() : archetype_component(term, pItem->comp);
 			}
 
 			struct ShapeData {
@@ -418,10 +418,10 @@ namespace gaia {
 			//! \param cap Candidate entity count used for the estimate.
 			//! \param maxDataOffset Maximum byte offset available for component payloads.
 			//! \return True if the chunk can still fit the candidate entity count. False otherwise.
-			static bool est_max_entities_per_chunk(
-					uint32_t offs, const ComponentCacheItem* const* pItems, uint32_t cnt, uint32_t cap, uint32_t maxDataOffset) {
+			static bool est_max_entities_per_chunk(uint32_t offs, const Entity* ids,
+					const ComponentCacheItem* const* pItems, uint32_t cnt, uint32_t cap, uint32_t maxDataOffset) {
 				GAIA_FOR(cnt) {
-					const auto comp = comp_from_item(pItems[i]);
+					const auto comp = comp_from_item(ids[i], pItems[i]);
 					if (!component_uses_table_storage(comp))
 						continue;
 
@@ -447,7 +447,7 @@ namespace gaia {
 
 				// Calculate offsets and assign them indices according to our mappings
 				GAIA_FOR2(from, to) {
-					const auto comp = comp_from_item(pItems[i]);
+					const auto comp = comp_from_item(ids[i], pItems[i]);
 					const auto compIdx = i;
 
 					if (!component_uses_table_storage(comp)) {
@@ -582,8 +582,10 @@ namespace gaia {
 
 				uint32_t genCompsSize = 0;
 				uint32_t uniCompsSize = 0;
-				GAIA_FOR(entsGeneric) genCompsSize += comp_from_item(newArch->m_shape.compItems[i]).size();
-				GAIA_FOR2(entsGeneric, cnt) uniCompsSize += comp_from_item(newArch->m_shape.compItems[i]).size();
+				GAIA_FOR(entsGeneric)
+				genCompsSize += comp_from_item(ids[i], newArch->m_shape.compItems[i]).size();
+				GAIA_FOR2(entsGeneric, cnt)
+				uniCompsSize += comp_from_item(ids[i], newArch->m_shape.compItems[i]).size();
 
 				auto compute_max_entities_for_chunk = [&](uint32_t maxEntities, uint32_t dataLimit) -> uint32_t {
 					uint32_t low = 1;
@@ -594,10 +596,12 @@ namespace gaia {
 					auto try_fit = [&](uint32_t count) -> bool {
 						const uint32_t currOff = offs.firstByte_EntityData + (count * sizeof(Entity));
 
-						if (!est_max_entities_per_chunk(currOff, newArch->m_shape.compItems, entsGeneric, count, dataLimit))
+						if (!est_max_entities_per_chunk(
+								currOff, ids.data(), newArch->m_shape.compItems, entsGeneric, count, dataLimit))
 							return false;
 						if (!est_max_entities_per_chunk(
-										currOff, newArch->m_shape.compItems + entsGeneric, cnt - entsGeneric, 1, dataLimit))
+								currOff, ids.data() + entsGeneric, newArch->m_shape.compItems + entsGeneric, cnt - entsGeneric, 1,
+								dataLimit))
 							return false;
 
 						return true;
@@ -1369,9 +1373,10 @@ namespace gaia {
 				uint32_t uniCompsSize = 0;
 				{
 					const auto& p = archetype.props();
-					GAIA_FOR(p.genEntities) genCompsSize += comp_from_item(archetype.m_shape.compItems[i]).size();
+					GAIA_FOR(p.genEntities)
+					genCompsSize += comp_from_item(ids[i], archetype.m_shape.compItems[i]).size();
 					GAIA_FOR2(p.genEntities, p.cntEntities)
-					uniCompsSize += comp_from_item(archetype.m_shape.compItems[i]).size();
+					uniCompsSize += comp_from_item(ids[i], archetype.m_shape.compItems[i]).size();
 				}
 
 				const auto chunkBytes = Chunk::chunk_total_bytes(archetype.props().chunkDataBytes);

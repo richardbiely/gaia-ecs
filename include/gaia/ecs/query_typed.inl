@@ -824,7 +824,7 @@ namespace gaia {
 			GAIA_NODISCARD inline auto typed_sparse_chunk_view(
 					Chunk* pChunk, uint16_t from, uint16_t to, const TypedQueryExecState& state, uint32_t argIdx) {
 				using U = typename actual_type_t<T>::Type;
-				if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse)
+				if constexpr (uses_compile_time_sparse_storage_v<T>)
 					return TypedSparseQueryView<T>{pChunk->entity_view().data() + from, state.sparseStores[argIdx]};
 				else
 					return pChunk->template sview_auto<T>(from, to);
@@ -833,7 +833,7 @@ namespace gaia {
 			template <typename T, typename View>
 			GAIA_NODISCARD inline decltype(auto) typed_sparse_chunk_arg_at(View& view, uint32_t row, uint16_t from) {
 				using U = typename actual_type_t<T>::Type;
-				if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse)
+				if constexpr (uses_compile_time_sparse_storage_v<T>)
 					return view[row];
 				else
 					return typed_direct_chunk_arg_at<T>(view, row, from);
@@ -862,7 +862,7 @@ namespace gaia {
 				using U = typename actual_type_t<T>::Type;
 				if constexpr (std::is_same_v<U, Entity>)
 					return entity;
-				else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>) {
 						if (auto* pValue = world_typed_sparse_store_try_mut<U>(state.sparseStores[argIdx], entity);
 								pValue != nullptr)

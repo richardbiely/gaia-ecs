@@ -32338,6 +32338,19 @@ namespace gaia {
 			return component.size() != 0U && component.storage_type() == DataStorageType::Sparse && component.soa() == 0U;
 		}
 
+		//! Returns the effective payload descriptor for an archetype term.
+		//! Pairs always keep their payload in the archetype table, even when the component type
+		//! supplying their payload requests sparse storage.
+		//! \param term Archetype term using the payload descriptor.
+		//! \param component Registered payload descriptor.
+		//! \return Descriptor with the storage mode used by the archetype.
+		GAIA_NODISCARD constexpr Component archetype_component(Entity term, Component component) noexcept {
+			if (component.storage_type() != DataStorageType::Sparse || !term.pair())
+				return component;
+
+			return Component(component.id(), component.soa(), component.size(), component.alig(), DataStorageType::Table);
+		}
+
 		//! \cond INTERNAL
 		namespace detail {
 			template <typename, typename = void>
@@ -32355,6 +32368,29 @@ namespace gaia {
 		//! \tparam T Component payload type.
 		template <typename T>
 		inline constexpr DataStorageType auto_storage_policy_v = detail::auto_storage_policy_inter<T>::data_storage_type;
+
+		//! \cond INTERNAL
+		namespace detail {
+			template <typename T, bool IsEntity = std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity>>
+			struct uses_compile_time_sparse_storage: std::false_type {};
+
+			template <typename T>
+			struct uses_compile_time_sparse_storage<T, false> {
+				using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+				using FT = typename component_type_t<Arg>::TypeFull;
+				using U = typename actual_type_t<Arg>::Type;
+
+				static constexpr bool value = !is_pair<FT>::value && entity_kind_v<Arg> == EntityKind::EK_Gen &&
+																			!mem::is_soa_layout_v<U> && auto_storage_policy_v<U> == DataStorageType::Sparse;
+			};
+		} // namespace detail
+		//! \endcond
+
+		//! True when a typed component uses Gaia's compile-time sparse payload path.
+		//! Pair, unique, and SoA component forms remain table-backed even when their payload type requests sparse storage.
+		//! \tparam T Component API type.
+		template <typename T>
+		inline constexpr bool uses_compile_time_sparse_storage_v = detail::uses_compile_time_sparse_storage<T>::value;
 
 		//----------------------------------------------------------------------
 		// Component verification
@@ -36735,8 +36771,8 @@ namespace gaia {
 				if (cntEntities > 0) {
 					auto* dst = m_records.pRecords = (ComponentRecord*)&data(headerOffsets.firstByte_Records);
 					GAIA_FOR_(cntEntities, j) {
-						dst[j].comp =
-								pItems[j] == nullptr ? Component(IdentifierIdBad, 0, 0, 0, DataStorageType::Table) : pItems[j]->comp;
+						dst[j].comp = pItems[j] == nullptr ? Component(IdentifierIdBad, 0, 0, 0, DataStorageType::Table)
+																							 : archetype_component(ids[j], pItems[j]->comp);
 						dst[j].pData = &data(compOffs[j]);
 						dst[j].pItem = pItems[j];
 					}
@@ -38836,8 +38872,8 @@ namespace gaia {
 				return Component(IdentifierIdBad, 0, 0, 0, DataStorageType::Table);
 			}
 
-			GAIA_NODISCARD static Component comp_from_item(const ComponentCacheItem* pItem) noexcept {
-				return pItem == nullptr ? empty_comp() : pItem->comp;
+			GAIA_NODISCARD static Component comp_from_item(Entity term, const ComponentCacheItem* pItem) noexcept {
+				return pItem == nullptr ? empty_comp() : archetype_component(term, pItem->comp);
 			}
 
 			struct ShapeData {
@@ -39132,9 +39168,10 @@ namespace gaia {
 			//! \param maxDataOffset Maximum byte offset available for component payloads.
 			//! \return True if the chunk can still fit the candidate entity count. False otherwise.
 			static bool est_max_entities_per_chunk(
-					uint32_t offs, const ComponentCacheItem* const* pItems, uint32_t cnt, uint32_t cap, uint32_t maxDataOffset) {
+					uint32_t offs, const Entity* ids, const ComponentCacheItem* const* pItems, uint32_t cnt, uint32_t cap,
+					uint32_t maxDataOffset) {
 				GAIA_FOR(cnt) {
-					const auto comp = comp_from_item(pItems[i]);
+					const auto comp = comp_from_item(ids[i], pItems[i]);
 					if (!component_uses_table_storage(comp))
 						continue;
 
@@ -39160,7 +39197,7 @@ namespace gaia {
 
 				// Calculate offsets and assign them indices according to our mappings
 				GAIA_FOR2(from, to) {
-					const auto comp = comp_from_item(pItems[i]);
+					const auto comp = comp_from_item(ids[i], pItems[i]);
 					const auto compIdx = i;
 
 					if (!component_uses_table_storage(comp)) {
@@ -39295,8 +39332,10 @@ namespace gaia {
 
 				uint32_t genCompsSize = 0;
 				uint32_t uniCompsSize = 0;
-				GAIA_FOR(entsGeneric) genCompsSize += comp_from_item(newArch->m_shape.compItems[i]).size();
-				GAIA_FOR2(entsGeneric, cnt) uniCompsSize += comp_from_item(newArch->m_shape.compItems[i]).size();
+				GAIA_FOR(entsGeneric)
+				genCompsSize += comp_from_item(ids[i], newArch->m_shape.compItems[i]).size();
+				GAIA_FOR2(entsGeneric, cnt)
+				uniCompsSize += comp_from_item(ids[i], newArch->m_shape.compItems[i]).size();
 
 				auto compute_max_entities_for_chunk = [&](uint32_t maxEntities, uint32_t dataLimit) -> uint32_t {
 					uint32_t low = 1;
@@ -39307,10 +39346,12 @@ namespace gaia {
 					auto try_fit = [&](uint32_t count) -> bool {
 						const uint32_t currOff = offs.firstByte_EntityData + (count * sizeof(Entity));
 
-						if (!est_max_entities_per_chunk(currOff, newArch->m_shape.compItems, entsGeneric, count, dataLimit))
+						if (!est_max_entities_per_chunk(
+										currOff, ids.data(), newArch->m_shape.compItems, entsGeneric, count, dataLimit))
 							return false;
 						if (!est_max_entities_per_chunk(
-										currOff, newArch->m_shape.compItems + entsGeneric, cnt - entsGeneric, 1, dataLimit))
+										currOff, ids.data() + entsGeneric, newArch->m_shape.compItems + entsGeneric, cnt - entsGeneric, 1,
+										dataLimit))
 							return false;
 
 						return true;
@@ -40082,9 +40123,10 @@ namespace gaia {
 				uint32_t uniCompsSize = 0;
 				{
 					const auto& p = archetype.props();
-					GAIA_FOR(p.genEntities) genCompsSize += comp_from_item(archetype.m_shape.compItems[i]).size();
+					GAIA_FOR(p.genEntities)
+					genCompsSize += comp_from_item(ids[i], archetype.m_shape.compItems[i]).size();
 					GAIA_FOR2(p.genEntities, p.cntEntities)
-					uniCompsSize += comp_from_item(archetype.m_shape.compItems[i]).size();
+					uniCompsSize += comp_from_item(ids[i], archetype.m_shape.compItems[i]).size();
 				}
 
 				const auto chunkBytes = Chunk::chunk_total_bytes(archetype.props().chunkDataBytes);
@@ -45612,7 +45654,7 @@ namespace gaia {
 					} else {
 						desc.termId = world_query_arg_id<Arg>(*const_cast<World*>(self.world()));
 						desc.isEntity = false;
-						desc.usesSparseStorage = auto_storage_policy_v<Arg> == DataStorageType::Sparse;
+						desc.usesSparseStorage = uses_compile_time_sparse_storage_v<Arg>;
 						desc.storageKnown = true;
 					}
 				}
@@ -45624,7 +45666,7 @@ namespace gaia {
 				using U = typename actual_type_t<T>::Type;
 				if constexpr (std::is_same_v<U, Entity> || mem::is_soa_layout_v<U>)
 					return self.m_pChunk->template view<T>(self.from(), self.to());
-				else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					auto* pWorld = const_cast<World*>(self.world());
 					return EntityTermViewGetSparse<U>{
@@ -45666,7 +45708,7 @@ namespace gaia {
 							EntityBad,
 							self.from(),
 							self.size()};
-				} else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				} else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					auto* pWorld = const_cast<World*>(self.world());
 					return EntityTermViewGetSparse<U>{
@@ -45744,7 +45786,7 @@ namespace gaia {
 					if (self.m_writeIm)
 						return self.m_pChunk->template view_mut<T>(self.from(), self.to());
 					return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
-				} else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				} else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					if (!self.touch_term(desc.termId))
 						return EntityTermViewSetSparse<U>{};
@@ -45843,7 +45885,7 @@ namespace gaia {
 							self.from(),
 							self.size(),
 							self.m_writeIm};
-				} else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				} else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					if (!self.touch_term(desc.termId))
 						return EntityTermViewSetSparse<U>{};
@@ -45883,7 +45925,7 @@ namespace gaia {
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 				if constexpr (mem::is_soa_layout_v<U>)
 					return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
-				else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					auto* pWorld = const_cast<World*>(self.world());
 					return EntityTermViewSetSparse<U>{
@@ -45952,7 +45994,7 @@ namespace gaia {
 							self.from(),
 							self.size(),
 							false};
-				} else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				} else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					auto* pWorld = const_cast<World*>(self.world());
 					return EntityTermViewSetSparse<U>{
@@ -62184,12 +62226,8 @@ namespace gaia {
 		template <typename T>
 		const T* world_typed_sparse_store_try_get(const void* pStore, Entity entity);
 
-		template <typename T, bool IsEntity = std::is_same_v<typename actual_type_t<T>::Type, Entity>>
-		struct typed_query_arg_uses_sparse_storage: std::false_type {};
-
 		template <typename T>
-		struct typed_query_arg_uses_sparse_storage<T, false>:
-				std::bool_constant<auto_storage_policy_v<typename actual_type_t<T>::Type> == DataStorageType::Sparse> {};
+		struct typed_query_arg_uses_sparse_storage: std::bool_constant<uses_compile_time_sparse_storage_v<T>> {};
 
 		template <typename... T>
 		inline constexpr bool typed_query_args_use_sparse_storage_v =
@@ -62240,8 +62278,7 @@ namespace gaia {
 					return TypedQueryArgMeta{EntityBad, isWrite, false, true, false};
 				else {
 					const auto termId = world_query_arg_id<Arg>(world);
-					constexpr bool UsesSparseStorage =
-							auto_storage_policy_v<typename actual_type_t<Arg>::Type> == DataStorageType::Sparse;
+					constexpr bool UsesSparseStorage = uses_compile_time_sparse_storage_v<Arg>;
 					return TypedQueryArgMeta{termId, isWrite, false, false, UsesSparseStorage};
 				}
 			}
@@ -62264,7 +62301,7 @@ namespace gaia {
 				TypedQueryExecState& state, World& world, core::func_type_list<T...>, std::index_sequence<I...>) {
 			(([&]() {
 				 using U = typename actual_type_t<T>::Type;
-				 if constexpr (!std::is_same_v<U, Entity> && auto_storage_policy_v<U> == DataStorageType::Sparse)
+				 if constexpr (uses_compile_time_sparse_storage_v<T>)
 					 state.sparseStores[I] = world_typed_sparse_store_ptr<U>(world, state.argIds[I]);
 			 }()),
 			 ...);
@@ -63161,7 +63198,7 @@ namespace gaia {
 			GAIA_NODISCARD inline auto typed_sparse_chunk_view(
 					Chunk* pChunk, uint16_t from, uint16_t to, const TypedQueryExecState& state, uint32_t argIdx) {
 				using U = typename actual_type_t<T>::Type;
-				if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse)
+				if constexpr (uses_compile_time_sparse_storage_v<T>)
 					return TypedSparseQueryView<T>{pChunk->entity_view().data() + from, state.sparseStores[argIdx]};
 				else
 					return pChunk->template sview_auto<T>(from, to);
@@ -63170,7 +63207,7 @@ namespace gaia {
 			template <typename T, typename View>
 			GAIA_NODISCARD inline decltype(auto) typed_sparse_chunk_arg_at(View& view, uint32_t row, uint16_t from) {
 				using U = typename actual_type_t<T>::Type;
-				if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse)
+				if constexpr (uses_compile_time_sparse_storage_v<T>)
 					return view[row];
 				else
 					return typed_direct_chunk_arg_at<T>(view, row, from);
@@ -63199,7 +63236,7 @@ namespace gaia {
 				using U = typename actual_type_t<T>::Type;
 				if constexpr (std::is_same_v<U, Entity>)
 					return entity;
-				else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>) {
 						if (auto* pValue = world_typed_sparse_store_try_mut<U>(state.sparseStores[argIdx], entity);
 								pValue != nullptr)
@@ -67521,8 +67558,7 @@ namespace gaia {
 			//! \return True when `GAIA_STORAGE(Sparse)` is authoritative for \a T.
 			template <typename T>
 			GAIA_NODISCARD static constexpr bool uses_compile_time_sparse_storage() {
-				using U = typename actual_type_t<T>::Type;
-				return auto_storage_policy_v<U> == DataStorageType::Sparse;
+				return uses_compile_time_sparse_storage_v<T>;
 			}
 
 			//! Returns the fragmentation mode for a component known at compile time to use sparse storage.
@@ -73050,9 +73086,7 @@ namespace gaia {
 				const auto* pItem = component_item(owner, component);
 				if (pItem == nullptr || !raw_component_supported(*pItem))
 					return {};
-				if (pItem->comp.storage_type() == DataStorageType::Sparse) {
-					if (component.pair())
-						return {};
+				if (component_uses_sparse_storage(component)) {
 					const auto* pStore = sparse_component_store_erased(component);
 					if (pStore == nullptr || !pStore->func_has(pStore->pStore, owner))
 						return {};
@@ -73088,9 +73122,7 @@ namespace gaia {
 				const auto* pItem = component_item(entity, component);
 				if (pItem == nullptr || !raw_component_supported(*pItem))
 					return {};
-				if (pItem->comp.storage_type() == DataStorageType::Sparse) {
-					if (component.pair())
-						return {};
+				if (component_uses_sparse_storage(component)) {
 					const auto* pStore = sparse_component_store_erased(component);
 					if (pStore == nullptr || !pStore->func_has(pStore->pStore, entity))
 						return {};
@@ -73203,9 +73235,7 @@ namespace gaia {
 
 				if (has_direct(entity, component))
 					return false;
-				if (pItem->comp.storage_type() == DataStorageType::Sparse) {
-					if (component.pair())
-						return false;
+				if (component_uses_sparse_storage(component)) {
 					const auto mode = sparse_storage_mode(component);
 					if (mode == SparseStorageMode::None)
 						return false;

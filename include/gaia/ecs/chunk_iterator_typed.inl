@@ -20,7 +20,7 @@ namespace gaia {
 					} else {
 						desc.termId = world_query_arg_id<Arg>(*const_cast<World*>(self.world()));
 						desc.isEntity = false;
-						desc.usesSparseStorage = auto_storage_policy_v<Arg> == DataStorageType::Sparse;
+						desc.usesSparseStorage = uses_compile_time_sparse_storage_v<Arg>;
 						desc.storageKnown = true;
 					}
 				}
@@ -32,7 +32,7 @@ namespace gaia {
 				using U = typename actual_type_t<T>::Type;
 				if constexpr (std::is_same_v<U, Entity> || mem::is_soa_layout_v<U>)
 					return self.m_pChunk->template view<T>(self.from(), self.to());
-				else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					auto* pWorld = const_cast<World*>(self.world());
 					return EntityTermViewGetSparse<U>{
@@ -74,7 +74,7 @@ namespace gaia {
 							EntityBad,
 							self.from(),
 							self.size()};
-				} else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				} else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					auto* pWorld = const_cast<World*>(self.world());
 					return EntityTermViewGetSparse<U>{
@@ -152,7 +152,7 @@ namespace gaia {
 					if (self.m_writeIm)
 						return self.m_pChunk->template view_mut<T>(self.from(), self.to());
 					return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
-				} else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				} else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					if (!self.touch_term(desc.termId))
 						return EntityTermViewSetSparse<U>{};
@@ -251,7 +251,7 @@ namespace gaia {
 							self.from(),
 							self.size(),
 							self.m_writeIm};
-				} else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				} else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					if (!self.touch_term(desc.termId))
 						return EntityTermViewSetSparse<U>{};
@@ -291,7 +291,7 @@ namespace gaia {
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 				if constexpr (mem::is_soa_layout_v<U>)
 					return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
-				else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					auto* pWorld = const_cast<World*>(self.world());
 					return EntityTermViewSetSparse<U>{
@@ -360,7 +360,7 @@ namespace gaia {
 							self.from(),
 							self.size(),
 							false};
-				} else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+				} else if constexpr (uses_compile_time_sparse_storage_v<T>) {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					auto* pWorld = const_cast<World*>(self.world());
 					return EntityTermViewSetSparse<U>{

@@ -41,6 +41,19 @@ namespace gaia {
 			return component.size() != 0U && component.storage_type() == DataStorageType::Sparse && component.soa() == 0U;
 		}
 
+		//! Returns the effective payload descriptor for an archetype term.
+		//! Pairs always keep their payload in the archetype table, even when the component type
+		//! supplying their payload requests sparse storage.
+		//! \param term Archetype term using the payload descriptor.
+		//! \param component Registered payload descriptor.
+		//! \return Descriptor with the storage mode used by the archetype.
+		GAIA_NODISCARD constexpr Component archetype_component(Entity term, Component component) noexcept {
+			if (component.storage_type() != DataStorageType::Sparse || !term.pair())
+				return component;
+
+			return Component(component.id(), component.soa(), component.size(), component.alig(), DataStorageType::Table);
+		}
+
 		//! \cond INTERNAL
 		namespace detail {
 			template <typename, typename = void>
@@ -58,6 +71,29 @@ namespace gaia {
 		//! \tparam T Component payload type.
 		template <typename T>
 		inline constexpr DataStorageType auto_storage_policy_v = detail::auto_storage_policy_inter<T>::data_storage_type;
+
+		//! \cond INTERNAL
+		namespace detail {
+			template <typename T, bool IsEntity = std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity>>
+			struct uses_compile_time_sparse_storage: std::false_type {};
+
+			template <typename T>
+			struct uses_compile_time_sparse_storage<T, false> {
+				using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+				using FT = typename component_type_t<Arg>::TypeFull;
+				using U = typename actual_type_t<Arg>::Type;
+
+				static constexpr bool value = !is_pair<FT>::value && entity_kind_v<Arg> == EntityKind::EK_Gen &&
+															 !mem::is_soa_layout_v<U> && auto_storage_policy_v<U> == DataStorageType::Sparse;
+			};
+		} // namespace detail
+		//! \endcond
+
+		//! True when a typed component uses Gaia's compile-time sparse payload path.
+		//! Pair, unique, and SoA component forms remain table-backed even when their payload type requests sparse storage.
+		//! \tparam T Component API type.
+		template <typename T>
+		inline constexpr bool uses_compile_time_sparse_storage_v = detail::uses_compile_time_sparse_storage<T>::value;
 
 		//----------------------------------------------------------------------
 		// Component verification

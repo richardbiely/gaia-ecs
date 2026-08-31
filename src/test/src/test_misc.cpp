@@ -25,6 +25,13 @@ struct RuntimeTypedPosition {
 	float z;
 };
 
+struct SparsePairConstructed {
+	GAIA_STORAGE(Sparse);
+	uint32_t value;
+
+	SparsePairConstructed(): value(42) {}
+};
+
 TEST_CASE("DataLayout SoA - ECS") {
 	TestDataLayoutSoA_ECS<PositionSoA>();
 	TestDataLayoutSoA_ECS<RotationSoA>();
@@ -4204,6 +4211,52 @@ TEST_CASE("Exact pair records - fixed query source") {
 	CHECK(wld.get<Scale>(pair).x == 7.0f);
 	wld.del<Scale>(pair);
 	CHECK(query.count() == 0);
+}
+
+TEST_CASE("Typed pairs with sparse payload types use table storage") {
+	TestWorld twld;
+
+	using SparsePair = ecs::pair<ErasedPairRelationTag, PositionSparse>;
+	const auto entity = wld.add();
+	wld.add<SparsePair>(entity, {1.0f, 2.0f, 3.0f});
+	CHECK(wld.has<SparsePair>(entity));
+	const auto sparsePair = ecs::Pair(wld.get<ErasedPairRelationTag>(), wld.get<PositionSparse>());
+	CHECK(wld.get_chunk(entity)->has(sparsePair));
+	CHECK(wld.get<PositionSparse>(entity, sparsePair).x == doctest::Approx(1.0f));
+	const auto& value = wld.get<SparsePair>(entity);
+	CHECK(value.x == doctest::Approx(1.0f));
+	CHECK(value.y == doctest::Approx(2.0f));
+	CHECK(value.z == doctest::Approx(3.0f));
+
+	const auto raw = wld.get_raw(entity, sparsePair);
+	CHECK(raw.valid());
+	CHECK(raw.size == sizeof(PositionSparse));
+	CHECK(((const PositionSparse*)raw.data)->z == doctest::Approx(3.0f));
+
+	auto query = wld.query().all<SparsePair>();
+	CHECK(query.count() == 1);
+	bool visited = false;
+	query.each([&](ecs::Iter& it) {
+		auto view = it.view<SparsePair>();
+		GAIA_EACH(it) {
+			CHECK(view[i].y == doctest::Approx(2.0f));
+			visited = true;
+		}
+	});
+	CHECK(visited);
+
+	using RelationSparsePair = ecs::pair<PositionSparse, ErasedPairTargetTag>;
+	const auto relationSparseEntity = wld.add();
+	wld.add<RelationSparsePair>(relationSparseEntity, {4.0f, 5.0f, 6.0f});
+	CHECK(wld.has<RelationSparsePair>(relationSparseEntity));
+	CHECK(wld.get<RelationSparsePair>(relationSparseEntity).z == doctest::Approx(6.0f));
+	CHECK(wld.query().all<RelationSparsePair>().count() == 1);
+
+	using ConstructedPair = ecs::pair<ErasedPairRelationTag, SparsePairConstructed>;
+	const auto constructedEntity = wld.add();
+	const auto constructedPair = ecs::Pair(wld.get<ConstructedPair::rel>(), wld.add<ConstructedPair::tgt>().entity);
+	wld.add(constructedEntity, constructedPair);
+	CHECK(wld.get<ConstructedPair>(constructedEntity).value == 42);
 }
 
 TEST_CASE("Exact pair records - sparse payload identity and deletion") {
