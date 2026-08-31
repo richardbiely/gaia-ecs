@@ -4178,6 +4178,93 @@ TEST_CASE("Exact pair records - typed payload access") {
 	}
 }
 
+TEST_CASE("Exact pair records - sparse payload identity and deletion") {
+	TestWorld twld;
+
+	const auto sparse = wld.add<PositionSparse>().entity;
+	wld.add(sparse, ecs::DontFragment);
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto ownerA = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(ownerA, pair);
+	wld.add<PositionSparse>(relation, {1.0f, 2.0f, 3.0f});
+	CHECK_FALSE(wld.has<PositionSparse>(pair));
+	wld.add<PositionSparse>(pair, {4.0f, 5.0f, 6.0f});
+	CHECK(wld.has<PositionSparse>(pair));
+	CHECK(wld.get<PositionSparse>(relation).x == 1.0f);
+	CHECK(wld.get<PositionSparse>(pair).x == 4.0f);
+
+	auto query = wld.query().all<PositionSparse>();
+	CHECK(query.count() == 2);
+	bool foundRelation = false;
+	bool foundPair = false;
+	query.each([&](ecs::Entity entity) {
+		foundRelation |= entity == relation;
+		foundPair |= entity == pair;
+	});
+	CHECK(foundRelation);
+	CHECK(foundPair);
+	float sparseSum = 0.0f;
+	query.each([&](const PositionSparse& value) {
+		sparseSum += value.x;
+	});
+	CHECK(sparseSum == doctest::Approx(5.0f));
+	wld.query().all<PositionSparse&>().each([](PositionSparse& value) {
+		value.z += 1.0f;
+	});
+	CHECK(wld.get<PositionSparse>(relation).z == 4.0f);
+	CHECK(wld.get<PositionSparse>(pair).z == 7.0f);
+
+	wld.del(pair);
+	wld.update();
+	CHECK_FALSE(wld.has(pair));
+	CHECK(wld.has<PositionSparse>(relation));
+	CHECK(wld.get<PositionSparse>(relation).x == 1.0f);
+	CHECK(query.count() == 1);
+}
+
+TEST_CASE("Exact pair records - runtime sparse payload identity and deletion") {
+	TestWorld twld;
+
+	const auto& runtimeComp = add_runtime_component(
+			wld, "Exact_Pair_Runtime_Sparse_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse,
+			(uint32_t)alignof(Position));
+	wld.add(runtimeComp.entity, ecs::DontFragment);
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto owner = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(owner, pair);
+
+	const Position relationValue{1.0f, 2.0f, 3.0f};
+	CHECK(wld.add_raw(relation, runtimeComp.entity, &relationValue, (uint32_t)sizeof(relationValue)));
+	CHECK_FALSE(wld.has(pair, runtimeComp.entity));
+	const Position pairValue{4.0f, 5.0f, 6.0f};
+	CHECK(wld.add_raw(pair, runtimeComp.entity, &pairValue, (uint32_t)sizeof(pairValue)));
+	CHECK(wld.has(pair, runtimeComp.entity));
+	CHECK(wld.get<Position>(relation, runtimeComp.entity).x == 1.0f);
+	CHECK(wld.get<Position>(pair, runtimeComp.entity).x == 4.0f);
+
+	auto query = wld.query().all(runtimeComp.entity);
+	CHECK(query.count() == 2);
+	bool foundRelation = false;
+	bool foundPair = false;
+	query.each([&](ecs::Entity entity) {
+		foundRelation |= entity == relation;
+		foundPair |= entity == pair;
+	});
+	CHECK(foundRelation);
+	CHECK(foundPair);
+
+	wld.del(pair);
+	wld.update();
+	CHECK_FALSE(wld.has(pair));
+	CHECK(wld.has(relation, runtimeComp.entity));
+	CHECK(wld.get<Position>(relation, runtimeComp.entity).x == 1.0f);
+	CHECK(query.count() == 1);
+}
+
 TEST_CASE("Exact pair records - enable state and chunk lookup") {
 	TestWorld twld;
 

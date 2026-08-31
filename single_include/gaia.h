@@ -62172,6 +62172,20 @@ namespace gaia {
 		T& world_typed_sparse_store_mut(void* pStore, Entity entity);
 		template <typename T>
 		bool world_typed_sparse_store_has(const void* pStore, Entity entity);
+		//! Finds a mutable typed sparse value in a prebound store.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity or exact pair record to find.
+		//! \return Payload pointer, or nullptr when absent.
+		template <typename T>
+		T* world_typed_sparse_store_try_mut(void* pStore, Entity entity);
+		//! Finds a read-only typed sparse value in a prebound store.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity or exact pair record to find.
+		//! \return Payload pointer, or nullptr when absent.
+		template <typename T>
+		const T* world_typed_sparse_store_try_get(const void* pStore, Entity entity);
 
 		template <typename T, bool IsEntity = std::is_same_v<typename actual_type_t<T>::Type, Entity>>
 		struct typed_query_arg_uses_sparse_storage: std::false_type {};
@@ -63189,11 +63203,14 @@ namespace gaia {
 				if constexpr (std::is_same_v<U, Entity>)
 					return entity;
 				else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
-					if (world_typed_sparse_store_has<U>(state.sparseStores[argIdx], entity)) {
-						if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>)
-							return world_typed_sparse_store_mut<U>(state.sparseStores[argIdx], entity);
-						else
-							return world_typed_sparse_store_get<U>(state.sparseStores[argIdx], entity);
+					if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>) {
+						if (auto* pValue = world_typed_sparse_store_try_mut<U>(state.sparseStores[argIdx], entity);
+								pValue != nullptr)
+							return *pValue;
+					} else {
+						if (const auto* pValue = world_typed_sparse_store_try_get<U>(state.sparseStores[argIdx], entity);
+								pValue != nullptr)
+							return *pValue;
 					}
 				}
 				if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>)
@@ -65471,6 +65488,8 @@ namespace gaia {
 				void* (*func_mut)(void*, Entity) = nullptr;
 				//! Returns one read-only entity payload.
 				const void* (*func_get)(const void*, Entity) = nullptr;
+				//! Returns one read-only ordinary entity payload without pair dispatch.
+				const void* (*func_get_entity)(const void*, Entity) = nullptr;
 				void (*func_del)(void*, Entity) = nullptr;
 				bool (*func_has)(const void*, Entity) = nullptr;
 				bool (*func_copy_entity)(void*, Entity, Entity) = nullptr;
@@ -65491,6 +65510,8 @@ namespace gaia {
 
 				//! Entity-to-payload sparse index.
 				cnt::sparse_storage<RuntimeSparseComponentRecord> data;
+				//! Full-identity payload index for exact pair records.
+				cnt::map<EntityLookupKey, RuntimeSparseComponentRecord> pairData;
 				//! Aligned pages owning runtime payload slots.
 				cnt::darray<void*> payloadPages;
 				//! Registered runtime component metadata.
@@ -65524,7 +65545,32 @@ namespace gaia {
 				}
 
 				static cnt::sparse_id sid(Entity entity) {
+					GAIA_ASSERT(!entity.pair());
 					return (cnt::sparse_id)entity.id();
+				}
+
+				//! Allocates and constructs one runtime payload.
+				//! \return Payload pointer, or nullptr for a tag component.
+				GAIA_NODISCARD void* create_payload() {
+					const auto size = pItem->comp.size();
+					if (size == 0)
+						return nullptr;
+
+					auto* pData = alloc_payload();
+					GAIA_ASSERT(pData != nullptr);
+					if (pItem->func_ctor != nullptr)
+						pItem->func_ctor(pData, 1);
+					return pData;
+				}
+
+				//! Destroys and releases one runtime payload.
+				//! \param pData Payload pointer, or nullptr for a tag component.
+				void destroy_payload(void* pData) {
+					if (pData == nullptr)
+						return;
+
+					pItem->dtor(pData);
+					free_payload(pData);
 				}
 
 				//! Allocates one stable payload slot from the free list or current page.
@@ -65570,47 +65616,79 @@ namespace gaia {
 				}
 
 				void* add(Entity entity) {
+					if GAIA_UNLIKELY (entity.pair()) {
+						const auto key = EntityLookupKey(entity);
+						const auto it = pairData.find(key);
+						if (it != pairData.end())
+							return it->second.pData;
+
+						auto* pData = create_payload();
+						return pairData.emplace(key, RuntimeSparseComponentRecord{entity, pData}).first->second.pData;
+					}
+
 					const auto sparseId = sid(entity);
 					if (data.has(sparseId))
 						return data[sparseId].pData;
 
-					void* pData = nullptr;
-					const auto size = pItem->comp.size();
-					if (size != 0) {
-						pData = alloc_payload();
-						GAIA_ASSERT(pData != nullptr);
-						if (pItem->func_ctor != nullptr)
-							pItem->func_ctor(pData, 1);
-					}
-
+					auto* pData = create_payload();
 					data.add(RuntimeSparseComponentRecord{entity, pData});
 					return pData;
 				}
 
 				void* mut(Entity entity) {
+					if GAIA_UNLIKELY (entity.pair()) {
+						const auto it = pairData.find(EntityLookupKey(entity));
+						GAIA_ASSERT(it != pairData.end());
+						return it != pairData.end() ? it->second.pData : nullptr;
+					}
+
 					GAIA_ASSERT(data.has(sid(entity)));
 					return data[sid(entity)].pData;
 				}
 
 				const void* get(Entity entity) const {
+					if GAIA_UNLIKELY (entity.pair()) {
+						const auto it = pairData.find(EntityLookupKey(entity));
+						GAIA_ASSERT(it != pairData.end());
+						return it != pairData.end() ? it->second.pData : nullptr;
+					}
+
+					GAIA_ASSERT(data.has(sid(entity)));
+					return data[sid(entity)].pData;
+				}
+
+				//! Returns an ordinary entity payload without testing for pair identity.
+				//! \param entity Ordinary entity owning the payload.
+				//! \return Read-only runtime payload pointer.
+				GAIA_NODISCARD const void* get_entity(Entity entity) const {
+					GAIA_ASSERT(!entity.pair());
 					GAIA_ASSERT(data.has(sid(entity)));
 					return data[sid(entity)].pData;
 				}
 
 				void del_entity(Entity entity) {
+					if GAIA_UNLIKELY (entity.pair()) {
+						const auto it = pairData.find(EntityLookupKey(entity));
+						if (it == pairData.end())
+							return;
+
+						destroy_payload(it->second.pData);
+						pairData.erase(it);
+						return;
+					}
+
 					const auto sparseId = sid(entity);
 					if (!data.has(sparseId))
 						return;
 
-					auto* pData = data[sparseId].pData;
-					if (pData != nullptr) {
-						pItem->dtor(pData);
-						free_payload(pData);
-					}
+					destroy_payload(data[sparseId].pData);
 					data.del(sparseId);
 				}
 
 				bool has(Entity entity) const {
+					if GAIA_UNLIKELY (entity.pair())
+						return pairData.contains(EntityLookupKey(entity));
+
 					return data.has(sid(entity));
 				}
 
@@ -65626,18 +65704,54 @@ namespace gaia {
 				}
 
 				uint32_t count() const {
-					return (uint32_t)data.size();
+					return (uint32_t)(data.size() + pairData.size());
 				}
 
 				void collect_entities(cnt::darray<Entity>& out) const {
-					out.reserve(out.size() + (uint32_t)data.size());
+					out.reserve(out.size() + count());
 					for (const auto& item: data)
 						out.push_back(item.entity);
+
+					const auto firstPair = out.size();
+					for (const auto& item: pairData)
+						out.push_back(item.first.entity());
+					core::sort(out.begin() + firstPair, out.end(), [](Entity left, Entity right) {
+						return left.value() < right.value();
+					});
+				}
+
+				//! Visits every sparse payload owner in deterministic order.
+				//! \param ctx Opaque callback context.
+				//! \param func Callback returning false to stop iteration.
+				//! \return False when iteration was stopped by the callback, true otherwise.
+				GAIA_NODISCARD bool for_each_entity(void* ctx, bool (*func)(void*, Entity)) const {
+					for (const auto& item: data) {
+						if (!func(ctx, item.entity))
+							return false;
+					}
+
+					if (pairData.empty())
+						return true;
+
+					cnt::darray<Entity> pairEntities;
+					pairEntities.reserve((uint32_t)pairData.size());
+					for (const auto& item: pairData)
+						pairEntities.push_back(item.first.entity());
+					core::sort(pairEntities.begin(), pairEntities.end(), [](Entity left, Entity right) {
+						return left.value() < right.value();
+					});
+					for (auto entity: pairEntities) {
+						if (!func(ctx, entity))
+							return false;
+					}
+					return true;
 				}
 
 				void clear_store() {
 					while (!data.empty())
 						del_entity(data.begin()->entity);
+					while (!pairData.empty())
+						del_entity(pairData.begin()->first.entity());
 					free_payload_pages();
 				}
 			};
@@ -65648,12 +65762,24 @@ namespace gaia {
 				GAIA_USE_SMALLBLOCK(SparseComponentStore)
 
 				cnt::sparse_storage<SparseComponentRecord<T>> data;
+				//! Full-identity payload index for exact pair records.
+				cnt::map<EntityLookupKey, SparseComponentRecord<T>> pairData;
 
 				static cnt::sparse_id sid(Entity entity) {
+					GAIA_ASSERT(!entity.pair());
 					return (cnt::sparse_id)entity.id();
 				}
 
 				T& add(Entity entity) {
+					if GAIA_UNLIKELY (entity.pair()) {
+						const auto key = EntityLookupKey(entity);
+						const auto it = pairData.find(key);
+						if (it != pairData.end())
+							return it->second.value;
+
+						return pairData.emplace(key, SparseComponentRecord<T>{entity}).first->second.value;
+					}
+
 					const auto sparseId = sid(entity);
 					if (data.has(sparseId))
 						return data[sparseId].value;
@@ -65663,22 +65789,84 @@ namespace gaia {
 				}
 
 				T& mut(Entity entity) {
+					if GAIA_UNLIKELY (entity.pair()) {
+						const auto it = pairData.find(EntityLookupKey(entity));
+						GAIA_ASSERT(it != pairData.end());
+						return it->second.value;
+					}
+
 					GAIA_ASSERT(data.has(sid(entity)));
 					return data[sid(entity)].value;
 				}
 
 				const T& get(Entity entity) const {
+					if GAIA_UNLIKELY (entity.pair()) {
+						return get_pair(entity);
+					}
+
+					return get_entity(entity);
+				}
+
+				//! Returns an ordinary entity payload without testing for pair identity.
+				//! \param entity Ordinary entity owning the payload.
+				//! \return Read-only sparse component value.
+				GAIA_NODISCARD const T& get_entity(Entity entity) const {
+					GAIA_ASSERT(!entity.pair());
 					GAIA_ASSERT(data.has(sid(entity)));
 					return data[sid(entity)].value;
 				}
 
+				//! Returns an exact pair record payload from the full-identity index.
+				//! \param entity Exact pair record owning the payload.
+				//! \return Read-only sparse component value.
+				GAIA_NODISCARD const T& get_pair(Entity entity) const {
+					GAIA_ASSERT(entity.pair());
+					const auto it = pairData.find(EntityLookupKey(entity));
+					GAIA_ASSERT(it != pairData.end());
+					return it->second.value;
+				}
+
+				//! Finds a mutable payload using ordinary or exact-pair identity.
+				//! \param entity Entity or exact pair record to find.
+				//! \return Payload pointer, or nullptr when absent.
+				GAIA_NODISCARD T* try_mut(Entity entity) {
+					if GAIA_UNLIKELY (entity.pair()) {
+						const auto it = pairData.find(EntityLookupKey(entity));
+						return it != pairData.end() ? &it->second.value : nullptr;
+					}
+
+					const auto sparseId = sid(entity);
+					return data.has(sparseId) ? &data[sparseId].value : nullptr;
+				}
+
+				//! Finds a read-only payload using ordinary or exact-pair identity.
+				//! \param entity Entity or exact pair record to find.
+				//! \return Payload pointer, or nullptr when absent.
+				GAIA_NODISCARD const T* try_get(Entity entity) const {
+					if GAIA_UNLIKELY (entity.pair()) {
+						const auto it = pairData.find(EntityLookupKey(entity));
+						return it != pairData.end() ? &it->second.value : nullptr;
+					}
+
+					const auto sparseId = sid(entity);
+					return data.has(sparseId) ? &data[sparseId].value : nullptr;
+				}
+
 				void del_entity(Entity entity) {
+					if GAIA_UNLIKELY (entity.pair()) {
+						pairData.erase(EntityLookupKey(entity));
+						return;
+					}
+
 					const auto sparseId = sid(entity);
 					if (data.has(sparseId))
 						data.del(sparseId);
 				}
 
 				bool has(Entity entity) const {
+					if GAIA_UNLIKELY (entity.pair())
+						return pairData.contains(EntityLookupKey(entity));
+
 					return data.has(sid(entity));
 				}
 
@@ -65690,17 +65878,52 @@ namespace gaia {
 				}
 
 				uint32_t count() const {
-					return (uint32_t)data.size();
+					return (uint32_t)(data.size() + pairData.size());
 				}
 
 				void collect_entities(cnt::darray<Entity>& out) const {
-					out.reserve(out.size() + (uint32_t)data.size());
+					out.reserve(out.size() + count());
 					for (const auto& item: data)
 						out.push_back(item.entity);
+
+					const auto firstPair = out.size();
+					for (const auto& item: pairData)
+						out.push_back(item.first.entity());
+					core::sort(out.begin() + firstPair, out.end(), [](Entity left, Entity right) {
+						return left.value() < right.value();
+					});
+				}
+
+				//! Visits every sparse payload owner in deterministic order.
+				//! \param ctx Opaque callback context.
+				//! \param func Callback returning false to stop iteration.
+				//! \return False when iteration was stopped by the callback, true otherwise.
+				GAIA_NODISCARD bool for_each_entity(void* ctx, bool (*func)(void*, Entity)) const {
+					for (const auto& item: data) {
+						if (!func(ctx, item.entity))
+							return false;
+					}
+
+					if (pairData.empty())
+						return true;
+
+					cnt::darray<Entity> pairEntities;
+					pairEntities.reserve((uint32_t)pairData.size());
+					for (const auto& item: pairData)
+						pairEntities.push_back(item.first.entity());
+					core::sort(pairEntities.begin(), pairEntities.end(), [](Entity left, Entity right) {
+						return left.value() < right.value();
+					});
+					for (auto entity: pairEntities) {
+						if (!func(ctx, entity))
+							return false;
+					}
+					return true;
 				}
 
 				void clear_store() {
 					data.clear();
+					pairData.clear();
 				}
 			};
 
@@ -65726,6 +65949,12 @@ namespace gaia {
 					else
 						return (const void*)&static_cast<const Store*>(pStoreRaw)->get(entity);
 				};
+				store.func_get_entity = [](const void* pStoreRaw, Entity entity) {
+					if constexpr (std::is_pointer_v<decltype(static_cast<const Store*>(pStoreRaw)->get_entity(entity))>)
+						return static_cast<const Store*>(pStoreRaw)->get_entity(entity);
+					else
+						return (const void*)&static_cast<const Store*>(pStoreRaw)->get_entity(entity);
+				};
 				store.func_del = [](void* pStoreRaw, Entity entity) {
 					static_cast<Store*>(pStoreRaw)->del_entity(entity);
 				};
@@ -65742,12 +65971,7 @@ namespace gaia {
 					static_cast<const Store*>(pStoreRaw)->collect_entities(out);
 				};
 				store.func_for_each_entity = [](const void* pStoreRaw, void* pCtx, bool (*func)(void*, Entity)) {
-					const auto& data = static_cast<const Store*>(pStoreRaw)->data;
-					for (const auto& item: data) {
-						if (!func(pCtx, item.entity))
-							return false;
-					}
-					return true;
+					return static_cast<const Store*>(pStoreRaw)->for_each_entity(pCtx, func);
 				};
 				store.func_clear_store = [](void* pStoreRaw) {
 					static_cast<Store*>(pStoreRaw)->clear_store();
@@ -67417,6 +67641,19 @@ namespace gaia {
 				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
 				GAIA_ASSERT(it != m_sparseComponentsByComp.end());
 				return *(const U*)it->second.func_get(it->second.pStore, entity);
+			}
+
+			//! Returns a read-only sparse value for an ordinary entity without pair dispatch.
+			//! \tparam T Expected payload type.
+			//! \param component Sparse component entity.
+			//! \param entity Ordinary entity owning the value.
+			//! \return Read-only typed payload reference.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) sparse_component_get_entity_value(Entity component, Entity entity) const {
+				using U = typename actual_type_t<T>::Type;
+				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
+				GAIA_ASSERT(it != m_sparseComponentsByComp.end());
+				return *(const U*)it->second.func_get_entity(it->second.pStore, entity);
 			}
 
 			//! Returns the erased sparse store for \a component, or nullptr when absent.
@@ -73085,7 +73322,7 @@ namespace gaia {
 					GAIA_ASSERT(owner != EntityBad);
 					const auto* pStore = sparse_component_store<FT>(compEntity);
 					GAIA_ASSERT(pStore != nullptr);
-					return pStore->get(owner);
+					return pStore->get_entity(owner);
 				}
 
 				const auto owner = id_owner_inter(entity, compEntity);
@@ -73138,7 +73375,7 @@ namespace gaia {
 					if (can_use_sparse_component_storage<FT>(object)) {
 						const auto owner = id_owner_inter(entity, object);
 						GAIA_ASSERT(owner != EntityBad);
-						return sparse_component_get_value<FT>(object, owner);
+						return sparse_component_get_entity_value<FT>(object, owner);
 					}
 				}
 
@@ -77994,6 +78231,7 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 				m_observers.finish_diff(*this, GAIA_MOV(delDiffCtx));
 #endif
+				del_sparse_components(entity);
 
 				ec.req_del();
 				m_reqEntitiesToDel.insert(EntityLookupKey(entity));
@@ -79023,7 +79261,8 @@ namespace gaia {
 			//! \param entity Entity being deleted.
 			void del_pair_data_for_entity(Entity entity) {
 				Archetype* pArchetype = nullptr;
-				// Exact pair records are valid Gaia entities and can own non-fragmenting relation edges.
+				// Exact pair records are valid Gaia entities and can own out-of-archetype state.
+				del_sparse_components(entity);
 				del_nonfragmenting_relation_source(entity);
 
 				if (entity.pair()) {
@@ -79036,8 +79275,6 @@ namespace gaia {
 					auto ec = m_recs.entities[entity.id()];
 					m_recs.entities.free(entity);
 
-					// Remove all sparse-storage components from this entity.
-					del_sparse_components(entity);
 					// If the deleted entity is itself a non-fragmenting exclusive relation, drop its store.
 					del_nonfragmenting_relation(entity);
 					// If the deleted entity is itself a sparse-storage component, drop its store.
@@ -87545,6 +87782,26 @@ namespace gaia {
 		template <typename T>
 		inline bool world_typed_sparse_store_has(const void* pStore, Entity entity) {
 			return static_cast<const detail::SparseComponentStore<T>*>(pStore)->has(entity);
+		}
+
+		//! Finds a mutable typed sparse value with a single identity dispatch and lookup.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity whose value is requested.
+		//! \return Payload pointer, or nullptr when absent.
+		template <typename T>
+		inline T* world_typed_sparse_store_try_mut(void* pStore, Entity entity) {
+			return static_cast<detail::SparseComponentStore<T>*>(pStore)->try_mut(entity);
+		}
+
+		//! Finds a read-only typed sparse value with a single identity dispatch and lookup.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity whose value is requested.
+		//! \return Payload pointer, or nullptr when absent.
+		template <typename T>
+		inline const T* world_typed_sparse_store_try_get(const void* pStore, Entity entity) {
+			return static_cast<const detail::SparseComponentStore<T>*>(pStore)->try_get(entity);
 		}
 
 		//! Returns the component or pair id represented by query argument type \a T.

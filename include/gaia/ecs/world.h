@@ -1469,6 +1469,19 @@ namespace gaia {
 				return *(const U*)it->second.func_get(it->second.pStore, entity);
 			}
 
+			//! Returns a read-only sparse value for an ordinary entity without pair dispatch.
+			//! \tparam T Expected payload type.
+			//! \param component Sparse component entity.
+			//! \param entity Ordinary entity owning the value.
+			//! \return Read-only typed payload reference.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) sparse_component_get_entity_value(Entity component, Entity entity) const {
+				using U = typename actual_type_t<T>::Type;
+				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
+				GAIA_ASSERT(it != m_sparseComponentsByComp.end());
+				return *(const U*)it->second.func_get_entity(it->second.pStore, entity);
+			}
+
 			//! Returns the erased sparse store for \a component, or nullptr when absent.
 			//! \param component Sparse component entity.
 			//! \return Erased sparse store, or nullptr when no values have been stored.
@@ -7139,7 +7152,7 @@ namespace gaia {
 					GAIA_ASSERT(owner != EntityBad);
 					const auto* pStore = sparse_component_store<FT>(compEntity);
 					GAIA_ASSERT(pStore != nullptr);
-					return pStore->get(owner);
+					return pStore->get_entity(owner);
 				}
 
 				const auto owner = id_owner_inter(entity, compEntity);
@@ -7192,7 +7205,7 @@ namespace gaia {
 					if (can_use_sparse_component_storage<FT>(object)) {
 						const auto owner = id_owner_inter(entity, object);
 						GAIA_ASSERT(owner != EntityBad);
-						return sparse_component_get_value<FT>(object, owner);
+						return sparse_component_get_entity_value<FT>(object, owner);
 					}
 				}
 
@@ -12048,6 +12061,7 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 				m_observers.finish_diff(*this, GAIA_MOV(delDiffCtx));
 #endif
+				del_sparse_components(entity);
 
 				ec.req_del();
 				m_reqEntitiesToDel.insert(EntityLookupKey(entity));
@@ -13077,7 +13091,8 @@ namespace gaia {
 			//! \param entity Entity being deleted.
 			void del_pair_data_for_entity(Entity entity) {
 				Archetype* pArchetype = nullptr;
-				// Exact pair records are valid Gaia entities and can own non-fragmenting relation edges.
+				// Exact pair records are valid Gaia entities and can own out-of-archetype state.
+				del_sparse_components(entity);
 				del_nonfragmenting_relation_source(entity);
 
 				if (entity.pair()) {
@@ -13090,8 +13105,6 @@ namespace gaia {
 					auto ec = m_recs.entities[entity.id()];
 					m_recs.entities.free(entity);
 
-					// Remove all sparse-storage components from this entity.
-					del_sparse_components(entity);
 					// If the deleted entity is itself a non-fragmenting exclusive relation, drop its store.
 					del_nonfragmenting_relation(entity);
 					// If the deleted entity is itself a sparse-storage component, drop its store.
@@ -15841,6 +15854,26 @@ namespace gaia {
 		template <typename T>
 		inline bool world_typed_sparse_store_has(const void* pStore, Entity entity) {
 			return static_cast<const detail::SparseComponentStore<T>*>(pStore)->has(entity);
+		}
+
+		//! Finds a mutable typed sparse value with a single identity dispatch and lookup.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity whose value is requested.
+		//! \return Payload pointer, or nullptr when absent.
+		template <typename T>
+		inline T* world_typed_sparse_store_try_mut(void* pStore, Entity entity) {
+			return static_cast<detail::SparseComponentStore<T>*>(pStore)->try_mut(entity);
+		}
+
+		//! Finds a read-only typed sparse value with a single identity dispatch and lookup.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity whose value is requested.
+		//! \return Payload pointer, or nullptr when absent.
+		template <typename T>
+		inline const T* world_typed_sparse_store_try_get(const void* pStore, Entity entity) {
+			return static_cast<const detail::SparseComponentStore<T>*>(pStore)->try_get(entity);
 		}
 
 		//! Returns the component or pair id represented by query argument type \a T.

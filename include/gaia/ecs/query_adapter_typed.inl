@@ -13,6 +13,20 @@ namespace gaia {
 		T& world_typed_sparse_store_mut(void* pStore, Entity entity);
 		template <typename T>
 		bool world_typed_sparse_store_has(const void* pStore, Entity entity);
+		//! Finds a mutable typed sparse value in a prebound store.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity or exact pair record to find.
+		//! \return Payload pointer, or nullptr when absent.
+		template <typename T>
+		T* world_typed_sparse_store_try_mut(void* pStore, Entity entity);
+		//! Finds a read-only typed sparse value in a prebound store.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity or exact pair record to find.
+		//! \return Payload pointer, or nullptr when absent.
+		template <typename T>
+		const T* world_typed_sparse_store_try_get(const void* pStore, Entity entity);
 
 		template <typename T, bool IsEntity = std::is_same_v<typename actual_type_t<T>::Type, Entity>>
 		struct typed_query_arg_uses_sparse_storage: std::false_type {};

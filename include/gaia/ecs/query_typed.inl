@@ -863,11 +863,14 @@ namespace gaia {
 				if constexpr (std::is_same_v<U, Entity>)
 					return entity;
 				else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
-					if (world_typed_sparse_store_has<U>(state.sparseStores[argIdx], entity)) {
-						if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>)
-							return world_typed_sparse_store_mut<U>(state.sparseStores[argIdx], entity);
-						else
-							return world_typed_sparse_store_get<U>(state.sparseStores[argIdx], entity);
+					if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>) {
+						if (auto* pValue = world_typed_sparse_store_try_mut<U>(state.sparseStores[argIdx], entity);
+								pValue != nullptr)
+							return *pValue;
+					} else {
+						if (const auto* pValue = world_typed_sparse_store_try_get<U>(state.sparseStores[argIdx], entity);
+								pValue != nullptr)
+							return *pValue;
 					}
 				}
 				if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>)
