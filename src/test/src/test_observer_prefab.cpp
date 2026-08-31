@@ -520,7 +520,7 @@ TEST_CASE("Observer - inherited prefab removal does not fire when another source
 	(void)observer;
 }
 
-TEST_CASE("Observer - inherited prefab removal triggers no<T> OnDel") {
+TEST_CASE("Observer - inherited prefab removal enters no<T> query") {
 	TestWorld twld;
 
 	const auto prefab = wld.prefab();
@@ -533,7 +533,7 @@ TEST_CASE("Observer - inherited prefab removal triggers no<T> OnDel") {
 	ecs::Entity observed = ecs::EntityBad;
 
 	const auto observer = wld.observer()
-														.event(ecs::ObserverEvent::OnDel)
+														.event(ecs::ObserverEvent::OnAdd)
 														.no<Position>()
 														.on_each([&](ecs::Iter& it) {
 															++hits;
@@ -1057,6 +1057,7 @@ TEST_CASE("Observer - single negative fast path runtime") {
 
 	uint32_t onAddHits = 0;
 	uint32_t onDelHits = 0;
+	uint32_t lateOnDelHits = 0;
 
 	const auto observerOnAddNoPos = wld.observer()
 																			.event(ecs::ObserverEvent::OnAdd)
@@ -1072,20 +1073,31 @@ TEST_CASE("Observer - single negative fast path runtime") {
 																				++onDelHits;
 																			})
 																			.entity();
+	const auto observerOnDelNoAcc = wld.observer()
+																			.no<Acceleration>()
+																			.event(ecs::ObserverEvent::OnDel)
+																			.on_each([&lateOnDelHits](ecs::Iter&) {
+																				++lateOnDelHits;
+																			})
+																			.entity();
 
 	const auto& dataOnAddNoPos = wld.observers().data(observerOnAddNoPos);
 	const auto& dataOnDelNoPos = wld.observers().data(observerOnDelNoPos);
 	CHECK(dataOnAddNoPos.plan.fastPath == ecs::ObserverPlan::FastPath::SingleNegativeTerm);
 	CHECK(dataOnDelNoPos.plan.fastPath == ecs::ObserverPlan::FastPath::SingleNegativeTerm);
+	CHECK(wld.observers().data(observerOnDelNoAcc).plan.fastPath == ecs::ObserverPlan::FastPath::SingleNegativeTerm);
 
 	const auto e = wld.add();
 	wld.add<Position>(e, {});
 	CHECK(onAddHits == 0);
-	CHECK(onDelHits == 0);
+	CHECK(onDelHits == 1);
 
 	wld.del<Position>(e);
-	CHECK(onAddHits == 0);
+	CHECK(onAddHits == 1);
 	CHECK(onDelHits == 1);
+
+	wld.add<Acceleration>(e, {});
+	CHECK(lateOnDelHits == 1);
 }
 
 TEST_CASE("Observer - single positive OnDel fast path runtime") {

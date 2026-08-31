@@ -137,10 +137,14 @@ namespace gaia {
 				return m_world.observers().data(m_entity);
 			}
 
-			static void cache_term_id(ObserverRuntimeData& data, Entity term) {
+			static void
+			cache_term_desc(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
 				GAIA_ASSERT(data.plan.termCount < MAX_ITEMS_IN_QUERY);
-				if (data.plan.termCount < MAX_ITEMS_IN_QUERY)
+				if (data.plan.termCount < MAX_ITEMS_IN_QUERY) {
 					data.queryTermIds[data.plan.termCount] = term;
+					data.queryTermOps[data.plan.termCount] = op;
+					data.queryTermMatchKinds[data.plan.termCount] = options.matchKind;
+				}
 			}
 
 			bool has_default_match_options(const QueryTermOptions& options) const {
@@ -207,12 +211,8 @@ namespace gaia {
 				return false;
 			}
 
-			void register_diff_term(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
-				if (!requires_diff_dispatch(term, options))
-					return;
-
-				data.plan.diff.enabled = true;
-				data.plan.refresh_exec_kind();
+			void register_diff_term_index(
+					ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
 				if (options.entTrav != EntityBad) {
 					bool hasRelation = false;
 					GAIA_FOR(data.plan.diff.traversalRelationCount) {
@@ -230,7 +230,32 @@ namespace gaia {
 				}
 				update_diff_target_narrow_plan(data, op, term, options);
 				data.plan.refresh_exec_kind();
-				m_world.observers().add_diff_observer_term(m_world, m_entity, term, options);
+				m_world.observers().add_diff_observer_term(m_world, m_entity, op, term, options);
+			}
+
+			void register_diff_term(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
+				const bool compoundNegative = data.plan.hasNegativeTerm && data.plan.termCount > 1;
+				if (data.plan.diff.enabled) {
+					register_diff_term_index(data, op, term, options);
+					return;
+				}
+
+				if (!requires_diff_dispatch(term, options) && !compoundNegative)
+					return;
+
+				data.plan.diff.enabled = true;
+				data.plan.refresh_exec_kind();
+
+				// A compound negative query starts using diff dispatch only after its second
+				// term is known. Register every query term so either transition direction
+				// can find the observer.
+				GAIA_FOR(data.plan.termCount) {
+					QueryTermOptions queryOptions{};
+					queryOptions.matchKind = data.queryTermMatchKinds[i];
+					if (i + 1 == data.plan.termCount)
+						queryOptions = options;
+					register_diff_term_index(data, data.queryTermOps[i], data.queryTermIds[i], queryOptions);
+				}
 			}
 
 			void update_diff_target_narrow_plan(
@@ -322,14 +347,21 @@ namespace gaia {
 					return;
 				}
 
+				// Fixed local terms can use the entities supplied by the structural mutation.
+				// Semantic Is terms can affect inheriting entities, so keep those on the
+				// conservative global path.
+				if (!requires_diff_dispatch(term, options) &&
+						(!term.pair() || term.id() != Is.id() || options.matchKind == QueryMatchKind::Direct))
+					return;
+
 				mark_unsupported();
 			}
 
 			void reg_term(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
-				cache_term_id(data, term);
-				data.plan.add_term_descriptor(op, is_fast_path_eligible_term(term, options));
+				cache_term_desc(data, op, term, options);
+				data.plan.add_term_desc(op, is_fast_path_eligible_term(term, options));
 				register_diff_term(data, op, term, options);
-				m_world.observers().add(m_world, term, m_entity, options.matchKind);
+				m_world.observers().add(m_world, term, m_entity, op, options.matchKind);
 			}
 
 		public:
@@ -362,9 +394,9 @@ namespace gaia {
 					options.travDepth = term.travDepth;
 					options.matchKind = term.matchKind;
 
-					m_world.observers().add(m_world, term.id, m_entity, term.matchKind);
-					if (requires_diff_dispatch(term.id, options))
-						m_world.observers().add_diff_observer_term(m_world, m_entity, term.id, options);
+					m_world.observers().add(m_world, term.id, m_entity, term.op, term.matchKind);
+					if (runtime.plan.uses_diff_dispatch())
+						m_world.observers().add_diff_observer_term(m_world, m_entity, term.op, term.id, options);
 				}
 				return *this;
 			}
@@ -402,10 +434,10 @@ namespace gaia {
 				options.access = item.access;
 				options.matchKind = item.matchKind;
 
-				cache_term_id(data, item.id);
-				data.plan.add_term_descriptor(item.op, is_fast_path_eligible_term(item.id, options));
+				cache_term_desc(data, item.op, item.id, options);
+				data.plan.add_term_desc(item.op, is_fast_path_eligible_term(item.id, options));
 				register_diff_term(data, item.op, item.id, options);
-				m_world.observers().add(m_world, item.id, m_entity, item.matchKind);
+				m_world.observers().add(m_world, item.id, m_entity, item.op, item.matchKind);
 				return *this;
 			}
 

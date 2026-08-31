@@ -64482,9 +64482,9 @@ namespace gaia {
 		//! It is not emitted by silent writes such as `sset(...)`, and it is not emitted just because
 		//! a component was added for the first time.
 		enum class ObserverEvent : uint8_t {
-			OnAdd, // Entity enters matching archetype
-			OnDel, // Entity leaves matching archetype
-			OnSet, // Component value changed on an already present component
+			OnAdd, //!< Entity enters the observer query.
+			OnDel, //!< Entity leaves the observer query.
+			OnSet, //!< Component value changed on an already present component.
 		};
 
 		//! Observer context passed to callbacks.
@@ -64538,6 +64538,8 @@ namespace gaia {
 			FastPath fastPath = FastPath::None;
 			//! Number of terms added to the observer query.
 			uint8_t termCount = 0;
+			//! True when at least one query term excludes matches.
+			bool hasNegativeTerm = false;
 			//! Chosen observer execution class.
 			ExecKind execKind = ExecKind::DirectQuery;
 			//! Dynamic/propagated execution metadata.
@@ -64604,8 +64606,12 @@ namespace gaia {
 				return fastPath == FastPath::SingleNegativeTerm;
 			}
 
-			void add_term_descriptor(QueryOpKind op, bool allowFastPath) {
+			//! Records one query term in the observer execution plan.
+			//! \param op Query operation applied to the term.
+			//! \param allowFastPath True when the term supports direct fast dispatch.
+			void add_term_desc(QueryOpKind op, bool allowFastPath) {
 				++termCount;
+				hasNegativeTerm |= op == QueryOpKind::Not;
 
 				if (!allowFastPath) {
 					fastPath = FastPath::Disabled;
@@ -64658,6 +64664,10 @@ namespace gaia {
 			ObserverPlan plan;
 			//! Query term ids cached in field order for observer iteration setup.
 			QueryEntityArray queryTermIds{};
+			//! Query operations cached for observer index registration.
+			QueryOpKind queryTermOps[MAX_ITEMS_IN_QUERY]{};
+			//! Query match policies cached for observer index registration.
+			QueryMatchKind queryTermMatchKinds[MAX_ITEMS_IN_QUERY]{};
 			//! Hot-path stamp used for O(1) deduplication during observer candidate collection.
 			uint64_t lastMatchStamp = 0;
 
@@ -64764,7 +64774,11 @@ namespace gaia {
 		public:
 			struct DiffDispatcher {
 				struct Snapshot {
+					//! Observer whose query membership was captured.
 					Entity observer = EntityBad;
+					//! Logical membership event requested by the observer.
+					ObserverEvent event = ObserverEvent::OnAdd;
+					//! Index of the shared before-mutation match list.
 					uint32_t matchesBeforeIdx = UINT32_MAX;
 				};
 
@@ -65215,6 +65229,16 @@ namespace gaia {
 				return event == ObserverEvent::OnAdd ? m_diff_index_add : m_diff_index_del;
 			}
 
+			//! Maps a logical observer event and query operation to the structural mutation that can trigger it.
+			//! \param event Logical event requested by the observer.
+			//! \param op Query operation applied to the indexed term.
+			//! \return Structural add or delete event used for index lookup.
+			GAIA_NODISCARD static ObserverEvent structural_event(ObserverEvent event, QueryOpKind op) {
+				if (op != QueryOpKind::Not || event == ObserverEvent::OnSet)
+					return event;
+				return event == ObserverEvent::OnAdd ? ObserverEvent::OnDel : ObserverEvent::OnAdd;
+			}
+
 			//! Checks all direct event maps for live observers registered under a term.
 			//! \param term Exact component or pair term.
 			//! \return True when at least one live observer is registered for the term.
@@ -65467,9 +65491,11 @@ namespace gaia {
 			//! Adds one observer query term to the indexes used by before-and-after dispatch.
 			//! \param world World containing the observer entity and pair records.
 			//! \param observer Observer entity being indexed.
+			//! \param op Query operation applied to the term.
 			//! \param term Query term that may be affected by a mutation.
 			//! \param options Source and traversal settings for the query term.
-			void add_diff_observer_term(World& world, Entity observer, Entity term, const QueryTermOptions& options);
+			void add_diff_observer_term(
+					World& world, Entity observer, QueryOpKind op, Entity term, const QueryTermOptions& options);
 
 			//! Starts before-and-after dispatch around a world mutation.
 			//! \param world World about to be changed.
@@ -65588,8 +65614,11 @@ namespace gaia {
 			//! \param world World containing the observer entity.
 			//! \param term Query term used to find the observer during mutations.
 			//! \param observer Observer entity being registered.
+			//! \param op Query operation applied to the term.
 			//! \param matchKind Observer match policy used for the registered term.
-			void add(World& world, Entity term, Entity observer, QueryMatchKind matchKind = QueryMatchKind::Semantic);
+			void
+			add(World& world, Entity term, Entity observer, QueryOpKind op,
+					QueryMatchKind matchKind = QueryMatchKind::Semantic);
 
 			//! Removes an observer entity or all observer registrations for a term.
 			//! \param world World that owns the observer indexes.
@@ -68337,10 +68366,10 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 				//! Pending non-fragmenting relation removals, with the archetype component limit reserved inline.
 				cnt::darray_ext<Entity, MAX_TERMS> tl_del_nonfragmenting_relations;
-				//! Add-event diff contexts captured before non-fragmenting relation storage is updated.
-				cnt::darray_ext<ObserverRegistry::DiffDispatchCtx, 4> tl_add_nonfragmenting_diff_contexts;
-				//! Delete-event diff contexts captured before exclusive non-fragmenting targets are replaced.
-				cnt::darray_ext<ObserverRegistry::DiffDispatchCtx, 4> tl_del_nonfragmenting_diff_contexts;
+				//! Add-event diff contexts captured before relation bookkeeping is updated.
+				cnt::darray_ext<ObserverRegistry::DiffDispatchCtx, 4> tl_add_relation_diff_contexts;
+				//! Delete-event diff contexts captured before relation bookkeeping is updated.
+				cnt::darray_ext<ObserverRegistry::DiffDispatchCtx, 4> tl_del_relation_diff_contexts;
 #endif
 
 				//! Creates a builder from an already fetched entity record.
@@ -68382,8 +68411,8 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 						,
 						tl_del_nonfragmenting_relations(GAIA_MOV(other.tl_del_nonfragmenting_relations)),
-						tl_add_nonfragmenting_diff_contexts(GAIA_MOV(other.tl_add_nonfragmenting_diff_contexts)),
-						tl_del_nonfragmenting_diff_contexts(GAIA_MOV(other.tl_del_nonfragmenting_diff_contexts))
+						tl_add_relation_diff_contexts(GAIA_MOV(other.tl_add_relation_diff_contexts)),
+						tl_del_relation_diff_contexts(GAIA_MOV(other.tl_del_relation_diff_contexts))
 #endif
 				{
 					other.m_pArchetype = nullptr;
@@ -68411,14 +68440,18 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 						const bool hasOnDelObservers = !tl_del_comps.empty() && m_world.m_observers.has_on_del_observers();
 						const bool hasOnAddObservers = !tl_new_comps.empty() && m_world.m_observers.has_on_add_observers();
+						const bool hasNonfragmentingAdds = hasOnAddObservers && has_nonfragmenting_adds();
 						auto delDiffCtx = !hasOnDelObservers ? ObserverRegistry::DiffDispatchCtx{}
 																								 : m_world.m_observers.prepare_diff(
 																											 m_world, ObserverEvent::OnDel, EntitySpan{tl_del_comps},
 																											 EntitySpan{&m_entity, 1});
-						auto addDiffCtx = !hasOnAddObservers
-																	? ObserverRegistry::DiffDispatchCtx{}
-																	: m_world.m_observers.prepare_diff_add_new(m_world, EntitySpan{tl_new_comps});
-						if (hasOnAddObservers)
+						auto addDiffCtx =
+								!hasOnAddObservers ? ObserverRegistry::DiffDispatchCtx{}
+								: hasNonfragmentingAdds
+										? m_world.m_observers.prepare_diff_add_new(m_world, EntitySpan{tl_new_comps})
+										: m_world.m_observers.prepare_diff(
+													m_world, ObserverEvent::OnAdd, EntitySpan{tl_new_comps}, EntitySpan{&m_entity, 1});
+						if (hasNonfragmentingAdds)
 							m_world.m_observers.add_diff_targets(m_world, addDiffCtx, EntitySpan{&m_entity, 1});
 #endif
 
@@ -68476,14 +68509,18 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 						const bool hasOnDelObservers = !tl_del_comps.empty() && m_world.m_observers.has_on_del_observers();
 						const bool hasOnAddObservers = !tl_new_comps.empty() && m_world.m_observers.has_on_add_observers();
+						const bool hasNonfragmentingAdds = hasOnAddObservers && has_nonfragmenting_adds();
 						auto delDiffCtx = !hasOnDelObservers ? ObserverRegistry::DiffDispatchCtx{}
 																								 : m_world.m_observers.prepare_diff(
 																											 m_world, ObserverEvent::OnDel, EntitySpan{tl_del_comps},
 																											 EntitySpan{&m_entity, 1});
-						auto addDiffCtx = !hasOnAddObservers
-																	? ObserverRegistry::DiffDispatchCtx{}
-																	: m_world.m_observers.prepare_diff_add_new(m_world, EntitySpan{tl_new_comps});
-						if (hasOnAddObservers)
+						auto addDiffCtx =
+								!hasOnAddObservers ? ObserverRegistry::DiffDispatchCtx{}
+								: hasNonfragmentingAdds
+										? m_world.m_observers.prepare_diff_add_new(m_world, EntitySpan{tl_new_comps})
+										: m_world.m_observers.prepare_diff(
+													m_world, ObserverEvent::OnAdd, EntitySpan{tl_new_comps}, EntitySpan{&m_entity, 1});
+						if (hasNonfragmentingAdds)
 							m_world.m_observers.add_diff_targets(m_world, addDiffCtx, EntitySpan{&m_entity, 1});
 #endif
 
@@ -68524,7 +68561,7 @@ namespace gaia {
 					}
 
 #if GAIA_OBSERVERS_ENABLED
-					finish_nonfragmenting_diff_contexts();
+					finish_relation_diff_contexts();
 #endif
 
 					// Finalize the builder by reseting the archetype pointer
@@ -68849,14 +68886,24 @@ namespace gaia {
 				}
 
 #if GAIA_OBSERVERS_ENABLED
-				//! Finishes observer diffs captured before non-fragmenting relation mutations.
-				void finish_nonfragmenting_diff_contexts() {
-					for (auto& ctx: tl_del_nonfragmenting_diff_contexts)
+				//! Finishes observer diffs captured before relation bookkeeping mutations.
+				void finish_relation_diff_contexts() {
+					for (auto& ctx: tl_del_relation_diff_contexts)
 						m_world.m_observers.finish_diff(m_world, GAIA_MOV(ctx));
-					tl_del_nonfragmenting_diff_contexts.clear();
-					for (auto& ctx: tl_add_nonfragmenting_diff_contexts)
+					tl_del_relation_diff_contexts.clear();
+					for (auto& ctx: tl_add_relation_diff_contexts)
 						m_world.m_observers.finish_diff(m_world, GAIA_MOV(ctx));
-					tl_add_nonfragmenting_diff_contexts.clear();
+					tl_add_relation_diff_contexts.clear();
+				}
+
+				//! Returns whether the pending additions include relation data stored outside the archetype.
+				//! \return True when at least one pending pair uses the non-fragmenting path.
+				GAIA_NODISCARD bool has_nonfragmenting_adds() const {
+					for (auto entity: tl_new_comps) {
+						if (entity.pair() && relation_mutation_path(entity) == RelationMutationPath::NonFragmentingExclusive)
+							return true;
+					}
+					return false;
 				}
 
 				//! Flushes deferred non-fragmenting relation removals after observer dispatch.
@@ -69477,11 +69524,25 @@ namespace gaia {
 					if (has_archetype_id(entity))
 						return false;
 
+#if GAIA_OBSERVERS_ENABLED
+					ObserverRegistry::DiffDispatchCtx relationDiffCtx{};
+					if constexpr (!IsBootstrap) {
+						if (entity.id() == Is.id())
+							relationDiffCtx = m_world.m_observers.prepare_diff(
+									m_world, ObserverEvent::OnAdd, EntitySpan{&entity, 1}, EntitySpan{&m_entity, 1});
+					}
+#endif
+
 					invalidate_relation_change(entity);
 
 					try_set_flags(entity, true);
 					if (!link_is_relation(entity))
 						return false;
+
+#if GAIA_OBSERVERS_ENABLED
+					if (relationDiffCtx.active)
+						tl_add_relation_diff_contexts.push_back(GAIA_MOV(relationDiffCtx));
+#endif
 
 					add_archetype_id(entity);
 					finish_add_id<IsBootstrap>(entity);
@@ -69515,7 +69576,7 @@ namespace gaia {
 									m_world, ObserverEvent::OnDel, EntitySpan{&oldPair, 1}, EntitySpan{&m_entity, 1});
 							if (delDiffCtx.active) {
 								delDiffCtx.targetsRemovedAfterPrepare = true;
-								tl_del_nonfragmenting_diff_contexts.push_back(GAIA_MOV(delDiffCtx));
+								tl_del_relation_diff_contexts.push_back(GAIA_MOV(delDiffCtx));
 							}
 						}
 #endif
@@ -69527,7 +69588,6 @@ namespace gaia {
 					}
 
 					invalidate_relation_change(entity);
-
 					try_set_flags(entity, true);
 					if (!link_is_relation(entity))
 						return false;
@@ -69537,7 +69597,7 @@ namespace gaia {
 						auto addDiffCtx = m_world.m_observers.prepare_diff_add_new(m_world, EntitySpan{&entity, 1});
 						m_world.m_observers.add_diff_targets(m_world, addDiffCtx, EntitySpan{&m_entity, 1});
 						if (addDiffCtx.active && !addDiffCtx.targetsAddedAfterPrepare)
-							tl_add_nonfragmenting_diff_contexts.push_back(GAIA_MOV(addDiffCtx));
+							tl_add_relation_diff_contexts.push_back(GAIA_MOV(addDiffCtx));
 					}
 #endif
 
@@ -81140,6 +81200,11 @@ namespace gaia {
 				ctx.observers.push_back({});
 				auto& snapshot = ctx.observers.back();
 				snapshot.observer = pObs->entity;
+				const auto& ecObserver = world.fetch(pObs->entity);
+				const auto observerCompIdx = ecObserver.pChunk->comp_idx(Observer);
+				const auto& observerData =
+						*reinterpret_cast<const Observer_*>(ecObserver.pChunk->comp_ptr(observerCompIdx, ecObserver.row));
+				snapshot.event = observerData.event;
 				if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
 					ctx.resetTraversalCaches = true;
 
@@ -81208,18 +81273,27 @@ namespace gaia {
 			if (relevantObservers.empty())
 				return ctx;
 
-			ctx.active = true;
 			ctx.targeted = true;
 			ctx.targetsAddedAfterPrepare = true;
 			for (auto* pObs: relevantObservers) {
 				if (pObs == nullptr)
 					continue;
 
+				const auto& ecObserver = world.fetch(pObs->entity);
+				const auto observerCompIdx = ecObserver.pChunk->comp_idx(Observer);
+				const auto& observerData =
+						*reinterpret_cast<const Observer_*>(ecObserver.pChunk->comp_ptr(observerCompIdx, ecObserver.row));
+				// A newly created entity cannot leave a query because it had no prior membership.
+				if (observerData.event != ObserverEvent::OnAdd)
+					continue;
+
 				if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
 					ctx.resetTraversalCaches = true;
 				ctx.observers.push_back({});
 				ctx.observers.back().observer = pObs->entity;
+				ctx.observers.back().event = observerData.event;
 			}
+			ctx.active = !ctx.observers.empty();
 
 			return ctx;
 		}
@@ -81261,7 +81335,7 @@ namespace gaia {
 
 				// Some removal paths delete the target before this function runs. Their last
 				// valid matches were captured in the before snapshot and are the event targets.
-				if (ctx.targetsRemovedAfterPrepare && ctx.event == ObserverEvent::OnDel) {
+				if (ctx.targetsRemovedAfterPrepare && snapshot.event == ObserverEvent::OnDel) {
 					GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
 					const auto& matchesBefore = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
 					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesBefore});
@@ -81287,7 +81361,7 @@ namespace gaia {
 
 				// Newly created entities have no meaningful before result. Every matching
 				// entity in the after snapshot is therefore an added match.
-				if (ctx.targetsAddedAfterPrepare && ctx.event == ObserverEvent::OnAdd) {
+				if (ctx.targetsAddedAfterPrepare && snapshot.event == ObserverEvent::OnAdd) {
 					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesAfter});
 					continue;
 				}
@@ -81301,14 +81375,14 @@ namespace gaia {
 				uint32_t afterMatchIdx = 0;
 				while (beforeIdx < before.size() || afterMatchIdx < matchesAfter.size()) {
 					if (beforeIdx == before.size()) {
-						if (ctx.event == ObserverEvent::OnAdd)
+						if (snapshot.event == ObserverEvent::OnAdd)
 							delta.push_back(matchesAfter[afterMatchIdx]);
 						++afterMatchIdx;
 						continue;
 					}
 
 					if (afterMatchIdx == matchesAfter.size()) {
-						if (ctx.event == ObserverEvent::OnDel)
+						if (snapshot.event == ObserverEvent::OnDel)
 							delta.push_back(before[beforeIdx]);
 						++beforeIdx;
 						continue;
@@ -81323,11 +81397,11 @@ namespace gaia {
 					}
 
 					if (beforeEntity < afterEntity) {
-						if (ctx.event == ObserverEvent::OnDel)
+						if (snapshot.event == ObserverEvent::OnDel)
 							delta.push_back(beforeEntity);
 						++beforeIdx;
 					} else {
-						if (ctx.event == ObserverEvent::OnAdd)
+						if (snapshot.event == ObserverEvent::OnAdd)
 							delta.push_back(afterEntity);
 						++afterMatchIdx;
 					}
@@ -81398,7 +81472,11 @@ namespace gaia {
 						continue;
 				}
 
-				if (SharedDispatch::matches_direct_targets(obs, archetype, targets, pQueryInfo))
+				bool matches = SharedDispatch::matches_direct_targets(obs, archetype, targets, pQueryInfo);
+				if (obs.plan.exec_kind() == ObserverPlan::ExecKind::DirectFast && obs.plan.is_fast_negative())
+					matches = true;
+
+				if (matches)
 					SharedDispatch::execute_targets(world, obs, targets);
 			}
 		}
@@ -82029,7 +82107,7 @@ namespace gaia {
 		}
 
 		inline void ObserverRegistry::add_diff_observer_term(
-				World& world, Entity observer, Entity term, const QueryTermOptions& options) {
+				World& world, Entity observer, QueryOpKind op, Entity term, const QueryTermOptions& options) {
 			GAIA_ASSERT(world.valid(observer));
 
 			const auto& ec = world.fetch(observer);
@@ -82046,7 +82124,7 @@ namespace gaia {
 
 			// Every diff observer remains available through the complete list for mutation
 			// paths that cannot provide precise changed terms.
-			auto& index = diff_index(obs.event);
+			auto& index = diff_index(structural_event(obs.event, op));
 			add_observer_to_list(index.all, observer);
 
 			bool registered = false;
@@ -82128,7 +82206,8 @@ namespace gaia {
 			mark_term_observed(world, term, true);
 		}
 
-		inline void ObserverRegistry::add(World& world, Entity term, Entity observer, QueryMatchKind matchKind) {
+		inline void
+		ObserverRegistry::add(World& world, Entity term, Entity observer, QueryOpKind op, QueryMatchKind matchKind) {
 			GAIA_ASSERT(!observer.pair());
 			GAIA_ASSERT(world.valid(observer));
 			// A concrete pair is valid only after the world has created its pair record.
@@ -82143,7 +82222,7 @@ namespace gaia {
 			const auto& ec = world.fetch(observer);
 			const auto compIdx = ec.pChunk->comp_idx(Observer);
 			const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
-			switch (obs.event) {
+			switch (structural_event(obs.event, op)) {
 				case ObserverEvent::OnAdd:
 					add_observer_to_map(m_observer_map_add, term, observer);
 					if (is_semantic_is_term(term, matchKind))
@@ -82351,10 +82430,14 @@ namespace gaia {
 				return m_world.observers().data(m_entity);
 			}
 
-			static void cache_term_id(ObserverRuntimeData& data, Entity term) {
+			static void
+			cache_term_desc(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
 				GAIA_ASSERT(data.plan.termCount < MAX_ITEMS_IN_QUERY);
-				if (data.plan.termCount < MAX_ITEMS_IN_QUERY)
+				if (data.plan.termCount < MAX_ITEMS_IN_QUERY) {
 					data.queryTermIds[data.plan.termCount] = term;
+					data.queryTermOps[data.plan.termCount] = op;
+					data.queryTermMatchKinds[data.plan.termCount] = options.matchKind;
+				}
 			}
 
 			bool has_default_match_options(const QueryTermOptions& options) const {
@@ -82421,12 +82504,8 @@ namespace gaia {
 				return false;
 			}
 
-			void register_diff_term(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
-				if (!requires_diff_dispatch(term, options))
-					return;
-
-				data.plan.diff.enabled = true;
-				data.plan.refresh_exec_kind();
+			void register_diff_term_index(
+					ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
 				if (options.entTrav != EntityBad) {
 					bool hasRelation = false;
 					GAIA_FOR(data.plan.diff.traversalRelationCount) {
@@ -82444,7 +82523,32 @@ namespace gaia {
 				}
 				update_diff_target_narrow_plan(data, op, term, options);
 				data.plan.refresh_exec_kind();
-				m_world.observers().add_diff_observer_term(m_world, m_entity, term, options);
+				m_world.observers().add_diff_observer_term(m_world, m_entity, op, term, options);
+			}
+
+			void register_diff_term(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
+				const bool compoundNegative = data.plan.hasNegativeTerm && data.plan.termCount > 1;
+				if (data.plan.diff.enabled) {
+					register_diff_term_index(data, op, term, options);
+					return;
+				}
+
+				if (!requires_diff_dispatch(term, options) && !compoundNegative)
+					return;
+
+				data.plan.diff.enabled = true;
+				data.plan.refresh_exec_kind();
+
+				// A compound negative query starts using diff dispatch only after its second
+				// term is known. Register every query term so either transition direction
+				// can find the observer.
+				GAIA_FOR(data.plan.termCount) {
+					QueryTermOptions queryOptions{};
+					queryOptions.matchKind = data.queryTermMatchKinds[i];
+					if (i + 1 == data.plan.termCount)
+						queryOptions = options;
+					register_diff_term_index(data, data.queryTermOps[i], data.queryTermIds[i], queryOptions);
+				}
 			}
 
 			void update_diff_target_narrow_plan(
@@ -82536,14 +82640,21 @@ namespace gaia {
 					return;
 				}
 
+				// Fixed local terms can use the entities supplied by the structural mutation.
+				// Semantic Is terms can affect inheriting entities, so keep those on the
+				// conservative global path.
+				if (!requires_diff_dispatch(term, options) &&
+						(!term.pair() || term.id() != Is.id() || options.matchKind == QueryMatchKind::Direct))
+					return;
+
 				mark_unsupported();
 			}
 
 			void reg_term(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
-				cache_term_id(data, term);
-				data.plan.add_term_descriptor(op, is_fast_path_eligible_term(term, options));
+				cache_term_desc(data, op, term, options);
+				data.plan.add_term_desc(op, is_fast_path_eligible_term(term, options));
 				register_diff_term(data, op, term, options);
-				m_world.observers().add(m_world, term, m_entity, options.matchKind);
+				m_world.observers().add(m_world, term, m_entity, op, options.matchKind);
 			}
 
 		public:
@@ -82576,9 +82687,9 @@ namespace gaia {
 					options.travDepth = term.travDepth;
 					options.matchKind = term.matchKind;
 
-					m_world.observers().add(m_world, term.id, m_entity, term.matchKind);
-					if (requires_diff_dispatch(term.id, options))
-						m_world.observers().add_diff_observer_term(m_world, m_entity, term.id, options);
+					m_world.observers().add(m_world, term.id, m_entity, term.op, term.matchKind);
+					if (runtime.plan.uses_diff_dispatch())
+						m_world.observers().add_diff_observer_term(m_world, m_entity, term.op, term.id, options);
 				}
 				return *this;
 			}
@@ -82616,10 +82727,10 @@ namespace gaia {
 				options.access = item.access;
 				options.matchKind = item.matchKind;
 
-				cache_term_id(data, item.id);
-				data.plan.add_term_descriptor(item.op, is_fast_path_eligible_term(item.id, options));
+				cache_term_desc(data, item.op, item.id, options);
+				data.plan.add_term_desc(item.op, is_fast_path_eligible_term(item.id, options));
 				register_diff_term(data, item.op, item.id, options);
-				m_world.observers().add(m_world, item.id, m_entity, item.matchKind);
+				m_world.observers().add(m_world, item.id, m_entity, item.op, item.matchKind);
 				return *this;
 			}
 

@@ -291,6 +291,11 @@ namespace gaia {
 				ctx.observers.push_back({});
 				auto& snapshot = ctx.observers.back();
 				snapshot.observer = pObs->entity;
+				const auto& ecObserver = world.fetch(pObs->entity);
+				const auto observerCompIdx = ecObserver.pChunk->comp_idx(Observer);
+				const auto& observerData =
+						*reinterpret_cast<const Observer_*>(ecObserver.pChunk->comp_ptr(observerCompIdx, ecObserver.row));
+				snapshot.event = observerData.event;
 				if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
 					ctx.resetTraversalCaches = true;
 
@@ -359,18 +364,27 @@ namespace gaia {
 			if (relevantObservers.empty())
 				return ctx;
 
-			ctx.active = true;
 			ctx.targeted = true;
 			ctx.targetsAddedAfterPrepare = true;
 			for (auto* pObs: relevantObservers) {
 				if (pObs == nullptr)
 					continue;
 
+				const auto& ecObserver = world.fetch(pObs->entity);
+				const auto observerCompIdx = ecObserver.pChunk->comp_idx(Observer);
+				const auto& observerData =
+						*reinterpret_cast<const Observer_*>(ecObserver.pChunk->comp_ptr(observerCompIdx, ecObserver.row));
+				// A newly created entity cannot leave a query because it had no prior membership.
+				if (observerData.event != ObserverEvent::OnAdd)
+					continue;
+
 				if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
 					ctx.resetTraversalCaches = true;
 				ctx.observers.push_back({});
 				ctx.observers.back().observer = pObs->entity;
+				ctx.observers.back().event = observerData.event;
 			}
+			ctx.active = !ctx.observers.empty();
 
 			return ctx;
 		}
@@ -412,7 +426,7 @@ namespace gaia {
 
 				// Some removal paths delete the target before this function runs. Their last
 				// valid matches were captured in the before snapshot and are the event targets.
-				if (ctx.targetsRemovedAfterPrepare && ctx.event == ObserverEvent::OnDel) {
+				if (ctx.targetsRemovedAfterPrepare && snapshot.event == ObserverEvent::OnDel) {
 					GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
 					const auto& matchesBefore = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
 					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesBefore});
@@ -438,7 +452,7 @@ namespace gaia {
 
 				// Newly created entities have no meaningful before result. Every matching
 				// entity in the after snapshot is therefore an added match.
-				if (ctx.targetsAddedAfterPrepare && ctx.event == ObserverEvent::OnAdd) {
+				if (ctx.targetsAddedAfterPrepare && snapshot.event == ObserverEvent::OnAdd) {
 					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesAfter});
 					continue;
 				}
@@ -452,14 +466,14 @@ namespace gaia {
 				uint32_t afterMatchIdx = 0;
 				while (beforeIdx < before.size() || afterMatchIdx < matchesAfter.size()) {
 					if (beforeIdx == before.size()) {
-						if (ctx.event == ObserverEvent::OnAdd)
+						if (snapshot.event == ObserverEvent::OnAdd)
 							delta.push_back(matchesAfter[afterMatchIdx]);
 						++afterMatchIdx;
 						continue;
 					}
 
 					if (afterMatchIdx == matchesAfter.size()) {
-						if (ctx.event == ObserverEvent::OnDel)
+						if (snapshot.event == ObserverEvent::OnDel)
 							delta.push_back(before[beforeIdx]);
 						++beforeIdx;
 						continue;
@@ -474,11 +488,11 @@ namespace gaia {
 					}
 
 					if (beforeEntity < afterEntity) {
-						if (ctx.event == ObserverEvent::OnDel)
+						if (snapshot.event == ObserverEvent::OnDel)
 							delta.push_back(beforeEntity);
 						++beforeIdx;
 					} else {
-						if (ctx.event == ObserverEvent::OnAdd)
+						if (snapshot.event == ObserverEvent::OnAdd)
 							delta.push_back(afterEntity);
 						++afterMatchIdx;
 					}
@@ -549,7 +563,11 @@ namespace gaia {
 						continue;
 				}
 
-				if (SharedDispatch::matches_direct_targets(obs, archetype, targets, pQueryInfo))
+				bool matches = SharedDispatch::matches_direct_targets(obs, archetype, targets, pQueryInfo);
+				if (obs.plan.exec_kind() == ObserverPlan::ExecKind::DirectFast && obs.plan.is_fast_negative())
+					matches = true;
+
+				if (matches)
 					SharedDispatch::execute_targets(world, obs, targets);
 			}
 		}
@@ -1180,7 +1198,7 @@ namespace gaia {
 		}
 
 		inline void ObserverRegistry::add_diff_observer_term(
-				World& world, Entity observer, Entity term, const QueryTermOptions& options) {
+				World& world, Entity observer, QueryOpKind op, Entity term, const QueryTermOptions& options) {
 			GAIA_ASSERT(world.valid(observer));
 
 			const auto& ec = world.fetch(observer);
@@ -1197,7 +1215,7 @@ namespace gaia {
 
 			// Every diff observer remains available through the complete list for mutation
 			// paths that cannot provide precise changed terms.
-			auto& index = diff_index(obs.event);
+			auto& index = diff_index(structural_event(obs.event, op));
 			add_observer_to_list(index.all, observer);
 
 			bool registered = false;
@@ -1279,7 +1297,8 @@ namespace gaia {
 			mark_term_observed(world, term, true);
 		}
 
-		inline void ObserverRegistry::add(World& world, Entity term, Entity observer, QueryMatchKind matchKind) {
+		inline void
+		ObserverRegistry::add(World& world, Entity term, Entity observer, QueryOpKind op, QueryMatchKind matchKind) {
 			GAIA_ASSERT(!observer.pair());
 			GAIA_ASSERT(world.valid(observer));
 			// A concrete pair is valid only after the world has created its pair record.
@@ -1294,7 +1313,7 @@ namespace gaia {
 			const auto& ec = world.fetch(observer);
 			const auto compIdx = ec.pChunk->comp_idx(Observer);
 			const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
-			switch (obs.event) {
+			switch (structural_event(obs.event, op)) {
 				case ObserverEvent::OnAdd:
 					add_observer_to_map(m_observer_map_add, term, observer);
 					if (is_semantic_is_term(term, matchKind))

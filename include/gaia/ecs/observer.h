@@ -28,9 +28,9 @@ namespace gaia {
 		//! It is not emitted by silent writes such as `sset(...)`, and it is not emitted just because
 		//! a component was added for the first time.
 		enum class ObserverEvent : uint8_t {
-			OnAdd, // Entity enters matching archetype
-			OnDel, // Entity leaves matching archetype
-			OnSet, // Component value changed on an already present component
+			OnAdd, //!< Entity enters the observer query.
+			OnDel, //!< Entity leaves the observer query.
+			OnSet, //!< Component value changed on an already present component.
 		};
 
 		//! Observer context passed to callbacks.
@@ -84,6 +84,8 @@ namespace gaia {
 			FastPath fastPath = FastPath::None;
 			//! Number of terms added to the observer query.
 			uint8_t termCount = 0;
+			//! True when at least one query term excludes matches.
+			bool hasNegativeTerm = false;
 			//! Chosen observer execution class.
 			ExecKind execKind = ExecKind::DirectQuery;
 			//! Dynamic/propagated execution metadata.
@@ -150,8 +152,12 @@ namespace gaia {
 				return fastPath == FastPath::SingleNegativeTerm;
 			}
 
-			void add_term_descriptor(QueryOpKind op, bool allowFastPath) {
+			//! Records one query term in the observer execution plan.
+			//! \param op Query operation applied to the term.
+			//! \param allowFastPath True when the term supports direct fast dispatch.
+			void add_term_desc(QueryOpKind op, bool allowFastPath) {
 				++termCount;
+				hasNegativeTerm |= op == QueryOpKind::Not;
 
 				if (!allowFastPath) {
 					fastPath = FastPath::Disabled;
@@ -204,6 +210,10 @@ namespace gaia {
 			ObserverPlan plan;
 			//! Query term ids cached in field order for observer iteration setup.
 			QueryEntityArray queryTermIds{};
+			//! Query operations cached for observer index registration.
+			QueryOpKind queryTermOps[MAX_ITEMS_IN_QUERY]{};
+			//! Query match policies cached for observer index registration.
+			QueryMatchKind queryTermMatchKinds[MAX_ITEMS_IN_QUERY]{};
 			//! Hot-path stamp used for O(1) deduplication during observer candidate collection.
 			uint64_t lastMatchStamp = 0;
 

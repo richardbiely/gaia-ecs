@@ -78,7 +78,11 @@ namespace gaia {
 		public:
 			struct DiffDispatcher {
 				struct Snapshot {
+					//! Observer whose query membership was captured.
 					Entity observer = EntityBad;
+					//! Logical membership event requested by the observer.
+					ObserverEvent event = ObserverEvent::OnAdd;
+					//! Index of the shared before-mutation match list.
 					uint32_t matchesBeforeIdx = UINT32_MAX;
 				};
 
@@ -383,8 +387,8 @@ namespace gaia {
 				//! \param generation Slot generation.
 				//! \param pContext Unused allocation context.
 				//! \return Newly initialized runtime slot.
-				GAIA_NODISCARD static ObserverRuntimeSlot create(
-						uint32_t index, uint32_t generation, [[maybe_unused]] void* pContext) {
+				GAIA_NODISCARD static ObserverRuntimeSlot
+				create(uint32_t index, uint32_t generation, [[maybe_unused]] void* pContext) {
 					return ObserverRuntimeSlot(index, generation);
 				}
 
@@ -527,6 +531,16 @@ namespace gaia {
 			GAIA_NODISCARD const DiffObserverIndex& diff_index(ObserverEvent event) const {
 				GAIA_ASSERT(event == ObserverEvent::OnAdd || event == ObserverEvent::OnDel);
 				return event == ObserverEvent::OnAdd ? m_diff_index_add : m_diff_index_del;
+			}
+
+			//! Maps a logical observer event and query operation to the structural mutation that can trigger it.
+			//! \param event Logical event requested by the observer.
+			//! \param op Query operation applied to the indexed term.
+			//! \return Structural add or delete event used for index lookup.
+			GAIA_NODISCARD static ObserverEvent structural_event(ObserverEvent event, QueryOpKind op) {
+				if (op != QueryOpKind::Not || event == ObserverEvent::OnSet)
+					return event;
+				return event == ObserverEvent::OnAdd ? ObserverEvent::OnDel : ObserverEvent::OnAdd;
 			}
 
 			//! Checks all direct event maps for live observers registered under a term.
@@ -781,9 +795,11 @@ namespace gaia {
 			//! Adds one observer query term to the indexes used by before-and-after dispatch.
 			//! \param world World containing the observer entity and pair records.
 			//! \param observer Observer entity being indexed.
+			//! \param op Query operation applied to the term.
 			//! \param term Query term that may be affected by a mutation.
 			//! \param options Source and traversal settings for the query term.
-			void add_diff_observer_term(World& world, Entity observer, Entity term, const QueryTermOptions& options);
+			void add_diff_observer_term(
+					World& world, Entity observer, QueryOpKind op, Entity term, const QueryTermOptions& options);
 
 			//! Starts before-and-after dispatch around a world mutation.
 			//! \param world World about to be changed.
@@ -902,8 +918,11 @@ namespace gaia {
 			//! \param world World containing the observer entity.
 			//! \param term Query term used to find the observer during mutations.
 			//! \param observer Observer entity being registered.
+			//! \param op Query operation applied to the term.
 			//! \param matchKind Observer match policy used for the registered term.
-			void add(World& world, Entity term, Entity observer, QueryMatchKind matchKind = QueryMatchKind::Semantic);
+			void
+			add(World& world, Entity term, Entity observer, QueryOpKind op,
+					QueryMatchKind matchKind = QueryMatchKind::Semantic);
 
 			//! Removes an observer entity or all observer registrations for a term.
 			//! \param world World that owns the observer indexes.

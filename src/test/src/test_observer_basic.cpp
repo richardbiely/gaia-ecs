@@ -7,28 +7,28 @@
 TEST_CASE("Observer - simple") {
 	TestWorld twld;
 	uint32_t cnt = 0;
-	bool isDel = false;
+	bool negativeQueryHit = false;
 
 	const auto on_add = wld.observer() //
 													.event(ecs::ObserverEvent::OnAdd)
 													.all<Position>()
 													.all<Acceleration>()
-													.on_each([&cnt, &isDel]() {
-														++cnt;
-														isDel = false;
+												.on_each([&cnt, &negativeQueryHit]() {
+													++cnt;
+													negativeQueryHit = false;
 													})
 													.entity();
 	(void)on_add;
-	const auto on_del = wld.observer() //
-													.event(ecs::ObserverEvent::OnDel)
+	const auto on_empty = wld.observer() //
+												.event(ecs::ObserverEvent::OnAdd)
 													.no<Position>()
 													.no<Acceleration>()
-													.on_each([&cnt, &isDel]() {
-														++cnt;
-														isDel = true;
+												.on_each([&cnt, &negativeQueryHit]() {
+													++cnt;
+													negativeQueryHit = true;
 													})
 													.entity();
-	(void)on_del;
+	(void)on_empty;
 
 	ecs::Entity e, e1, e2;
 
@@ -40,42 +40,42 @@ TEST_CASE("Observer - simple") {
 			// Observer will not trigger yet
 			wld.add<Position>(e);
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 			// Both components were added, trigger the observer now.
 			wld.add<Acceleration>(e);
 			CHECK(cnt == 1);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 		}
 
 		{
 			cnt = 0;
 			e1 = wld.copy(e);
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 		}
 
 		{
 			cnt = 0;
 			e2 = wld.copy_ext(e);
 			CHECK(cnt == 1);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 		}
 
 		{
 			cnt = 0;
 			ecs::Entity e3 = wld.add();
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 			ecs::EntityBuilder builder = wld.build(e3);
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 			builder.add<Acceleration>().add<Position>();
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 			// Commit changes. The observer will triggers now.
 			builder.commit();
 			CHECK(cnt == 1);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 		}
 	}
 
@@ -89,76 +89,119 @@ TEST_CASE("Observer - simple") {
 			// Observer will not trigger yet
 			wld.add<Position>(e);
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 			// Both components were added, trigger the observer now.
 			wld.add<Acceleration>(e);
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 		}
 
 		{
 			cnt = 0;
 			e1 = wld.copy(e);
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 		}
 
 		{
 			cnt = 0;
 			e2 = wld.copy_ext(e);
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 		}
 
 		{
 			cnt = 0;
 			ecs::Entity e3 = wld.add();
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 			ecs::EntityBuilder builder = wld.build(e3);
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 			builder.add<Acceleration>().add<Position>();
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 			// Commit changes. The observer will triggers now.
 			builder.commit();
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 		}
 
 		wld.enable(on_add, true);
 	}
 
-	// OnDel
+	// OnAdd for the all-negative query
 	{
 		cnt = 0;
 		{
 			// Observer will not trigger yet
 			wld.del<Position>(e);
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 			// Both components were added, trigger the observer now.
 			wld.del<Acceleration>(e);
 			CHECK(cnt == 1);
-			CHECK(isDel);
+			CHECK(negativeQueryHit);
 		}
 
 		{
 			cnt = 0;
-			isDel = false;
+			negativeQueryHit = false;
 			ecs::EntityBuilder builder = wld.build(e1);
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 			builder.del<Acceleration>().del<Position>();
 			CHECK(cnt == 0);
-			CHECK_FALSE(isDel);
+			CHECK_FALSE(negativeQueryHit);
 			// Commit changes. The observer will triggers now.
 			builder.commit();
 			CHECK(cnt == 1);
-			CHECK(isDel);
+			CHECK(negativeQueryHit);
 		}
 	}
+}
+
+TEST_CASE("Observer - all-negative membership transitions") {
+	TestWorld twld;
+
+	uint32_t addHits = 0;
+	uint32_t delHits = 0;
+	const auto onAdd = wld.observer()
+									.event(ecs::ObserverEvent::OnAdd)
+									.no<Position>()
+									.no<Acceleration>()
+									.on_each([&] {
+										++addHits;
+									})
+									.entity();
+	const auto onDel = wld.observer()
+									.event(ecs::ObserverEvent::OnDel)
+									.no<Position>()
+									.no<Acceleration>()
+									.on_each([&] {
+										++delHits;
+									})
+									.entity();
+
+	CHECK(wld.observers().data(onAdd).plan.uses_diff_dispatch());
+	CHECK(wld.observers().data(onDel).plan.uses_diff_dispatch());
+
+	const auto entity = wld.add();
+	wld.add<Position>(entity);
+	CHECK(addHits == 0);
+	CHECK(delHits == 1);
+
+	wld.del<Position>(entity);
+	CHECK(addHits == 1);
+	CHECK(delHits == 1);
+
+	wld.add<Acceleration>(entity);
+	CHECK(addHits == 1);
+	CHECK(delHits == 2);
+
+	wld.del<Acceleration>(entity);
+	CHECK(addHits == 2);
+	CHECK(delHits == 2);
 }
 
 TEST_CASE("Observer - builder exposes kind and scope") {
@@ -1962,6 +2005,11 @@ TEST_CASE("Observer - direct matching evaluates all query terms") {
 
 		wld.del<Position>(entity);
 		CHECK(delHits == 1);
+
+		wld.add<Position>(entity);
+		CHECK(addHits == 2);
+		wld.add<Acceleration>(entity);
+		CHECK(delHits == 2);
 		(void)onAdd;
 		(void)onDel;
 	}
@@ -1993,25 +2041,42 @@ TEST_CASE("Observer - direct matching evaluates all query terms") {
 		TestWorld twld;
 
 		const auto base = wld.add();
-		uint32_t hits = 0;
-		const auto observer = wld.observer()
+		uint32_t addHits = 0;
+		uint32_t delHits = 0;
+		const auto onAdd = wld.observer()
 												 .event(ecs::ObserverEvent::OnAdd)
 												 .is(base)
 												 .no<Acceleration>()
 												 .on_each([&]() {
-													 ++hits;
+													 ++addHits;
+												 })
+												 .entity();
+		const auto onDel = wld.observer()
+												 .event(ecs::ObserverEvent::OnDel)
+												 .is(base)
+												 .no<Acceleration>()
+												 .on_each([&]() {
+													 ++delHits;
 												 })
 												 .entity();
 
 		const auto rejected = wld.add();
 		wld.add<Acceleration>(rejected);
 		wld.add(rejected, ecs::Pair(ecs::Is, base));
-		CHECK(hits == 0);
+		CHECK(addHits == 0);
+		CHECK(delHits == 0);
 
 		const auto matching = wld.add();
 		wld.add(matching, ecs::Pair(ecs::Is, base));
-		CHECK(hits == 1);
-		(void)observer;
+		CHECK(addHits == 1);
+		CHECK(delHits == 0);
+
+		wld.add<Acceleration>(matching);
+		CHECK(delHits == 1);
+		wld.del<Acceleration>(matching);
+		CHECK(addHits == 2);
+		(void)onAdd;
+		(void)onDel;
 	}
 
 	SUBCASE("Strict In with negative term") {
