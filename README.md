@@ -4698,6 +4698,7 @@ Parameter | Description
 **GAIA_BUILD_UNITTEST** | Builds the [unit test project](#testing)
 **GAIA_BUILD_BENCHMARK** | Builds the [benchmark project](#benchmarks)
 **GAIA_BUILD_EXAMPLES** | Builds [example projects](#examples)
+**BUILD_TESTING** | Registers available example smoke tests with CTest when examples are built (ON by default)
 **GAIA_GENERATE_CC** | Exports `compile_commands.json` and copies it to `ninja/compile_commands.json` for tooling when the active generator supports it
 **GAIA_GENERATE_DOCS** | Builds the [documentation](#documentation)
 **GAIA_GENERATE_SINGLE_HEADER** | Generates a [single-header](#single-header) version of the framework

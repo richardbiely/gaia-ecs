@@ -216,6 +216,10 @@ jobs:
       run: |
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
+    - name: Test
+      run: |
+        ctest --test-dir ${{github.workspace}}/build -C ${{matrix.build_type}} --output-on-failure
+
   build-windows-cl:
     timeout-minutes: 10
     strategy:
@@ -245,6 +249,10 @@ jobs:
     - name: Build
       run: |
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
+
+    - name: Test
+      run: |
+        ctest --test-dir ${{github.workspace}}/build -C ${{matrix.build_type}} --output-on-failure
 
   build-macos:
     timeout-minutes: 10

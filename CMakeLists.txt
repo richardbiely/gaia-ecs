@@ -139,8 +139,12 @@ if(GAIA_GENERATE_DOCS)
     add_subdirectory(docs)
 endif()
 
-if(GAIA_BUILD_UNITTEST)
+if(GAIA_BUILD_UNITTEST OR GAIA_BUILD_EXAMPLES)
     include(CTest)
+endif()
+
+# GAIA_BUILD_UNITTEST continues to register its test targets independently of BUILD_TESTING.
+if(GAIA_BUILD_UNITTEST)
     enable_testing()
 endif()
 
