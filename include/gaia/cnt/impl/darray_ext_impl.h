@@ -17,7 +17,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace darr_ext_detail {
-			using diff_type = int32_t;
+			using difference_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace darr_ext_detail
 		//! \endcond
@@ -44,7 +44,7 @@ namespace gaia {
 			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_aos<T>;
 			//! Type used for iterator differences.
-			using difference_type = darr_ext_detail::diff_type;
+			using difference_type = darr_ext_detail::difference_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = darr_ext_detail::size_type;
 

@@ -16,7 +16,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace darr_soa_detail {
-			using diff_type = int32_t;
+			using difference_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace darr_soa_detail
 		//! \endcond
@@ -29,7 +29,7 @@ namespace gaia {
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
 			//! Type used for iterator differences.
-			using difference_type = darr_soa_detail::diff_type;
+			using difference_type = darr_soa_detail::difference_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = darr_soa_detail::size_type;
 
@@ -124,7 +124,7 @@ namespace gaia {
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
-			using difference_type = darr_soa_detail::diff_type;
+			using difference_type = darr_soa_detail::difference_type;
 			using size_type = darr_soa_detail::size_type;
 
 			using iterator = const_darr_soa_iterator;
@@ -234,7 +234,7 @@ namespace gaia {
 			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
 			//! Type used for iterator differences.
-			using difference_type = darr_soa_detail::diff_type;
+			using difference_type = darr_soa_detail::difference_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = darr_soa_detail::size_type;
 

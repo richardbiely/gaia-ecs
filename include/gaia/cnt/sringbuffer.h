@@ -11,7 +11,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace sringbuffer_detail {
-			using diff_type = int32_t;
+			using difference_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace sringbuffer_detail
 		//! \endcond
@@ -28,7 +28,7 @@ namespace gaia {
 			//! Reference to an element.
 			using reference = T&;
 			//! Type used for iterator distances.
-			using difference_type = sringbuffer_detail::diff_type;
+			using difference_type = sringbuffer_detail::difference_type;
 			//! Type used for indices and offsets.
 			using size_type = sringbuffer_detail::size_type;
 
@@ -199,7 +199,7 @@ namespace gaia {
 			//! Immutable element pointer.
 			using const_pointer = const T*;
 			//! Type used for iterator distances.
-			using difference_type = sringbuffer_detail::diff_type;
+			using difference_type = sringbuffer_detail::difference_type;
 			//! Type used for sizes and indices.
 			using size_type = sringbuffer_detail::size_type;
 

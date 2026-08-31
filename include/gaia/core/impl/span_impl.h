@@ -19,7 +19,7 @@
 namespace gaia {
 	namespace core {
 		//! Signed type used for span distances.
-		using span_diff_type = size_t;
+		using span_difference_type = size_t;
 		//! Unsigned type used for span sizes and extents.
 		using span_size_type = size_t;
 	} // namespace core
@@ -127,7 +127,7 @@ namespace gaia {
 			//! Type used for element counts.
 			using size_type = span_size_type;
 			//! Type used for iterator differences.
-			using difference_type = span_diff_type;
+			using difference_type = span_difference_type;
 			//! Pointer to an element.
 			using pointer = element_kind*;
 			//! Pointer to a const element.
