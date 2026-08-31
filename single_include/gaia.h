@@ -71341,14 +71341,14 @@ namespace gaia {
 			//! Copies direct component payload data for \a object from \a srcEntity to \a dstEntity.
 			//! \param srcEntity Source entity holding the payload.
 			//! \param dstEntity Destination entity receiving the payload.
-			//! \param object Component entity identifying the column to copy.
+			//! \param object Exact component or pair id identifying the column to copy.
 			//! \param item Component cache item describing the payload copy operation.
 			void copy_direct_component_data_inter(
 					Entity srcEntity, Entity dstEntity, Entity object, const ComponentCacheItem& item) {
 				GAIA_ASSERT(valid(srcEntity));
 				GAIA_ASSERT(valid(dstEntity));
-				GAIA_ASSERT(valid(object));
-				GAIA_ASSERT(item.entity == object);
+				GAIA_ASSERT(object.pair() || valid(object));
+				GAIA_ASSERT(object.pair() || item.entity == object);
 				GAIA_ASSERT(item.comp.size() != 0U);
 
 				const auto& ecDst = fetch(dstEntity);
@@ -71411,21 +71411,17 @@ namespace gaia {
 				if (has_direct(dstEntity, object))
 					return false;
 
-				if (!object.pair()) {
-					const auto* pItem = comp_cache().find(object);
-					if (pItem != nullptr && pItem->entity == object) {
-						if (sparse_storage_mode(object) != SparseStorageMode::None)
-							return copy_owned_sparse_component_inter(srcEntity, dstEntity, object);
+				const auto* pItem = component_item(srcEntity, object);
+				if (!object.pair() && pItem != nullptr && sparse_storage_mode(object) != SparseStorageMode::None)
+					return copy_owned_sparse_component_inter(srcEntity, dstEntity, object);
 
-						if (pItem->comp.size() != 0U) {
-							EntityBuilder eb(*this, dstEntity);
-							eb.add_inter_init(object);
-							eb.commit();
-							copy_direct_component_data_inter(srcEntity, dstEntity, object, *pItem);
-							notify_add_single(dstEntity, object);
-							return true;
-						}
-					}
+				if (pItem != nullptr && pItem->comp.size() != 0U) {
+					EntityBuilder eb(*this, dstEntity);
+					eb.add_inter_init(object);
+					eb.commit();
+					copy_direct_component_data_inter(srcEntity, dstEntity, object, *pItem);
+					notify_add_single(dstEntity, object);
+					return true;
 				}
 
 				add(dstEntity, object);

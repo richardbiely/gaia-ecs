@@ -4410,6 +4410,16 @@ TEST_CASE("Hooks") {
 
 		wld.instantiate_n(prefab, 3);
 		CHECK(hook_trigger_cnt == 4);
+
+		const auto syncPrefab = wld.prefab();
+		const auto syncInstance = wld.instantiate(syncPrefab);
+		wld.add<PairType>(syncPrefab, {9.0f, 10.0f});
+		hook_trigger_cnt = 0;
+		CHECK(wld.sync(syncPrefab) == 1);
+		CHECK(hook_trigger_cnt == 1);
+		const auto& syncPayload = wld.get<PairType>(syncInstance);
+		CHECK(syncPayload.x == doctest::Approx(9.0f));
+		CHECK(syncPayload.y == doctest::Approx(10.0f));
 	}
 
 	SUBCASE("del") {

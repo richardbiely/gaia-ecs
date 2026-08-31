@@ -2,6 +2,11 @@
 
 #define TestWorld SparseTestWorld
 
+struct PrefabSyncRelation {};
+struct PrefabSyncPayload {
+	int value;
+};
+
 TEST_CASE("Prefab - instantiate creates a non-prefab instance with copied data") {
 	TestWorld twld;
 
@@ -1478,6 +1483,31 @@ TEST_CASE("Prefab - sync adds missing copied data to existing instances") {
 	CHECK(wld.get<Position>(instance).x == doctest::Approx(1.0f));
 	CHECK(wld.get<Position>(instance).y == doctest::Approx(2.0f));
 	CHECK(wld.get<Position>(instance).z == doctest::Approx(3.0f));
+}
+
+TEST_CASE("Prefab - sync copies missing pair payloads to existing instances") {
+	using PairType = ecs::pair<PrefabSyncRelation, PrefabSyncPayload>;
+
+	TestWorld twld;
+	const auto prefab = wld.prefab();
+	const auto instance = wld.instantiate(prefab);
+	wld.add<PairType>(prefab, {42});
+
+	uint32_t observerHits = 0;
+	int observedValue = 0;
+	auto observer = wld.observer().event(ecs::ObserverEvent::OnAdd).all<PairType>().on_each([&](ecs::Entity entity) {
+		++observerHits;
+		observedValue = wld.get<PairType>(entity).value;
+	});
+	(void)observer;
+
+	CHECK_FALSE(wld.has<PairType>(instance));
+	CHECK(wld.sync(prefab) == 1);
+	CHECK(wld.has<PairType>(instance));
+	CHECK(wld.get<PairType>(instance).value == 42);
+	CHECK(observerHits == 1);
+	CHECK(observedValue == 42);
+	CHECK(wld.sync(prefab) == 0);
 }
 
 TEST_CASE("Prefab - sync spawns missing prefab children on existing instances") {
