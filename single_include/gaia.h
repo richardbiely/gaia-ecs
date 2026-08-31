@@ -88896,6 +88896,7 @@ namespace gaia {
 						return lastResolved = resolve(e);
 					};
 
+					cnt::darray_ext<Entity, 16> deleteTargets;
 					{
 						GAIA_PROF_SCOPE(cmdbuf::merges);
 						for (uint32_t p = 0; p < m_ops.size();) {
@@ -89022,13 +89023,18 @@ namespace gaia {
 								i = j;
 							}
 
-							// Safely delete entity only if it was actually created
+							// Apply deletions after every relationship operation so sorting target groups cannot
+							// invalidate an endpoint that a later group still needs to resolve.
 							if (hasDelEntity)
-								m_world.del(tgtReal);
+								deleteTargets.push_back(tgtReal);
 
 							// Advance to next target group
 							p = q;
 						}
+					}
+					for (auto entity: deleteTargets) {
+						if (m_world.valid(entity))
+							m_world.del(entity);
 					}
 
 					clear();

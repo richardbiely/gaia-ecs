@@ -954,6 +954,40 @@ TEST_CASE("Command buffer table payload replay addresses exact pair records") {
 	CHECK_FALSE(wld.has<Position>(relation));
 }
 
+TEST_CASE("Command buffer delays entity deletion until relationship replay finishes") {
+	auto run = [](bool targetBeforeSource) {
+		TestWorld twld;
+		const auto relation = wld.add();
+		ecs::Entity source;
+		ecs::Entity target;
+		if (targetBeforeSource) {
+			target = wld.add();
+			source = wld.add();
+		} else {
+			source = wld.add();
+			target = wld.add();
+		}
+		const auto pair = ecs::Pair(relation, target);
+
+		ecs::CommandBufferST commandBuffer(wld);
+		commandBuffer.del(target);
+		commandBuffer.add(source, pair);
+		commandBuffer.commit();
+
+		CHECK_FALSE(wld.has(target));
+		CHECK(wld.has(source));
+		CHECK_FALSE(wld.has(source, pair));
+		CHECK(wld.target(source, relation) == ecs::EntityBad);
+	};
+
+	SUBCASE("target id sorts before source id") {
+		run(true);
+	}
+	SUBCASE("source id sorts before target id") {
+		run(false);
+	}
+}
+
 TEST_CASE("Changed filters track direct and buffered sparse writes") {
 	SUBCASE("fragmenting sparse storage") {
 		SparseTestWorld twld;
