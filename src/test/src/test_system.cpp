@@ -36,7 +36,7 @@ TEST_CASE("System - simple") {
 
 	// Our systems
 	auto sys1 = wld.system()
-									//.name("sys1")
+									.name("sys1")
 									.all<Position>()
 									.all<Acceleration>() //
 									.on_each([&](Position, Acceleration) {
@@ -45,7 +45,7 @@ TEST_CASE("System - simple") {
 										++sys1_cnt;
 									});
 	auto sys2 = wld.system()
-									//.name("sys2")
+									.name("sys2")
 									.all<Position>() //
 									.on_each([&](ecs::Iter& it) {
 										if (sys2_cnt == 0 && sys3_cnt > 0)
@@ -53,10 +53,7 @@ TEST_CASE("System - simple") {
 										GAIA_EACH(it)++ sys2_cnt;
 									});
 	auto sys3 = wld.system()
-									// TODO: Using names for the systems can break ordering after rebulid.
-									//       Most likely an undefined behavior somewhere (maybe partial sort on systems?).
-									//       Find out what is wrong.
-									//.name("sys3")
+									.name("sys3")
 									.all<Acceleration>() //
 									.on_each([&](ecs::Iter& it) {
 										GAIA_EACH(it)++ sys3_cnt;
