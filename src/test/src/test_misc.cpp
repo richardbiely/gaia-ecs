@@ -4368,6 +4368,7 @@ TEST_CASE("Hooks") {
 		wld.add<Position>(source, {1.0f, 2.0f, 3.0f});
 		wld.add<PositionSparse>(source, {4.0f, 5.0f, 6.0f});
 		wld.add<PairType>(source, {7.0f, 8.0f});
+		CHECK(hook_trigger_cnt == 3);
 		hook_trigger_cnt = 0;
 
 		(void)wld.copy(source);

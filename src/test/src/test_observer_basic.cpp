@@ -1141,6 +1141,42 @@ TEST_CASE("Observer - add sparse with value payload") {
 	CHECK(pos.z == doctest::Approx(8.0f));
 }
 
+TEST_CASE("Observer - typed pair add emits once with initialized payload") {
+	struct Relation {};
+	struct Payload {
+		float value;
+	};
+	using PairType = ecs::pair<Relation, Payload>;
+
+	TestWorld twld;
+	const auto relation = wld.add<Relation>().entity;
+	const auto target = wld.add<Payload>().entity;
+	uint32_t hits = 0;
+	float observedValue = -1.0f;
+	const auto observer = wld.observer()
+									 .event(ecs::ObserverEvent::OnAdd)
+									 .all(ecs::Pair(relation, target))
+									 .on_each([&](ecs::Iter& it) {
+										 ++hits;
+										 observedValue = it.view_any<PairType>()[0].value;
+									 })
+									 .entity();
+
+	const auto initialized = wld.add();
+	wld.add<PairType>(initialized, {42.0f});
+	CHECK(hits == 1);
+	CHECK(observedValue == doctest::Approx(42.0f));
+
+	const auto defaultInitialized = wld.add();
+	wld.build(defaultInitialized).add<PairType>();
+	CHECK(hits == 2);
+	CHECK(wld.has(defaultInitialized, ecs::Pair(relation, target)));
+	wld.build(defaultInitialized).del<PairType>();
+	CHECK_FALSE(wld.has(defaultInitialized, ecs::Pair(relation, target)));
+	CHECK(hits == 2);
+	(void)observer;
+}
+
 TEST_CASE("Observer - del sparse with value payload") {
 	TestWorld twld;
 

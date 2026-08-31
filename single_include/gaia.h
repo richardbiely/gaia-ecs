@@ -67999,9 +67999,7 @@ namespace gaia {
 					if constexpr (is_pair<T>::value) {
 						const auto rel = m_world.template reg_comp<typename T::rel>().entity;
 						const auto tgt = m_world.template reg_comp<typename T::tgt>().entity;
-						const Entity ent = Pair(rel, tgt);
-						add_inter(ent);
-						return ent;
+						return Pair(rel, tgt);
 					} else {
 						return m_world.template reg_comp<T>().entity;
 					}
