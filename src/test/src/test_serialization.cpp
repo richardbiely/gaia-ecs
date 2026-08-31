@@ -1685,6 +1685,21 @@ static uint32_t find_serialized_entity_archetype_idx(ecs::World& world, ecs::Ent
 	uint32_t newEntities = 0;
 	s.load(version);
 	s.load(lastCoreComponentId);
+	if (version >= 6) {
+		uint32_t componentCnt = 0;
+		s.load(componentCnt);
+		GAIA_FOR(componentCnt) {
+			ecs::Identifier entityValue = ecs::IdentifierBad;
+			ecs::Identifier componentValue = ecs::IdentifierBad;
+			uint32_t symbolLen = 0;
+			s.load(entityValue);
+			s.load(componentValue);
+			s.load(symbolLen);
+			s.seek(s.tell() + symbolLen);
+			(void)entityValue;
+			(void)componentValue;
+		}
+	}
 	s.load(newEntities);
 	(void)version;
 	(void)lastCoreComponentId;
@@ -1899,6 +1914,28 @@ TEST_CASE("Serialization - world other") {
 	CHECK(carrot2 == carrot);
 	CHECK(salad2 == salad);
 	CHECK(apple2 == apple);
+}
+
+TEST_CASE("Serialization - world rejects mismatched component registration order") {
+	ecs::World in;
+	const auto positionIn = in.add<Position>().entity;
+	const auto accelerationIn = in.add<Acceleration>().entity;
+	const auto entity = in.add();
+	in.add<Position>(entity, {1.0f, 2.0f, 3.0f});
+	in.add<Acceleration>(entity, {4.0f, 5.0f, 6.0f});
+
+	ser::bin_stream buffer;
+	in.set_serializer(buffer);
+	in.save();
+
+	ecs::World out;
+	const auto accelerationOut = out.add<Acceleration>().entity;
+	const auto positionOut = out.add<Position>().entity;
+	CHECK(positionIn == accelerationOut);
+	CHECK(accelerationIn == positionOut);
+	CHECK_FALSE(out.load(buffer));
+	CHECK(out.add<Position>().entity == positionOut);
+	CHECK(out.add<Acceleration>().entity == accelerationOut);
 }
 
 TEST_CASE("Serialization - world preserves Parent non-fragmenting relations") {

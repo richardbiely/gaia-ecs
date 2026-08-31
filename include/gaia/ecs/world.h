@@ -9903,10 +9903,95 @@ namespace gaia {
 			}
 
 		private:
-			static constexpr uint32_t WorldSerializerVersion = 5;
+			static constexpr uint32_t WorldSerializerVersion = 6;
 #if GAIA_JSON_ENABLED
 			static constexpr uint32_t WorldSerializerJSONVersion = 1;
 #endif
+
+			//! Serializes the non-core component layout required to interpret chunk payloads.
+			//! \param s Destination serializer.
+			//! \param lastCoreComponentId Last core component id stored in the snapshot header.
+			void save_component_layout(ser::serializer& s, uint32_t lastCoreComponentId) const {
+				cnt::darray<const ComponentCacheItem*> components;
+				components.reserve((uint32_t)m_compCache.m_compByEntityId.size());
+				for (const auto& [entityId, pItem]: m_compCache.m_compByEntityId) {
+					if (entityId > lastCoreComponentId) {
+						GAIA_ASSERT(pItem != nullptr);
+						components.push_back(pItem);
+					}
+				}
+				core::sort(components, [](const ComponentCacheItem* pLeft, const ComponentCacheItem* pRight) {
+					return pLeft->entity.id() < pRight->entity.id();
+				});
+
+				s.save((uint32_t)components.size());
+				for (const auto* pItem: components) {
+					const auto symbol = pItem->symbol_name();
+					s.save(pItem->entity.val);
+					s.save(pItem->comp.val);
+					s.save(symbol.size());
+					s.save_raw(symbol.data(), symbol.size(), ser::serialization_type_id::c8);
+				}
+			}
+
+			//! Validates that the target world's component ids and layouts match the snapshot.
+			//! \param s Source serializer.
+			//! \param savedLastCoreComponentId Last core component id stored in the snapshot.
+			//! \param currLastCoreComponentId Last core component id used by this runtime.
+			//! \return True when chunk payloads can be loaded without changing their component meaning.
+			bool validate_component_layout(
+					ser::serializer& s, uint32_t savedLastCoreComponentId, uint32_t currLastCoreComponentId) const {
+				uint32_t savedComponentCnt = 0;
+				s.load(savedComponentCnt);
+
+				uint32_t currentComponentCnt = 0;
+				for (const auto& [entityId, pItem]: m_compCache.m_compByEntityId) {
+					(void)pItem;
+					if (entityId > currLastCoreComponentId)
+						++currentComponentCnt;
+				}
+				if (savedComponentCnt != currentComponentCnt) {
+					GAIA_LOG_E(
+							"World snapshot component count mismatch. Snapshot has %u, target world has %u.", savedComponentCnt,
+							currentComponentCnt);
+					return false;
+				}
+
+				GAIA_FOR(savedComponentCnt) {
+					Identifier savedEntityValue = IdentifierBad;
+					Identifier savedComponentValue = IdentifierBad;
+					uint32_t symbolLen = 0;
+					s.load(savedEntityValue);
+					s.load(savedComponentValue);
+					s.load(symbolLen);
+
+					const auto* pSymbol = (const char*)(s.data() + s.tell());
+					s.seek(s.tell() + symbolLen);
+					const util::str_view symbol(pSymbol, symbolLen);
+					const auto* pItem = comp_cache().symbol(symbol);
+					if (pItem == nullptr) {
+						GAIA_LOG_E("World snapshot component '%.*s' is not registered.", (int)symbolLen, pSymbol);
+						return false;
+					}
+
+					const auto savedEntity = Entity(savedEntityValue);
+					const auto expectedEntity = detail::remap_loaded_entity(
+							savedEntity, savedLastCoreComponentId, currLastCoreComponentId);
+					Component expectedComponent;
+					expectedComponent.val = savedComponentValue;
+					expectedComponent.data.id = detail::remap_loaded_entity_id(
+							expectedComponent.id(), savedLastCoreComponentId, currLastCoreComponentId);
+					if (pItem->entity != expectedEntity || pItem->comp != expectedComponent) {
+						GAIA_LOG_E(
+								"World snapshot component layout mismatch for '%.*s'. Register components in the same order and "
+								"with the same storage layout before loading.",
+								(int)symbolLen, pSymbol);
+						return false;
+					}
+				}
+
+				return true;
+			}
 
 			//! Serializes every populated sparse component store in deterministic component and owner order.
 			//! \param s Destination serializer.
@@ -9999,6 +10084,7 @@ namespace gaia {
 				// TODO: As this changes, we will have to modify entity ids accordingly.
 				const auto lastCoreComponentId = GAIA_ID(LastCoreComponent).id();
 				s.save(lastCoreComponentId);
+				save_component_layout(s, lastCoreComponentId);
 
 				// Entities
 				{
@@ -10276,6 +10362,8 @@ namespace gaia {
 			//!       1) member function: "void load(bin_stream& s)"
 			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, bin_stream& s,
 			//!       YourType& data)"
+			//! \note Register the same non-core components in the same order and with the same storage layouts in the
+			//!       target world. Current snapshots validate this requirement before changing the target world.
 			//! \param inputSerializer Serializer to read from, or an invalid handle to use the world's bound serializer.
 			//! \return True when the snapshot version is supported and all world data loads successfully. False otherwise.
 			bool load(ser::serializer inputSerializer = {}) {
@@ -10306,11 +10394,13 @@ namespace gaia {
 							currLastCoreComponentId);
 					return false;
 				}
+				if (version >= 6 && !validate_component_layout(s, lastCoreComponentId, currLastCoreComponentId))
+					return false;
 				// Install the append-only core-id remap for nested Entity::load() calls.
 				// This keeps the serializer API unchanged, at the cost of relying on
 				// scoped thread-local state instead of explicit serializer-local context.
 				const detail::EntityLoadRemapGuard entityLoadRemapGuard(
-						lastCoreComponentId, currLastCoreComponentId, version >= WorldSerializerVersion);
+						lastCoreComponentId, currLastCoreComponentId, version >= 5);
 				auto remapLoadedEntityId = [&](uint32_t id) {
 					return detail::remap_loaded_entity_id(id, lastCoreComponentId, currLastCoreComponentId);
 				};
