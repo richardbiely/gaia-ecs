@@ -2252,6 +2252,29 @@ TEST_CASE("Containers - sringbuffer") {
 			CHECK(arr.empty());
 		}
 	}
+
+	{
+		cnt::sringbuffer<uint32_t, 5> arr = {0, 1, 2, 3, 4};
+		uint32_t val{};
+		arr.pop_front(val);
+		arr.pop_front(val);
+		arr.push_back(5);
+		arr.push_back(6);
+
+		auto first = arr.begin();
+		auto last = arr.end();
+		CHECK(*(first[0]) == 2);
+		CHECK(*(first[2]) == 4);
+		CHECK(*(first + 3) == 5);
+		CHECK(*(last - 1) == 6);
+		CHECK(last - first == 5);
+		CHECK(first - last == -5);
+
+		const auto& constArr = arr;
+		CHECK(core::find(arr, 5U) == constArr.cbegin() + 3);
+		CHECK(*(constArr.cbegin()[4]) == 6);
+		CHECK(constArr.cend() - constArr.cbegin() == 5);
+	}
 }
 
 TEST_CASE("Containers - ilist") {

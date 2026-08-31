@@ -11,7 +11,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace sringbuffer_detail {
-			using difference_type = uint32_t;
+			using diff_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace sringbuffer_detail
 		//! \endcond
@@ -28,7 +28,7 @@ namespace gaia {
 			//! Reference to an element.
 			using reference = T&;
 			//! Type used for iterator distances.
-			using difference_type = sringbuffer_detail::difference_type;
+			using difference_type = sringbuffer_detail::diff_type;
 			//! Type used for indices and offsets.
 			using size_type = sringbuffer_detail::size_type;
 
@@ -69,11 +69,11 @@ namespace gaia {
 			T* operator->() const {
 				return &m_ptr[(m_tail + m_index) % N];
 			}
-			//! Accesses storage at a logical offset using the declared iterator result type.
+			//! Returns an iterator at a logical offset from the current position.
 			//! \param offset Logical offset from the current index.
-			//! \return Value read from the corresponding physical storage position.
+			//! \return Offset iterator over the same ring buffer.
 			iterator operator[](size_type offset) const {
-				return m_ptr[(m_tail + m_index + offset) % N];
+				return {m_ptr, m_tail, m_size, m_index + offset};
 			}
 
 			//! Advances by a logical offset.
@@ -120,20 +120,20 @@ namespace gaia {
 			//! \param offset Number of logical positions to advance.
 			//! \return Offset iterator.
 			iterator operator+(size_type offset) const {
-				return {m_index + offset};
+				return {m_ptr, m_tail, m_size, m_index + offset};
 			}
 			//! Returns an iterator moved backward by an offset.
 			//! \param offset Number of logical positions to move backward.
 			//! \return Offset iterator.
 			iterator operator-(size_type offset) const {
-				return {m_index - offset};
+				return {m_ptr, m_tail, m_size, m_index - offset};
 			}
 			//! Calculates the logical distance between iterators from the same buffer.
 			//! \param other Iterator to subtract.
 			//! \return Signed logical index difference.
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
-				return (difference_type)(m_index - other.m_index);
+				return (difference_type)m_index - (difference_type)other.m_index;
 			}
 			//! Compares logical iterator positions.
 			//! \param other Iterator from the same buffer.
@@ -199,7 +199,7 @@ namespace gaia {
 			//! Immutable element pointer.
 			using const_pointer = const T*;
 			//! Type used for iterator distances.
-			using difference_type = sringbuffer_detail::size_type;
+			using difference_type = sringbuffer_detail::diff_type;
 			//! Type used for sizes and indices.
 			using size_type = sringbuffer_detail::size_type;
 
