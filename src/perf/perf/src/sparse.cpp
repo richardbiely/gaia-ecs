@@ -334,6 +334,40 @@ void BM_Query_DirectSparse_Or_Each(picobench::state& state) {
 }
 
 using PositionSparsePair = ecs::pair<PositionSparse, SparsePairTarget>;
+using PlainPair = ecs::pair<PlainPairRelation, SparsePairTarget>;
+
+template <bool DontFragment>
+void setup_plain_pair_entities(ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count) {
+	entities.clear();
+	entities.reserve(count);
+
+	const auto& relation = w.add<PlainPairRelation>();
+	(void)w.add<SparsePairTarget>();
+	if constexpr (DontFragment) {
+		w.add(relation.entity, ecs::Exclusive);
+		w.add(relation.entity, ecs::DontFragment);
+	}
+
+	GAIA_FOR(count) entities.push_back(w.add());
+}
+
+template <bool DontFragment>
+void BM_PlainPair_Add(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> entities;
+		setup_plain_pair_entities<DontFragment>(w, entities, n);
+
+		state.start_timer();
+		for (auto e: entities)
+			w.add<PlainPair>(e);
+		state.stop_timer();
+	}
+}
 
 template <bool DontFragment>
 void setup_sparse_pair_entities(ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count) {
@@ -727,6 +761,14 @@ void register_sparse(PerfRunMode mode) {
 			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("sparse pair dontfrag add 10K");
+	PICOBENCH_REG(BM_PlainPair_Add<false>)
+			.PICO_SETTINGS_BATCH()
+			.user_data(NEntitiesFew)
+			.label("plain pair frag add 10K");
+	PICOBENCH_REG(BM_PlainPair_Add<true>)
+			.PICO_SETTINGS_BATCH()
+			.user_data(NEntitiesFew)
+			.label("plain pair dontfrag add 10K");
 	PICOBENCH_REG(BM_SparsePair_Del<false>)
 			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)

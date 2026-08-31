@@ -45,6 +45,8 @@ struct PositionSparse {
 
 struct SparsePairTarget {};
 
+struct PlainPairRelation {};
+
 struct Velocity {
 	float x;
 	float y;

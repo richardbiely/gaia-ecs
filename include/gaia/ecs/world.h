@@ -1397,9 +1397,10 @@ namespace gaia {
 			//! \return Fragmenting or non-fragmenting sparse mode.
 			template <typename T>
 			GAIA_NODISCARD SparseStorageMode typed_sparse_storage_mode(Entity component) const {
-				if constexpr (is_pair<T>::value)
-					return sparse_storage_mode(component);
-				else
+				if constexpr (is_pair<T>::value) {
+					const auto relation = m_recs.entities.handle(component.id());
+					return is_dont_fragment(relation) ? SparseStorageMode::NonFragmenting : SparseStorageMode::Fragmenting;
+				} else
 					return ct_sparse_storage_mode(component);
 			}
 
@@ -1571,7 +1572,7 @@ namespace gaia {
 				if (object.pair() || mode == SparseStorageMode::Fragmenting) {
 					GAIA_ASSERT(!locked());
 					EntityBuilder eb(*this, entity);
-					eb.add_inter_init(object);
+					eb.add_inter_init(object, false);
 					eb.commit();
 				}
 
@@ -3025,9 +3026,10 @@ namespace gaia {
 				//! Attaches an archetype-backed relation pair.
 				//! \tparam IsBootstrap True while bootstrapping core ids.
 				//! \param entity Pair to attach.
+				//! \param addSparsePayload Whether sparse pair payload storage still needs initialization.
 				//! \return True when the pair was attached.
 				template <bool IsBootstrap>
-				bool handle_add_archetype_relation(Entity entity) {
+				bool handle_add_archetype_relation(Entity entity, bool addSparsePayload = true) {
 					GAIA_ASSERT(entity.pair());
 
 #if GAIA_ASSERT_ENABLED
@@ -3059,7 +3061,8 @@ namespace gaia {
 #endif
 
 					add_archetype_id(entity);
-					add_sparse_pair_payload(entity);
+					if (addSparsePayload)
+						add_sparse_pair_payload(entity);
 					finish_add_id<IsBootstrap>(entity);
 					return true;
 				}
@@ -3067,13 +3070,16 @@ namespace gaia {
 				//! Attaches an exclusive non-fragmenting relation pair.
 				//! \tparam IsBootstrap True while bootstrapping core ids.
 				//! \param entity Pair to attach.
+				//! \param addSparsePayload Whether sparse pair payload storage still needs initialization.
+				//! \param pairAlreadyPrepared Whether duplicate detection already ran in prepare_pair_add.
 				//! \return True when the pair was attached.
 				template <bool IsBootstrap>
-				bool handle_add_nonfragmenting_relation(Entity entity) {
+				bool handle_add_nonfragmenting_relation(
+						Entity entity, bool addSparsePayload = true, bool pairAlreadyPrepared = false) {
 					GAIA_ASSERT(entity.pair());
 
 					// Don't add the same pair twice.
-					if (has_nonfragmenting_relation_id(entity))
+					if (!pairAlreadyPrepared && has_nonfragmenting_relation_id(entity))
 						return false;
 
 					const auto relation = m_world.try_get(entity.id());
@@ -3081,8 +3087,8 @@ namespace gaia {
 					if (relation == EntityBad || target == EntityBad)
 						return false;
 
-					const auto* pStore = m_world.nonfragmenting_relation_store(relation);
-					const auto oldTarget = pStore != nullptr ? pStore->target(m_entity) : EntityBad;
+					auto& relationStore = m_world.nonfragmenting_relation_store_mut(relation);
+					const auto oldTarget = relationStore.target(m_entity);
 					if (oldTarget != EntityBad && oldTarget != target) {
 						const Entity oldPair = Pair(relation, oldTarget);
 #if GAIA_OBSERVERS_ENABLED
@@ -3095,7 +3101,6 @@ namespace gaia {
 							}
 						}
 #endif
-						invalidate_relation_change(oldPair);
 						try_set_flags(oldPair, false);
 						handle_DependsOn(oldPair, false);
 						unlink_is_relation(oldPair);
@@ -3103,7 +3108,6 @@ namespace gaia {
 						finish_del_id(oldPair);
 					}
 
-					invalidate_relation_change(entity);
 					try_set_flags(entity, true);
 					if (!link_is_relation(entity))
 						return false;
@@ -3117,8 +3121,9 @@ namespace gaia {
 					}
 #endif
 
-					m_world.nonfragmenting_relation_set(m_entity, relation, target);
-					add_sparse_pair_payload(entity);
+					m_world.nonfragmenting_relation_set(relationStore, m_entity, relation, target);
+					if (addSparsePayload)
+						add_sparse_pair_payload(entity);
 
 					finish_add_id<IsBootstrap>(entity);
 
@@ -3236,8 +3241,6 @@ namespace gaia {
 					if (!has_nonfragmenting_relation_id(entity))
 						return;
 
-					invalidate_relation_change(entity);
-
 					try_set_flags(entity, false);
 					handle_DependsOn(entity, false);
 					unlink_is_relation(entity);
@@ -3317,7 +3320,7 @@ namespace gaia {
 
 					if (isPair) {
 						if (relationPath == RelationMutationPath::NonFragmentingExclusive)
-							handle_add_nonfragmenting_relation<false>(entity);
+							handle_add_nonfragmenting_relation<false>(entity, true, true);
 						else
 							handle_add_archetype_relation<false>(entity);
 						return;
@@ -3354,7 +3357,8 @@ namespace gaia {
 
 				//! Attaches an id during initialization without dispatching normal add notifications.
 				//! \param entity Id to attach.
-				void add_inter_init(Entity entity) {
+				//! \param addSparsePayload Whether sparse pair payload storage still needs initialization.
+				void add_inter_init(Entity entity, bool addSparsePayload = true) {
 					GAIA_ASSERT(!is_wildcard(entity));
 					const bool isPair = entity.pair();
 					const auto relationPath = isPair ? relation_mutation_path_add(entity) : RelationMutationPath::Fragmenting;
@@ -3367,9 +3371,9 @@ namespace gaia {
 
 					if (isPair) {
 						if (relationPath == RelationMutationPath::NonFragmentingExclusive)
-							handle_add_nonfragmenting_relation<true>(entity);
+							handle_add_nonfragmenting_relation<true>(entity, addSparsePayload, true);
 						else
-							handle_add_archetype_relation<true>(entity);
+							handle_add_archetype_relation<true>(entity, addSparsePayload);
 						return;
 					}
 
