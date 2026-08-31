@@ -56,6 +56,61 @@ TEST_CASE("Parent - targets and sources use non-fragmenting relation storage") {
 	CHECK(sources[0] == child);
 }
 
+TEST_CASE("Non-fragmenting relation - exact pair sources have independent storage") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto owner = wld.add();
+	const auto rootA = wld.add();
+	const auto rootB = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(owner, pair);
+
+	wld.parent(relation, rootA);
+	wld.parent(pair, rootB);
+
+	CHECK(wld.target(relation, ecs::Parent) == rootA);
+	CHECK(wld.target(pair, ecs::Parent) == rootB);
+	CHECK(wld.has(relation, ecs::Pair(ecs::Parent, rootA)));
+	CHECK(wld.has(pair, ecs::Pair(ecs::Parent, rootB)));
+
+	cnt::darray<ecs::Entity> rootASources;
+	wld.sources(ecs::Parent, rootA, [&](ecs::Entity source) {
+		rootASources.push_back(source);
+	});
+	CHECK(rootASources.size() == 1);
+	if (rootASources.size() == 1)
+		CHECK(rootASources[0] == relation);
+
+	cnt::darray<ecs::Entity> rootBSources;
+	wld.sources(ecs::Parent, rootB, [&](ecs::Entity source) {
+		rootBSources.push_back(source);
+	});
+	CHECK(rootBSources.size() == 1);
+	if (rootBSources.size() == 1)
+		CHECK(rootBSources[0] == (ecs::Entity)pair);
+
+	CHECK(wld.query().all(ecs::Pair(ecs::Parent, ecs::All)).count() == 2);
+	CHECK(wld.query().all(ecs::Pair(ecs::Parent, rootA)).count() == 1);
+	CHECK(wld.query().all(ecs::Pair(ecs::Parent, rootB)).count() == 1);
+
+	const auto ordinarySource = wld.add();
+	wld.parent(ordinarySource, rootB);
+	wld.del(pair, ecs::Pair(ecs::Parent, rootB));
+	CHECK(wld.target(ordinarySource, ecs::Parent) == rootB);
+	wld.parent(pair, rootB);
+	wld.del(ordinarySource, ecs::Pair(ecs::Parent, rootB));
+	CHECK(wld.target(pair, ecs::Parent) == rootB);
+
+	wld.del(pair);
+	wld.update();
+	CHECK_FALSE(wld.has(pair));
+	CHECK(wld.target(relation, ecs::Parent) == rootA);
+	CHECK(wld.query().all(ecs::Pair(ecs::Parent, ecs::All)).count() == 1);
+	CHECK(wld.query().all(ecs::Pair(ecs::Parent, rootB)).count() == 0);
+}
+
 TEST_CASE("Non-fragmenting relation - wildcard observer sees add and delete") {
 	TestWorld twld;
 

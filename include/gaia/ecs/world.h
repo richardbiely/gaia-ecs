@@ -1709,12 +1709,16 @@ namespace gaia {
 					return;
 
 				cnt::darray<EntityId> sourceIds;
+				cnt::darray<Entity> pairSources;
 				itStore->second.collect_source_ids(sourceIds);
+				itStore->second.collect_pair_sources(pairSources);
 
 				touch_rel_version(relation);
 				invalidate_queries_for_rel(relation);
 				for (auto sourceId: sourceIds)
 					(void)nonfragmenting_relation_del(get(sourceId), relation, EntityBad);
+				for (auto source: pairSources)
+					(void)nonfragmenting_relation_del(source, relation, EntityBad);
 				clear_relation_caches();
 			}
 
@@ -8714,6 +8718,7 @@ namespace gaia {
 								continue;
 							out.push_back(EntityContainer::handle(m_recs.entities[sourceId]));
 						}
+						pStore->collect_pair_sources(out);
 						return;
 					}
 
@@ -8793,11 +8798,17 @@ namespace gaia {
 
 					if (is_wildcard(term.gen())) {
 						cnt::darray<EntityId> sourceIds;
+						cnt::darray<Entity> pairSources;
 						pStore->collect_source_ids(sourceIds);
+						pStore->collect_pair_sources(pairSources);
 						for (auto sourceId: sourceIds) {
 							if (!m_recs.entities.has(sourceId))
 								continue;
 							if (!func(ctx, EntityContainer::handle(m_recs.entities[sourceId])))
+								return false;
+						}
+						for (auto source: pairSources) {
+							if (!func(ctx, source))
 								return false;
 						}
 						return true;
@@ -9985,9 +9996,19 @@ namespace gaia {
 					for (const auto& [relKey, store]: m_nonFragmentingRelationsByRel) {
 						const auto relation = relKey.entity();
 						cnt::darray<EntityId> sourceIds;
+						cnt::darray<Entity> pairSources;
 						store.collect_source_ids(sourceIds);
+						store.collect_pair_sources(pairSources);
 						for (auto sourceId: sourceIds) {
 							const auto source = get(sourceId);
+							GAIA_ASSERT(valid(source));
+							const auto target = store.target(source);
+							GAIA_ASSERT(target != EntityBad);
+							s.save(source);
+							s.save(relation);
+							s.save(target);
+						}
+						for (auto source: pairSources) {
 							GAIA_ASSERT(valid(source));
 							const auto target = store.target(source);
 							GAIA_ASSERT(target != EntityBad);
@@ -13056,6 +13077,8 @@ namespace gaia {
 			//! \param entity Entity being deleted.
 			void del_pair_data_for_entity(Entity entity) {
 				Archetype* pArchetype = nullptr;
+				// Exact pair records are valid Gaia entities and can own non-fragmenting relation edges.
+				del_nonfragmenting_relation_source(entity);
 
 				if (entity.pair()) {
 					Entity rel;
@@ -13069,8 +13092,6 @@ namespace gaia {
 
 					// Remove all sparse-storage components from this entity.
 					del_sparse_components(entity);
-					// Remove all outgoing non-fragmenting exclusive relations from this source entity.
-					del_nonfragmenting_relation_source(entity);
 					// If the deleted entity is itself a non-fragmenting exclusive relation, drop its store.
 					del_nonfragmenting_relation(entity);
 					// If the deleted entity is itself a sparse-storage component, drop its store.

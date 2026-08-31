@@ -1951,6 +1951,39 @@ TEST_CASE("Serialization - world preserves exact pair records") {
 	CHECK(wld.query().all<Position>().count() == 1);
 }
 
+TEST_CASE("Serialization - world preserves non-fragmenting edges on exact pair sources") {
+	ecs::World in;
+
+	const auto relation = in.add();
+	const auto target = in.add();
+	const auto owner = in.add();
+	const auto rootA = in.add();
+	const auto rootB = in.add();
+	const auto pair = ecs::Pair(relation, target);
+	in.add(owner, pair);
+	in.parent(relation, rootA);
+	in.parent(pair, rootB);
+
+	ser::bin_stream buffer;
+	in.set_serializer(buffer);
+	in.save();
+
+	TestWorld twld;
+	CHECK(wld.load(buffer));
+	CHECK(wld.has(pair));
+	CHECK(wld.target(relation, ecs::Parent) == rootA);
+	CHECK(wld.target(pair, ecs::Parent) == rootB);
+	CHECK(wld.query().all(ecs::Pair(ecs::Parent, ecs::All)).count() == 2);
+
+	cnt::darray<ecs::Entity> sources;
+	wld.sources(ecs::Parent, rootB, [&](ecs::Entity source) {
+		sources.push_back(source);
+	});
+	CHECK(sources.size() == 1);
+	if (sources.size() == 1)
+		CHECK(sources[0] == (ecs::Entity)pair);
+}
+
 TEST_CASE("Serialization - world compatibility when core components are added later") {
 	TestWorld archetypeWorld;
 	const auto warmup = archetypeWorld.m_w.add();

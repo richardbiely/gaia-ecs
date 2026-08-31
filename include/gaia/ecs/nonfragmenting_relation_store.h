@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "gaia/cnt/darray.h"
+#include "gaia/cnt/map.h"
 #include "gaia/core/utility.h"
 #include "gaia/ecs/id.h"
 
@@ -13,14 +14,52 @@ namespace gaia {
 			//! Storage for exclusive relation pairs that do not fragment archetypes.
 			struct NonFragmentingRelationStore {
 			private:
+				//! Source-side state for an exact pair record.
+				struct PairSourceRecord {
+					//! Bound target.
+					Entity target = EntityBad;
+					//! Position in the bound target's source list.
+					uint32_t targetIdx = BadIndex;
+				};
+
 				//! Direct source-entity-id indexed target lookup. EntityBad means no binding for that source.
 				cnt::darray<Entity> srcToTgt;
 				//! Direct source-entity-id indexed position in the current target's source list.
 				cnt::darray<uint32_t> srcToTgtIdx;
-				//! Number of active source bindings in srcToTgt.
+				//! Full-identity lookup for exact pair sources, which share ids with their relation endpoints.
+				cnt::map<EntityLookupKey, PairSourceRecord> pairSrcToTgt;
+				//! Number of active ordinary and exact pair source bindings.
 				uint32_t srcToTgtCnt = 0;
 				//! Direct target-entity-id indexed source buckets used for traversal and wildcard operations.
 				cnt::darray<cnt::darray<Entity>> tgtToSrc;
+
+				//! Returns the source's position in its target bucket.
+				//! \param source Source entity.
+				//! \return Bucket position or BadIndex when the source is not bound.
+				GAIA_NODISCARD uint32_t target_source_index(Entity source) const {
+					if GAIA_UNLIKELY (source.pair()) {
+						const auto it = pairSrcToTgt.find(EntityLookupKey(source));
+						return it != pairSrcToTgt.end() ? it->second.targetIdx : BadIndex;
+					}
+
+					return source.id() < srcToTgtIdx.size() ? srcToTgtIdx[source.id()] : BadIndex;
+				}
+
+				//! Updates the source's position after a target bucket swap.
+				//! \param source Source entity.
+				//! \param index New position in the target bucket.
+				void set_target_source_index(Entity source, uint32_t index) {
+					if GAIA_UNLIKELY (source.pair()) {
+						const auto it = pairSrcToTgt.find(EntityLookupKey(source));
+						GAIA_ASSERT(it != pairSrcToTgt.end());
+						if (it != pairSrcToTgt.end())
+							it->second.targetIdx = index;
+						return;
+					}
+
+					GAIA_ASSERT(source.id() < srcToTgtIdx.size());
+					srcToTgtIdx[source.id()] = index;
+				}
 
 			public:
 				//! Ensures source-indexed storage can hold \a source.
@@ -58,6 +97,11 @@ namespace gaia {
 				//! \param source Source entity.
 				//! \return Bound target or EntityBad when no binding exists.
 				GAIA_NODISCARD Entity target(Entity source) const {
+					if GAIA_UNLIKELY (source.pair()) {
+						const auto it = pairSrcToTgt.find(EntityLookupKey(source));
+						return it != pairSrcToTgt.end() ? it->second.target : EntityBad;
+					}
+
 					if (source.id() >= srcToTgt.size())
 						return EntityBad;
 
@@ -93,6 +137,19 @@ namespace gaia {
 					}
 				}
 
+				//! Appends all bound exact pair sources in deterministic entity order.
+				//! \param out Output array receiving exact pair sources.
+				void collect_pair_sources(cnt::darray<Entity>& out) const {
+					const auto first = out.size();
+					out.reserve(first + pairSrcToTgt.size());
+					for (const auto& pair: pairSrcToTgt)
+						out.push_back(pair.first.entity());
+
+					core::sort(out.begin() + first, out.end(), [](Entity left, Entity right) {
+						return left.value() < right.value();
+					});
+				}
+
 				//! Removes \a source from the source bucket for \a target.
 				//! \param target Target entity.
 				//! \param source Source entity.
@@ -102,7 +159,7 @@ namespace gaia {
 						return;
 
 					auto& sources = tgtToSrc[target.id()];
-					const auto idx = source.id() < srcToTgtIdx.size() ? srcToTgtIdx[source.id()] : BadIndex;
+					const auto idx = target_source_index(source);
 					GAIA_ASSERT(idx != BadIndex && idx < sources.size());
 					if (idx == BadIndex || idx >= sources.size())
 						return;
@@ -111,8 +168,7 @@ namespace gaia {
 					if (idx != lastIdx) {
 						const auto movedSource = sources[lastIdx];
 						sources[idx] = movedSource;
-						GAIA_ASSERT(movedSource.id() < srcToTgtIdx.size());
-						srcToTgtIdx[movedSource.id()] = idx;
+						set_target_source_index(movedSource, idx);
 					}
 
 					sources.pop_back();
@@ -123,8 +179,9 @@ namespace gaia {
 				//! \param target Target entity.
 				//! \return True when the stored binding changed.
 				GAIA_NODISCARD bool set(Entity source, Entity target) {
-					ensure_source_capacity(source);
-					const auto oldTarget = srcToTgt[source.id()];
+					if GAIA_LIKELY (!source.pair())
+						ensure_source_capacity(source);
+					const auto oldTarget = this->target(source);
 					if (oldTarget != EntityBad) {
 						if (oldTarget == target)
 							return false;
@@ -136,8 +193,13 @@ namespace gaia {
 
 					ensure_target_capacity(target);
 					auto& sources = tgtToSrc[target.id()];
-					srcToTgt[source.id()] = target;
-					srcToTgtIdx[source.id()] = (uint32_t)sources.size();
+					const auto sourceIdx = (uint32_t)sources.size();
+					if GAIA_UNLIKELY (source.pair())
+						pairSrcToTgt[EntityLookupKey(source)] = PairSourceRecord{target, sourceIdx};
+					else {
+						srcToTgt[source.id()] = target;
+						srcToTgtIdx[source.id()] = sourceIdx;
+					}
 					sources.push_back(source);
 
 					return true;
@@ -155,8 +217,12 @@ namespace gaia {
 						return false;
 
 					remove_target_source(oldTarget, source);
-					srcToTgt[source.id()] = EntityBad;
-					srcToTgtIdx[source.id()] = BadIndex;
+					if GAIA_UNLIKELY (source.pair())
+						pairSrcToTgt.erase(EntityLookupKey(source));
+					else {
+						srcToTgt[source.id()] = EntityBad;
+						srcToTgtIdx[source.id()] = BadIndex;
+					}
 					GAIA_ASSERT(srcToTgtCnt > 0);
 					--srcToTgtCnt;
 					return true;
