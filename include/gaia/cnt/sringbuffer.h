@@ -348,7 +348,7 @@ namespace gaia {
 			//! Removes and copies the back element.
 			//! \param out Destination receiving the removed element.
 			constexpr void pop_back(T& out) {
-				GAIA_ASSERT(m_size < N);
+				GAIA_ASSERT(!empty());
 				const auto head = (m_tail + m_size - 1) % N;
 				out = m_data[head];
 				--m_size;
@@ -357,7 +357,7 @@ namespace gaia {
 			//! Removes and moves the back element.
 			//! \param out Destination receiving the removed element.
 			constexpr void pop_back(T&& out) {
-				GAIA_ASSERT(m_size < N);
+				GAIA_ASSERT(!empty());
 				const auto head = (m_tail + m_size - 1) % N;
 				out = GAIA_MOV(m_data[head]);
 				--m_size;

@@ -2134,6 +2134,20 @@ TEST_CASE("Data layout - erased SoA field addressing matches typed policy") {
 
 TEST_CASE("Containers - sringbuffer") {
 	{
+		cnt::sringbuffer<uint32_t, 5> arr = {0, 1, 2, 3, 4};
+		uint32_t copied{};
+		arr.pop_back(copied);
+		CHECK(copied == 4);
+		CHECK(arr.size() == 4);
+
+		uint32_t moved{};
+		arr.pop_back(GAIA_MOV(moved));
+		CHECK(moved == 3);
+		CHECK(arr.size() == 3);
+		CHECK(arr.back() == 2);
+	}
+
+	{
 		cnt::sarray<uint32_t, 5> comparearr = {0, 1, 2, 3, 4};
 		cnt::sringbuffer<uint32_t, 5> arr = {0, 1, 2, 3, 4};
 		uint32_t val{};
