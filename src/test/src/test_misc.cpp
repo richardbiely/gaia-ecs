@@ -4385,6 +4385,33 @@ TEST_CASE("Hooks") {
 		CHECK(hook_trigger_cnt == 33);
 	}
 
+	SUBCASE("prefab pair add") {
+		using PairType = ecs::pair<ErasedPairRelationTag, ErasedPairPayload>;
+
+		TestWorld twld;
+		(void)wld.add<ErasedPairRelationTag>();
+		const auto& pairPayloadItem = wld.add<ErasedPairPayload>();
+		hook_trigger_cnt = 0;
+		ecs::ComponentCache::hooks(pairPayloadItem).func_add =
+				[](const ecs::World&, const ecs::ComponentCacheItem&, ecs::Entity) {
+					++hook_trigger_cnt;
+				};
+
+		const auto prefab = wld.prefab();
+		wld.add<PairType>(prefab, {7.0f, 8.0f});
+		CHECK(hook_trigger_cnt == 1);
+		hook_trigger_cnt = 0;
+
+		const auto instance = wld.instantiate(prefab);
+		CHECK(hook_trigger_cnt == 1);
+		const auto& payload = wld.get<PairType>(instance);
+		CHECK(payload.x == doctest::Approx(7.0f));
+		CHECK(payload.y == doctest::Approx(8.0f));
+
+		wld.instantiate_n(prefab, 3);
+		CHECK(hook_trigger_cnt == 4);
+	}
+
 	SUBCASE("del") {
 		TestWorld twld;
 		const auto& pitem = wld.add<Position>();

@@ -71508,23 +71508,6 @@ namespace gaia {
 				}
 			}
 
-			//! Filters added ids that have add hooks.
-			//! \tparam T Output container type.
-			//! \param addedIds Candidate added ids.
-			//! \param outHookIds Destination hook id list.
-			template <typename T>
-			void collect_prefab_add_hook_ids(EntitySpan addedIds, T& outHookIds) {
-				outHookIds.clear();
-				for (const auto id: addedIds) {
-					if (!id.comp())
-						continue;
-
-					const auto& item = comp_cache().get(id);
-					if (item.hooks().func_add != nullptr)
-						outHookIds.push_back(id);
-				}
-			}
-
 			//! Instantiates one prepared prefab node.
 			//! \param prefabEntity Prefab source.
 			//! \param pDstArchetype Prepared destination archetype.
@@ -71586,10 +71569,11 @@ namespace gaia {
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
 					for (const auto id: addHookIds) {
-						const auto& item = comp_cache().get(id);
-						const auto& hooks = item.hooks();
+						const auto* pItem = component_item(instance, id);
+						GAIA_ASSERT(pItem != nullptr);
+						const auto& hooks = pItem->hooks();
 						GAIA_ASSERT(hooks.func_add != nullptr);
-						hooks.func_add(*this, item, instance);
+						hooks.func_add(*this, *pItem, instance);
 					}
 	#endif
 
@@ -71622,7 +71606,7 @@ namespace gaia {
 				cnt::darray_ext<Entity, 16> addHookIds;
 				collect_prefab_copied_sparse_ids(prefabEntity, copiedSparseIds);
 				collect_prefab_added_ids(pDstArchetype, EntitySpan{copiedSparseIds}, addedIds);
-				collect_prefab_add_hook_ids(EntitySpan{addedIds}, addHookIds);
+				collect_add_hook_ids(EntitySpan{addedIds}, addHookIds);
 				return instantiate_prefab_node_inter(
 						prefabEntity, pDstArchetype, parentInstance, EntitySpan{copiedSparseIds}, EntitySpan{addedIds},
 						EntitySpan{addHookIds});
@@ -71703,12 +71687,13 @@ namespace gaia {
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
 						for (const auto id: node.addHookIds) {
-							const auto& item = comp_cache().get(id);
-							const auto& hooks = item.hooks();
+							const auto* pItem = component_item(entities[originalChunkSize], id);
+							GAIA_ASSERT(pItem != nullptr);
+							const auto& hooks = pItem->hooks();
 							GAIA_ASSERT(hooks.func_add != nullptr);
 
 							GAIA_FOR2_(originalChunkSize, originalChunkSize + toCreate, rowIdx) {
-								hooks.func_add(*this, item, entities[rowIdx]);
+								hooks.func_add(*this, *pItem, entities[rowIdx]);
 							}
 						}
 	#endif
@@ -71751,7 +71736,7 @@ namespace gaia {
 				node.pDstArchetype = instantiate_prefab_dst_archetype(prefabEntity);
 				collect_prefab_copied_sparse_ids(prefabEntity, node.copiedSparseIds);
 				collect_prefab_added_ids(node.pDstArchetype, EntitySpan{node.copiedSparseIds}, node.addedIds);
-				collect_prefab_add_hook_ids(EntitySpan{node.addedIds}, node.addHookIds);
+				collect_add_hook_ids(EntitySpan{node.addedIds}, node.addHookIds);
 
 				const auto nodeIdx = (uint32_t)plan.size();
 				plan.push_back(GAIA_MOV(node));
@@ -71836,7 +71821,7 @@ namespace gaia {
 				node.pDstArchetype = instantiate_prefab_dst_archetype(prefabEntity);
 				collect_prefab_copied_sparse_ids(prefabEntity, node.copiedSparseIds);
 				collect_prefab_added_ids(node.pDstArchetype, EntitySpan{node.copiedSparseIds}, node.addedIds);
-				collect_prefab_add_hook_ids(EntitySpan{node.addedIds}, node.addHookIds);
+				collect_add_hook_ids(EntitySpan{node.addedIds}, node.addHookIds);
 
 				cnt::darray_ext<PrefabChildEdge, 16> prefabChildren;
 				gather_sorted_prefab_children(prefabEntity, prefabChildren);
