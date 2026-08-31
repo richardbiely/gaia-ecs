@@ -86,7 +86,7 @@ namespace gaia {
 				return iterator(m_ptr, m_cnt, m_idx + offset);
 			}
 			iterator operator-(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+				return iterator(m_ptr, m_cnt, m_idx - offset);
 			}
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
@@ -179,7 +179,7 @@ namespace gaia {
 				return iterator(m_ptr, m_cnt, m_idx + offset);
 			}
 			iterator operator-(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+				return iterator(m_ptr, m_cnt, m_idx - offset);
 			}
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);

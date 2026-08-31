@@ -916,6 +916,20 @@ void resizable_arr_soa_resize_fill_test(uint32_t count) {
 }
 
 template <typename Container>
+void soa_iterator_subtraction_test(Container& arr) {
+	const auto last = *(arr.end() - 1);
+	CHECK(last.x == 4.0f);
+	CHECK(last.y == 5.0f);
+	CHECK(last.z == 6.0f);
+
+	const auto& constArr = arr;
+	const auto second = *(constArr.cend() - 3);
+	CHECK(second.x == 2.0f);
+	CHECK(second.y == 3.0f);
+	CHECK(second.z == 4.0f);
+}
+
+template <typename Container>
 void retainable_arr_test() {
 	using cont_item = typename Container::value_type;
 
@@ -1025,6 +1039,28 @@ TEST_CASE("Containers - SoA resize fill") {
 	resizable_arr_soa_resize_fill_test<cnt::darr_soa<PositionSoA>>(16);
 	resizable_arr_soa_resize_fill_test<cnt::darr_ext_soa<PositionSoA, 8>>(16);
 	resizable_arr_soa_resize_fill_test<cnt::sarr_ext_soa<PositionSoA, 16>>(16);
+}
+
+TEST_CASE("Containers - SoA iterator subtraction") {
+	cnt::sarr_soa<PositionSoA, 4> fixed;
+	GAIA_EACH(fixed) fixed[i] = {(float)i + 1.0f, (float)i + 2.0f, (float)i + 3.0f};
+	soa_iterator_subtraction_test(fixed);
+
+	cnt::sarr_ext_soa<PositionSoA, 4> inlineResizable;
+	inlineResizable.resize(4);
+	GAIA_EACH(inlineResizable)
+	inlineResizable[i] = {(float)i + 1.0f, (float)i + 2.0f, (float)i + 3.0f};
+	soa_iterator_subtraction_test(inlineResizable);
+
+	cnt::darr_soa<PositionSoA> dynamic;
+	dynamic.resize(4);
+	GAIA_EACH(dynamic) dynamic[i] = {(float)i + 1.0f, (float)i + 2.0f, (float)i + 3.0f};
+	soa_iterator_subtraction_test(dynamic);
+
+	cnt::darr_ext_soa<PositionSoA, 4> dynamicInline;
+	dynamicInline.resize(4);
+	GAIA_EACH(dynamicInline) dynamicInline[i] = {(float)i + 1.0f, (float)i + 2.0f, (float)i + 3.0f};
+	soa_iterator_subtraction_test(dynamicInline);
 }
 
 //------------------------------------------------------------------------------
