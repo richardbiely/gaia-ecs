@@ -18872,7 +18872,7 @@ namespace gaia {
 					return m_pPage == other.m_pPage && m_it == other.m_it;
 				}
 				GAIA_NODISCARD bool operator!=(const iterator& other) const {
-					return m_pPage != other.m_pPage && m_it != other.m_it;
+					return !(*this == other);
 				}
 			};
 
@@ -18928,7 +18928,7 @@ namespace gaia {
 					return m_pPage == other.m_pPage && m_it == other.m_it;
 				}
 				GAIA_NODISCARD bool operator!=(const iterator& other) const {
-					return m_pPage != other.m_pPage && m_it != other.m_it;
+					return !(*this == other);
 				}
 			};
 

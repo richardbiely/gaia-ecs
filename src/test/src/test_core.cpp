@@ -1960,6 +1960,33 @@ void paged_storage_test(uint32_t N) {
 		CHECK(arr.back().data == i);
 	}
 
+	{
+		auto first = arr.begin();
+		auto second = first;
+		++second;
+		CHECK(first != second);
+		CHECK_FALSE(first == second);
+
+		auto last = arr.rbegin();
+		auto beforeLast = last;
+		++beforeLast;
+		CHECK(last != beforeLast);
+		CHECK_FALSE(last == beforeLast);
+
+		const auto& constArr = arr;
+		auto constFirst = constArr.begin();
+		auto constSecond = constFirst;
+		++constSecond;
+		CHECK(constFirst != constSecond);
+		CHECK_FALSE(constFirst == constSecond);
+
+		auto constLast = constArr.rbegin();
+		auto constBeforeLast = constLast;
+		++constBeforeLast;
+		CHECK(constLast != constBeforeLast);
+		CHECK_FALSE(constLast == constBeforeLast);
+	}
+
 	// Verify the values remain the same even after the internal buffer is reallocated
 	GAIA_FOR(N) CHECK(arr[to_sid(i)].data == i);
 	// Copy assignment
