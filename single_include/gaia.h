@@ -75096,6 +75096,31 @@ namespace gaia {
 				}
 			}
 
+			//! Enables or disables an exact pair record.
+			//! \param entity Pair record.
+			//! \param enable Enable or disable the pair record.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			void enable(Pair entity, bool enable) {
+				const auto source = (Entity)entity;
+				GAIA_ASSERT(valid(source));
+
+				auto& ec = fetch(source);
+				auto& archetype = *ec.pArchetype;
+				auto* pChunk = ec.pChunk;
+				const bool wasEnabled = !ec.data.dis;
+#if GAIA_ASSERT_ENABLED
+				verify_enable(*this, archetype, source);
+#endif
+				archetype.enable_entity(ec.pChunk, ec.row, enable, m_recs);
+
+				if (wasEnabled != enable) {
+					pChunk->update_world_version();
+					pChunk->update_entity_order_version();
+					update_version(m_enabledHierarchyVersion);
+					update_version(m_worldVersion);
+				}
+			}
+
 			//! Checks if an entity is enabled.
 			//! \param ec Entity container of the entity
 			//! \return True if the entity is enabled. False otherwise.
@@ -75117,6 +75142,17 @@ namespace gaia {
 
 				const auto& ec = m_recs.entities[entity.id()];
 				return enabled(ec);
+			}
+
+			//! Checks whether an exact pair record is enabled.
+			//! \param entity Pair record.
+			//! \return True if the pair record is enabled. False otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD bool enabled(Pair entity) const {
+				const auto source = (Entity)entity;
+				GAIA_ASSERT(valid(source));
+
+				return enabled(fetch(source));
 			}
 
 			//! Checks whether an entity is enabled together with all of its ancestors reachable through \p relation.
@@ -75156,6 +75192,13 @@ namespace gaia {
 				return ec.pChunk;
 			}
 
+			//! Returns the chunk containing an exact pair record.
+			//! \param entity Pair record.
+			//! \return Chunk containing \a entity.
+			GAIA_NODISCARD Chunk* get_chunk(Pair entity) const {
+				return fetch((Entity)entity).pChunk;
+			}
+
 			//! Returns a chunk containing the \a entity.
 			//! Index of the entity is stored in \a row
 			//! \param entity Entity
@@ -75164,6 +75207,16 @@ namespace gaia {
 			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& row) const {
 				GAIA_ASSERT(entity.id() < m_recs.entities.size());
 				const auto& ec = m_recs.entities[entity.id()];
+				row = ec.row;
+				return ec.pChunk;
+			}
+
+			//! Returns the chunk and row containing an exact pair record.
+			//! \param entity Pair record.
+			//! \param[out] row Row of \a entity within its chunk.
+			//! \return Chunk containing \a entity.
+			GAIA_NODISCARD Chunk* get_chunk(Pair entity, uint32_t& row) const {
+				const auto& ec = fetch((Entity)entity);
 				row = ec.row;
 				return ec.pChunk;
 			}

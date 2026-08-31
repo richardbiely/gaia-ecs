@@ -4178,6 +4178,48 @@ TEST_CASE("Exact pair records - typed payload access") {
 	}
 }
 
+TEST_CASE("Exact pair records - enable state and chunk lookup") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto targetA = wld.add();
+	const auto targetB = wld.add();
+	const auto source = wld.add();
+	const auto pairA = ecs::Pair(relation, targetA);
+	const auto pairB = ecs::Pair(relation, targetB);
+	wld.add(source, pairA);
+	wld.add(source, pairB);
+	wld.add<Position>(pairA, {1.0f, 2.0f, 3.0f});
+	wld.add<Position>(pairB, {4.0f, 5.0f, 6.0f});
+
+	uint32_t rowA = BadIndex;
+	auto* pChunkA = wld.get_chunk(pairA, rowA);
+	CHECK(pChunkA != nullptr);
+	CHECK(pChunkA == wld.get_chunk(pairA));
+	CHECK(pChunkA->entity_view()[rowA] == (ecs::Entity)pairA);
+	CHECK(wld.enabled(pairA));
+	CHECK(wld.enabled(pairB));
+	CHECK(wld.enabled(relation));
+	CHECK(wld.query().all<Position>().count() == 2);
+
+	wld.enable(pairA, false);
+	CHECK_FALSE(wld.enabled(pairA));
+	CHECK(wld.enabled(pairB));
+	CHECK(wld.enabled(relation));
+	CHECK(wld.query().all<Position>().count() == 1);
+
+	rowA = BadIndex;
+	pChunkA = wld.get_chunk(pairA, rowA);
+	CHECK(pChunkA != nullptr);
+	CHECK(pChunkA->entity_view()[rowA] == (ecs::Entity)pairA);
+
+	wld.enable(pairA, true);
+	CHECK(wld.enabled(pairA));
+	CHECK(wld.enabled(pairB));
+	CHECK(wld.enabled(relation));
+	CHECK(wld.query().all<Position>().count() == 2);
+}
+
 TEST_CASE("ArchetypeGraph") {
 	TestWorld twld;
 
