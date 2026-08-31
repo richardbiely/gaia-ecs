@@ -69926,6 +69926,21 @@ namespace gaia {
 				add_entity_n(*ec.pArchetype, count, func);
 			}
 
+			//! Creates \a count of entities of the same archetype as an exact pair record.
+			//! \param entity Source pair record whose archetype is reused.
+			//! \param count Number of entities to create.
+			//! \param func Functor invoked for each new entity.
+			//! \note Similar to copy_n(), but component payload is left uninitialized or default-initialized.
+			template <typename Func = TFunc_Void_With_Entity>
+			void add_n(Pair entity, uint32_t count, Func func = func_void_with_entity) {
+				auto& ec = fetch((Entity)entity);
+
+				GAIA_ASSERT(ec.pArchetype != nullptr);
+				GAIA_ASSERT(ec.pChunk != nullptr);
+
+				add_entity_n(*ec.pArchetype, count, func);
+			}
+
 			//! Creates a new component if not found already.
 			//! \tparam T Component
 			//! \return Component cache item of the component

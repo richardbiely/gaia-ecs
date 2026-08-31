@@ -4250,6 +4250,24 @@ TEST_CASE("Exact pair records - hierarchy enable state") {
 	CHECK(wld.enabled_hierarchy(pair, ecs::ChildOf));
 }
 
+TEST_CASE("Exact pair records - archetype-based creation") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(source, pair);
+	wld.add<Position>(pair);
+
+	uint32_t created = 0;
+	wld.add_n(pair, 3, [&](ecs::Entity entity) {
+		CHECK(wld.has<Position>(entity));
+		++created;
+	});
+	CHECK(created == 3);
+}
+
 TEST_CASE("ArchetypeGraph") {
 	TestWorld twld;
 
