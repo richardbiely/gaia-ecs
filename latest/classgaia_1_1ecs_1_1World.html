@@ -199,7 +199,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</t
 <tr class="memdesc:a02e169ac8ac74540ed74e0c6c071aec0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when depth-ordered iteration may safely prune disabled subtrees at archetype level. Only fragmenting hierarchy relations qualify because all rows in the archetype then share the same direct parent and therefore the same ancestor chain.  <br /></td></tr>
 <tr class="separator:a02e169ac8ac74540ed74e0c6c071aec0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acb4637f3c7afe94417a3b654613e674e" id="r_acb4637f3c7afe94417a3b654613e674e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#acb4637f3c7afe94417a3b654613e674e">component_uses_sparse_storage</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
-<tr class="memdesc:acb4637f3c7afe94417a3b654613e674e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>component</em> stores instance data in sparse storage instead of archetype chunks. This is currently the storage path used for sparse plain generic AoS components.  <br /></td></tr>
+<tr class="memdesc:acb4637f3c7afe94417a3b654613e674e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>component</em> stores instance data in sparse storage instead of archetype chunks. This is the storage path used for sparse plain generic AoS components and exact pair AoS payloads.  <br /></td></tr>
 <tr class="separator:acb4637f3c7afe94417a3b654613e674e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af7380ffb311aa77115171a2435e804b3" id="r_af7380ffb311aa77115171a2435e804b3"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#af7380ffb311aa77115171a2435e804b3">component_is_non_fragmenting</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
 <tr class="memdesc:af7380ffb311aa77115171a2435e804b3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>component</em> is non-fragmenting. Non-fragmenting components do not participate in archetype identity.  <br /></td></tr>
@@ -234,25 +234,30 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</t
 <tr class="memitem:a9ad825ab4d86476bed484ceb4a4a2fab" id="r_a9ad825ab4d86476bed484ceb4a4a2fab"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a9ad825ab4d86476bed484ceb4a4a2fab">can_add_component_storage_trait</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
 <tr class="memdesc:a9ad825ab4d86476bed484ceb4a4a2fab"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether a runtime storage trait can be attached to <em>component</em>. Compile-time component storage is authoritative. Runtime component descriptors remain mutable.  <br /></td></tr>
 <tr class="separator:a9ad825ab4d86476bed484ceb4a4a2fab"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4d5a3ff19fd06d7ba7f8a9a7a848a26d" id="r_a4d5a3ff19fd06d7ba7f8a9a7a848a26d"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD SparseStorageMode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4d5a3ff19fd06d7ba7f8a9a7a848a26d">compile_time_sparse_storage_mode</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
-<tr class="memdesc:a4d5a3ff19fd06d7ba7f8a9a7a848a26d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the fragmentation mode for a component known at compile time to use sparse storage.  <br /></td></tr>
-<tr class="separator:a4d5a3ff19fd06d7ba7f8a9a7a848a26d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a790fdcd853fbaf7dcb6cc037acda20c9" id="r_a790fdcd853fbaf7dcb6cc037acda20c9"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a790fdcd853fbaf7dcb6cc037acda20c9"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a790fdcd853fbaf7dcb6cc037acda20c9">register_component_id</a> ()</td></tr>
+<tr class="memdesc:a790fdcd853fbaf7dcb6cc037acda20c9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Registers the component or exact pair represented by compile-time type <em>T</em>.  <br /></td></tr>
+<tr class="separator:a790fdcd853fbaf7dcb6cc037acda20c9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae2240d97c819f1b9b43a4b8c9dc06416" id="r_ae2240d97c819f1b9b43a4b8c9dc06416"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:ae2240d97c819f1b9b43a4b8c9dc06416"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD GAIA_FORCEINLINE <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae2240d97c819f1b9b43a4b8c9dc06416">register_sparse_component_id</a> (SparseStorageMode &amp;mode)</td></tr>
+<tr class="memdesc:ae2240d97c819f1b9b43a4b8c9dc06416"><td class="mdescLeft">&#160;</td><td class="mdescRight">Registers a compile-time sparse component or exact pair and resolves its runtime fragmentation mode. Exact pairs use their relationship entity as the owner of the DontFragment policy.  <br /></td></tr>
+<tr class="separator:ae2240d97c819f1b9b43a4b8c9dc06416"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a90f02e266f83fea3f824dbd8082a90ee" id="r_a90f02e266f83fea3f824dbd8082a90ee"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a90f02e266f83fea3f824dbd8082a90ee"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a90f02e266f83fea3f824dbd8082a90ee">can_use_sparse_component_storage</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object) const</td></tr>
 <tr class="memdesc:a90f02e266f83fea3f824dbd8082a90ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>object</em> is a usable sparse storage target for component type <em>T</em>.  <br /></td></tr>
 <tr class="separator:a90f02e266f83fea3f824dbd8082a90ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8ca38f2da646e973096e8e51ea8968fa" id="r_a8ca38f2da646e973096e8e51ea8968fa"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a8ca38f2da646e973096e8e51ea8968fa"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD SparseComponentStore&lt; T &gt; *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a8ca38f2da646e973096e8e51ea8968fa">sparse_component_store</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
-<tr class="memdesc:a8ca38f2da646e973096e8e51ea8968fa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse component store for <em>component</em>, or nullptr if it does not exist.  <br /></td></tr>
-<tr class="separator:a8ca38f2da646e973096e8e51ea8968fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af22df66d031b641e19d2f9a4d91b3222" id="r_af22df66d031b641e19d2f9a4d91b3222"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:af22df66d031b641e19d2f9a4d91b3222"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD const SparseComponentStore&lt; T &gt; *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#af22df66d031b641e19d2f9a4d91b3222">sparse_component_store</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
-<tr class="memdesc:af22df66d031b641e19d2f9a4d91b3222"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse component store for <em>component</em>, or nullptr if it does not exist.  <br /></td></tr>
-<tr class="separator:af22df66d031b641e19d2f9a4d91b3222"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acc6a248f4752be72856a38ace5289368" id="r_acc6a248f4752be72856a38ace5289368"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:acc6a248f4752be72856a38ace5289368"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD SparseComponentStore&lt; T &gt; &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#acc6a248f4752be72856a38ace5289368">sparse_component_store_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
-<tr class="memdesc:acc6a248f4752be72856a38ace5289368"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse component store for <em>component</em>, creating it if needed.  <br /></td></tr>
-<tr class="separator:acc6a248f4752be72856a38ace5289368"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a802a7f9cf02e6abbaec852233bb7c7f2" id="r_a802a7f9cf02e6abbaec852233bb7c7f2"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a802a7f9cf02e6abbaec852233bb7c7f2"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD auto *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a802a7f9cf02e6abbaec852233bb7c7f2">sparse_component_store</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
+<tr class="memdesc:a802a7f9cf02e6abbaec852233bb7c7f2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse component store for <em>component</em>, or nullptr if it does not exist.  <br /></td></tr>
+<tr class="separator:a802a7f9cf02e6abbaec852233bb7c7f2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a72d77e16f9dc1f657b0fc8c2871d2dfb" id="r_a72d77e16f9dc1f657b0fc8c2871d2dfb"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a72d77e16f9dc1f657b0fc8c2871d2dfb"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD const auto *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a72d77e16f9dc1f657b0fc8c2871d2dfb">sparse_component_store</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="memdesc:a72d77e16f9dc1f657b0fc8c2871d2dfb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse component store for <em>component</em>, or nullptr if it does not exist.  <br /></td></tr>
+<tr class="separator:a72d77e16f9dc1f657b0fc8c2871d2dfb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae80514e92dd24cdfd89a3c6ce8613a76" id="r_ae80514e92dd24cdfd89a3c6ce8613a76"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:ae80514e92dd24cdfd89a3c6ce8613a76"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD auto &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae80514e92dd24cdfd89a3c6ce8613a76">sparse_component_store_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
+<tr class="memdesc:ae80514e92dd24cdfd89a3c6ce8613a76"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse component store for <em>component</em>, creating it if needed.  <br /></td></tr>
+<tr class="separator:ae80514e92dd24cdfd89a3c6ce8613a76"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4bc85ea89d4fe026111fa24cb42f79a7" id="r_a4bc85ea89d4fe026111fa24cb42f79a7"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a4bc85ea89d4fe026111fa24cb42f79a7"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4bc85ea89d4fe026111fa24cb42f79a7">sparse_component_add_value</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a4bc85ea89d4fe026111fa24cb42f79a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds or returns a sparse value through the store's erased payload interface.  <br /></td></tr>
@@ -993,12 +998,12 @@ Static Public Member Functions</h2></td></tr>
 <tr class="separator:ac6c1b4da9a3bdcc7e299b82d27ad646c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad7ea32faaa6320b799383c71c3e6312f" id="r_ad7ea32faaa6320b799383c71c3e6312f"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:ad7ea32faaa6320b799383c71c3e6312f"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad7ea32faaa6320b799383c71c3e6312f">supports_sparse_component_storage</a> ()</td></tr>
-<tr class="memdesc:ad7ea32faaa6320b799383c71c3e6312f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sparse storage currently supports only plain generic components. Pairs, unique components and SoA layouts stay on the normal archetype path.  <br /></td></tr>
+<tr class="memdesc:ad7ea32faaa6320b799383c71c3e6312f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sparse storage supports plain generic components and exact relationship pairs. Unique components and SoA layouts stay on the normal archetype path.  <br /></td></tr>
 <tr class="separator:ad7ea32faaa6320b799383c71c3e6312f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a621c6bb4aca38024f18f3345a7bd6548" id="r_a621c6bb4aca38024f18f3345a7bd6548"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a621c6bb4aca38024f18f3345a7bd6548"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a621c6bb4aca38024f18f3345a7bd6548">uses_compile_time_sparse_storage</a> ()</td></tr>
-<tr class="memdesc:a621c6bb4aca38024f18f3345a7bd6548"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>T</em> has compile-time sparse payload storage.  <br /></td></tr>
-<tr class="separator:a621c6bb4aca38024f18f3345a7bd6548"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8ca9aa6e6fa7f3bac31923ff20c2c89a" id="r_a8ca9aa6e6fa7f3bac31923ff20c2c89a"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a8ca9aa6e6fa7f3bac31923ff20c2c89a"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a8ca9aa6e6fa7f3bac31923ff20c2c89a">uses_ct_sparse_storage</a> ()</td></tr>
+<tr class="memdesc:a8ca9aa6e6fa7f3bac31923ff20c2c89a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>T</em> has compile-time sparse payload storage.  <br /></td></tr>
+<tr class="separator:a8ca9aa6e6fa7f3bac31923ff20c2c89a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
@@ -2965,41 +2970,6 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 </div>
 </div>
-<a id="a4d5a3ff19fd06d7ba7f8a9a7a848a26d" name="a4d5a3ff19fd06d7ba7f8a9a7a848a26d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4d5a3ff19fd06d7ba7f8a9a7a848a26d">&#9670;&#160;</a></span>compile_time_sparse_storage_mode()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD SparseStorageMode gaia::ecs::World::compile_time_sparse_storage_mode </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>component</em></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns the fragmentation mode for a component known at compile time to use sparse storage. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">component</td><td>Typed sparse component entity. </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>Fragmenting or non-fragmenting sparse mode. </dd></dl>
-
-</div>
-</div>
 <a id="af7380ffb311aa77115171a2435e804b3" name="af7380ffb311aa77115171a2435e804b3"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#af7380ffb311aa77115171a2435e804b3">&#9670;&#160;</a></span>component_is_non_fragmenting()</h2>
 
@@ -3059,10 +3029,10 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </table>
 </div><div class="memdoc">
 
-<p>Returns whether <em>component</em> stores instance data in sparse storage instead of archetype chunks. This is currently the storage path used for sparse plain generic AoS components. </p>
+<p>Returns whether <em>component</em> stores instance data in sparse storage instead of archetype chunks. This is the storage path used for sparse plain generic AoS components and exact pair AoS payloads. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity to inspect. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or exact pair id to inspect. </td></tr>
   </table>
   </dd>
 </dl>
@@ -8352,6 +8322,85 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="a790fdcd853fbaf7dcb6cc037acda20c9" name="a790fdcd853fbaf7dcb6cc037acda20c9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a790fdcd853fbaf7dcb6cc037acda20c9">&#9670;&#160;</a></span>register_component_id()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> gaia::ecs::World::register_component_id </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Registers the component or exact pair represented by compile-time type <em>T</em>. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair type to register. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Registered component or exact pair entity. </dd></dl>
+
+</div>
+</div>
+<a id="ae2240d97c819f1b9b43a4b8c9dc06416" name="ae2240d97c819f1b9b43a4b8c9dc06416"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae2240d97c819f1b9b43a4b8c9dc06416">&#9670;&#160;</a></span>register_sparse_component_id()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD GAIA_FORCEINLINE <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> gaia::ecs::World::register_sparse_component_id </td>
+          <td>(</td>
+          <td class="paramtype">SparseStorageMode &amp;&#160;</td>
+          <td class="paramname"><em>mode</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Registers a compile-time sparse component or exact pair and resolves its runtime fragmentation mode. Exact pairs use their relationship entity as the owner of the DontFragment policy. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Sparse component or pair type to register. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">mode</td><td>Runtime sparse storage mode. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Registered component or exact pair entity. </dd></dl>
+
+</div>
+</div>
 <a id="abda16fc4dba0d2bf057ff1a6b0711e11" name="abda16fc4dba0d2bf057ff1a6b0711e11"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#abda16fc4dba0d2bf057ff1a6b0711e11">&#9670;&#160;</a></span>rel_version()</h2>
 
@@ -10196,8 +10245,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="a8ca38f2da646e973096e8e51ea8968fa" name="a8ca38f2da646e973096e8e51ea8968fa"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a8ca38f2da646e973096e8e51ea8968fa">&#9670;&#160;</a></span>sparse_component_store() <span class="overload">[1/2]</span></h2>
+<a id="a802a7f9cf02e6abbaec852233bb7c7f2" name="a802a7f9cf02e6abbaec852233bb7c7f2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a802a7f9cf02e6abbaec852233bb7c7f2">&#9670;&#160;</a></span>sparse_component_store() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -10208,7 +10257,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD SparseComponentStore&lt; T &gt; * gaia::ecs::World::sparse_component_store </td>
+          <td class="memname">GAIA_NODISCARD auto * gaia::ecs::World::sparse_component_store </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>component</em></td><td>)</td>
@@ -10239,8 +10288,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="af22df66d031b641e19d2f9a4d91b3222" name="af22df66d031b641e19d2f9a4d91b3222"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af22df66d031b641e19d2f9a4d91b3222">&#9670;&#160;</a></span>sparse_component_store() <span class="overload">[2/2]</span></h2>
+<a id="a72d77e16f9dc1f657b0fc8c2871d2dfb" name="a72d77e16f9dc1f657b0fc8c2871d2dfb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a72d77e16f9dc1f657b0fc8c2871d2dfb">&#9670;&#160;</a></span>sparse_component_store() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -10251,7 +10300,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD const SparseComponentStore&lt; T &gt; * gaia::ecs::World::sparse_component_store </td>
+          <td class="memname">GAIA_NODISCARD const auto * gaia::ecs::World::sparse_component_store </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>component</em></td><td>)</td>
@@ -10363,8 +10412,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="acc6a248f4752be72856a38ace5289368" name="acc6a248f4752be72856a38ace5289368"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#acc6a248f4752be72856a38ace5289368">&#9670;&#160;</a></span>sparse_component_store_mut()</h2>
+<a id="ae80514e92dd24cdfd89a3c6ce8613a76" name="ae80514e92dd24cdfd89a3c6ce8613a76"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae80514e92dd24cdfd89a3c6ce8613a76">&#9670;&#160;</a></span>sparse_component_store_mut()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -10375,7 +10424,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD SparseComponentStore&lt; T &gt; &amp; gaia::ecs::World::sparse_component_store_mut </td>
+          <td class="memname">GAIA_NODISCARD auto &amp; gaia::ecs::World::sparse_component_store_mut </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>component</em></td><td>)</td>
@@ -10703,7 +10752,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Sparse storage currently supports only plain generic components. Pairs, unique components and SoA layouts stay on the normal archetype path. </p>
+<p>Sparse storage supports plain generic components and exact relationship pairs. Unique components and SoA layouts stay on the normal archetype path. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type to inspect. </td></tr>
@@ -11429,8 +11478,8 @@ template&lt;typename Func &gt; </div>
 
 </div>
 </div>
-<a id="a621c6bb4aca38024f18f3345a7bd6548" name="a621c6bb4aca38024f18f3345a7bd6548"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a621c6bb4aca38024f18f3345a7bd6548">&#9670;&#160;</a></span>uses_compile_time_sparse_storage()</h2>
+<a id="a8ca9aa6e6fa7f3bac31923ff20c2c89a" name="a8ca9aa6e6fa7f3bac31923ff20c2c89a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8ca9aa6e6fa7f3bac31923ff20c2c89a">&#9670;&#160;</a></span>uses_ct_sparse_storage()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -11441,7 +11490,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">static GAIA_NODISCARD constexpr bool gaia::ecs::World::uses_compile_time_sparse_storage </td>
+          <td class="memname">static GAIA_NODISCARD constexpr bool gaia::ecs::World::uses_ct_sparse_storage </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>

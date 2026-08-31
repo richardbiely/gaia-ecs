@@ -1114,9 +1114,9 @@ $(document).ready(function(){initNavTree('chunk__iterator_8h_source.html',''); i
 <div class="line"><a id="l01065" name="l01065"></a><span class="lineno"> 1065</span>        <span class="keyword">const</span> Entity* m_pTermIdMapping = <span class="keyword">nullptr</span>;</div>
 <div class="line"><a id="l01067" name="l01067"></a><span class="lineno"> 1067</span>        <span class="keywordtype">bool</span> m_writeIm = <span class="keyword">true</span>;</div>
 <div class="line"><a id="l01069" name="l01069"></a><span class="lineno"> 1069</span>        Constraints m_constraints = Constraints::EnabledOnly;</div>
-<div class="line"><a id="l01070" name="l01070"></a><span class="lineno"> 1070</span><span class="preprocessor">  #if GAIA_OBSERVERS_ENABLED</span></div>
+<div class="line"><a id="l01070" name="l01070"></a><span class="lineno"> 1070</span><span class="preprocessor">#if GAIA_OBSERVERS_ENABLED</span></div>
 <div class="line"><a id="l01072" name="l01072"></a><span class="lineno"> 1072</span>        ObserverEvent m_observerEvent = ObserverEvent::None;</div>
-<div class="line"><a id="l01073" name="l01073"></a><span class="lineno"> 1073</span><span class="preprocessor">  #endif</span></div>
+<div class="line"><a id="l01073" name="l01073"></a><span class="lineno"> 1073</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l01075" name="l01075"></a><span class="lineno"> 1075</span>        uint8_t m_touchedCompIndices[ChunkHeader::MAX_COMPONENTS];</div>
 <div class="line"><a id="l01076" name="l01076"></a><span class="lineno"> 1076</span>        uint8_t m_touchedCompCnt = 0;</div>
 <div class="line"><a id="l01078" name="l01078"></a><span class="lineno"> 1078</span>        Entity m_touchedTerms[ChunkHeader::MAX_COMPONENTS];</div>

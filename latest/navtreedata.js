@@ -189,15 +189,15 @@ var NAVTREEINDEX =
 "classgaia_1_1cnt_1_1sringbuffer.html#a13a89af925686a71e88f802e6505fdd1",
 "classgaia_1_1ecs_1_1Chunk.html#a864f378c978face34073cd6b940c88cf",
 "classgaia_1_1ecs_1_1World.html#a17938f23777a128e4a4c0dd4511b3580",
-"classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a6dd8ec4aae2d21ce5354bd82cea0d99f",
-"classgaia_1_1ser_1_1bin__stream.html#af42d7d153fe68af4cff735ac13e32c9a",
-"index.html#examples",
-"structgaia_1_1cnt_1_1fwd__llist__iterator.html#a1b4b92b256b943bc37f45772ed04e539",
-"structgaia_1_1core_1_1StringLookupKey.html#a6ee30a6ca3f9deebfb3fc4a4a4567bff",
-"structgaia_1_1ecs_1_1Entity.html#a009183dea1af1ee1c16d4e3f3a3873ba",
-"structgaia_1_1ecs_1_1QueryMatchScratch.html#a6163f2de4753deb572d165e8691e3198",
-"structgaia_1_1ecs_1_1detail_1_1SystemCollectCtx.html",
-"structgaia_1_1mem_1_1data__view__policy__soa__set.html#aa11f6b86826572ffdb29722d8f657558"
+"classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a3e59265a3b6b69a8ae40311bd75bfbcf",
+"classgaia_1_1ser_1_1bin__stream.html#acc51650dd23112772d07c726bd908764",
+"index.html#enum-and-bitmask-metadata",
+"structgaia_1_1cnt_1_1fwd__llist__iterator.html",
+"structgaia_1_1core_1_1StringLookupKey.html#a6766b0c851f9c6b8715de2742b7a972d",
+"structgaia_1_1ecs_1_1Entity.html",
+"structgaia_1_1ecs_1_1QueryMatchScratch.html#a533cb2fb16475a174cfb8479286214fb",
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#ad3c7089725dd94ad3a43a19b0374bf50",
+"structgaia_1_1mem_1_1data__view__policy__soa__set.html#a9f8be2570ccce653f9c65aef216a0a4e"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

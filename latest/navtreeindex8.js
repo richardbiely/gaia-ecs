@@ -1,5 +1,6 @@
 var NAVTREEINDEX8 =
 {
+"index.html#enum-and-bitmask-metadata":[2,9,7],
 "index.html#examples":[5,0],
 "index.html#exclusivity":[2,3,5],
 "index.html#field-metadata":[2,9,1],
@@ -248,6 +249,5 @@ var NAVTREEINDEX8 =
 "structgaia_1_1cnt_1_1fwd__llist__base.html":[9,0,0,0,13],
 "structgaia_1_1cnt_1_1fwd__llist__base.html#a2f48a015f7f70c479a2252ead05c48e2":[9,0,0,0,13,0],
 "structgaia_1_1cnt_1_1fwd__llist__base.html#a6cbb565b0dc96c5dc001482e7c48d5ec":[9,0,0,0,13,1],
-"structgaia_1_1cnt_1_1fwd__llist__base.html#a6e874954837719f9eaa7404f9f60f67e":[9,0,0,0,13,2],
-"structgaia_1_1cnt_1_1fwd__llist__iterator.html":[9,0,0,0,14]
+"structgaia_1_1cnt_1_1fwd__llist__base.html#a6e874954837719f9eaa7404f9f60f67e":[9,0,0,0,13,2]
 };

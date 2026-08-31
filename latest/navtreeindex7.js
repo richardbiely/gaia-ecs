@@ -1,5 +1,6 @@
 var NAVTREEINDEX7 =
 {
+"classgaia_1_1ser_1_1bin__stream.html#acc51650dd23112772d07c726bd908764":[9,0,0,6,1,0],
 "classgaia_1_1ser_1_1bin__stream.html#af42d7d153fe68af4cff735ac13e32c9a":[9,0,0,6,1,7],
 "classgaia_1_1ser_1_1bin__stream.html#af589af2f54ac08740669b2f1ab3f7a1d":[9,0,0,6,1,1],
 "classgaia_1_1ser_1_1ser__buffer__binary.html":[9,0,0,6,5],
@@ -177,8 +178,8 @@ var NAVTREEINDEX7 =
 "functions_type_v.html":[9,3,3,14],
 "functions_u.html":[9,3,0,20],
 "functions_v.html":[9,3,0,21],
-"functions_vars.html":[9,3,2],
 "functions_vars.html":[9,3,2,0],
+"functions_vars.html":[9,3,2],
 "functions_vars_b.html":[9,3,2,1],
 "functions_vars_c.html":[9,3,2,2],
 "functions_vars_d.html":[9,3,2,3],
@@ -248,6 +249,5 @@ var NAVTREEINDEX7 =
 "index.html#entity-dependencies":[2,3,3],
 "index.html#entity-inheritance":[2,3,6],
 "index.html#entity-lifespan":[2,1,14],
-"index.html#entity-merging":[2,5,0,0],
-"index.html#enum-and-bitmask-metadata":[2,9,7]
+"index.html#entity-merging":[2,5,0,0]
 };
