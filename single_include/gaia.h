@@ -37903,9 +37903,6 @@ namespace gaia {
 				if (enabled(row)) {
 					// Entity was previously enabled. Swap with the last entity
 					remove_entity_inter(row, recs);
-					// If this was the first enabled entity make sure to update the row
-					if (m_header.rowFirstEnabledEntity > 0 && row == m_header.rowFirstEnabledEntity)
-						--m_header.rowFirstEnabledEntity;
 					// At this point the last entity is no longer valid so remove it
 					remove_last_entity();
 					--m_header.countEnabled;

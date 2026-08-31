@@ -462,6 +462,29 @@ TEST_CASE("Enable") {
 	}
 }
 
+TEST_CASE("Enable - moving the last enabled entity preserves the disabled partition") {
+	TestWorld twld;
+	const auto disabled = wld.add();
+	const auto moved = wld.add();
+	wld.add<Position>(disabled);
+	wld.add<Position>(moved);
+	wld.enable(disabled, false);
+
+	// Move the only enabled row out of the shared archetype. The remaining row must stay in the disabled partition.
+	wld.add<Acceleration>(moved);
+
+	auto query = wld.query().all<Position>();
+	CHECK(query.count(ecs::Constraints::AcceptAll) == 2);
+	CHECK(query.count() == 1);
+	CHECK(query.count(ecs::Constraints::DisabledOnly) == 1);
+	CHECK_FALSE(wld.enabled(disabled));
+
+	wld.enable(disabled, true);
+	CHECK(wld.enabled(disabled));
+	CHECK(query.count() == 2);
+	CHECK(query.count(ecs::Constraints::DisabledOnly) == 0);
+}
+
 TEST_CASE("Add - generic") {
 	{
 		TestWorld twld;
