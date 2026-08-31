@@ -6,6 +6,9 @@ struct PrefabSyncRelation {};
 struct PrefabSyncPayload {
 	int value;
 };
+struct PrefabPairOverrideRelation {};
+struct PrefabPairInheritRelation {};
+struct PrefabPairDontInheritRelation {};
 
 TEST_CASE("Prefab - instantiate creates a non-prefab instance with copied data") {
 	TestWorld twld;
@@ -101,6 +104,38 @@ TEST_CASE("Prefab - explicit Override policy copies sparse data") {
 	CHECK(prefabPos.x == doctest::Approx(9.0f));
 	CHECK(prefabPos.y == doctest::Approx(1.0f));
 	CHECK(prefabPos.z == doctest::Approx(2.0f));
+}
+
+TEST_CASE("Prefab - exact pair instantiation policies") {
+	using OverridePairType = ecs::pair<PrefabPairOverrideRelation, PrefabSyncPayload>;
+	using InheritPairType = ecs::pair<PrefabPairInheritRelation, PrefabSyncPayload>;
+	using DontInheritPairType = ecs::pair<PrefabPairDontInheritRelation, PrefabSyncPayload>;
+
+	TestWorld twld;
+	const auto overrideRelation = wld.add<PrefabPairOverrideRelation>().entity;
+	const auto inheritRelation = wld.add<PrefabPairInheritRelation>().entity;
+	const auto dontInheritRelation = wld.add<PrefabPairDontInheritRelation>().entity;
+	const auto payload = wld.add<PrefabSyncPayload>().entity;
+	const auto overridePair = ecs::Pair(overrideRelation, payload);
+	const auto inheritPair = ecs::Pair(inheritRelation, payload);
+	const auto dontInheritPair = ecs::Pair(dontInheritRelation, payload);
+
+	const auto prefab = wld.prefab();
+	wld.add<OverridePairType>(prefab, {11});
+	wld.add<InheritPairType>(prefab, {22});
+	wld.add<DontInheritPairType>(prefab, {33});
+	wld.add(inheritPair, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.add(dontInheritPair, ecs::Pair(ecs::OnInstantiate, ecs::DontInherit));
+
+	const auto instance = wld.instantiate(prefab);
+	CHECK(wld.has_direct(instance, overridePair));
+	CHECK(wld.has(instance, overridePair));
+	CHECK(wld.get<OverridePairType>(instance).value == 11);
+	CHECK_FALSE(wld.has_direct(instance, inheritPair));
+	CHECK(wld.has(instance, inheritPair));
+	CHECK(wld.get<InheritPairType>(instance).value == 22);
+	CHECK_FALSE(wld.has_direct(instance, dontInheritPair));
+	CHECK_FALSE(wld.has(instance, dontInheritPair));
 }
 
 TEST_CASE("Prefab - Inherit policy before local override") {
