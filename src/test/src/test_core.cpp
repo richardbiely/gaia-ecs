@@ -929,6 +929,35 @@ void soa_iterator_subtraction_test(Container& arr) {
 	CHECK(second.z == 4.0f);
 }
 
+template <typename T>
+struct test_forward_iterator {
+	using iterator_category = core::forward_iterator_tag;
+	using value_type = T;
+	using difference_type = std::ptrdiff_t;
+	using pointer = const T*;
+	using reference = const T&;
+
+	pointer ptr;
+
+	reference operator*() const {
+		return *ptr;
+	}
+	test_forward_iterator& operator++() {
+		++ptr;
+		return *this;
+	}
+	bool operator!=(const test_forward_iterator& other) const {
+		return ptr != other.ptr;
+	}
+};
+
+template <typename Container, typename T, size_t N>
+void input_range_constructor_test(const T (&values)[N]) {
+	Container arr(test_forward_iterator<T>{values}, test_forward_iterator<T>{values + N});
+	CHECK(arr.size() == N);
+	GAIA_FOR(N) CHECK(arr[i] == values[i]);
+}
+
 template <typename Container>
 void retainable_arr_test() {
 	using cont_item = typename Container::value_type;
@@ -1061,6 +1090,20 @@ TEST_CASE("Containers - SoA iterator subtraction") {
 	dynamicInline.resize(4);
 	GAIA_EACH(dynamicInline) dynamicInline[i] = {(float)i + 1.0f, (float)i + 2.0f, (float)i + 3.0f};
 	soa_iterator_subtraction_test(dynamicInline);
+}
+
+TEST_CASE("Containers - forward iterator range construction") {
+	const uint32_t aosValues[] = {10, 20, 30, 40};
+	input_range_constructor_test<cnt::sarr<uint32_t, 4>>(aosValues);
+	input_range_constructor_test<cnt::sarr_ext<uint32_t, 4>>(aosValues);
+	input_range_constructor_test<cnt::darr<uint32_t>>(aosValues);
+	input_range_constructor_test<cnt::darr_ext<uint32_t, 4>>(aosValues);
+
+	const PositionSoA soaValues[] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}, {10, 11, 12}};
+	input_range_constructor_test<cnt::sarr_soa<PositionSoA, 4>>(soaValues);
+	input_range_constructor_test<cnt::sarr_ext_soa<PositionSoA, 4>>(soaValues);
+	input_range_constructor_test<cnt::darr_soa<PositionSoA>>(soaValues);
+	input_range_constructor_test<cnt::darr_ext_soa<PositionSoA, 4>>(soaValues);
 }
 
 //------------------------------------------------------------------------------
