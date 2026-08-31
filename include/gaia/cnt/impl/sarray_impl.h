@@ -14,7 +14,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace sarr_detail {
-			using difference_type = uint32_t;
+			using diff_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace sarr_detail
 		//! \endcond
@@ -42,7 +42,7 @@ namespace gaia {
 			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_aos<T>;
 			//! Type used for iterator differences.
-			using difference_type = sarr_detail::difference_type;
+			using difference_type = sarr_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_detail::size_type;
 
@@ -50,6 +50,10 @@ namespace gaia {
 			using iterator = pointer;
 			//! Read-only random-access iterator type.
 			using const_iterator = const_pointer;
+			//! Mutable reverse random-access iterator type.
+			using reverse_iterator = core::reverse_iterator<iterator, difference_type>;
+			//! Read-only reverse random-access iterator type.
+			using const_reverse_iterator = core::reverse_iterator<const_iterator, difference_type>;
 			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
@@ -237,19 +241,19 @@ namespace gaia {
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() noexcept {
-				return iterator((pointer)&back());
+				return reverse_iterator(end());
 			}
 
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
-				return const_iterator((const_pointer)&back());
+				return const_reverse_iterator(end());
 			}
 
 			//! Returns a read-only reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto crbegin() const noexcept {
-				return const_iterator((const_pointer)&back());
+				return const_reverse_iterator(cend());
 			}
 
 			//! Returns an iterator one past the last element.
@@ -273,19 +277,19 @@ namespace gaia {
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() noexcept {
-				return iterator(&m_data[0] - 1);
+				return reverse_iterator(begin());
 			}
 
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
-				return const_iterator(&m_data[0] - 1);
+				return const_reverse_iterator(begin());
 			}
 
 			//! Returns the read-only reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto crend() const noexcept {
-				return const_iterator(&m_data[0] - 1);
+				return const_reverse_iterator(cbegin());
 			}
 
 			//! Compares two containers element by element.

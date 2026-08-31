@@ -1011,6 +1011,49 @@ void soa_mutation_test() {
 	CHECK(arr[1] == values[2]);
 }
 
+template <typename Container, bool Fixed = false, typename T, size_t N>
+void reverse_array_test(const T (&values)[N]) {
+	static_assert(std::is_same_v<typename Container::difference_type, int32_t>);
+	static_assert(std::is_signed_v<typename Container::difference_type>);
+	static_assert(sizeof(typename Container::difference_type) == sizeof(typename Container::size_type));
+
+	Container arr;
+	if constexpr (Fixed) {
+		CHECK(arr.size() == N);
+		GAIA_FOR(N) arr[i] = values[i];
+	} else {
+		GAIA_FOR(N) arr.push_back(values[i]);
+	}
+
+	auto it = arr.rbegin();
+	const auto itEnd = arr.rend();
+	CHECK(itEnd - it == (typename Container::reverse_iterator::difference_type)N);
+	CHECK(*(it + 2) == values[N - 3]);
+	CHECK((itEnd - (typename Container::reverse_iterator::difference_type)N) == it);
+	GAIA_FOR(N) CHECK(it[i] == values[N - i - 1]);
+	GAIA_FOR(N) {
+		CHECK(*it == values[N - i - 1]);
+		++it;
+	}
+	CHECK(it == itEnd);
+
+	const auto& constArr = arr;
+	auto constIt = constArr.crbegin();
+	const auto constItEnd = constArr.crend();
+	GAIA_FOR(N) {
+		CHECK(*constIt == values[N - i - 1]);
+		++constIt;
+	}
+	CHECK(constIt == constItEnd);
+
+	if constexpr (!Fixed) {
+		Container empty;
+		CHECK(empty.rbegin() == empty.rend());
+		const auto& constEmpty = empty;
+		CHECK(constEmpty.crbegin() == constEmpty.crend());
+	}
+}
+
 template <typename Container>
 void retainable_arr_test() {
 	using cont_item = typename Container::value_type;
@@ -1168,6 +1211,20 @@ TEST_CASE("Containers - SoA mutation iterators") {
 	soa_mutation_test<cnt::sarr_ext_soa<PositionSoA, 8>>();
 	soa_mutation_test<cnt::darr_soa<PositionSoA>>();
 	soa_mutation_test<cnt::darr_ext_soa<PositionSoA, 4>>();
+}
+
+TEST_CASE("Containers - reverse array iteration") {
+	const uint32_t aosValues[] = {10, 20, 30, 40};
+	reverse_array_test<cnt::sarr<uint32_t, 4>, true>(aosValues);
+	reverse_array_test<cnt::sarr_ext<uint32_t, 4>>(aosValues);
+	reverse_array_test<cnt::darr<uint32_t>>(aosValues);
+	reverse_array_test<cnt::darr_ext<uint32_t, 4>>(aosValues);
+
+	const PositionSoA soaValues[] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}, {10, 11, 12}};
+	reverse_array_test<cnt::sarr_soa<PositionSoA, 4>, true>(soaValues);
+	reverse_array_test<cnt::sarr_ext_soa<PositionSoA, 4>>(soaValues);
+	reverse_array_test<cnt::darr_soa<PositionSoA>>(soaValues);
+	reverse_array_test<cnt::darr_ext_soa<PositionSoA, 4>>(soaValues);
 }
 
 //------------------------------------------------------------------------------

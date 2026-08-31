@@ -1050,6 +1050,7 @@ namespace gaia {
 
 #include <cstddef>
 #include <type_traits>
+#include <utility>
 
 namespace gaia {
 	namespace core {
@@ -1061,6 +1062,193 @@ namespace gaia {
 		struct bidirectional_iterator_tag: forward_iterator_tag {};
 		struct random_access_iterator_tag: bidirectional_iterator_tag {};
 		struct contiguous_iterator_tag: random_access_iterator_tag {};
+
+		//! Random-access iterator that traverses an underlying iterator in reverse.
+		//! The stored iterator denotes the element following the value returned by dereference.
+		//! \tparam It Underlying random-access iterator type.
+		//! \tparam Diff Signed type used for iterator distances.
+		template <typename It, typename Diff>
+		class reverse_iterator {
+		public:
+			//! Underlying iterator type.
+			using iterator_type = It;
+			//! Element type returned by dereference.
+			using value_type = std::remove_cv_t<std::remove_reference_t<decltype(*std::declval<It&>())>>;
+			//! Mutable pointer type when the underlying iterator is a pointer.
+			using pointer = std::conditional_t<std::is_pointer_v<It>, It, void>;
+			//! Reference or proxy type returned by dereference.
+			using reference = decltype(*std::declval<It&>());
+			//! Signed iterator distance type.
+			using difference_type = Diff;
+			//! Iterator category exposed by the adapter.
+			using iterator_category = random_access_iterator_tag;
+
+		private:
+			It m_current{};
+
+		public:
+			constexpr reverse_iterator() = default;
+
+			//! Constructs a reverse iterator from its forward base iterator.
+			//! \param current Iterator following the value returned by dereference.
+			constexpr explicit reverse_iterator(It current): m_current(current) {}
+
+			//! Returns the underlying forward iterator.
+			//! \return Iterator following the value returned by dereference.
+			GAIA_NODISCARD constexpr It base() const {
+				return m_current;
+			}
+
+			//! Accesses the current element.
+			//! \return Reference or proxy for the current element.
+			GAIA_NODISCARD constexpr decltype(auto) operator*() const {
+				auto current = m_current;
+				--current;
+				return *current;
+			}
+
+			//! Accesses the current element through the underlying iterator.
+			//! \return Pointer or proxy produced by the underlying iterator.
+			GAIA_NODISCARD constexpr decltype(auto) operator->() const {
+				auto current = m_current;
+				--current;
+				if constexpr (std::is_pointer_v<It>)
+					return current;
+				else
+					return current.operator->();
+			}
+
+			//! Accesses a reverse-relative element.
+			//! \param offset Number of reverse positions from the current element.
+			//! \return Reference or proxy for the selected element.
+			GAIA_NODISCARD constexpr decltype(auto) operator[](difference_type offset) const {
+				return *(*this + offset);
+			}
+
+			//! Advances one position in reverse traversal order.
+			//! \return This iterator after advancement.
+			constexpr reverse_iterator& operator++() {
+				--m_current;
+				return *this;
+			}
+
+			//! Advances one position in reverse traversal order.
+			//! \return Iterator value before advancement.
+			constexpr reverse_iterator operator++(int) {
+				auto tmp = *this;
+				++*this;
+				return tmp;
+			}
+
+			//! Moves one position opposite to reverse traversal order.
+			//! \return This iterator after movement.
+			constexpr reverse_iterator& operator--() {
+				++m_current;
+				return *this;
+			}
+
+			//! Moves one position opposite to reverse traversal order.
+			//! \return Iterator value before movement.
+			constexpr reverse_iterator operator--(int) {
+				auto tmp = *this;
+				--*this;
+				return tmp;
+			}
+
+			//! Advances by a number of reverse positions.
+			//! \param offset Number of positions to advance.
+			//! \return This iterator after advancement.
+			constexpr reverse_iterator& operator+=(difference_type offset) {
+				m_current -= offset;
+				return *this;
+			}
+
+			//! Moves opposite to reverse traversal by a number of positions.
+			//! \param offset Number of positions to retreat.
+			//! \return This iterator after movement.
+			constexpr reverse_iterator& operator-=(difference_type offset) {
+				m_current += offset;
+				return *this;
+			}
+
+			//! Returns an iterator advanced in reverse traversal order.
+			//! \param offset Number of positions to advance.
+			//! \return Offset iterator.
+			GAIA_NODISCARD constexpr reverse_iterator operator+(difference_type offset) const {
+				auto tmp = *this;
+				tmp += offset;
+				return tmp;
+			}
+
+			//! Returns an iterator moved opposite to reverse traversal order.
+			//! \param offset Number of positions to retreat.
+			//! \return Offset iterator.
+			GAIA_NODISCARD constexpr reverse_iterator operator-(difference_type offset) const {
+				auto tmp = *this;
+				tmp -= offset;
+				return tmp;
+			}
+
+			//! Computes the reverse distance from another iterator.
+			//! \param other Iterator used as the distance origin.
+			//! \return Number of reverse increments from other to this iterator.
+			GAIA_NODISCARD constexpr difference_type operator-(const reverse_iterator& other) const {
+				return (difference_type)(other.m_current - m_current);
+			}
+
+			//! Checks whether two iterators have the same base position.
+			//! \param other Iterator to compare.
+			//! \return True when both iterators have the same base position.
+			GAIA_NODISCARD constexpr bool operator==(const reverse_iterator& other) const {
+				return m_current == other.m_current;
+			}
+
+			//! Checks whether two iterators have different base positions.
+			//! \param other Iterator to compare.
+			//! \return True when the iterators differ.
+			GAIA_NODISCARD constexpr bool operator!=(const reverse_iterator& other) const {
+				return !(*this == other);
+			}
+
+			//! Compares positions in reverse traversal order.
+			//! \param other Iterator to compare.
+			//! \return True when this iterator precedes other in reverse order.
+			GAIA_NODISCARD constexpr bool operator<(const reverse_iterator& other) const {
+				return other.m_current < m_current;
+			}
+
+			//! Compares positions in reverse traversal order.
+			//! \param other Iterator to compare.
+			//! \return True when this iterator follows other in reverse order.
+			GAIA_NODISCARD constexpr bool operator>(const reverse_iterator& other) const {
+				return other < *this;
+			}
+
+			//! Compares positions in reverse traversal order.
+			//! \param other Iterator to compare.
+			//! \return True when this iterator does not follow other in reverse order.
+			GAIA_NODISCARD constexpr bool operator<=(const reverse_iterator& other) const {
+				return !(other < *this);
+			}
+
+			//! Compares positions in reverse traversal order.
+			//! \param other Iterator to compare.
+			//! \return True when this iterator does not precede other in reverse order.
+			GAIA_NODISCARD constexpr bool operator>=(const reverse_iterator& other) const {
+				return !(*this < other);
+			}
+		};
+
+		//! Returns a reverse iterator advanced by an offset.
+		//! \tparam It Underlying random-access iterator type.
+		//! \tparam Diff Signed type used for iterator distances.
+		//! \param offset Number of positions to advance.
+		//! \param it Iterator to offset.
+		//! \return Offset iterator.
+		template <typename It, typename Diff>
+		GAIA_NODISCARD constexpr reverse_iterator<It, Diff> operator+(Diff offset, const reverse_iterator<It, Diff>& it) {
+			return it + offset;
+		}
 
 		//! \cond INTERNAL
 		namespace detail {
@@ -7983,7 +8171,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace sarr_detail {
-			using difference_type = uint32_t;
+			using diff_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace sarr_detail
 		//! \endcond
@@ -8011,7 +8199,7 @@ namespace gaia {
 			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_aos<T>;
 			//! Type used for iterator differences.
-			using difference_type = sarr_detail::difference_type;
+			using difference_type = sarr_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_detail::size_type;
 
@@ -8019,6 +8207,10 @@ namespace gaia {
 			using iterator = pointer;
 			//! Read-only random-access iterator type.
 			using const_iterator = const_pointer;
+			//! Mutable reverse random-access iterator type.
+			using reverse_iterator = core::reverse_iterator<iterator, difference_type>;
+			//! Read-only reverse random-access iterator type.
+			using const_reverse_iterator = core::reverse_iterator<const_iterator, difference_type>;
 			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
@@ -8206,19 +8398,19 @@ namespace gaia {
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() noexcept {
-				return iterator((pointer)&back());
+				return reverse_iterator(end());
 			}
 
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
-				return const_iterator((const_pointer)&back());
+				return const_reverse_iterator(end());
 			}
 
 			//! Returns a read-only reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto crbegin() const noexcept {
-				return const_iterator((const_pointer)&back());
+				return const_reverse_iterator(cend());
 			}
 
 			//! Returns an iterator one past the last element.
@@ -8242,19 +8434,19 @@ namespace gaia {
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() noexcept {
-				return iterator(&m_data[0] - 1);
+				return reverse_iterator(begin());
 			}
 
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
-				return const_iterator(&m_data[0] - 1);
+				return const_reverse_iterator(begin());
 			}
 
 			//! Returns the read-only reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto crend() const noexcept {
-				return const_iterator(&m_data[0] - 1);
+				return const_reverse_iterator(cbegin());
 			}
 
 			//! Compares two containers element by element.
@@ -8389,7 +8581,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace darr_ext_detail {
-			using difference_type = uint32_t;
+			using diff_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace darr_ext_detail
 		//! \endcond
@@ -8416,7 +8608,7 @@ namespace gaia {
 			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_aos<T>;
 			//! Type used for iterator differences.
-			using difference_type = darr_ext_detail::difference_type;
+			using difference_type = darr_ext_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = darr_ext_detail::size_type;
 
@@ -8424,6 +8616,10 @@ namespace gaia {
 			using iterator = pointer;
 			//! Read-only random-access iterator type.
 			using const_iterator = const_pointer;
+			//! Mutable reverse random-access iterator type.
+			using reverse_iterator = core::reverse_iterator<iterator, difference_type>;
+			//! Read-only reverse random-access iterator type.
+			using const_reverse_iterator = core::reverse_iterator<const_iterator, difference_type>;
 			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
@@ -9008,19 +9204,19 @@ namespace gaia {
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
-				return iterator((pointer)&back());
+				return reverse_iterator(end());
 			}
 
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
-				return const_iterator((const_pointer)&back());
+				return const_reverse_iterator(end());
 			}
 
 			//! Returns a read-only reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
-				return const_iterator((const_pointer)&back());
+				return const_reverse_iterator(cend());
 			}
 
 			//! Returns an iterator one past the last element.
@@ -9044,19 +9240,19 @@ namespace gaia {
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() noexcept {
-				return iterator(data() - 1);
+				return reverse_iterator(begin());
 			}
 
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() const noexcept {
-				return const_iterator(data() - 1);
+				return const_reverse_iterator(begin());
 			}
 
 			//! Returns the read-only reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto crend() const noexcept {
-				return const_iterator(data() - 1);
+				return const_reverse_iterator(cbegin());
 			}
 
 			//! Compares two containers element by element.
@@ -10838,7 +11034,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace darr_detail {
-			using difference_type = uint32_t;
+			using diff_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace darr_detail
 		//! \endcond
@@ -10861,7 +11057,7 @@ namespace gaia {
 			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_aos<T>;
 			//! Type used for iterator differences.
-			using difference_type = darr_detail::difference_type;
+			using difference_type = darr_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = darr_detail::size_type;
 
@@ -10869,6 +11065,10 @@ namespace gaia {
 			using iterator = pointer;
 			//! Read-only random-access iterator type.
 			using const_iterator = const_pointer;
+			//! Mutable reverse random-access iterator type.
+			using reverse_iterator = core::reverse_iterator<iterator, difference_type>;
+			//! Read-only reverse random-access iterator type.
+			using const_reverse_iterator = core::reverse_iterator<const_iterator, difference_type>;
 			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
@@ -11394,19 +11594,19 @@ namespace gaia {
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
-				return iterator((pointer)&back());
+				return reverse_iterator(end());
 			}
 
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
-				return const_iterator((const_pointer)&back());
+				return const_reverse_iterator(end());
 			}
 
 			//! Returns a read-only reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
-				return const_iterator((const_pointer)&back());
+				return const_reverse_iterator(cend());
 			}
 
 			//! Returns an iterator one past the last element.
@@ -11430,19 +11630,19 @@ namespace gaia {
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() noexcept {
-				return iterator(data() - 1);
+				return reverse_iterator(begin());
 			}
 
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() const noexcept {
-				return const_iterator(data() - 1);
+				return const_reverse_iterator(begin());
 			}
 
 			//! Returns the read-only reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto crend() const noexcept {
-				return const_iterator(data() - 1);
+				return const_reverse_iterator(cbegin());
 			}
 
 			//! Compares two containers element by element.
@@ -11487,7 +11687,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace darr_ext_soa_detail {
-			using difference_type = uint32_t;
+			using diff_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace darr_ext_soa_detail
 		//! \endcond
@@ -11500,7 +11700,7 @@ namespace gaia {
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
 			//! Type used for iterator differences.
-			using difference_type = darr_ext_soa_detail::difference_type;
+			using difference_type = darr_ext_soa_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = darr_ext_soa_detail::size_type;
 
@@ -11595,7 +11795,7 @@ namespace gaia {
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
-			using difference_type = darr_ext_soa_detail::difference_type;
+			using difference_type = darr_ext_soa_detail::diff_type;
 			using size_type = darr_ext_soa_detail::size_type;
 
 			using iterator = const_darr_ext_soa_iterator;
@@ -11708,7 +11908,7 @@ namespace gaia {
 			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
 			//! Type used for iterator differences.
-			using difference_type = darr_ext_soa_detail::difference_type;
+			using difference_type = darr_ext_soa_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = darr_ext_soa_detail::size_type;
 
@@ -11716,6 +11916,10 @@ namespace gaia {
 			using iterator = darr_ext_soa_iterator<T>;
 			//! Read-only random-access iterator type.
 			using const_iterator = const_darr_ext_soa_iterator<T>;
+			//! Mutable reverse random-access iterator type.
+			using reverse_iterator = core::reverse_iterator<iterator, difference_type>;
+			//! Read-only reverse random-access iterator type.
+			using const_reverse_iterator = core::reverse_iterator<const_iterator, difference_type>;
 			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
@@ -12274,19 +12478,19 @@ namespace gaia {
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
-				return iterator(m_pData, capacity(), size() - 1);
+				return reverse_iterator(end());
 			}
 
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
-				return const_iterator(m_pData, capacity(), size() - 1);
+				return const_reverse_iterator(end());
 			}
 
 			//! Returns a read-only reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
-				return const_iterator(m_pData, capacity(), size() - 1);
+				return const_reverse_iterator(cend());
 			}
 
 			//! Returns an iterator one past the last element.
@@ -12310,19 +12514,19 @@ namespace gaia {
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() noexcept {
-				return iterator(m_pData, capacity(), -1);
+				return reverse_iterator(begin());
 			}
 
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() const noexcept {
-				return const_iterator(m_pData, capacity(), -1);
+				return const_reverse_iterator(begin());
 			}
 
 			//! Returns the read-only reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto crend() const noexcept {
-				return const_iterator(m_pData, capacity(), -1);
+				return const_reverse_iterator(cbegin());
 			}
 
 			//! Compares two containers element by element.
@@ -12406,7 +12610,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace darr_soa_detail {
-			using difference_type = uint32_t;
+			using diff_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace darr_soa_detail
 		//! \endcond
@@ -12419,7 +12623,7 @@ namespace gaia {
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
 			//! Type used for iterator differences.
-			using difference_type = darr_soa_detail::difference_type;
+			using difference_type = darr_soa_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = darr_soa_detail::size_type;
 
@@ -12514,7 +12718,7 @@ namespace gaia {
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
-			using difference_type = darr_soa_detail::difference_type;
+			using difference_type = darr_soa_detail::diff_type;
 			using size_type = darr_soa_detail::size_type;
 
 			using iterator = const_darr_soa_iterator;
@@ -12624,7 +12828,7 @@ namespace gaia {
 			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
 			//! Type used for iterator differences.
-			using difference_type = darr_soa_detail::difference_type;
+			using difference_type = darr_soa_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = darr_soa_detail::size_type;
 
@@ -12632,6 +12836,10 @@ namespace gaia {
 			using iterator = darr_soa_iterator<T>;
 			//! Read-only random-access iterator type.
 			using const_iterator = const_darr_soa_iterator<T>;
+			//! Mutable reverse random-access iterator type.
+			using reverse_iterator = core::reverse_iterator<iterator, difference_type>;
+			//! Read-only reverse random-access iterator type.
+			using const_reverse_iterator = core::reverse_iterator<const_iterator, difference_type>;
 			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
@@ -13138,19 +13346,19 @@ namespace gaia {
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
-				return iterator(m_pData, capacity(), size() - 1);
+				return reverse_iterator(end());
 			}
 
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
-				return const_iterator(m_pData, capacity(), size() - 1);
+				return const_reverse_iterator(end());
 			}
 
 			//! Returns a read-only reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
-				return const_iterator(m_pData, capacity(), size() - 1);
+				return const_reverse_iterator(cend());
 			}
 
 			//! Returns an iterator one past the last element.
@@ -13174,19 +13382,19 @@ namespace gaia {
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() noexcept {
-				return iterator(m_pData, capacity(), -1);
+				return reverse_iterator(begin());
 			}
 
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() const noexcept {
-				return const_iterator(m_pData, capacity(), -1);
+				return const_reverse_iterator(begin());
 			}
 
 			//! Returns the read-only reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto crend() const noexcept {
-				return const_iterator(m_pData, capacity(), -1);
+				return const_reverse_iterator(cbegin());
 			}
 
 			//! Compares two containers element by element.
@@ -19917,7 +20125,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace sarr_ext_detail {
-			using difference_type = uint32_t;
+			using diff_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace sarr_ext_detail
 		//! \endcond
@@ -19942,7 +20150,7 @@ namespace gaia {
 			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_aos<T>;
 			//! Type used for iterator differences.
-			using difference_type = sarr_ext_detail::difference_type;
+			using difference_type = sarr_ext_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_ext_detail::size_type;
 
@@ -19950,6 +20158,10 @@ namespace gaia {
 			using iterator = pointer;
 			//! Read-only random-access iterator type.
 			using const_iterator = const_pointer;
+			//! Mutable reverse random-access iterator type.
+			using reverse_iterator = core::reverse_iterator<iterator, difference_type>;
+			//! Read-only reverse random-access iterator type.
+			using const_reverse_iterator = core::reverse_iterator<const_iterator, difference_type>;
 			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
@@ -20397,19 +20609,19 @@ namespace gaia {
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() noexcept {
-				return iterator((pointer)&back());
+				return reverse_iterator(end());
 			}
 
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
-				return const_iterator((pointer)&back());
+				return const_reverse_iterator(end());
 			}
 
 			//! Returns a read-only reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto crbegin() const noexcept {
-				return const_iterator((pointer)&back());
+				return const_reverse_iterator(cend());
 			}
 
 			//! Returns an iterator one past the last element.
@@ -20433,19 +20645,19 @@ namespace gaia {
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() noexcept {
-				return iterator(GAIA_ACC((pointer)&m_data[0]) - 1);
+				return reverse_iterator(begin());
 			}
 
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) - 1);
+				return const_reverse_iterator(begin());
 			}
 
 			//! Returns the read-only reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto crend() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) - 1);
+				return const_reverse_iterator(cbegin());
 			}
 
 			//! Compares two containers element by element.
@@ -20525,7 +20737,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace sarr_ext_soa_detail {
-			using difference_type = uint32_t;
+			using diff_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace sarr_ext_soa_detail
 		//! \endcond
@@ -20537,7 +20749,7 @@ namespace gaia {
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
-			using difference_type = sarr_ext_soa_detail::size_type;
+			using difference_type = sarr_ext_soa_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_ext_soa_detail::size_type;
 
@@ -20632,7 +20844,7 @@ namespace gaia {
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
-			using difference_type = sarr_ext_soa_detail::size_type;
+			using difference_type = sarr_ext_soa_detail::diff_type;
 			using size_type = sarr_ext_soa_detail::size_type;
 
 			using iterator = const_sarr_ext_soa_iterator;
@@ -20743,7 +20955,7 @@ namespace gaia {
 			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
 			//! Type used for iterator differences.
-			using difference_type = sarr_ext_soa_detail::difference_type;
+			using difference_type = sarr_ext_soa_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_ext_soa_detail::size_type;
 
@@ -20751,6 +20963,10 @@ namespace gaia {
 			using iterator = sarr_ext_soa_iterator<T>;
 			//! Read-only random-access iterator type.
 			using const_iterator = const_sarr_ext_soa_iterator<T>;
+			//! Mutable reverse random-access iterator type.
+			using reverse_iterator = core::reverse_iterator<iterator, difference_type>;
+			//! Read-only reverse random-access iterator type.
+			using const_reverse_iterator = core::reverse_iterator<const_iterator, difference_type>;
 			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
@@ -21161,19 +21377,19 @@ namespace gaia {
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() noexcept {
-				return iterator(GAIA_ACC(&m_data[0]), extent, size() - 1);
+				return reverse_iterator(end());
 			}
 
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), extent, size() - 1);
+				return const_reverse_iterator(end());
 			}
 
 			//! Returns a read-only reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto crbegin() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), extent, size() - 1);
+				return const_reverse_iterator(cend());
 			}
 
 			//! Returns an iterator one past the last element.
@@ -21197,19 +21413,19 @@ namespace gaia {
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() noexcept {
-				return iterator(GAIA_ACC(&m_data[0]), extent, -1);
+				return reverse_iterator(begin());
 			}
 
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), extent, -1);
+				return const_reverse_iterator(begin());
 			}
 
 			//! Returns the read-only reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto crend() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), extent, -1);
+				return const_reverse_iterator(cbegin());
 			}
 
 			//! Compares two containers element by element.
@@ -21306,7 +21522,7 @@ namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
 		namespace sarr_soa_detail {
-			using difference_type = uint32_t;
+			using diff_type = int32_t;
 			using size_type = uint32_t;
 		} // namespace sarr_soa_detail
 		//! \endcond
@@ -21319,7 +21535,7 @@ namespace gaia {
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
 			//! Type used for iterator differences.
-			using difference_type = sarr_soa_detail::difference_type;
+			using difference_type = sarr_soa_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_soa_detail::size_type;
 
@@ -21414,7 +21630,7 @@ namespace gaia {
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
-			using difference_type = sarr_soa_detail::difference_type;
+			using difference_type = sarr_soa_detail::diff_type;
 			using size_type = sarr_soa_detail::size_type;
 
 			using iterator = const_sarr_soa_iterator;
@@ -21527,7 +21743,7 @@ namespace gaia {
 			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
 			//! Type used for iterator differences.
-			using difference_type = sarr_soa_detail::difference_type;
+			using difference_type = sarr_soa_detail::diff_type;
 			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_soa_detail::size_type;
 
@@ -21535,6 +21751,10 @@ namespace gaia {
 			using iterator = sarr_soa_iterator<T>;
 			//! Read-only random-access iterator type.
 			using const_iterator = const_sarr_soa_iterator<T>;
+			//! Mutable reverse random-access iterator type.
+			using reverse_iterator = core::reverse_iterator<iterator, difference_type>;
+			//! Read-only reverse random-access iterator type.
+			using const_reverse_iterator = core::reverse_iterator<const_iterator, difference_type>;
 			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
@@ -21732,19 +21952,19 @@ namespace gaia {
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
-				return iterator(GAIA_ACC(&m_data[0]), extent, size() - 1);
+				return reverse_iterator(end());
 			}
 
 			//! Returns a reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
-				return const_iterator(m_data, extent, size() - 1);
+				return const_reverse_iterator(end());
 			}
 
 			//! Returns a read-only reverse traversal iterator to the last element.
 			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
-				return const_iterator(m_data, extent, size() - 1);
+				return const_reverse_iterator(cend());
 			}
 
 			//! Returns an iterator one past the last element.
@@ -21768,19 +21988,19 @@ namespace gaia {
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() noexcept {
-				return iterator(GAIA_ACC(&m_data[0]), extent, -1);
+				return reverse_iterator(begin());
 			}
 
 			//! Returns the reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), extent, -1);
+				return const_reverse_iterator(begin());
 			}
 
 			//! Returns the read-only reverse traversal sentinel preceding the first element.
 			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto crend() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), extent, -1);
+				return const_reverse_iterator(cbegin());
 			}
 
 			//! Compares two containers element by element.
