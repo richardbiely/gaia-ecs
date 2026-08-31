@@ -15972,33 +15972,43 @@ namespace gaia {
 		//! Returns a direct query argument for \a entity using immediate-write access for mutable references.
 		//! \tparam T Query argument type.
 		//! \param world World to query.
-		//! \param entity Entity to read or mutate.
+		//! \param entity Entity or exact pair record to read or mutate.
 		//! \return Query argument bound to \a entity.
 		template <typename T>
 		inline decltype(auto) world_direct_entity_arg(World& world, Entity entity) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			if constexpr (std::is_same_v<Arg, Entity>)
 				return entity;
-			else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+			else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>) {
+				if GAIA_UNLIKELY (entity.pair())
+					return world.template mut<Arg>(world_pair_record(world, entity));
 				return world.template mut_im<Arg>(entity);
-			else
+			} else {
+				if GAIA_UNLIKELY (entity.pair())
+					return world.template get<Arg>(world_pair_record(world, entity));
 				return world.template get<Arg>(entity);
+			}
 		}
 
 		//! Returns a direct query argument for \a entity using raw mutable access.
 		//! \tparam T Query argument type.
 		//! \param world World to query.
-		//! \param entity Entity to read or mutate.
+		//! \param entity Entity or exact pair record to read or mutate.
 		//! \return Query argument bound to \a entity.
 		template <typename T>
 		inline decltype(auto) world_direct_entity_arg_raw(World& world, Entity entity) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			if constexpr (std::is_same_v<Arg, Entity>)
 				return entity;
-			else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+			else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>) {
+				if GAIA_UNLIKELY (entity.pair())
+					return world.template mut<Arg>(world_pair_record(world, entity));
 				return world.template mut<Arg>(entity);
-			else
+			} else {
+				if GAIA_UNLIKELY (entity.pair())
+					return world.template get<Arg>(world_pair_record(world, entity));
 				return world.template get<Arg>(entity);
+			}
 		}
 
 		//! Returns a prebound typed sparse store for prepared query execution.

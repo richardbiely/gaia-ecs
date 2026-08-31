@@ -4210,6 +4210,25 @@ TEST_CASE("Exact pair records - sparse payload identity and deletion") {
 		sparseSum += value.x;
 	});
 	CHECK(sparseSum == doctest::Approx(5.0f));
+	cnt::darr<PositionSparse> sparseValues;
+	query.arr(sparseValues);
+	CHECK(sparseValues.size() == 2);
+	float sparseArraySum = 0.0f;
+	for (const auto& value: sparseValues)
+		sparseArraySum += value.x;
+	CHECK(sparseArraySum == doctest::Approx(5.0f));
+
+	wld.add<Position>(relation, {10.0f, 11.0f, 12.0f});
+	wld.add<Position>(pair, {40.0f, 41.0f, 42.0f});
+	auto mixedQuery = wld.query().all<Position>().all<PositionSparse>();
+	cnt::darr<Position> positions;
+	mixedQuery.arr(positions);
+	CHECK(positions.size() == 2);
+	float positionArraySum = 0.0f;
+	for (const auto& value: positions)
+		positionArraySum += value.x;
+	CHECK(positionArraySum == doctest::Approx(50.0f));
+
 	wld.query().all<PositionSparse&>().each([](PositionSparse& value) {
 		value.z += 1.0f;
 	});
