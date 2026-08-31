@@ -23998,6 +23998,32 @@ namespace gaia {
 			//! Physical element storage.
 			T m_data[N];
 
+		private:
+			//! Copies the one or two physical segments containing the live logical sequence.
+			//! \param other Ring buffer with matching tail and size metadata.
+			constexpr void copy_live_data(const sringbuffer& other) {
+				const auto countFirst = (m_size < N - m_tail) ? m_size : N - m_tail;
+				mem::copy_elements<T, false>(
+						(uint8_t*)m_data, (const uint8_t*)other.m_data, m_tail + countFirst, m_tail, extent, other.extent);
+				if (countFirst < m_size) {
+					mem::copy_elements<T, false>(
+							(uint8_t*)m_data, (const uint8_t*)other.m_data, m_size - countFirst, 0, extent, other.extent);
+				}
+			}
+
+			//! Moves the one or two physical segments containing the live logical sequence.
+			//! \param other Ring buffer with matching tail and size metadata.
+			constexpr void move_live_data(sringbuffer& other) {
+				const auto countFirst = (m_size < N - m_tail) ? m_size : N - m_tail;
+				mem::move_elements<T, false>(
+						(uint8_t*)m_data, (uint8_t*)other.m_data, m_tail + countFirst, m_tail, extent, other.extent);
+				if (countFirst < m_size) {
+					mem::move_elements<T, false>(
+							(uint8_t*)m_data, (uint8_t*)other.m_data, m_size - countFirst, 0, extent, other.extent);
+				}
+			}
+
+		public:
 			constexpr sringbuffer() noexcept = default;
 
 			//! Constructs a ring buffer from an iterator range.
@@ -24034,13 +24060,13 @@ namespace gaia {
 			//! Copy-constructs a ring buffer.
 			//! \param other Ring buffer to copy.
 			constexpr sringbuffer(const sringbuffer& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
-				mem::copy_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+				copy_live_data(other);
 			}
 
 			//! Move-constructs a ring buffer and leaves the source empty.
 			//! \param other Ring buffer whose elements are transferred.
 			constexpr sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
-				mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+				move_live_data(other);
 
 				other.m_tail = size_type(0);
 				other.m_size = size_type(0);
@@ -24060,10 +24086,9 @@ namespace gaia {
 			constexpr sringbuffer& operator=(const sringbuffer& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				mem::copy_elements<T, false>(&m_data[0], other.m_data, other.size(), 0, extent, other.extent);
-
 				m_tail = other.m_tail;
 				m_size = other.m_size;
+				copy_live_data(other);
 
 				return *this;
 			}
@@ -24074,10 +24099,9 @@ namespace gaia {
 			constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
-
 				m_tail = other.m_tail;
 				m_size = other.m_size;
+				move_live_data(other);
 
 				other.m_tail = size_type(0);
 				other.m_size = size_type(0);

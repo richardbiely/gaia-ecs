@@ -2134,6 +2134,47 @@ TEST_CASE("Data layout - erased SoA field addressing matches typed policy") {
 
 TEST_CASE("Containers - sringbuffer") {
 	{
+		auto makeWrapped = [](cnt::sringbuffer<uint32_t, 5>& arr) {
+			arr = {0, 1, 2, 3, 4};
+			uint32_t val{};
+			arr.pop_front(val);
+			arr.pop_front(val);
+			arr.pop_front(val);
+			arr.push_back(5);
+		};
+		auto checkWrapped = [](const cnt::sringbuffer<uint32_t, 5>& arr) {
+			CHECK(arr.size() == 3);
+			auto it = arr.cbegin();
+			CHECK(*it++ == 3);
+			CHECK(*it++ == 4);
+			CHECK(*it++ == 5);
+			CHECK(it == arr.cend());
+		};
+
+		cnt::sringbuffer<uint32_t, 5> copySource;
+		makeWrapped(copySource);
+		cnt::sringbuffer<uint32_t, 5> copyConstructed(copySource);
+		checkWrapped(copyConstructed);
+
+		cnt::sringbuffer<uint32_t, 5> copyAssigned;
+		copyAssigned = copySource;
+		checkWrapped(copyAssigned);
+
+		cnt::sringbuffer<uint32_t, 5> moveConstructSource;
+		makeWrapped(moveConstructSource);
+		cnt::sringbuffer<uint32_t, 5> moveConstructed(GAIA_MOV(moveConstructSource));
+		checkWrapped(moveConstructed);
+		CHECK(moveConstructSource.empty());
+
+		cnt::sringbuffer<uint32_t, 5> moveAssignSource;
+		makeWrapped(moveAssignSource);
+		cnt::sringbuffer<uint32_t, 5> moveAssigned;
+		moveAssigned = GAIA_MOV(moveAssignSource);
+		checkWrapped(moveAssigned);
+		CHECK(moveAssignSource.empty());
+	}
+
+	{
 		cnt::sringbuffer<uint32_t, 5> emptyA;
 		cnt::sringbuffer<uint32_t, 5> emptyB;
 		CHECK(emptyA == emptyB);
