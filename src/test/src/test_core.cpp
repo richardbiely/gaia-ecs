@@ -975,6 +975,43 @@ void lvalue_insert_test(const T& first, const T& insertedValue, const T& third, 
 }
 
 template <typename Container>
+void soa_mutation_test() {
+	using T = typename Container::value_type;
+	const T values[] = {{1, 11, 21}, {2, 12, 22}, {3, 13, 23}, {4, 14, 24}, {5, 15, 25}, {6, 16, 26}};
+
+	Container arr;
+	arr.push_back(values[0]);
+	arr.push_back(values[2]);
+	arr.push_back(values[4]);
+
+	auto it = arr.insert(arr.begin() + 1, values[1]);
+	CHECK(it == arr.begin() + 1);
+	it = arr.insert(arr.end() - 1, T(values[3]));
+	CHECK(it == arr.begin() + 3);
+	it = arr.insert(arr.end(), values[5]);
+	CHECK(it == arr.begin() + 5);
+	CHECK(arr.size() == 6);
+	GAIA_FOR(6) CHECK(arr[i] == values[i]);
+
+	it = arr.erase(arr.begin() + 1);
+	CHECK(it == arr.begin() + 1);
+	CHECK(*it == values[2]);
+	it = arr.erase(arr.begin() + 2, arr.begin() + 4);
+	CHECK(it == arr.begin() + 2);
+	CHECK(*it == values[5]);
+	CHECK(arr.size() == 3);
+	CHECK(arr[0] == values[0]);
+	CHECK(arr[1] == values[2]);
+	CHECK(arr[2] == values[5]);
+
+	it = arr.erase(arr.begin() + 2, arr.end());
+	CHECK(it == arr.end());
+	CHECK(arr.size() == 2);
+	CHECK(arr[0] == values[0]);
+	CHECK(arr[1] == values[2]);
+}
+
+template <typename Container>
 void retainable_arr_test() {
 	using cont_item = typename Container::value_type;
 
@@ -1125,6 +1162,12 @@ TEST_CASE("Containers - forward iterator range construction") {
 TEST_CASE("Containers - dynamic lvalue insertion") {
 	lvalue_insert_test<cnt::darr<uint32_t>>(1, 2, 3, 4);
 	lvalue_insert_test<cnt::darr_ext<uint32_t, 4>>(1, 2, 3, 4);
+}
+
+TEST_CASE("Containers - SoA mutation iterators") {
+	soa_mutation_test<cnt::sarr_ext_soa<PositionSoA, 8>>();
+	soa_mutation_test<cnt::darr_soa<PositionSoA>>();
+	soa_mutation_test<cnt::darr_ext_soa<PositionSoA, 4>>();
 }
 
 //------------------------------------------------------------------------------

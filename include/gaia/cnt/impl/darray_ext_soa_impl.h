@@ -587,19 +587,18 @@ namespace gaia {
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
-				GAIA_ASSERT(pos >= data());
-				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+				GAIA_ASSERT(pos >= begin());
+				GAIA_ASSERT(pos <= end());
 
-				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxSrc = (size_type)(pos - begin());
 				try_grow();
-				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
+				const auto idxDst = size();
 
 				view_policy::mem_push_block(data(), m_cap, m_cnt, 1);
 				mem::shift_elements_right<T, true>(m_pData, idxDst, idxSrc, m_cap);
 
-				operator[](idxSrc) = arg;
-
 				++m_cnt;
+				operator[](idxSrc) = arg;
 
 				return iterator(m_pData, capacity(), idxSrc);
 			}
@@ -609,19 +608,18 @@ namespace gaia {
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
-				GAIA_ASSERT(pos >= data());
-				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+				GAIA_ASSERT(pos >= begin());
+				GAIA_ASSERT(pos <= end());
 
-				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxSrc = (size_type)(pos - begin());
 				try_grow();
-				const auto idxDst = (size_type)core::distance(begin(), end());
+				const auto idxDst = size();
 
 				view_policy::mem_push_block(data(), m_cap, m_cnt, 1);
 				mem::shift_elements_right<T, true>(m_pData, idxDst, idxSrc, m_cap);
 
-				operator[](idxSrc) = GAIA_MOV(arg);
-
 				++m_cnt;
+				operator[](idxSrc) = GAIA_MOV(arg);
 
 				return iterator(m_pData, capacity(), idxSrc);
 			}
@@ -630,14 +628,13 @@ namespace gaia {
 			//! \return Iterator to the element following the removed element or range.
 			//! \param pos Iterator to the element to remove
 			iterator erase(iterator pos) noexcept {
-				GAIA_ASSERT(pos >= data());
-				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+				GAIA_ASSERT(empty() || (pos >= begin() && pos < end()));
 
 				if (empty())
 					return end();
 
-				const auto idxSrc = (size_type)core::distance(begin(), pos);
-				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
+				const auto idxSrc = (size_type)(pos - begin());
+				const auto idxDst = size() - 1;
 
 				mem::shift_elements_left<T, true>(m_pData, idxDst, idxSrc, m_cap);
 				view_policy::mem_pop_block(data(), m_cap, m_cnt, 1);
@@ -652,15 +649,14 @@ namespace gaia {
 			//! \param first Iterator to the element to remove
 			//! \param last Iterator to the one beyond the last element to remove
 			iterator erase(iterator first, iterator last) noexcept {
-				GAIA_ASSERT(first >= data())
-				GAIA_ASSERT(empty() || (first < iterator(data() + size())));
+				GAIA_ASSERT(empty() || (first >= begin() && first < end()));
 				GAIA_ASSERT(last > first);
-				GAIA_ASSERT(last <= iterator(data() + size()));
+				GAIA_ASSERT(last <= end());
 
 				if (empty())
 					return end();
 
-				const auto idxSrc = (size_type)core::distance(begin(), first);
+				const auto idxSrc = (size_type)(first - begin());
 				const auto idxDst = size();
 				const auto cnt = (size_type)(last - first);
 

@@ -364,10 +364,12 @@ namespace gaia {
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
-				GAIA_FOR2(idxSrc, idxDst) {
-					(data_view_policy_soa_set<T::gaia_Data_Layout, T>({std::span<uint8_t>{dst, size}}))[i + n] =
+				const auto count = idxDst - idxSrc;
+				GAIA_FOR(count) {
+					const auto idx = idxDst - i - 1;
+					(data_view_policy_soa_set<T::gaia_Data_Layout, T>({std::span<uint8_t>{dst, size}}))[idx + n] =
 							(data_view_policy_soa_get<T::gaia_Data_Layout, T>(
-									{std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i];
+									{std::span<const uint8_t>{(const uint8_t*)dst, size}}))[idx];
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -579,7 +581,7 @@ namespace gaia {
 				return;
 
 			if constexpr (SOA)
-				detail::shift_elements_left_soa<T>(*dst, idxDst, idxSrc, 1, size);
+				detail::shift_elements_left_soa<T>(dst, idxDst, idxSrc, 1, size);
 			else
 				detail::shift_elements_left_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
@@ -599,9 +601,10 @@ namespace gaia {
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (SOA)
-				detail::shift_elements_left_soa<T>(*dst, idxDst, idxSrc, n, size);
-			else
+			if constexpr (SOA) {
+				if (idxSrc + n < idxDst)
+					detail::shift_elements_left_soa<T>(dst, idxDst - n, idxSrc, n, size);
+			} else
 				detail::shift_elements_left_aos_fast<T>((T*)dst, idxDst, idxSrc, n);
 		}
 
@@ -619,7 +622,7 @@ namespace gaia {
 				return;
 
 			if constexpr (SOA)
-				detail::shift_elements_right_soa<T>(*dst, idxDst, idxSrc, 1, size);
+				detail::shift_elements_right_soa<T>(dst, idxDst, idxSrc, 1, size);
 			else
 				detail::shift_elements_right_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
@@ -640,7 +643,7 @@ namespace gaia {
 				return;
 
 			if constexpr (SOA)
-				detail::shift_elements_right_soa<T>(*dst, idxDst, idxSrc, n, size);
+				detail::shift_elements_right_soa<T>(dst, idxDst, idxSrc, n, size);
 			else
 				detail::shift_elements_right_aos_fast<T>((T*)dst, idxDst, idxSrc, n);
 		}
