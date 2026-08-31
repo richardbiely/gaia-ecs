@@ -75181,6 +75181,33 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether an exact pair record is enabled together with all of its ancestors reachable through
+			//! \p relation.
+			//! \param entity Pair record whose effective enabled state is requested.
+			//! \param relation Relation defining the ancestor chain.
+			//! \return True when \p entity and every reachable ancestor are enabled. False otherwise.
+			GAIA_NODISCARD bool enabled_hierarchy(Pair entity, Entity relation) const {
+				const auto source = (Entity)entity;
+				GAIA_ASSERT(valid(source));
+				GAIA_ASSERT(valid(relation));
+				if (!valid(source) || !valid(relation))
+					return false;
+				if (!enabled(entity))
+					return false;
+
+				auto curr = source;
+				GAIA_FOR(MAX_TRAV_DEPTH) {
+					const auto next = target(curr, relation);
+					if (next == EntityBad || next == curr)
+						break;
+					if (!enabled(next))
+						return false;
+					curr = next;
+				}
+
+				return true;
+			}
+
 			//----------------------------------------------------------------------
 
 			//! Returns a chunk containing the \a entity.

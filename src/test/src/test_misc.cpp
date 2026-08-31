@@ -4220,6 +4220,36 @@ TEST_CASE("Exact pair records - enable state and chunk lookup") {
 	CHECK(wld.query().all<Position>().count() == 2);
 }
 
+TEST_CASE("Exact pair records - hierarchy enable state") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto parent = wld.add();
+	const auto grandparent = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(source, pair);
+	wld.add(pair, ecs::Pair(ecs::ChildOf, parent));
+	wld.add(parent, ecs::Pair(ecs::ChildOf, grandparent));
+
+	CHECK(wld.enabled_hierarchy(pair, ecs::ChildOf));
+
+	wld.enable(pair, false);
+	CHECK_FALSE(wld.enabled_hierarchy(pair, ecs::ChildOf));
+	wld.enable(pair, true);
+
+	wld.enable(parent, false);
+	CHECK_FALSE(wld.enabled_hierarchy(pair, ecs::ChildOf));
+	wld.enable(parent, true);
+
+	wld.enable(grandparent, false);
+	CHECK_FALSE(wld.enabled_hierarchy(pair, ecs::ChildOf));
+	wld.enable(grandparent, true);
+
+	CHECK(wld.enabled_hierarchy(pair, ecs::ChildOf));
+}
+
 TEST_CASE("ArchetypeGraph") {
 	TestWorld twld;
 
