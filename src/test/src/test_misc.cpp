@@ -4389,7 +4389,7 @@ TEST_CASE("Hooks") {
 		using PairType = ecs::pair<ErasedPairRelationTag, ErasedPairPayload>;
 
 		TestWorld twld;
-		(void)wld.add<ErasedPairRelationTag>();
+		const auto& relationItem = wld.add<ErasedPairRelationTag>();
 		const auto& pairPayloadItem = wld.add<ErasedPairPayload>();
 		hook_trigger_cnt = 0;
 		ecs::ComponentCache::hooks(pairPayloadItem).func_add =
@@ -4420,6 +4420,19 @@ TEST_CASE("Hooks") {
 		const auto& syncPayload = wld.get<PairType>(syncInstance);
 		CHECK(syncPayload.x == doctest::Approx(9.0f));
 		CHECK(syncPayload.y == doctest::Approx(10.0f));
+
+		const auto pair = ecs::Pair(relationItem.entity, pairPayloadItem.entity);
+		const auto base = wld.add();
+		const auto derived = wld.add();
+		wld.add<PairType>(base, {11.0f, 12.0f});
+		wld.add(pair, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+		wld.as(derived, base);
+		hook_trigger_cnt = 0;
+		CHECK(wld.override(derived, pair));
+		CHECK(hook_trigger_cnt == 1);
+		const auto& overridePayload = wld.get<PairType>(derived);
+		CHECK(overridePayload.x == doctest::Approx(11.0f));
+		CHECK(overridePayload.y == doctest::Approx(12.0f));
 	}
 
 	SUBCASE("del") {

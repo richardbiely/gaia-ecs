@@ -156,13 +156,55 @@ TEST_CASE("Prefab - explicit override and inherited ownership") {
 	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
 
 	const auto instance = wld.instantiate(prefabAnimal);
+	uint32_t observerHits = 0;
+	float observedValue = 0.0f;
+	auto observer = wld.observer().event(ecs::ObserverEvent::OnAdd).all<Position>().on_each([&](ecs::Entity entity) {
+		++observerHits;
+		observedValue = wld.get<Position>(entity).x;
+	});
+	(void)observer;
 
 	CHECK_FALSE(wld.has_direct(instance, position));
 	CHECK(wld.override<Position>(instance));
 	CHECK(wld.has_direct(instance, position));
 	CHECK(wld.get<Position>(instance).x == doctest::Approx(5.0f));
+	CHECK(observerHits == 1);
+	CHECK(observedValue == doctest::Approx(5.0f));
 	CHECK_FALSE(wld.override<Position>(instance));
 	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
+}
+
+TEST_CASE("Is inheritance - explicit pair override copies payload") {
+	using PairType = ecs::pair<PrefabSyncRelation, PrefabSyncPayload>;
+
+	TestWorld twld;
+	const auto relation = wld.add<PrefabSyncRelation>().entity;
+	const auto payload = wld.add<PrefabSyncPayload>().entity;
+	const auto pair = ecs::Pair(relation, payload);
+	const auto base = wld.add();
+	const auto derived = wld.add();
+	wld.add<PairType>(base, {42});
+	wld.add(pair, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.as(derived, base);
+
+	CHECK_FALSE(wld.has_direct(derived, pair));
+	CHECK(wld.has(derived, pair));
+	CHECK(wld.get<PairType>(derived).value == 42);
+
+	uint32_t observerHits = 0;
+	int observedValue = 0;
+	auto observer = wld.observer().event(ecs::ObserverEvent::OnAdd).all<PairType>().on_each([&](ecs::Entity entity) {
+		++observerHits;
+		observedValue = wld.get<PairType>(entity).value;
+	});
+	(void)observer;
+
+	CHECK(wld.override(derived, pair));
+	CHECK(wld.has_direct(derived, pair));
+	CHECK(wld.get<PairType>(derived).value == 42);
+	CHECK(observerHits == 1);
+	CHECK(observedValue == 42);
+	CHECK_FALSE(wld.override(derived, pair));
 }
 
 TEST_CASE("Prefab - explicit override and inherited tags") {

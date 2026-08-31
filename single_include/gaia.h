@@ -71392,19 +71392,17 @@ namespace gaia {
 				if (inheritedOwner == EntityBad)
 					return false;
 
-				if (!object.pair()) {
-					const auto* pItem = comp_cache().find(object);
-					if (pItem != nullptr && pItem->entity == object) {
-						const auto mode = sparse_storage_mode(object);
-						if (mode != SparseStorageMode::None)
-							return override_sparse_component_inter(entity, object);
+				const auto* pItem = component_item(inheritedOwner, object);
+				if (!object.pair() && pItem != nullptr && sparse_storage_mode(object) != SparseStorageMode::None)
+					return override_sparse_component_inter(entity, object);
 
-						if (pItem->comp.size() != 0U) {
-							add(entity, object);
-							copy_direct_component_data_inter(inheritedOwner, entity, object, *pItem);
-							return true;
-						}
-					}
+				if (pItem != nullptr && pItem->comp.size() != 0U) {
+					EntityBuilder eb(*this, entity);
+					eb.add_inter_init(object);
+					eb.commit();
+					copy_direct_component_data_inter(inheritedOwner, entity, object, *pItem);
+					notify_add_single(entity, object);
+					return true;
 				}
 
 				add(entity, object);
