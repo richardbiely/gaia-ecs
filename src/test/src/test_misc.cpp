@@ -4216,11 +4216,28 @@ TEST_CASE("Exact pair records - fixed query source") {
 TEST_CASE("Typed pairs with sparse payload types use sparse payload storage") {
 	TestWorld twld;
 
+	using RelationSparsePair = ecs::pair<PositionSparse, ErasedPairTargetTag>;
+	const auto sparseRelation = wld.add<PositionSparse>().entity;
+	wld.add(sparseRelation, ecs::Exclusive);
+	wld.add(sparseRelation, ecs::DontFragment);
+	const auto relationSparseEntity = wld.add();
+	const auto* pRelationArchetypeBefore = wld.fetch(relationSparseEntity).pArchetype;
+	wld.add<RelationSparsePair>(relationSparseEntity, {4.0f, 5.0f, 6.0f});
+	const auto relationSparsePair = ecs::Pair(sparseRelation, wld.get<ErasedPairTargetTag>());
+	CHECK(wld.has<RelationSparsePair>(relationSparseEntity));
+	CHECK(wld.fetch(relationSparseEntity).pArchetype == pRelationArchetypeBefore);
+	CHECK_FALSE(wld.get_chunk(relationSparseEntity)->has(relationSparsePair));
+	CHECK(wld.get<RelationSparsePair>(relationSparseEntity).z == doctest::Approx(6.0f));
+	CHECK(wld.query().all<RelationSparsePair>().count() == 1);
+	wld.del<RelationSparsePair>(relationSparseEntity);
+	CHECK_FALSE(wld.has<RelationSparsePair>(relationSparseEntity));
+
 	using SparsePair = ecs::pair<ErasedPairRelationTag, PositionSparse>;
+	const auto relation = wld.add<ErasedPairRelationTag>().entity;
 	const auto entity = wld.add();
 	wld.add<SparsePair>(entity, {1.0f, 2.0f, 3.0f});
 	CHECK(wld.has<SparsePair>(entity));
-	const auto sparsePair = ecs::Pair(wld.get<ErasedPairRelationTag>(), wld.get<PositionSparse>());
+	const auto sparsePair = ecs::Pair(relation, wld.get<PositionSparse>());
 	CHECK(wld.get_chunk(entity)->has(sparsePair));
 	CHECK(wld.get<PositionSparse>(entity, sparsePair).x == doctest::Approx(1.0f));
 	const auto& value = wld.get<SparsePair>(entity);
@@ -4255,15 +4272,6 @@ TEST_CASE("Typed pairs with sparse payload types use sparse payload storage") {
 	wld.del<SparsePair>(entity);
 	CHECK_FALSE(wld.has<SparsePair>(entity));
 	CHECK(query.count() == 0);
-
-	using RelationSparsePair = ecs::pair<PositionSparse, ErasedPairTargetTag>;
-	const auto relationSparseEntity = wld.add();
-	wld.add<RelationSparsePair>(relationSparseEntity, {4.0f, 5.0f, 6.0f});
-	CHECK(wld.has<RelationSparsePair>(relationSparseEntity));
-	CHECK(wld.get<RelationSparsePair>(relationSparseEntity).z == doctest::Approx(6.0f));
-	CHECK(wld.query().all<RelationSparsePair>().count() == 1);
-	wld.del<RelationSparsePair>(relationSparseEntity);
-	CHECK_FALSE(wld.has<RelationSparsePair>(relationSparseEntity));
 
 	using ConstructedPair = ecs::pair<ErasedPairRelationTag, SparsePairConstructed>;
 	const auto constructedEntity = wld.add();
