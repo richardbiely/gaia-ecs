@@ -18891,17 +18891,23 @@ namespace gaia {
 				using bit_set_iter_type = std::conditional_t<
 						IsFwd, typename page_data_type::bit_set::iter, typename page_data_type::bit_set::iter_rev>;
 
-				page_type* m_pPage;
+				page_type* m_pPage = nullptr;
 				bit_set_iter_type m_it;
 
 			public:
+				//! Constructs an empty iterator.
+				mem_page_iterator_soa() = default;
+
+				//! Constructs an iterator for a page and bit position.
+				//! \param pPage Page containing the element.
+				//! \param it Set-bit iterator selecting the element.
 				mem_page_iterator_soa(page_type* pPage, bit_set_iter_type it): m_pPage(pPage), m_it(it) {}
 
 				value_type operator*() const {
 					return m_pPage->set_data(*m_it);
 				}
 				value_type operator->() const {
-					return &m_pPage->set_data(*m_it);
+					return m_pPage->set_data(*m_it);
 				}
 
 				iterator& operator++() {
@@ -19526,7 +19532,10 @@ namespace gaia {
 			}
 		};
 
-		//! Iterator over structure-of-arrays elements in paged storage.
+		//! Iterator over SoA elements in paged storage.
+		//! SoA pages keep each member in a separate array, so there is no addressable `T` record for the
+		//! ordinary page iterator to expose as `T&` or `T*`. This iterator resolves each position through
+		//! the SoA view policy and returns the resulting element view by value.
 		//! \tparam T Element type.
 		//! \tparam Allocator Page allocator type.
 		//! \tparam IsFwd Whether iteration proceeds forward.
@@ -19565,17 +19574,21 @@ namespace gaia {
 				if constexpr (!IsFwd) {
 					m_it = m_pPage->rbegin();
 					while (m_it == m_pPage->rend()) {
-						if (m_pPage == m_pPageLast)
+						if (m_pPage == m_pPageLast) {
+							m_it = {};
 							break;
+						}
 						--m_pPage;
 						m_it = m_pPage->rbegin();
 					}
 				} else {
 					m_it = m_pPage->begin();
 					while (m_it == m_pPage->end()) {
-						if (m_pPage == m_pPageLast)
-							break;
 						++m_pPage;
+						if (m_pPage == m_pPageLast) {
+							m_it = {};
+							break;
+						}
 						m_it = m_pPage->begin();
 					}
 				}
@@ -19597,15 +19610,27 @@ namespace gaia {
 			iterator& operator++() {
 				if constexpr (!IsFwd) {
 					++m_it;
-					while (m_it == m_pPage->rend()) {
-						--m_pPage;
-						m_it = m_pPage->rbegin();
+					if (m_it == m_pPage->rend()) {
+						do {
+							if (m_pPage == m_pPageLast) {
+								m_it = {};
+								return *this;
+							}
+							--m_pPage;
+							m_it = m_pPage->rbegin();
+						} while (m_it == m_pPage->rend());
 					}
 				} else {
 					++m_it;
-					while (m_it == m_pPage->end()) {
-						++m_pPage;
-						m_it = m_pPage->begin();
+					if (m_it == m_pPage->end()) {
+						do {
+							++m_pPage;
+							if (m_pPage == m_pPageLast) {
+								m_it = {};
+								return *this;
+							}
+							m_it = m_pPage->begin();
+						} while (m_it == m_pPage->end());
 					}
 				}
 				return *this;
@@ -19632,7 +19657,10 @@ namespace gaia {
 			}
 		};
 
-		//! Read-only iterator over structure-of-arrays elements in paged storage.
+		//! Read-only iterator over SoA elements in paged storage.
+		//! SoA pages keep each member in a separate array, so there is no addressable `T` record for the
+		//! ordinary const page iterator to expose as `const T&` or `const T*`. This iterator resolves each
+		//! position through the SoA view policy and returns the resulting read-only element view by value.
 		//! \tparam T Element type.
 		//! \tparam Allocator Page allocator type.
 		//! \tparam IsFwd Whether iteration proceeds forward.
@@ -19672,17 +19700,21 @@ namespace gaia {
 				if constexpr (!IsFwd) {
 					m_it = m_pPage->rbegin();
 					while (m_it == m_pPage->rend()) {
-						if (m_pPage == m_pPageLast)
+						if (m_pPage == m_pPageLast) {
+							m_it = {};
 							break;
+						}
 						--m_pPage;
 						m_it = m_pPage->rbegin();
 					}
 				} else {
 					m_it = m_pPage->begin();
 					while (m_it == m_pPage->end()) {
-						if (m_pPage == m_pPageLast)
-							break;
 						++m_pPage;
+						if (m_pPage == m_pPageLast) {
+							m_it = {};
+							break;
+						}
 						m_it = m_pPage->begin();
 					}
 				}
@@ -19704,15 +19736,27 @@ namespace gaia {
 			iterator& operator++() {
 				if constexpr (!IsFwd) {
 					++m_it;
-					while (m_it == m_pPage->rend()) {
-						--m_pPage;
-						m_it = m_pPage->rbegin();
+					if (m_it == m_pPage->rend()) {
+						do {
+							if (m_pPage == m_pPageLast) {
+								m_it = {};
+								return *this;
+							}
+							--m_pPage;
+							m_it = m_pPage->rbegin();
+						} while (m_it == m_pPage->rend());
 					}
 				} else {
 					++m_it;
-					while (m_it == m_pPage->end()) {
-						++m_pPage;
-						m_it = m_pPage->begin();
+					if (m_it == m_pPage->end()) {
+						do {
+							++m_pPage;
+							if (m_pPage == m_pPageLast) {
+								m_it = {};
+								return *this;
+							}
+							m_it = m_pPage->begin();
+						} while (m_it == m_pPage->end());
 					}
 				}
 				return *this;
@@ -19773,22 +19817,31 @@ namespace gaia {
 			//! Maximum number of elements addressable in one page.
 			static constexpr uint32_t PageCapacity = page_type::PageCapacity;
 
-			//! Forward mutable iterator.
-			using iterator = page_iterator<T, Allocator, true>;
-			//! Reverse mutable iterator.
-			using iterator_reverse = page_iterator<T, Allocator, false>;
-			//! Forward mutable iterator for structure-of-arrays elements.
+			//! Forward mutable iterator for array-of-structures elements.
+			using iterator_aos = page_iterator<T, Allocator, true>;
+			//! Reverse mutable iterator for array-of-structures elements.
+			using iterator_aos_reverse = page_iterator<T, Allocator, false>;
+			//! Forward mutable iterator for SoA elements.
 			using iterator_soa = page_iterator_soa<T, Allocator, true>;
-			//! Reverse mutable iterator for structure-of-arrays elements.
+			//! Reverse mutable iterator for SoA elements.
 			using iterator_soa_reverse = page_iterator_soa<T, Allocator, false>;
-			//! Forward read-only iterator.
-			using const_iterator = const_page_iterator<T, Allocator, true>;
-			//! Reverse read-only iterator.
-			using const_iterator_reverse = const_page_iterator<T, Allocator, false>;
-			//! Forward read-only iterator for structure-of-arrays elements.
+			//! Forward read-only iterator for array-of-structures elements.
+			using const_iterator_aos = const_page_iterator<T, Allocator, true>;
+			//! Reverse read-only iterator for array-of-structures elements.
+			using const_iterator_aos_reverse = const_page_iterator<T, Allocator, false>;
+			//! Forward read-only iterator for SoA elements.
 			using const_iterator_soa = const_page_iterator_soa<T, Allocator, true>;
-			//! Reverse read-only iterator for structure-of-arrays elements.
+			//! Reverse read-only iterator for SoA elements.
 			using const_iterator_soa_reverse = const_page_iterator_soa<T, Allocator, false>;
+			//! Forward mutable iterator matching the element data layout.
+			using iterator = std::conditional_t<mem::is_soa_layout_v<T>, iterator_soa, iterator_aos>;
+			//! Reverse mutable iterator matching the element data layout.
+			using iterator_reverse = std::conditional_t<mem::is_soa_layout_v<T>, iterator_soa_reverse, iterator_aos_reverse>;
+			//! Forward read-only iterator matching the element data layout.
+			using const_iterator = std::conditional_t<mem::is_soa_layout_v<T>, const_iterator_soa, const_iterator_aos>;
+			//! Reverse read-only iterator matching the element data layout.
+			using const_iterator_reverse =
+					std::conditional_t<mem::is_soa_layout_v<T>, const_iterator_soa_reverse, const_iterator_aos_reverse>;
 			//! Iterator category tag.
 			using iterator_category = core::bidirectional_iterator_tag;
 
@@ -19862,7 +19915,7 @@ namespace gaia {
 
 			//! Accesses an element by identifier.
 			//! \param id Identifier of an existing element.
-			//! \return Mutable element reference or structure-of-arrays view.
+			//! \return Mutable element reference or SoA view.
 			GAIA_NODISCARD decltype(auto) operator[](page_storage_id id) noexcept {
 				GAIA_ASSERT(has(id));
 				const auto pid = size_type(id >> ToPageIndex);
@@ -19873,7 +19926,7 @@ namespace gaia {
 
 			//! Accesses an element by identifier.
 			//! \param id Identifier of an existing element.
-			//! \return Read-only element reference or structure-of-arrays view.
+			//! \return Read-only element reference or SoA view.
 			GAIA_NODISCARD decltype(auto) operator[](page_storage_id id) const noexcept {
 				GAIA_ASSERT(has(id));
 				const auto pid = size_type(id >> ToPageIndex);
@@ -19909,12 +19962,12 @@ namespace gaia {
 			//! Inserts the item \a arg into the storage.
 			//! \tparam TType Type of the forwarded item.
 			//! \param arg Data
-			//! \return Reference to the inserted record, or nothing for a structure-of-arrays layout.
+			//! \return Reference to the inserted record, or nothing for a SoA layout.
 			template <typename TType>
 			decltype(auto) add(TType&& arg) {
 				const auto id = to_page_storage_id<T>::get(arg);
 				if (has(id)) {
-					if constexpr (mem::is_soa_layout_v<TType>)
+					if constexpr (mem::is_soa_layout_v<T>)
 						return;
 					else {
 						const auto pid = size_type(id >> ToPageIndex);
@@ -19930,7 +19983,7 @@ namespace gaia {
 				try_grow(pid);
 
 				auto& page = m_pages[pid];
-				if constexpr (mem::is_soa_layout_v<TType>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					page.add_data(did, GAIA_FWD(arg));
 				else
 					return page.add_data(did, GAIA_FWD(arg));
@@ -19938,7 +19991,7 @@ namespace gaia {
 
 			//! Accesses the record at the index \a id for update.
 			//! \param id Page id
-			//! \return Mutable record reference or structure-of-arrays view.
+			//! \return Mutable record reference or SoA view.
 			decltype(auto) set(page_storage_id id) {
 				GAIA_ASSERT(has(id));
 
@@ -19992,31 +20045,31 @@ namespace gaia {
 			}
 
 			//! Accesses the first stored element.
-			//! \return Mutable reference to the first element.
+			//! \return Mutable reference or SoA value for the first element.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
-				return (reference)*begin();
+				return *begin();
 			}
 
 			//! Accesses the first stored element.
-			//! \return Read-only reference to the first element.
+			//! \return Read-only reference or SoA value for the first element.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
-				return (const_reference)*begin();
+				return *begin();
 			}
 
 			//! Accesses the last stored element.
-			//! \return Mutable reference to the last element.
+			//! \return Mutable reference or SoA value for the last element.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
-				return (reference)*rbegin();
+				return *rbegin();
 			}
 
 			//! Accesses the last stored element.
-			//! \return Read-only reference to the last element.
+			//! \return Read-only reference or SoA value for the last element.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
-				return (const_reference)*rbegin();
+				return *rbegin();
 			}
 
 			//! Returns an iterator to the first stored element.

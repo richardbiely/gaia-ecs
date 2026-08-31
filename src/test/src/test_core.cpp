@@ -1481,6 +1481,15 @@ bool operator==(const SparseTestItem& a, const SparseTestItem& b) {
 	return a.id == b.id && a.data == b.data;
 }
 
+struct PagedSoAItem {
+	GAIA_LAYOUT(SoA);
+	uint32_t id;
+	uint32_t data;
+};
+bool operator==(const PagedSoAItem& a, const PagedSoAItem& b) {
+	return a.id == b.id && a.data == b.data;
+}
+
 struct SparseTestItem_NonTrivial {
 	uint32_t id;
 	uint32_t data;
@@ -1515,6 +1524,12 @@ namespace gaia {
 		template <>
 		struct to_page_storage_id<SparseTestItem_NonTrivial> {
 			static page_storage_id get(const SparseTestItem_NonTrivial& item) noexcept {
+				return item.id;
+			}
+		};
+		template <>
+		struct to_page_storage_id<PagedSoAItem> {
+			static page_storage_id get(const PagedSoAItem& item) noexcept {
 				return item.id;
 			}
 		};
@@ -2215,6 +2230,56 @@ TEST_CASE("Containers - paged storage skips empty pages") {
 	verify(arr);
 	const auto& constArr = arr;
 	verify(constArr);
+}
+
+TEST_CASE("Containers - paged storage SoA iteration") {
+	using Storage = cnt::page_storage<PagedSoAItem>;
+	static_assert(std::is_same_v<typename Storage::iterator, typename Storage::iterator_soa>);
+	static_assert(std::is_same_v<typename Storage::iterator_reverse, typename Storage::iterator_soa_reverse>);
+	static_assert(std::is_same_v<typename Storage::const_iterator, typename Storage::const_iterator_soa>);
+	static_assert(std::is_same_v<typename Storage::const_iterator_reverse, typename Storage::const_iterator_soa_reverse>);
+
+	constexpr uint32_t FirstId = 2;
+	constexpr uint32_t LastId = Storage::PageCapacity * 2 + 9;
+	const PagedSoAItem first{FirstId, 12};
+	const PagedSoAItem last{LastId, 29};
+
+	Storage arr;
+	arr.add(first);
+	arr.add(last);
+	CHECK(arr.size() == 2);
+	CHECK(arr[FirstId] == first);
+	CHECK(arr[LastId] == last);
+	CHECK(arr.front() == first);
+	CHECK(arr.back() == last);
+
+	auto verify = [&](auto& storage) {
+		const PagedSoAItem forwardItems[] = {first, last};
+		auto it = storage.begin();
+		const auto itEnd = storage.end();
+		GAIA_FOR(2) {
+			CHECK(it != itEnd);
+			CHECK(*it == forwardItems[i]);
+			++it;
+		}
+		CHECK(it == itEnd);
+
+		const PagedSoAItem reverseItems[] = {last, first};
+		auto reverseIt = storage.rbegin();
+		const auto reverseItEnd = storage.rend();
+		GAIA_FOR(2) {
+			CHECK(reverseIt != reverseItEnd);
+			CHECK(*reverseIt == reverseItems[i]);
+			++reverseIt;
+		}
+		CHECK(reverseIt == reverseItEnd);
+	};
+
+	verify(arr);
+	const auto& constArr = arr;
+	verify(constArr);
+	CHECK(constArr.front() == first);
+	CHECK(constArr.back() == last);
 }
 
 TEST_CASE("Containers - alignment check") {
