@@ -1350,6 +1350,10 @@ namespace gaia {
 
 		inline bool
 		World::save_json(ser::ser_json& writer, ser::JsonSaveFlags flags, const ser::RuntimeJsonPolicy& policy) const {
+			bool ok = true;
+			const bool includeBinarySnapshot = (flags & ser::JsonSaveFlags::BinarySnapshot) != 0;
+			const bool allowRawFallback = (flags & ser::JsonSaveFlags::RawFallback) != 0;
+
 			auto write_component_key = [&](Entity component, const ComponentCacheItem& item) {
 				if (!component.pair()) {
 					const auto componentName = comp_cache().symbol_name(item);
@@ -1395,9 +1399,48 @@ namespace gaia {
 				writer.end_object();
 			};
 
-			bool ok = true;
-			const bool includeBinarySnapshot = (flags & ser::JsonSaveFlags::BinarySnapshot) != 0;
-			const bool allowRawFallback = (flags & ser::JsonSaveFlags::RawFallback) != 0;
+			auto write_sparse_component_value = [&](Entity owner, Entity component, const ComponentCacheItem& item) {
+				const auto* pStore = sparse_component_store_erased(component);
+				const auto* pData = pStore != nullptr ? (const uint8_t*)pStore->func_get(pStore->pStore, owner) : nullptr;
+				GAIA_ASSERT(pData != nullptr);
+				if (pData == nullptr) {
+					writer.value_null();
+					ok = false;
+					return;
+				}
+
+				if (item.field_count() != 0 || detail::runtime_json_is_direct_value(item))
+					ok = ecs::component_to_json(item, pData, writer, policy) && ok;
+				else if (allowRawFallback)
+					write_raw_component(item, pData, 0, 1, 1);
+				else {
+					writer.value_null();
+					ok = false;
+				}
+			};
+
+			// Non-fragmenting ids are absent from archetype component lists. Index their owners once so
+			// each value can still be emitted inside its owner's normal semantic JSON entry.
+			EntityArrayMap nonFragmentingSparseByOwner;
+			for (const auto& [compKey, store]: m_sparseComponentsByComp) {
+				const auto component = compKey.entity();
+				if (!component_is_non_fragmenting(component) || store.func_count(store.pStore) == 0)
+					continue;
+
+				cnt::darray<Entity> owners;
+				store.func_collect_entities(store.pStore, owners);
+				for (auto owner: owners) {
+					if (valid(owner))
+						nonFragmentingSparseByOwner[EntityLookupKey(owner)].push_back(component);
+				}
+			}
+			for (auto& [owner, components]: nonFragmentingSparseByOwner) {
+				(void)owner;
+				core::sort(components, [](Entity left, Entity right) {
+					return left.value() < right.value();
+				});
+			}
+
 			ser::bin_stream binarySnapshot;
 			if (includeBinarySnapshot) {
 				auto s = ser::make_serializer(binarySnapshot);
@@ -1498,6 +1541,11 @@ namespace gaia {
 											continue;
 										}
 
+										if (gaia::ecs::component_uses_sparse_storage(rec.comp)) {
+											write_sparse_component_value(entity, component, item);
+											continue;
+										}
+
 										const auto row = component.kind() == EntityKind::EK_Uni ? 0U : i;
 
 										if ((item.field_count() != 0 || detail::runtime_json_is_direct_value(item)) &&
@@ -1511,6 +1559,22 @@ namespace gaia {
 												writer.value_null();
 												ok = false;
 											}
+										}
+									}
+
+									const auto sparseIt = nonFragmentingSparseByOwner.find(EntityLookupKey(entity));
+									if (sparseIt != nonFragmentingSparseByOwner.end()) {
+										for (auto component: sparseIt->second) {
+											const auto* pItem = comp_cache().find(component);
+											GAIA_ASSERT(pItem != nullptr);
+											if (pItem == nullptr || !write_component_key(component, *pItem)) {
+												writer.key("<unnamed>");
+												ok = false;
+											}
+											if (pItem != nullptr)
+												write_sparse_component_value(entity, component, *pItem);
+											else
+												writer.value_null();
 										}
 									}
 									writer.end_object();
@@ -1660,6 +1724,13 @@ namespace gaia {
 
 			auto locate_component_data = [&](Entity entity, Entity component) {
 				CompDataLoc loc{};
+				const auto* pItem = comp_cache().find(component);
+				if (pItem != nullptr && gaia::ecs::component_uses_sparse_storage(pItem->comp)) {
+					auto& store = sparse_component_store_erased_mut(component, *pItem);
+					loc.pBase = (uint8_t*)store.func_mut(store.pStore, entity);
+					return loc;
+				}
+
 				auto& ec = fetch(entity);
 				const auto compIdx = core::get_index(ec.pChunk->ids_view(), component);
 				if (compIdx == BadIndex)
@@ -1684,7 +1755,11 @@ namespace gaia {
 				}
 
 				if (!has_direct(entity, component)) {
-					if (component.pair())
+					if (gaia::ecs::component_uses_sparse_storage(item.comp)) {
+						auto& store = sparse_component_store_erased_mut(component, item);
+						(void)store.func_add(store.pStore, entity);
+						finish_sparse_component_add_inter(entity, component, sparse_storage_mode(component));
+					} else if (component.pair())
 						add(entity, Pair(pair_rel(*this, component), pair_tgt(*this, component)));
 					else
 						add(entity, component);

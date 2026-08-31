@@ -2247,6 +2247,88 @@ TEST_CASE("Serialization - world json") {
 	CHECK(hasUnsupportedFormatError);
 }
 
+TEST_CASE("Serialization - semantic world json preserves sparse component payloads") {
+	SUBCASE("fragmenting sparse payload") {
+		ecs::World in;
+		(void)in.add<SparseSerializedValue>();
+		const auto entity = in.add();
+		in.name(entity, "SparseFragmenting");
+		in.add<SparseSerializedValue>(entity, {42});
+
+		ser::ser_json writer;
+		CHECK(in.save_json(writer, ser::JsonSaveFlags::RawFallback));
+		CHECK(writer.str().find("\"SparseSerializedValue\":{\"$raw\":[42,0,0,0]}") != BadIndex);
+
+		ecs::World out;
+		(void)out.add<SparseSerializedValue>();
+		ser::JsonDiagnostics diagnostics;
+		CHECK(out.load_json(writer.str(), diagnostics));
+		const auto loaded = out.get("SparseFragmenting");
+		CHECK(loaded != ecs::EntityBad);
+		CHECK(out.has<SparseSerializedValue>(loaded));
+		if (out.has<SparseSerializedValue>(loaded))
+			CHECK(out.get<SparseSerializedValue>(loaded).value == 42);
+	}
+
+	SUBCASE("non-fragmenting sparse payload") {
+		ecs::World in;
+		const auto sparse = in.add<SparseSerializedValue>().entity;
+		in.add(sparse, ecs::DontFragment);
+		const auto entity = in.add();
+		in.name(entity, "SparseNonFragmenting");
+		in.add<SparseSerializedValue>(entity, {99});
+
+		ser::ser_json writer;
+		CHECK(in.save_json(writer, ser::JsonSaveFlags::RawFallback));
+		CHECK(writer.str().find("\"SparseSerializedValue\":{\"$raw\":[99,0,0,0]}") != BadIndex);
+
+		ecs::World out;
+		const auto outSparse = out.add<SparseSerializedValue>().entity;
+		out.add(outSparse, ecs::DontFragment);
+		ser::JsonDiagnostics diagnostics;
+		CHECK(out.load_json(writer.str(), diagnostics));
+		const auto loaded = out.get("SparseNonFragmenting");
+		CHECK(loaded != ecs::EntityBad);
+		CHECK(out.has<SparseSerializedValue>(loaded));
+		if (out.has<SparseSerializedValue>(loaded))
+			CHECK(out.get<SparseSerializedValue>(loaded).value == 99);
+	}
+
+	SUBCASE("non-fragmenting runtime sparse payload") {
+		ecs::World in;
+		const auto& runtimeItem = add_runtime_component(
+				in, "Semantic_Runtime_Sparse_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse,
+				(uint32_t)alignof(Position));
+		const auto runtime = runtimeItem.entity;
+		in.add(runtime, ecs::DontFragment);
+		const auto entity = in.add();
+		in.name(entity, "RuntimeSparseNonFragmenting");
+		in.add(entity, runtime, Position{10.0f, 20.0f, 30.0f});
+
+		ser::ser_json writer;
+		CHECK(in.save_json(writer, ser::JsonSaveFlags::RawFallback));
+
+		ecs::World out;
+		const auto& outRuntimeItem = add_runtime_component(
+				out, "Semantic_Runtime_Sparse_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse,
+				(uint32_t)alignof(Position));
+		const auto outRuntime = outRuntimeItem.entity;
+		out.add(outRuntime, ecs::DontFragment);
+		CHECK(outRuntime == runtime);
+		ser::JsonDiagnostics diagnostics;
+		CHECK(out.load_json(writer.str(), diagnostics));
+		const auto loaded = out.get("RuntimeSparseNonFragmenting");
+		CHECK(loaded != ecs::EntityBad);
+		CHECK(out.has(loaded, runtime));
+		if (out.has(loaded, runtime)) {
+			const auto& value = out.get<Position>(loaded, runtime);
+			CHECK(value.x == 10.0f);
+			CHECK(value.y == 20.0f);
+			CHECK(value.z == 30.0f);
+		}
+	}
+}
+
 TEST_CASE("Serialization - world json compatibility when core components are added later") {
 	TestWorld archetypeWorld;
 	const auto warmup = archetypeWorld.m_w.add();
