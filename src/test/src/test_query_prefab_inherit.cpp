@@ -841,6 +841,34 @@ TEST_CASE("Instantiate_n - non-prefab parented fallback with entity callbacks af
 		CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
 }
 
+TEST_CASE("Instantiate_n - non-prefab parented fallback copies non-fragmenting relation pairs") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	const auto target = wld.add();
+	const auto scene = wld.add();
+	const auto animal = wld.add();
+	wld.add<Position>(animal, {7, 8, 9});
+	wld.add(animal, ecs::Pair(relation, target));
+
+	uint32_t seen = 0;
+	wld.instantiate_n(animal, scene, 5, [&](ecs::Entity instance) {
+		++seen;
+		CHECK(wld.has(instance, ecs::Pair(relation, target)));
+		CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
+		const auto& pos = wld.get<Position>(instance);
+		CHECK(pos.x == doctest::Approx(7.0f));
+		CHECK(pos.y == doctest::Approx(8.0f));
+		CHECK(pos.z == doctest::Approx(9.0f));
+	});
+
+	CHECK(seen == 5);
+	auto q = wld.query().all(ecs::Pair(relation, target));
+	CHECK(q.count() == 6);
+}
+
 TEST_CASE("Observer - instantiate_n non-prefab parented fallback and Parent pair") {
 	TestWorld twld;
 

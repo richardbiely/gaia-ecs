@@ -4379,6 +4379,10 @@ TEST_CASE("Hooks") {
 		CHECK(hook_trigger_cnt == 15);
 		wld.copy_ext_n(source, 4);
 		CHECK(hook_trigger_cnt == 27);
+
+		const auto parent = wld.add();
+		wld.instantiate_n(source, parent, 2);
+		CHECK(hook_trigger_cnt == 33);
 	}
 
 	SUBCASE("del") {

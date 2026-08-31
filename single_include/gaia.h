@@ -71967,7 +71967,16 @@ namespace gaia {
 						return;
 					}
 
-					copy_n_inter(prefabEntity, count, func, EntitySpan{}, EntitySpan{}, EntitySpan{}, parentInstance);
+					cnt::darray_ext<Entity, 8> nonfragmentingPairs;
+					collect_nonfragmenting_relation_pairs(prefabEntity, nonfragmentingPairs);
+					auto* pDstArchetype = m_recs.entities[prefabEntity.id()].pArchetype;
+					if (pDstArchetype->has<EntityDesc>())
+						pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
+					cnt::darray_ext<Entity, 16> addHookIds;
+					collect_copy_add_hook_ids(prefabEntity, *pDstArchetype, EntitySpan{nonfragmentingPairs}, addHookIds);
+					copy_n_inter(
+							prefabEntity, count, func, EntitySpan{}, EntitySpan{nonfragmentingPairs}, EntitySpan{addHookIds},
+							parentInstance);
 					return;
 				}
 
