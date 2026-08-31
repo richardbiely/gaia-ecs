@@ -6462,6 +6462,13 @@ namespace gaia {
 				add(entity, Pair(ChildOf, parent));
 			}
 
+			//! Adds a `ChildOf` relationship from an exact pair record to \a parent.
+			//! \param entity Pair record receiving the ChildOf pair.
+			//! \param parent Parent target of the ChildOf pair.
+			void child(Pair entity, Entity parent) {
+				add(entity, Pair(ChildOf, parent));
+			}
+
 			//! Checks whether \a entity has a `ChildOf` relationship to \a parent.
 			//! \param entity Entity to inspect.
 			//! \param parent Candidate parent entity.
