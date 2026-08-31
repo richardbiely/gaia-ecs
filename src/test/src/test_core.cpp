@@ -20,6 +20,16 @@ TEST_CASE("StringLookupKey") {
 	CHECK(l0.hash() == l1.hash());
 }
 
+TEST_CASE("Span rejects temporary initializer-list storage") {
+	static_assert(!std::is_constructible_v<std::span<const uint32_t>, std::initializer_list<uint32_t>>);
+
+	const uint32_t values[] = {1, 2, 3};
+	const std::span<const uint32_t> view{values};
+	CHECK(view.size() == 3);
+	CHECK(view[0] == 1);
+	CHECK(view[2] == 3);
+}
+
 //------------------------------------------------------------------------------
 // Logging (for code coverage only)
 //------------------------------------------------------------------------------

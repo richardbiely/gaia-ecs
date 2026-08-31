@@ -115,14 +115,6 @@ namespace gaia {
 			constexpr T* data(T (&array)[N]) noexcept {
 				return array;
 			}
-			//! Returns a pointer to the first element of an initializer list.
-			//! \tparam E Initializer-list element type.
-			//! \param il Initializer list to inspect.
-			//! \return Pointer to the first element.
-			template <typename E>
-			constexpr const E* data(std::initializer_list<E> il) noexcept {
-				return il.begin();
-			}
 		} // namespace detail
 		//! \endcond
 

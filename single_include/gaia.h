@@ -1289,14 +1289,6 @@ namespace gaia {
 			constexpr T* data(T (&array)[N]) noexcept {
 				return array;
 			}
-			//! Returns a pointer to the first element of an initializer list.
-			//! \tparam E Initializer-list element type.
-			//! \param il Initializer list to inspect.
-			//! \return Pointer to the first element.
-			template <typename E>
-			constexpr const E* data(std::initializer_list<E> il) noexcept {
-				return il.begin();
-			}
 		} // namespace detail
 		//! \endcond
 
@@ -4446,6 +4438,7 @@ namespace tracy {
 // (See accompanying file ../../LICENSE_1_0.txt or copy at https://www.boost.org/LICENSE_1_0.txt)
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
+	#include <initializer_list>
 	#include <tuple>
 	#include <type_traits>
 
@@ -4588,6 +4581,13 @@ namespace gaia {
 			//! \tparam E Extent checked by the constructor constraint.
 			template <span_size_type E = Extent, typename std::enable_if<(E == DynamicSpanExtent || E <= 0), int>::type = 0>
 			constexpr span() noexcept {}
+
+			//! Rejects temporary initializer-list storage because its backing array expires at the end of the full
+			//! expression.
+			//! \tparam U Initializer-list element type.
+			template <
+					typename U, typename std::enable_if<std::is_convertible<U (*)[], element_kind (*)[]>::value, int>::type = 0>
+			span(std::initializer_list<U>) = delete;
 
 			//! Constructs a view over count elements starting at ptr.
 			//! \param ptr Pointer to the first element.
