@@ -1254,7 +1254,9 @@ TEST_CASE("Parent - duplicate direct set does not dispatch OnAdd again") {
 
 	const auto& cwld = wld;
 	CHECK(wld.has(ecs::Pair(ecs::Parent, root)));
-	CHECK(cwld.parent(child, root));
+	CHECK(wld.is_parent(child, root));
+	CHECK_FALSE(wld.is_parent(root, child));
+	CHECK(cwld.is_parent(child, root));
 	CHECK(hits == 1);
 }
 

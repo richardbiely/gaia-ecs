@@ -4466,9 +4466,10 @@ TEST_CASE("Exact pair records - hierarchy enable state") {
 	wld.child(pair, parent);
 	wld.add(parent, ecs::Pair(ecs::ChildOf, grandparent));
 
+	CHECK(wld.is_child(pair, parent));
+	CHECK_FALSE(wld.is_child(relation, parent));
 	const auto& constWorld = wld;
-	CHECK(constWorld.child(pair, parent));
-	CHECK_FALSE(constWorld.child(relation, parent));
+	CHECK(constWorld.is_child(pair, parent));
 	CHECK(wld.enabled_hierarchy(pair, ecs::ChildOf));
 
 	wld.enable(pair, false);

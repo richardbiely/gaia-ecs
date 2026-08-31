@@ -6472,7 +6472,7 @@ namespace gaia {
 			//! \param entity Entity to inspect.
 			//! \param parent Candidate parent entity.
 			//! \return True if \a entity is a child of \a parent. False otherwise.
-			GAIA_NODISCARD bool child(Entity entity, Entity parent) const {
+			GAIA_NODISCARD bool is_child(Entity entity, Entity parent) const {
 				return has(entity, Pair(ChildOf, parent));
 			}
 
@@ -6488,7 +6488,7 @@ namespace gaia {
 			//! \param entity Entity to inspect.
 			//! \param parentEntity Candidate parent entity.
 			//! \return True if \a entity references \a parentEntity through `Parent`. False otherwise.
-			GAIA_NODISCARD bool parent(Entity entity, Entity parentEntity) const {
+			GAIA_NODISCARD bool is_parent(Entity entity, Entity parentEntity) const {
 				return has_direct(entity, Pair(Parent, parentEntity));
 			}
 
@@ -7493,7 +7493,7 @@ namespace gaia {
 
 					if (it != m_nameToEntity.end()) {
 						curr = it->second;
-						if (parent != EntityBad && !static_cast<const World&>(*this).child(curr, parent)) {
+						if (parent != EntityBad && !is_child(curr, parent)) {
 							GAIA_ASSERT2(false, "Module path collides with an existing entity name outside the requested scope");
 							return EntityBad;
 						}
@@ -7700,7 +7700,7 @@ namespace gaia {
 			//! \param parent Candidate parent entity.
 			//! \return True when `ChildOf` or non-fragmenting `Parent` links \a child to \a parent.
 			GAIA_NODISCARD bool hierarchy_child_matches_parent(Entity child, Entity parent) const {
-				return this->child(child, parent) || this->parent(child, parent);
+				return is_child(child, parent) || is_parent(child, parent);
 			}
 
 			//! Resolves a direct or hierarchical entity name.
