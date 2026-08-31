@@ -1491,7 +1491,7 @@ A relation pair `Pair(Rel, X)` on entity `E` means `E` points at `X`. In the nam
 - `TravOrder::BreadthFirstDown`: visit targets before sources one breadth level at a time. `TravOrder::BreadthFirst` is the alias.
 - `TravOrder::ReverseBreadthFirstDown`: exact reverse of `BreadthFirstDown`.
 
-`BreadthFirstDown` works with non-fragmenting relations such as `Parent` and reuses the query's cached traversal result until the relation changes. `depth_order(...)` remains the archetype-level breadth-first path for fragmenting acyclic relations.
+`BreadthFirstDown` works with non-fragmenting relations such as `Parent` and reuses the query's cached traversal result until the relation changes. For exclusive hierarchy relations, breadth-first levels are absolute world-hierarchy depths, even when the query matches only part of the tree. Gaia-ECS shares the relation-versioned depth cache across queries and systems; entity id is the deterministic tie-break inside a level. Non-hierarchy relations retain query-relative dependency ordering. `depth_order(...)` remains the archetype-level breadth-first path for fragmenting acyclic relations.
 
 `order_by(...)` supports entity callbacks, typed callbacks, and regular `ecs::Iter&`.
 Entity and typed callbacks are the best optimized paths.
@@ -2236,6 +2236,17 @@ for (auto groupId: groups) {
 }
 ```
 
+`each_group(...)` is the compact form of the same pattern. It temporarily selects each active group, passes the selected query to the callback, and restores the previous `group_id(...)` selection afterwards.
+
+```cpp
+q.each_group([&](ecs::GroupId groupId, auto& selected) {
+  bind_asset(groupId);
+  selected.each([&](ecs::Iter& it) {
+    // Extract this asset group.
+  });
+});
+```
+
 Custom grouping function can be provided if needed. If a custom `group_by(...)` callback depends on hierarchy or relation topology, declare that explicitly with `group_dep(...)` so cached grouping is refreshed when that relation changes.
 
 ```cpp
@@ -2707,6 +2718,14 @@ bool isPrefab = w.has_direct(instance, ecs::Prefab); // false
 bool directInstance = w.has_direct(instance, ecs::Pair(ecs::Is, prefab)); // true
 ```
 
+An existing entity can replace one direct prefab/base association without changing its identity:
+
+```cpp
+bool changed = w.replace_base(instance, oldPrefab, newPrefab);
+```
+
+`replace_base(...)` commits the direct `Is` removal/addition as one structural move. Directly owned overrides, other direct bases, and already instantiated descendants are preserved. It intentionally does not reconcile an existing child instance tree with the replacement prefab; call application-specific synchronization when that behavior is required.
+
 You can also instantiate the prefab under an existing parent:
 
 ```cpp
@@ -2924,6 +2943,20 @@ w.children(root, [&](ecs::Entity directChild) {
 
 auto qChildren = w.query().children_of(root);
 ```
+
+`children(...)` is deterministic and may collect and sort temporary ids. Transform and renderer hot paths can instead consume zero-allocation storage batches:
+
+```cpp
+const auto parentPosition = w.get<Position>(root);
+w.each_child_batch(root, [&](ecs::EntitySpan batch) {
+  for (auto child: batch) {
+    // The span follows Parent bucket / ChildOf chunk storage order.
+    update_child(parentPosition, child);
+  }
+});
+```
+
+`each_child_batch(...)` emits `Parent` spans first, suppresses duplicates that also have the same exact `ChildOf` edge, and does not globally sort. Do not perform structural mutations while a callback is using its span. `hierarchy_depth(entity)` exposes the shared zero-based absolute `Parent` depth when systems need level information directly.
 
 If a system needs to inspect the exact stored shape rather than inherited or semantic data, `each_direct_id(entity, func)` visits each direct table id, sparse component id, and non-fragmenting relationship pair once in deterministic id order.
 

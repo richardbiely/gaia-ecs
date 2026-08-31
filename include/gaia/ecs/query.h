@@ -667,6 +667,12 @@ namespace gaia {
 
 				//! Walk-specific cache and scratch storage, allocated on-demand.
 				struct EachWalkData {
+					//! Absolute hierarchy depth paired with an entity for shared-depth breadth-first sorting.
+					struct DepthEntity {
+						Entity entity;
+						uint32_t depth;
+					};
+
 					//! Cached raw entity list for each_walk.
 					cnt::darray<Entity> cachedInput;
 					//! Cached ordered entity list for each_walk.
@@ -703,6 +709,8 @@ namespace gaia {
 					cnt::darray<uint32_t> scratchWriteCursor;
 					//! Scratch adjacency edges (CSR) for each_walk computation.
 					cnt::darray<uint32_t> scratchEdges;
+					//! Scratch absolute hierarchy depths materialized once before breadth-first sorting.
+					cnt::darray<DepthEntity> scratchDepthEntities;
 					//! Scratch level queue for current walk layer.
 					cnt::darray<uint32_t> scratchCurrLevel;
 					//! Scratch level queue for next walk layer.
@@ -6173,6 +6181,25 @@ namespace gaia {
 					queryInfo.group_ids(out, sortGroups);
 				}
 
+				//! Invokes \a func once for every active non-zero query group.
+				//! The callback receives `(GroupId, QueryImpl&)`; the query reference is already narrowed to that group and can
+				//! be iterated normally. The caller's previous group selection is restored before this function returns.
+				//! \tparam Func Callable accepting `(GroupId, QueryImpl&)`.
+				//! \param func Callback invoked once per active group.
+				//! \param sortGroups True to visit groups in ascending id order.
+				template <typename Func>
+				void each_group(Func func, bool sortGroups = true) {
+					cnt::darray_ext<GroupId, 16> groupIds;
+					groups(groupIds, sortGroups);
+
+					const auto previousGroupId = m_groupIdSet;
+					for (const auto groupId: groupIds) {
+						set_group_id_inter(groupId);
+						func(groupId, *this);
+					}
+					set_group_id_inter(previousGroupId);
+				}
+
 				//------------------------------------------------
 
 				//! Adds a query execution job without submitting it.
@@ -6740,142 +6767,155 @@ namespace gaia {
 						});
 
 						const auto cnt = (uint32_t)entities.size();
-
-						auto& indegree = walkData.scratchIndegree;
-						indegree.resize(cnt);
-						auto& outdegree = walkData.scratchOutdegree;
-						outdegree.resize(cnt);
-						for (uint32_t i = 0; i < cnt; ++i) {
-							indegree[i] = 0;
-							outdegree[i] = 0;
-						}
-
-						uint32_t edgeCnt = 0;
-						OrderedWalkTargetCtx edgeCtx;
-						edgeCtx.pEntities = &entities;
-						edgeCtx.cnt = cnt;
-						edgeCtx.pIndegree = &indegree;
-						edgeCtx.pOutdegree = &outdegree;
-						edgeCtx.pEdgeCnt = &edgeCnt;
-						for (uint32_t dependentIdx = 0; dependentIdx < cnt; ++dependentIdx) {
-							const auto dependent = entities[dependentIdx];
-							edgeCtx.dependentIdx = dependentIdx;
-							world_for_each_target(world, dependent, relation, &edgeCtx, &OrderedWalkTargetCtx::count_edge);
-						}
-
-						auto& offsets = walkData.scratchOffsets;
-						offsets.resize(cnt + 1);
-						offsets[0] = 0;
-						for (uint32_t i = 0; i < cnt; ++i)
-							offsets[i + 1] = offsets[i] + outdegree[i];
-
-						auto& writeCursor = walkData.scratchWriteCursor;
-						writeCursor.resize(cnt);
-						for (uint32_t i = 0; i < cnt; ++i)
-							writeCursor[i] = offsets[i];
-
-						auto& edges = walkData.scratchEdges;
-						edges.resize(edgeCnt);
-						edgeCtx.pWriteCursor = &writeCursor;
-						edgeCtx.pEdges = &edges;
-						for (uint32_t dependentIdx = 0; dependentIdx < cnt; ++dependentIdx) {
-							const auto dependent = entities[dependentIdx];
-							edgeCtx.dependentIdx = dependentIdx;
-							world_for_each_target(world, dependent, relation, &edgeCtx, &OrderedWalkTargetCtx::write_edge);
-						}
-
-						ordered.reserve(cnt);
-
 						const bool isBreadthFirst =
 								order == TravOrder::BreadthFirstDown || order == TravOrder::ReverseBreadthFirstDown;
 						const bool isUp = order == TravOrder::Up || order == TravOrder::ReverseUp;
 						const bool needsReverse = order == TravOrder::ReverseUp || order == TravOrder::ReverseDown ||
-								order == TravOrder::ReverseBreadthFirstDown;
+																			order == TravOrder::ReverseBreadthFirstDown;
 
-						auto& visited = walkData.scratchWriteCursor;
-						visited.resize(cnt);
-						for (uint32_t i = 0; i < cnt; ++i)
-							visited[i] = 0;
-
-						auto& stack = walkData.scratchCurrLevel;
-						stack.clear();
-						auto& cursorStack = walkData.scratchNextLevel;
-						cursorStack.clear();
-
-						if (isBreadthFirst) {
-							for (uint32_t i = 0; i < cnt; ++i) {
-								if (indegree[i] == 0)
-									stack.push_back(i);
+						ordered.reserve(cnt);
+						if (isBreadthFirst && world_relation_is_hierarchy(world, relation)) {
+							// Hierarchy depth is absolute rather than query-relative. The world cache is relation-versioned,
+							// so distinct queries and systems reuse the same depth computation.
+							auto& depthEntities = walkData.scratchDepthEntities;
+							depthEntities.resize(cnt);
+							GAIA_FOR(cnt) {
+								depthEntities[i] = {entities[i], world_relation_depth_cached(world, relation, entities[i])};
 							}
-
-							while (!stack.empty()) {
-								cursorStack.clear();
-								for (const auto idx: stack) {
-									if (visited[idx] != 0)
-										continue;
-									visited[idx] = 1;
-									ordered.push_back(entities[idx]);
-									for (auto edgeIdx = offsets[idx]; edgeIdx < offsets[idx + 1]; ++edgeIdx) {
-										const auto childIdx = edges[edgeIdx];
-										GAIA_ASSERT(indegree[childIdx] > 0);
-										if (--indegree[childIdx] == 0)
-											cursorStack.push_back(childIdx);
-									}
-								}
-								stack = cursorStack;
-							}
-
-							// Cycles are invalid relation data. Keep release traversal deterministic by appending leftovers by id.
-							for (uint32_t i = 0; i < cnt; ++i) {
-								if (visited[i] == 0)
-									ordered.push_back(entities[i]);
-							}
+							core::sort(depthEntities, [](const auto& left, const auto& right) {
+								return left.depth != right.depth ? left.depth < right.depth : left.entity.id() < right.entity.id();
+							});
+							ordered.resize(cnt);
+							GAIA_FOR(cnt) ordered[i] = depthEntities[i].entity;
 						} else {
-							auto append_from_root = [&](uint32_t rootIdx) {
-								stack.push_back(rootIdx);
-								cursorStack.push_back(offsets[rootIdx]);
+							auto& indegree = walkData.scratchIndegree;
+							indegree.resize(cnt);
+							auto& outdegree = walkData.scratchOutdegree;
+							outdegree.resize(cnt);
+							for (uint32_t i = 0; i < cnt; ++i) {
+								indegree[i] = 0;
+								outdegree[i] = 0;
+							}
+
+							uint32_t edgeCnt = 0;
+							OrderedWalkTargetCtx edgeCtx;
+							edgeCtx.pEntities = &entities;
+							edgeCtx.cnt = cnt;
+							edgeCtx.pIndegree = &indegree;
+							edgeCtx.pOutdegree = &outdegree;
+							edgeCtx.pEdgeCnt = &edgeCnt;
+							for (uint32_t dependentIdx = 0; dependentIdx < cnt; ++dependentIdx) {
+								const auto dependent = entities[dependentIdx];
+								edgeCtx.dependentIdx = dependentIdx;
+								world_for_each_target(world, dependent, relation, &edgeCtx, &OrderedWalkTargetCtx::count_edge);
+							}
+
+							auto& offsets = walkData.scratchOffsets;
+							offsets.resize(cnt + 1);
+							offsets[0] = 0;
+							for (uint32_t i = 0; i < cnt; ++i)
+								offsets[i + 1] = offsets[i] + outdegree[i];
+
+							auto& writeCursor = walkData.scratchWriteCursor;
+							writeCursor.resize(cnt);
+							for (uint32_t i = 0; i < cnt; ++i)
+								writeCursor[i] = offsets[i];
+
+							auto& edges = walkData.scratchEdges;
+							edges.resize(edgeCnt);
+							edgeCtx.pWriteCursor = &writeCursor;
+							edgeCtx.pEdges = &edges;
+							for (uint32_t dependentIdx = 0; dependentIdx < cnt; ++dependentIdx) {
+								const auto dependent = entities[dependentIdx];
+								edgeCtx.dependentIdx = dependentIdx;
+								world_for_each_target(world, dependent, relation, &edgeCtx, &OrderedWalkTargetCtx::write_edge);
+							}
+
+							auto& visited = walkData.scratchWriteCursor;
+							visited.resize(cnt);
+							for (uint32_t i = 0; i < cnt; ++i)
+								visited[i] = 0;
+
+							auto& stack = walkData.scratchCurrLevel;
+							stack.clear();
+							auto& cursorStack = walkData.scratchNextLevel;
+							cursorStack.clear();
+
+							if (isBreadthFirst) {
+								for (uint32_t i = 0; i < cnt; ++i) {
+									if (indegree[i] == 0)
+										stack.push_back(i);
+								}
 
 								while (!stack.empty()) {
-									const auto idx = stack.back();
-									if (visited[idx] == 0) {
+									cursorStack.clear();
+									for (const auto idx: stack) {
+										if (visited[idx] != 0)
+											continue;
 										visited[idx] = 1;
-										if (!isUp)
-											ordered.push_back(entities[idx]);
+										ordered.push_back(entities[idx]);
+										for (auto edgeIdx = offsets[idx]; edgeIdx < offsets[idx + 1]; ++edgeIdx) {
+											const auto childIdx = edges[edgeIdx];
+											GAIA_ASSERT(indegree[childIdx] > 0);
+											if (--indegree[childIdx] == 0)
+												cursorStack.push_back(childIdx);
+										}
 									}
+									stack = cursorStack;
+								}
 
-									bool pushedChild = false;
-									auto& cursor = cursorStack.back();
-									while (cursor < offsets[idx + 1]) {
-										const auto childIdx = edges[cursor++];
-										if (visited[childIdx] != 0)
+								// Cycles are invalid relation data. Keep release traversal deterministic by appending leftovers by id.
+								for (uint32_t i = 0; i < cnt; ++i) {
+									if (visited[i] == 0)
+										ordered.push_back(entities[i]);
+								}
+							} else {
+								auto append_from_root = [&](uint32_t rootIdx) {
+									stack.push_back(rootIdx);
+									cursorStack.push_back(offsets[rootIdx]);
+
+									while (!stack.empty()) {
+										const auto idx = stack.back();
+										if (visited[idx] == 0) {
+											visited[idx] = 1;
+											if (!isUp)
+												ordered.push_back(entities[idx]);
+										}
+
+										bool pushedChild = false;
+										auto& cursor = cursorStack.back();
+										while (cursor < offsets[idx + 1]) {
+											const auto childIdx = edges[cursor++];
+											if (visited[childIdx] != 0)
+												continue;
+
+											stack.push_back(childIdx);
+											cursorStack.push_back(offsets[childIdx]);
+											pushedChild = true;
+											break;
+										}
+
+										if (pushedChild)
 											continue;
 
-										stack.push_back(childIdx);
-										cursorStack.push_back(offsets[childIdx]);
-										pushedChild = true;
-										break;
+										if (isUp)
+											ordered.push_back(entities[idx]);
+										visited[idx] = 2;
+										stack.pop_back();
+										cursorStack.pop_back();
 									}
+								};
 
-									if (pushedChild)
-										continue;
-
-									if (isUp)
-										ordered.push_back(entities[idx]);
-									visited[idx] = 2;
-									stack.pop_back();
-									cursorStack.pop_back();
+								for (uint32_t i = 0; i < cnt; ++i) {
+									if (indegree[i] == 0 && visited[i] == 0)
+										append_from_root(i);
 								}
-							};
 
-							for (uint32_t i = 0; i < cnt; ++i) {
-								if (indegree[i] == 0 && visited[i] == 0)
-									append_from_root(i);
-							}
-
-							// Cycles are invalid relationship data, but keep traversal deterministic by visiting leftovers by id.
-							for (uint32_t i = 0; i < cnt; ++i) {
-								if (visited[i] == 0)
-									append_from_root(i);
+								// Cycles are invalid relationship data, but keep traversal deterministic by visiting leftovers by id.
+								for (uint32_t i = 0; i < cnt; ++i) {
+									if (visited[i] == 0)
+										append_from_root(i);
+								}
 							}
 						}
 

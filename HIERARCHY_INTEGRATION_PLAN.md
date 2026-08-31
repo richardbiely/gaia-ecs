@@ -61,3 +61,55 @@ Integrate the remaining useful hierarchy ideas described by Flecs while preservi
 - No redefinition of exact `ChildOf` query terms to hide `Parent` matches.
 - No change to the 32 archetype-id limit.
 - No single-header generation unless explicitly requested.
+
+## Follow-on integration
+
+The article review identified four smaller follow-ons after the initial hierarchy work. They are integrated under the
+same exact-semantics and measurement rules:
+
+1. Prefab/base reassociation
+   - Add an atomic `replace_base(entity, oldBase, newBase)` structural operation.
+   - Preserve entity identity, directly owned overrides, unrelated `Is` bases, and instantiated descendants.
+   - Emit the normal direct `Is` removal/addition observer effects and refresh inherited-query caches.
+
+2. Zero-allocation child batches
+   - Add `each_child_batch(parent, func)` for read-only hot paths.
+   - Expose contiguous `Parent` source buckets and `ChildOf` chunk spans without collecting or sorting.
+   - Keep `children(...)` as the deterministic merged API; batch iteration is storage order and forbids structural
+     mutation while a span is live.
+
+3. Shared hierarchy depth cache
+   - Reuse the world's relation-versioned depth cache for breadth-first ordering of exclusive hierarchy relations.
+   - Define breadth-first hierarchy ordering by absolute depth, with entity id as the deterministic within-level tie-break.
+   - Keep the generic induced-DAG traversal for non-hierarchy relations.
+   - Retain the optimization only if an optimized A/B benchmark demonstrates a benefit.
+
+4. Group iteration convenience
+   - Add `each_group(func, sortGroups)` as a thin allocation-conscious wrapper around `groups(...)` and `group_id(...)`.
+   - Save and restore the caller's selected group and expose the selected query to the callback.
+
+### Follow-on validation
+
+- Cover base replacement with inherited data, local overrides, multiple bases, direct-query invalidation, and observers.
+- Cover mixed `Parent`/`ChildOf` batch iteration, duplicate suppression, storage order, and empty parents.
+- Cover absolute hierarchy depth ordering for query subsets and invalidation after reparenting.
+- Cover sorted group enumeration and selected-group restoration.
+- Run Debug and Release unit tests and an optimized A/B benchmark isolating shared hierarchy-depth reuse.
+
+### Follow-on measured results
+
+Configuration: AppleClang 21, arm64, Release, Picobench focus settings (64 iterations), five interleaved
+baseline/candidate process runs. Baseline is commit `2ff0a919`; both trees use the identical benchmark source.
+
+- Four Parent breadth-first queries invalidated by one reparent, 10K entities:
+  - baseline median: 6,662,549 ns/op
+  - shared-depth median: 3,429,551 ns/op
+  - result: 48.5% lower time
+- One Parent breadth-first query invalidated by one reparent, 10K entities:
+  - baseline median: 2,176,739 ns/op
+  - shared-depth median: 1,356,522 ns/op
+  - result: 37.7% lower time
+- Mixed Parent/ChildOf direct-child scan, 10K children, same Release binary:
+  - deterministic `children(...)` median: 162,826 ns/op
+  - storage-order `each_child_batch(...)` median: 59,218 ns/op
+  - result: 63.6% lower time; semantics intentionally differ in ordering

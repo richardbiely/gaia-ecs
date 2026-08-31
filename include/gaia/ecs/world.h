@@ -6212,6 +6212,37 @@ namespace gaia {
 				add(entity, Pair(Is, entityBase));
 			}
 
+			//! Replaces one direct inheritance base without changing entity identity.
+			//! Directly owned ids, other direct `Is` bases, and already instantiated descendants are preserved.
+			//! The change is committed as one structural move and emits the normal direct `Is` remove/add effects.
+			//! \param entity Entity whose direct base is replaced.
+			//! \param oldBase Direct base that must currently be present.
+			//! \param newBase Replacement base. An already-present direct base is not added twice.
+			//! \return True when \a oldBase was removed, false when the replacement is a no-op or \a oldBase is not direct.
+			GAIA_NODISCARD bool replace_base(Entity entity, Entity oldBase, Entity newBase) {
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(valid(oldBase));
+				GAIA_ASSERT(valid(newBase));
+				GAIA_ASSERT(!entity.pair());
+				GAIA_ASSERT(!oldBase.pair());
+				GAIA_ASSERT(!newBase.pair());
+
+				if (oldBase == newBase)
+					return false;
+
+				const auto oldPair = Pair(Is, oldBase);
+				if (!has_direct(entity, oldPair))
+					return false;
+
+				const auto newPair = Pair(Is, newBase);
+				const bool hasNewBase = has_direct(entity, newPair);
+				auto builder = build(entity);
+				builder.del(oldPair);
+				if (!hasNewBase)
+					builder.add(newPair);
+				return true;
+			}
+
 			//! Checks if \a entity inherits from \a entityBase.
 			//! \param entity Entity
 			//! \param entityBase Base entity
@@ -6284,6 +6315,71 @@ namespace gaia {
 			GAIA_NODISCARD Entity parent(Entity entity) const {
 				auto result = target(entity, Parent);
 				return result != EntityBad ? result : target(entity, ChildOf);
+			}
+
+			//! Returns the cached absolute depth of \a entity in an exclusive hierarchy relation.
+			//! Roots have depth zero. The cache is shared by all callers and invalidated by relation changes.
+			//! \param entity Entity whose absolute hierarchy depth is requested.
+			//! \param relation Exclusive traversable hierarchy relation, `Parent` by default.
+			//! \return Zero-based absolute hierarchy depth.
+			GAIA_NODISCARD uint32_t hierarchy_depth(Entity entity, Entity relation = Parent) const {
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(relation_is_hierarchy(relation));
+				const auto depth = depth_order_cache(relation, entity);
+				return depth != 0 ? depth - 1 : 0;
+			}
+
+			//! Iterates zero-allocation direct-child batches across `Parent` and `ChildOf` storage.
+			//! `Parent` buckets are emitted first in their stored order, followed by fragmenting `ChildOf` chunk spans.
+			//! A child carrying both exact hierarchy edges to this parent is emitted only through `Parent`.
+			//! Unlike children(...), this hot-path API does not sort globally; order follows the underlying storage.
+			//! \tparam Func Callable accepting `EntitySpan`.
+			//! \param parentEntity Parent whose direct child batches are visited.
+			//! \param func Callback invoked for every non-empty contiguous child span.
+			//! \warning Structural mutation is not allowed while a callback is executing because it can invalidate the span.
+			template <typename Func>
+			void each_child_batch(Entity parentEntity, Func func) const {
+				GAIA_ASSERT(valid(parentEntity));
+
+				auto emit_runs = [&](EntitySpan entities, bool skipParentDuplicates) {
+					const auto cnt = (uint32_t)entities.size();
+					uint32_t runBegin = 0;
+					while (runBegin < cnt) {
+						while (runBegin < cnt &&
+								(!valid(entities[runBegin]) ||
+								 (skipParentDuplicates && has_direct(entities[runBegin], Pair(Parent, parentEntity)))))
+							++runBegin;
+						if (runBegin == cnt)
+							break;
+
+						uint32_t runEnd = runBegin + 1;
+						while (runEnd < cnt && valid(entities[runEnd]) &&
+								 (!skipParentDuplicates || !has_direct(entities[runEnd], Pair(Parent, parentEntity))))
+							++runEnd;
+
+						func(EntitySpan{entities.data() + runBegin, runEnd - runBegin});
+						runBegin = runEnd;
+					}
+				};
+
+				if (const auto* pStore = nonfragmenting_relation_store(Parent); pStore != nullptr) {
+					if (const auto* pSources = pStore->sources(parentEntity); pSources != nullptr)
+						emit_runs(EntitySpan{pSources->data(), pSources->size()}, false);
+				}
+
+				const auto childOfPair = Pair(ChildOf, parentEntity);
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(childOfPair));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				for (const auto& record: it->second) {
+					const auto* pArchetype = record.pArchetype;
+					if (pArchetype->is_req_del())
+						continue;
+
+					for (const auto* pChunk: pArchetype->chunks())
+						emit_runs(pChunk->entity_view(), true);
+				}
 			}
 
 			//! Iterates direct children across `Parent` and `ChildOf` storage.
@@ -15242,6 +15338,15 @@ namespace gaia {
 		//! \return True if disabled subtree pruning is valid.
 		inline bool world_relation_depth_order_prunes_disabled_subtrees(const World& world, Entity relation) {
 			return world.relation_depth_order_prunes_disabled_subtrees(relation);
+		}
+
+		//! Returns the cached absolute depth of an entity in a hierarchy relation.
+		//! \param world World to query.
+		//! \param relation Hierarchy relation to inspect.
+		//! \param entity Entity whose depth is requested.
+		//! \return Zero-based absolute hierarchy depth.
+		inline uint32_t world_relation_depth_cached(const World& world, Entity relation, Entity entity) {
+			return world.depth_order_cache(relation, entity);
 		}
 
 		//! Returns whether \a entity currently belongs to a prefab archetype.

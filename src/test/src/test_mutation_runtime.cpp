@@ -3735,6 +3735,21 @@ TEST_CASE("Query - groups") {
 	CHECK(groups.size() == 4);
 	CHECK(groups[3] == banana.id());
 	CHECK(qq.group_id(banana).count() == 1);
+
+	qq.group_id(carrot);
+	cnt::darr<ecs::GroupId> visitedGroups;
+	uint32_t groupedTotal = 0;
+	qq.each_group([&](ecs::GroupId groupId, auto& selectedQuery) {
+		visitedGroups.push_back(groupId);
+		groupedTotal += selectedQuery.count();
+	});
+	CHECK(visitedGroups.size() == 4);
+	CHECK(visitedGroups[0] == carrot.id());
+	CHECK(visitedGroups[1] == salad.id());
+	CHECK(visitedGroups[2] == apple.id());
+	CHECK(visitedGroups[3] == banana.id());
+	CHECK(groupedTotal == 5);
+	CHECK(qq.count() == 2);
 }
 
 TEST_CASE("Query - sort") {

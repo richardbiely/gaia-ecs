@@ -699,6 +699,113 @@ void BM_HierarchyBatch_QueryParentOrderBy(picobench::state& state) {
 	dont_optimize(sum + (float)entitySum);
 }
 
+//! Benchmarks four breadth-first Parent queries invalidated by the same reparent operation.
+//! The hierarchy depth cache is world-owned, so later queries should reuse depths populated by the first query.
+void BM_Query_ParentBreadthFirstSharedDepth(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_hierarchy_tree_with_position<true>(w, entities, n);
+	const auto tag0 = w.add();
+	const auto tag1 = w.add();
+	const auto tag2 = w.add();
+	const auto tag3 = w.add();
+	for (const auto entity: entities)
+		w.build(entity).add(tag0).add(tag1).add(tag2).add(tag3);
+
+	auto q0 = w.query().all<Position>().all(tag0);
+	auto q1 = w.query().all<Position>().all(tag1);
+	auto q2 = w.query().all<Position>().all(tag2);
+	auto q3 = w.query().all<Position>().all(tag3);
+	uint64_t sum = 0;
+	auto run = [&](auto& query) {
+		query.order_by(ecs::Parent, ecs::TravOrder::BreadthFirstDown).each([&](ecs::Entity entity) {
+			sum += entity.id();
+		});
+	};
+
+	run(q0);
+	run(q1);
+	run(q2);
+	run(q3);
+	sum = 0;
+	uint32_t iteration = 0;
+	for (auto _: state) {
+		(void)_;
+		w.parent(entities.back(), entities[(iteration++ & 1U) == 0 ? 0U : 1U]);
+		run(q0);
+		run(q1);
+		run(q2);
+		run(q3);
+	}
+
+	dont_optimize(sum);
+}
+
+//! Guards the cold single-query cost of absolute-depth Parent breadth-first ordering.
+void BM_Query_ParentBreadthFirstDepth(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_hierarchy_tree_with_position<true>(w, entities, n);
+	auto q = w.query().all<Position>();
+	uint64_t sum = 0;
+	q.order_by(ecs::Parent, ecs::TravOrder::BreadthFirstDown).each([&](ecs::Entity entity) {
+		sum += entity.id();
+	});
+	sum = 0;
+	uint32_t iteration = 0;
+	for (auto _: state) {
+		(void)_;
+		w.parent(entities.back(), entities[(iteration++ & 1U) == 0 ? 0U : 1U]);
+		q.order_by(ecs::Parent, ecs::TravOrder::BreadthFirstDown).each([&](ecs::Entity entity) {
+			sum += entity.id();
+		});
+	}
+
+	dont_optimize(sum);
+}
+
+template <bool UseBatches>
+void BM_Hierarchy_MixedChildren(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto root = w.add();
+	GAIA_FOR(n) {
+		const auto child = w.add();
+		if ((i & 1U) == 0)
+			w.parent(child, root);
+		else
+			w.child(child, root);
+	}
+
+	uint64_t sum = 0;
+	auto run = [&]() {
+		if constexpr (UseBatches) {
+			w.each_child_batch(root, [&](ecs::EntitySpan batch) {
+				for (const auto child: batch)
+					sum += child.id();
+			});
+		} else {
+			w.children(root, [&](ecs::Entity child) {
+				sum += child.id();
+			});
+		}
+	};
+
+	run();
+	sum = 0;
+	for (auto _: state) {
+		(void)_;
+		run();
+	}
+
+	dont_optimize(sum);
+}
+
 template <bool UseParent>
 void BM_HierarchyBatch_QueryIterBatchesPlain(picobench::state& state) {
 	const uint32_t rootCount = (uint32_t)state.user_data();
@@ -1901,6 +2008,22 @@ void register_parent(PerfRunMode mode) {
 			.PICO_SETTINGS_HEAVY()
 			.user_data(40'000)
 			.label("hierarchy batch parent order_by query 40K roots");
+	PICOBENCH_REG(BM_Query_ParentBreadthFirstSharedDepth)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query parent breadth-first shared depth x4 10K");
+	PICOBENCH_REG(BM_Query_ParentBreadthFirstDepth)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query parent breadth-first depth 10K");
+	PICOBENCH_REG(BM_Hierarchy_MixedChildren<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("hierarchy mixed deterministic children 10K");
+	PICOBENCH_REG(BM_Hierarchy_MixedChildren<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("hierarchy mixed child batches 10K");
 	PICOBENCH_REG(BM_HierarchyBatch_QueryIterBatchesPlain<false>)
 			.PICO_SETTINGS_HEAVY()
 			.user_data(40'000)

@@ -1818,3 +1818,127 @@ TEST_CASE("Parent - cached breadth-first query ordering refreshes after reparent
 	CHECK(ordered[2] == deep);
 	CHECK(ordered[3] == sibling);
 }
+
+TEST_CASE("Hierarchy - child batches expose storage spans without duplicate semantic children") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto parentA = wld.add();
+	const auto parentB = wld.add();
+	const auto duplicate = wld.add();
+	const auto childOfOnly = wld.add();
+
+	wld.parent(parentA, root);
+	wld.parent(parentB, root);
+	wld.parent(duplicate, root);
+	wld.child(duplicate, root);
+	wld.child(childOfOnly, root);
+
+	cnt::darray<ecs::Entity> children;
+	uint32_t batchCnt = 0;
+	wld.each_child_batch(root, [&](ecs::EntitySpan batch) {
+		CHECK_FALSE(batch.empty());
+		++batchCnt;
+		for (const auto entity: batch)
+			children.push_back(entity);
+	});
+
+	CHECK(batchCnt == 2);
+	CHECK(children.size() == 4);
+	if (children.size() != 4)
+		return;
+	CHECK(children[0] == parentA);
+	CHECK(children[1] == parentB);
+	CHECK(children[2] == duplicate);
+	CHECK(children[3] == childOfOnly);
+
+	uint32_t emptyBatchCnt = 0;
+	wld.each_child_batch(childOfOnly, [&](ecs::EntitySpan) {
+		++emptyBatchCnt;
+	});
+	CHECK(emptyBatchCnt == 0);
+}
+
+TEST_CASE("Parent - breadth-first subsets use shared absolute hierarchy depth") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto branch = wld.add();
+	const auto deep = wld.add();
+	const auto shallow = wld.add();
+	wld.parent(branch, root);
+	wld.parent(deep, branch);
+	wld.parent(shallow, root);
+	wld.add<Position>(deep);
+	wld.add<Position>(shallow);
+
+	CHECK(wld.hierarchy_depth(root) == 0);
+	CHECK(wld.hierarchy_depth(branch) == 1);
+	CHECK(wld.hierarchy_depth(deep) == 2);
+	CHECK(wld.hierarchy_depth(shallow) == 1);
+
+	auto query = wld.query().all<Position>();
+	auto collect = [&]() {
+		cnt::darray<ecs::Entity> result;
+		query.order_by(ecs::Parent, ecs::TravOrder::BreadthFirstDown).each([&](ecs::Entity entity) {
+			result.push_back(entity);
+		});
+		return result;
+	};
+
+	auto ordered = collect();
+	CHECK(ordered.size() == 2);
+	if (ordered.size() != 2)
+		return;
+	CHECK(ordered[0] == shallow);
+	CHECK(ordered[1] == deep);
+
+	wld.parent(deep, root);
+	CHECK(wld.hierarchy_depth(deep) == 1);
+	ordered = collect();
+	CHECK(ordered.size() == 2);
+	if (ordered.size() != 2)
+		return;
+	CHECK(ordered[0] == deep);
+	CHECK(ordered[1] == shallow);
+}
+
+TEST_CASE("ChildOf - breadth-first subsets use shared absolute hierarchy depth") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto branch = wld.add();
+	const auto deep = wld.add();
+	const auto shallow = wld.add();
+	wld.child(branch, root);
+	wld.child(deep, branch);
+	wld.child(shallow, root);
+	wld.add<Position>(deep);
+	wld.add<Position>(shallow);
+
+	CHECK(wld.hierarchy_depth(root, ecs::ChildOf) == 0);
+	CHECK(wld.hierarchy_depth(branch, ecs::ChildOf) == 1);
+	CHECK(wld.hierarchy_depth(deep, ecs::ChildOf) == 2);
+	CHECK(wld.hierarchy_depth(shallow, ecs::ChildOf) == 1);
+
+	auto query = wld.query().all<Position>();
+	cnt::darray<ecs::Entity> ordered;
+	query.order_by(ecs::ChildOf, ecs::TravOrder::BreadthFirstDown).each([&](ecs::Entity entity) {
+		ordered.push_back(entity);
+	});
+	CHECK(ordered.size() == 2);
+	if (ordered.size() != 2)
+		return;
+	CHECK(ordered[0] == shallow);
+	CHECK(ordered[1] == deep);
+
+	ordered.clear();
+	query.order_by(ecs::ChildOf, ecs::TravOrder::ReverseBreadthFirstDown).each([&](ecs::Entity entity) {
+		ordered.push_back(entity);
+	});
+	CHECK(ordered.size() == 2);
+	if (ordered.size() != 2)
+		return;
+	CHECK(ordered[0] == deep);
+	CHECK(ordered[1] == shallow);
+}

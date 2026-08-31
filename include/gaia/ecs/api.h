@@ -87,6 +87,8 @@ namespace gaia {
 		bool world_relation_supports_depth_order(const World& world, Entity relation);
 		//! Returns whether depth-order traversal for \a relation skips disabled subtrees.
 		bool world_relation_depth_order_prunes_disabled_subtrees(const World& world, Entity relation);
+		//! Returns the shared one-based absolute depth cached for an entity in a relation graph.
+		uint32_t world_relation_depth_cached(const World& world, Entity relation, Entity entity);
 		template <typename T>
 		decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
 

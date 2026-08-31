@@ -146,6 +146,74 @@ TEST_CASE("Prefab - inherited query survives empty before iteration") {
 	CHECK(sumEach == 6ULL * InstanceCnt);
 }
 
+TEST_CASE("Prefab - replacing a direct base preserves identity overrides and unrelated bases") {
+	TestWorld twld;
+
+	const auto position = wld.add<Position>().entity;
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto prefabA = wld.prefab();
+	const auto prefabB = wld.prefab();
+	const auto mixin = wld.prefab();
+	wld.add<Position>(prefabA, {3, 0, 0});
+	wld.add<Position>(prefabB, {9, 0, 0});
+
+	const auto instance = wld.instantiate(prefabA);
+	wld.as(instance, mixin);
+	const auto child = wld.add();
+	wld.parent(child, instance);
+
+	ecs::QueryTermOptions direct;
+	direct.direct();
+	uint32_t oldBaseRemoved = 0;
+	uint32_t newBaseAdded = 0;
+	wld.observer()
+			.event(ecs::ObserverEvent::OnDel)
+			.all(ecs::Pair(ecs::Is, prefabA), direct)
+			.on_each([&](ecs::Iter&) {
+				++oldBaseRemoved;
+			});
+	wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all(ecs::Pair(ecs::Is, prefabB), direct)
+			.on_each([&](ecs::Iter&) {
+				++newBaseAdded;
+			});
+
+	auto inheritedPositions = wld.query().all<Position>();
+	float inheritedX = 0.0f;
+	inheritedPositions.each([&](const Position& value) {
+		inheritedX += value.x;
+	});
+	CHECK(inheritedX == doctest::Approx(3.0f));
+
+	CHECK(wld.replace_base(instance, prefabA, prefabB));
+	CHECK(wld.valid(instance));
+	CHECK_FALSE(wld.has_direct(instance, ecs::Pair(ecs::Is, prefabA)));
+	CHECK(wld.has_direct(instance, ecs::Pair(ecs::Is, prefabB)));
+	CHECK(wld.has_direct(instance, ecs::Pair(ecs::Is, mixin)));
+	CHECK(wld.parent(child) == instance);
+	CHECK(oldBaseRemoved == 1);
+	CHECK(newBaseAdded == 1);
+
+	inheritedX = 0.0f;
+	inheritedPositions.each([&](const Position& value) {
+		inheritedX += value.x;
+	});
+	CHECK(inheritedX == doctest::Approx(9.0f));
+
+	CHECK(wld.override<Position>(instance));
+	wld.set<Position>(instance) = {77, 0, 0};
+	CHECK(wld.replace_base(instance, prefabB, prefabA));
+	CHECK(wld.get<Position>(instance).x == doctest::Approx(77.0f));
+	CHECK(wld.has_direct(instance, position));
+	CHECK(wld.has_direct(instance, ecs::Pair(ecs::Is, mixin)));
+	CHECK(wld.parent(child) == instance);
+
+	CHECK_FALSE(wld.replace_base(instance, prefabA, prefabA));
+	CHECK_FALSE(wld.replace_base(instance, prefabB, mixin));
+}
+
 TEST_CASE("Prefab - explicit override and inherited ownership") {
 	TestWorld twld;
 
