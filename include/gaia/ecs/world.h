@@ -4104,6 +4104,19 @@ namespace gaia {
 				builder.commit();
 			}
 
+			//! Attaches a relationship pair to an exact pair record.
+			//! \param entity Pair record receiving the relationship.
+			//! \param pair Pair to attach.
+			//! \warning It is expected \a entity and the entities forming \a pair are valid.
+			//!          Undefined behavior otherwise.
+			void add(Pair entity, Pair pair) {
+				const auto source = (Entity)entity;
+				auto& ec = fetch(source);
+				EntityBuilder builder(*this, source, ec);
+				builder.add(pair);
+				builder.commit();
+			}
+
 			//! Attaches a new component \a T to \a entity.
 			//! \tparam T Component
 			//! \param entity Entity

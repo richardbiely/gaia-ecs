@@ -1370,6 +1370,18 @@ TEST_CASE("Pair") {
 	}
 	{
 		TestWorld twld;
+		const auto relation = wld.add();
+		const auto target = wld.add();
+		const auto source = wld.add();
+		const auto pair = ecs::Pair(relation, target);
+		wld.add(source, pair);
+
+		wld.add(pair, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+		CHECK(wld.has_direct((ecs::Entity)pair, ecs::Pair(ecs::OnInstantiate, ecs::Inherit)));
+		CHECK(wld.target((ecs::Entity)pair, ecs::OnInstantiate) == ecs::Inherit);
+	}
+	{
+		TestWorld twld;
 		auto a = wld.add<Position>().entity;
 		auto b = wld.add<ecs::Requires_>().entity;
 		auto p = ecs::Pair(a, b);
