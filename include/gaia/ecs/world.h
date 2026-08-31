@@ -10264,7 +10264,9 @@ namespace gaia {
 					GAIA_FOR(pairsCnt) {
 						EntityContainer ec{};
 						loadEntityContainer(ec);
-						const auto pair = EntityContainer::handle(ec);
+						// Pair record containers identify their chunk row as an entity. Rebuild the canonical
+						// pair key from its live endpoints so the lookup key keeps the entity bit clear.
+						const Entity pair = Pair(m_recs.entities.handle(ec.idx), m_recs.entities.handle(ec.data.gen));
 						const bool added = m_recs.pair_record_try_add(pair, GAIA_MOV(ec));
 						GAIA_ASSERT(added);
 					}

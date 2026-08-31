@@ -1923,6 +1923,34 @@ TEST_CASE("Serialization - world preserves Parent non-fragmenting relations") {
 		CHECK(sources[0] == loadedChild);
 }
 
+TEST_CASE("Serialization - world preserves exact pair records") {
+	ecs::World in;
+	(void)in.add<Position>();
+
+	const auto relation = in.add();
+	const auto target = in.add();
+	const auto owner = in.add();
+	const auto pair = ecs::Pair(relation, target);
+	in.add(owner, pair);
+	in.add<Position>(pair, {1.0f, 2.0f, 3.0f});
+
+	ser::bin_stream buffer;
+	in.set_serializer(buffer);
+	in.save();
+
+	TestWorld twld;
+	(void)wld.add<Position>();
+	CHECK(wld.load(buffer));
+	CHECK(wld.has(pair));
+	CHECK(wld.has(owner, pair));
+	CHECK(wld.has<Position>(pair));
+	const auto& position = wld.get<Position>(pair);
+	CHECK(position.x == 1.0f);
+	CHECK(position.y == 2.0f);
+	CHECK(position.z == 3.0f);
+	CHECK(wld.query().all<Position>().count() == 1);
+}
+
 TEST_CASE("Serialization - world compatibility when core components are added later") {
 	TestWorld archetypeWorld;
 	const auto warmup = archetypeWorld.m_w.add();
