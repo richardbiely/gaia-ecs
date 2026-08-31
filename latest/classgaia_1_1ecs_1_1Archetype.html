@@ -268,10 +268,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>observed_terms_dec</b
 <tr class="memitem:a6291698ffcd61476637cf62f26da4dbb"><td class="memTemplItemLeft" align="right" valign="top">const void *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a6291698ffcd61476637cf62f26da4dbb">get_flat_comp_ptr</a> (uint32_t compIdx, size_t flatIdx, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &amp;outEntity) const</td></tr>
 <tr class="memdesc:a6291698ffcd61476637cf62f26da4dbb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Given a flat index, returns pointer to component data at that index. E.g., if there are 2 chunks, the first one with 10 entities and the second one with 5, flat index of 12 means component data for the second entity inside the second chunk.  <br /></td></tr>
 <tr class="separator:a6291698ffcd61476637cf62f26da4dbb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a46e83a6634d06049f841d31ac539f05e" id="r_a46e83a6634d06049f841d31ac539f05e"><td class="memTemplParams" colspan="2"><a id="a46e83a6634d06049f841d31ac539f05e" name="a46e83a6634d06049f841d31ac539f05e"></a>
-template&lt;bool Enabled&gt; </td></tr>
-<tr class="memitem:a46e83a6634d06049f841d31ac539f05e"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>sort_entities_inter</b> (size_t low, size_t high, TSortByFunc func)</td></tr>
-<tr class="memdesc:a46e83a6634d06049f841d31ac539f05e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Generic in-place quicksort across chunks. <br /></td></tr>
+<tr class="memitem:a46e83a6634d06049f841d31ac539f05e" id="r_a46e83a6634d06049f841d31ac539f05e"><td class="memTemplParams" colspan="2">template&lt;bool Enabled&gt; </td></tr>
+<tr class="memitem:a46e83a6634d06049f841d31ac539f05e"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a46e83a6634d06049f841d31ac539f05e">sort_entities_inter</a> (size_t low, size_t high, TSortByFunc func)</td></tr>
+<tr class="memdesc:a46e83a6634d06049f841d31ac539f05e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Generic in-place quicksort across chunks.  <br /></td></tr>
 <tr class="separator:a46e83a6634d06049f841d31ac539f05e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a12f6280c886c04f2541d97531ba92721" id="r_a12f6280c886c04f2541d97531ba92721"><td class="memTemplParams" colspan="2"><a id="a12f6280c886c04f2541d97531ba92721" name="a12f6280c886c04f2541d97531ba92721"></a>
 template&lt;bool Enabled&gt; </td></tr>
@@ -2501,6 +2500,53 @@ template&lt;typename T &gt; </div>
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a id="a46e83a6634d06049f841d31ac539f05e" name="a46e83a6634d06049f841d31ac539f05e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a46e83a6634d06049f841d31ac539f05e">&#9670;&#160;</a></span>sort_entities_inter()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;bool Enabled&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::Archetype::sort_entities_inter </td>
+          <td>(</td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>low</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>high</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">TSortByFunc&#160;</td>
+          <td class="paramname"><em>func</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Generic in-place quicksort across chunks. </p>
+<p>Recurse into the smaller partition and iterate over the larger one so ordered inputs cannot make recursion depth linear in the entity count.</p>
 
 </div>
 </div>

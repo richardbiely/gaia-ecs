@@ -3,6 +3,8 @@ var structgaia_1_1ecs_1_1World_1_1EntityBuilder =
     [ "RelationMutationPath", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a2659239871e11408896abe8339c58428", null ],
     [ "EntityBuilder", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a82a7cf01111be90c172e7954b0027338", null ],
     [ "EntityBuilder", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a70652f5330d2f2f0646e975e619801e0", null ],
+    [ "EntityBuilder", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a6f5c553dd5f5616cdc2c476f4f275a67", null ],
+    [ "EntityBuilder", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#ad2a49bff693cd286a3e1eeee3447e15b", null ],
     [ "add", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a49b2d0f60d8e083ae6eca7a15c02ea94", null ],
     [ "add", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a5e758f62ad12d8d972113f2969b529ec", null ],
     [ "add", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a4bb2101968360833e1d5c5f61cbb1071", null ],

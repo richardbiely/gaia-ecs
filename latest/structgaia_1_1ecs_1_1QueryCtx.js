@@ -30,7 +30,12 @@ var structgaia_1_1ecs_1_1QueryCtx =
       [ "SingleAllDirect", "structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063cafcaca7329ff24b8a2ec74fa08d5125c7", null ],
       [ "SingleAllSemanticIs", "structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063cacd9add9c689290bb177b817ea41963e4", null ],
       [ "SingleAllInIs", "structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063caf444b0e1e2aa950729534c1a4df7debb", null ],
-      [ "SingleAllInherited", "structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063cae81c4d5a37f341121c0220f9e998caed", null ]
+      [ "SingleAllInherited", "structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063cae81c4d5a37f341121c0220f9e998caed", null ],
+      [ "SingleAllDirectMixed", "structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063ca2ee63533de1302af77d6f265aa9a52e5", null ],
+      [ "SingleAllDirectMixedDirect", "structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063ca3c10d5fabb6c6e9f1060b826b508d628", null ],
+      [ "SingleAllSemanticIsMixed", "structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063ca0999f998b9e45c346d8954e45269d07e", null ],
+      [ "SingleAllInIsMixed", "structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063cae92c9bdc74c1afc1aadf2a32f369f808", null ],
+      [ "SingleAllInheritedMixed", "structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063ca7052d45fb9edbd849118176e0312521c", null ]
     ] ],
     [ "DynamicCacheKind", "structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6", [
       [ "None", "structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6a6adf97f83acf6453d4a6a4b1070f3754", null ],

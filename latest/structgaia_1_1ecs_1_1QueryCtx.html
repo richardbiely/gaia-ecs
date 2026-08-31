@@ -178,6 +178,12 @@ Public Types</h2></td></tr>
 , <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063caf444b0e1e2aa950729534c1a4df7debb">SingleAllInIs</a>
 , <br />
 &#160;&#160;<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063cae81c4d5a37f341121c0220f9e998caed">SingleAllInherited</a>
+, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063ca2ee63533de1302af77d6f265aa9a52e5">SingleAllDirectMixed</a>
+, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063ca3c10d5fabb6c6e9f1060b826b508d628">SingleAllDirectMixedDirect</a>
+, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063ca0999f998b9e45c346d8954e45269d07e">SingleAllSemanticIsMixed</a>
+, <br />
+&#160;&#160;<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063cae92c9bdc74c1afc1aadf2a32f369f808">SingleAllInIsMixed</a>
+, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063ca7052d45fb9edbd849118176e0312521c">SingleAllInheritedMixed</a>
 <br />
  }</td></tr>
 <tr class="memdesc:ab8166867f88443ab6730b17e3e3b063c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Specialized evaluation shape for concrete target entities.  <a href="structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063c">More...</a><br /></td></tr>
@@ -389,6 +395,16 @@ struct <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">gaia::ecs
 <tr><td class="fieldname"><a id="ab8166867f88443ab6730b17e3e3b063caf444b0e1e2aa950729534c1a4df7debb" name="ab8166867f88443ab6730b17e3e3b063caf444b0e1e2aa950729534c1a4df7debb"></a>SingleAllInIs&#160;</td><td class="fielddoc"><p>Evaluates one required inherited-inclusive Is term. </p>
 </td></tr>
 <tr><td class="fieldname"><a id="ab8166867f88443ab6730b17e3e3b063cae81c4d5a37f341121c0220f9e998caed" name="ab8166867f88443ab6730b17e3e3b063cae81c4d5a37f341121c0220f9e998caed"></a>SingleAllInherited&#160;</td><td class="fielddoc"><p>Evaluates one required term through inherited component data. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ab8166867f88443ab6730b17e3e3b063ca2ee63533de1302af77d6f265aa9a52e5" name="ab8166867f88443ab6730b17e3e3b063ca2ee63533de1302af77d6f265aa9a52e5"></a>SingleAllDirectMixed&#160;</td><td class="fielddoc"><p>Evaluates one required direct-storage term before remaining direct terms. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ab8166867f88443ab6730b17e3e3b063ca3c10d5fabb6c6e9f1060b826b508d628" name="ab8166867f88443ab6730b17e3e3b063ca3c10d5fabb6c6e9f1060b826b508d628"></a>SingleAllDirectMixedDirect&#160;</td><td class="fielddoc"><p>Evaluates one required direct-storage term before remaining direct-storage terms. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ab8166867f88443ab6730b17e3e3b063ca0999f998b9e45c346d8954e45269d07e" name="ab8166867f88443ab6730b17e3e3b063ca0999f998b9e45c346d8954e45269d07e"></a>SingleAllSemanticIsMixed&#160;</td><td class="fielddoc"><p>Evaluates one required semantic Is term before remaining direct terms. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ab8166867f88443ab6730b17e3e3b063cae92c9bdc74c1afc1aadf2a32f369f808" name="ab8166867f88443ab6730b17e3e3b063cae92c9bdc74c1afc1aadf2a32f369f808"></a>SingleAllInIsMixed&#160;</td><td class="fielddoc"><p>Evaluates one required inherited-inclusive Is term before remaining direct terms. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ab8166867f88443ab6730b17e3e3b063ca7052d45fb9edbd849118176e0312521c" name="ab8166867f88443ab6730b17e3e3b063ca7052d45fb9edbd849118176e0312521c"></a>SingleAllInheritedMixed&#160;</td><td class="fielddoc"><p>Evaluates one required inherited-data term before remaining direct terms. </p>
 </td></tr>
 </table>
 

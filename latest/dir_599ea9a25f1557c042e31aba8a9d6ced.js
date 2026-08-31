@@ -28,6 +28,7 @@ var dir_599ea9a25f1557c042e31aba8a9d6ced =
     [ "nonfragmenting_relation_store.h", "nonfragmenting__relation__store_8h_source.html", null ],
     [ "observer.h", "observer_8h_source.html", null ],
     [ "observer.inl", "observer_8inl_source.html", null ],
+    [ "observer_event.h", "observer__event_8h_source.html", null ],
     [ "observer_registry.h", "observer__registry_8h_source.html", null ],
     [ "pair_lookup.h", "pair__lookup_8h_source.html", null ],
     [ "query.h", "query_8h_source.html", null ],

@@ -135,10 +135,10 @@ using&#160;</td><td class="memItemRight" valign="bottom"><b>value_type</b> = typ
 using&#160;</td><td class="memItemRight" valign="bottom"><b>size_type</b> = span_size_type</td></tr>
 <tr class="memdesc:a494915256b3002d9d7bceb0e321c3eed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Type used for element counts. <br /></td></tr>
 <tr class="separator:a494915256b3002d9d7bceb0e321c3eed"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8246a7545857f5d615349e59dbeb1582" id="r_a8246a7545857f5d615349e59dbeb1582"><td class="memItemLeft" align="right" valign="top"><a id="a8246a7545857f5d615349e59dbeb1582" name="a8246a7545857f5d615349e59dbeb1582"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>difference_type</b> = span_diff_type</td></tr>
-<tr class="memdesc:a8246a7545857f5d615349e59dbeb1582"><td class="mdescLeft">&#160;</td><td class="mdescRight">Type used for iterator differences. <br /></td></tr>
-<tr class="separator:a8246a7545857f5d615349e59dbeb1582"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a48cd8355b8a6c2327c4f789913aa70be" id="r_a48cd8355b8a6c2327c4f789913aa70be"><td class="memItemLeft" align="right" valign="top"><a id="a48cd8355b8a6c2327c4f789913aa70be" name="a48cd8355b8a6c2327c4f789913aa70be"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>difference_type</b> = span_difference_type</td></tr>
+<tr class="memdesc:a48cd8355b8a6c2327c4f789913aa70be"><td class="mdescLeft">&#160;</td><td class="mdescRight">Type used for iterator differences. <br /></td></tr>
+<tr class="separator:a48cd8355b8a6c2327c4f789913aa70be"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3e1ae557ea433504cb15dd74ce443d39" id="r_a3e1ae557ea433504cb15dd74ce443d39"><td class="memItemLeft" align="right" valign="top"><a id="a3e1ae557ea433504cb15dd74ce443d39" name="a3e1ae557ea433504cb15dd74ce443d39"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>pointer</b> = <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a> *</td></tr>
 <tr class="memdesc:a3e1ae557ea433504cb15dd74ce443d39"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to an element. <br /></td></tr>
@@ -178,6 +178,10 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a392704c1d8db51aea85110303f4c5181"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a392704c1d8db51aea85110303f4c5181">span</a> () noexcept</td></tr>
 <tr class="memdesc:a392704c1d8db51aea85110303f4c5181"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs an empty span when its extent permits an empty view.  <br /></td></tr>
 <tr class="separator:a392704c1d8db51aea85110303f4c5181"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af5da9cd380540beaea45da139fff2d5c" id="r_af5da9cd380540beaea45da139fff2d5c"><td class="memTemplParams" colspan="2">template&lt;typename U , typename std::enable_if&lt; std::is_convertible&lt; U(*)[], <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>(*)[]&gt;::value, int &gt;::type  = 0&gt; </td></tr>
+<tr class="memitem:af5da9cd380540beaea45da139fff2d5c"><td class="memTemplItemLeft" align="right" valign="top">&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#af5da9cd380540beaea45da139fff2d5c">span</a> (std::initializer_list&lt; U &gt;)=delete</td></tr>
+<tr class="memdesc:af5da9cd380540beaea45da139fff2d5c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Rejects temporary initializer-list storage because its backing array expires at the end of the full expression.  <br /></td></tr>
+<tr class="separator:af5da9cd380540beaea45da139fff2d5c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8cdd1e95f0e23dd08b04e7cae48c5c28" id="r_a8cdd1e95f0e23dd08b04e7cae48c5c28"><td class="memItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a8cdd1e95f0e23dd08b04e7cae48c5c28">span</a> (<a class="el" href="classgaia_1_1core_1_1span.html#a3e1ae557ea433504cb15dd74ce443d39">pointer</a> ptr, <a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a> count)</td></tr>
 <tr class="memdesc:a8cdd1e95f0e23dd08b04e7cae48c5c28"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a view over count elements starting at ptr.  <br /></td></tr>
 <tr class="separator:a8cdd1e95f0e23dd08b04e7cae48c5c28"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -311,7 +315,7 @@ template&lt;span_size_type Offset, span_size_type Count = DynamicSpanExtent&gt; 
 </div>
 <h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="a392704c1d8db51aea85110303f4c5181" name="a392704c1d8db51aea85110303f4c5181"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a392704c1d8db51aea85110303f4c5181">&#9670;&#160;</a></span>span() <span class="overload">[1/7]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a392704c1d8db51aea85110303f4c5181">&#9670;&#160;</a></span>span() <span class="overload">[1/8]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -347,8 +351,46 @@ template&lt;span_size_type E = Extent, typename std::enable_if&lt;(E==DynamicSpa
 
 </div>
 </div>
+<a id="af5da9cd380540beaea45da139fff2d5c" name="af5da9cd380540beaea45da139fff2d5c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af5da9cd380540beaea45da139fff2d5c">&#9670;&#160;</a></span>span() <span class="overload">[2/8]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<div class="memtemplate">
+template&lt;typename U , typename std::enable_if&lt; std::is_convertible&lt; U(*)[], <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>(*)[]&gt;::value, int &gt;::type  = 0&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::span </td>
+          <td>(</td>
+          <td class="paramtype">std::initializer_list&lt; U &gt;&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">delete</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Rejects temporary initializer-list storage because its backing array expires at the end of the full expression. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">U</td><td>Initializer-list element type. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="a8cdd1e95f0e23dd08b04e7cae48c5c28" name="a8cdd1e95f0e23dd08b04e7cae48c5c28"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a8cdd1e95f0e23dd08b04e7cae48c5c28">&#9670;&#160;</a></span>span() <span class="overload">[2/7]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a8cdd1e95f0e23dd08b04e7cae48c5c28">&#9670;&#160;</a></span>span() <span class="overload">[3/8]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -395,7 +437,7 @@ template&lt;typename T , span_size_type Extent&gt; </div>
 </div>
 </div>
 <a id="ae9e5f500a7ebced33ed6bacc966257d3" name="ae9e5f500a7ebced33ed6bacc966257d3"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae9e5f500a7ebced33ed6bacc966257d3">&#9670;&#160;</a></span>span() <span class="overload">[3/7]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ae9e5f500a7ebced33ed6bacc966257d3">&#9670;&#160;</a></span>span() <span class="overload">[4/8]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -442,7 +484,7 @@ template&lt;typename T , span_size_type Extent&gt; </div>
 </div>
 </div>
 <a id="a284770cbf43a8f3ec092845651040c9e" name="a284770cbf43a8f3ec092845651040c9e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a284770cbf43a8f3ec092845651040c9e">&#9670;&#160;</a></span>span() <span class="overload">[4/7]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a284770cbf43a8f3ec092845651040c9e">&#9670;&#160;</a></span>span() <span class="overload">[5/8]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -487,7 +529,7 @@ template&lt;span_size_type N, span_size_type E = Extent, typename std::enable_if
 </div>
 </div>
 <a id="ae6280690ee2a6c1c592fd94db396b05e" name="ae6280690ee2a6c1c592fd94db396b05e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae6280690ee2a6c1c592fd94db396b05e">&#9670;&#160;</a></span>span() <span class="overload">[5/7]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ae6280690ee2a6c1c592fd94db396b05e">&#9670;&#160;</a></span>span() <span class="overload">[6/8]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -532,7 +574,7 @@ template&lt;typename Container , span_size_type E = Extent, typename std::enable
 </div>
 </div>
 <a id="a08992eefb09df6dfdb2070e4d572e000" name="a08992eefb09df6dfdb2070e4d572e000"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a08992eefb09df6dfdb2070e4d572e000">&#9670;&#160;</a></span>span() <span class="overload">[6/7]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a08992eefb09df6dfdb2070e4d572e000">&#9670;&#160;</a></span>span() <span class="overload">[7/8]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -577,7 +619,7 @@ template&lt;typename Container , span_size_type E = Extent, typename std::enable
 </div>
 </div>
 <a id="a5fd0d51bddbb24758db9ab493d76f213" name="a5fd0d51bddbb24758db9ab493d76f213"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a5fd0d51bddbb24758db9ab493d76f213">&#9670;&#160;</a></span>span() <span class="overload">[7/7]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a5fd0d51bddbb24758db9ab493d76f213">&#9670;&#160;</a></span>span() <span class="overload">[8/8]</span></h2>
 
 <div class="memitem">
 <div class="memproto">

@@ -165,6 +165,15 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</t
 <tr class="memitem:a05dc2ba218a8155a3090e809641b18e8" id="r_a05dc2ba218a8155a3090e809641b18e8"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const EntityContainer &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a05dc2ba218a8155a3090e809641b18e8">fetch</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a05dc2ba218a8155a3090e809641b18e8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the internal record for <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a05dc2ba218a8155a3090e809641b18e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afe3d7f40383ba37593820ff0a37593b3" id="r_afe3d7f40383ba37593820ff0a37593b3"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#afe3d7f40383ba37593820ff0a37593b3">entity_deletion_active</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
+<tr class="memdesc:afe3d7f40383ba37593820ff0a37593b3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>entity</em> is already being processed by the deletion pipeline.  <br /></td></tr>
+<tr class="separator:afe3d7f40383ba37593820ff0a37593b3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a59b614efd2f2e118c06107d820506a07" id="r_a59b614efd2f2e118c06107d820506a07"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a59b614efd2f2e118c06107d820506a07">entity_deletion_enter</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:a59b614efd2f2e118c06107d820506a07"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks <em>entity</em> as active in the deletion pipeline.  <br /></td></tr>
+<tr class="separator:a59b614efd2f2e118c06107d820506a07"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6774d1f65aade3e9b71829390706d4d7" id="r_a6774d1f65aade3e9b71829390706d4d7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6774d1f65aade3e9b71829390706d4d7">entity_deletion_leave</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:a6774d1f65aade3e9b71829390706d4d7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes <em>entity</em> from the active deletion stack.  <br /></td></tr>
+<tr class="separator:a6774d1f65aade3e9b71829390706d4d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa7fd7f2406bece2c286f7398acc779e6" id="r_aa7fd7f2406bece2c286f7398acc779e6"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aa7fd7f2406bece2c286f7398acc779e6">is_dont_fragment</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:aa7fd7f2406bece2c286f7398acc779e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>entity</em> is marked DontFragment.  <br /></td></tr>
 <tr class="separator:aa7fd7f2406bece2c286f7398acc779e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -256,6 +265,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</t
 <tr class="memitem:a7921a3944257d9dee186158880ad7581"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a7921a3944257d9dee186158880ad7581">sparse_component_get_value</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a7921a3944257d9dee186158880ad7581"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a read-only sparse value through the store's erased payload interface.  <br /></td></tr>
 <tr class="separator:a7921a3944257d9dee186158880ad7581"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a923c22e40cc89e9d615c0b46388f8032" id="r_a923c22e40cc89e9d615c0b46388f8032"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a923c22e40cc89e9d615c0b46388f8032"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a923c22e40cc89e9d615c0b46388f8032">sparse_component_get_entity_value</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
+<tr class="memdesc:a923c22e40cc89e9d615c0b46388f8032"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a read-only sparse value for an ordinary entity without pair dispatch.  <br /></td></tr>
+<tr class="separator:a923c22e40cc89e9d615c0b46388f8032"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a116371a8869ff53d26d9ac8690d8b43f" id="r_a116371a8869ff53d26d9ac8690d8b43f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const SparseComponentStoreErased *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a116371a8869ff53d26d9ac8690d8b43f">sparse_component_store_erased</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
 <tr class="memdesc:a116371a8869ff53d26d9ac8690d8b43f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the erased sparse store for <em>component</em>, or nullptr when absent.  <br /></td></tr>
 <tr class="separator:a116371a8869ff53d26d9ac8690d8b43f"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -382,6 +395,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memitem:ae58666166cac05d54064463aa9ee7289"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae58666166cac05d54064463aa9ee7289">add_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, uint32_t count, Func func=func_void_with_entity)</td></tr>
 <tr class="memdesc:ae58666166cac05d54064463aa9ee7289"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates <em>count</em> of entities of the same archetype as <em>entity</em>.  <br /></td></tr>
 <tr class="separator:ae58666166cac05d54064463aa9ee7289"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6de81e38107b18ee93a19b15cf0b54ef" id="r_a6de81e38107b18ee93a19b15cf0b54ef"><td class="memTemplParams" colspan="2">template&lt;typename Func  = TFunc_Void_With_Entity&gt; </td></tr>
+<tr class="memitem:a6de81e38107b18ee93a19b15cf0b54ef"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6de81e38107b18ee93a19b15cf0b54ef">add_n</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, uint32_t count, Func func=func_void_with_entity)</td></tr>
+<tr class="memdesc:a6de81e38107b18ee93a19b15cf0b54ef"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates <em>count</em> of entities of the same archetype as an exact pair record.  <br /></td></tr>
+<tr class="separator:a6de81e38107b18ee93a19b15cf0b54ef"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3ecd256e20fc18e2a07bd190c706f3a7" id="r_a3ecd256e20fc18e2a07bd190c706f3a7"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a3ecd256e20fc18e2a07bd190c706f3a7"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD const ComponentCacheItem &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a3ecd256e20fc18e2a07bd190c706f3a7">add</a> ()</td></tr>
 <tr class="memdesc:a3ecd256e20fc18e2a07bd190c706f3a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new component if not found already.  <br /></td></tr>
@@ -399,10 +416,17 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memitem:a950a809f79f42dde23d9b82f7059a825" id="r_a950a809f79f42dde23d9b82f7059a825"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a950a809f79f42dde23d9b82f7059a825">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> <a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>)</td></tr>
 <tr class="memdesc:a950a809f79f42dde23d9b82f7059a825"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches a relationship pair to <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a950a809f79f42dde23d9b82f7059a825"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2b83d263475248b2c5a9c133fd76beeb" id="r_a2b83d263475248b2c5a9c133fd76beeb"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a2b83d263475248b2c5a9c133fd76beeb">add</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> <a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>)</td></tr>
+<tr class="memdesc:a2b83d263475248b2c5a9c133fd76beeb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches a relationship pair to an exact pair record.  <br /></td></tr>
+<tr class="separator:a2b83d263475248b2c5a9c133fd76beeb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a53f667ddfe6c1f3ec42cdb398b6024fc" id="r_a53f667ddfe6c1f3ec42cdb398b6024fc"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a53f667ddfe6c1f3ec42cdb398b6024fc"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a53f667ddfe6c1f3ec42cdb398b6024fc">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a53f667ddfe6c1f3ec42cdb398b6024fc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches a new component <em>T</em> to <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a53f667ddfe6c1f3ec42cdb398b6024fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a92d33352cb7e9ce63595a76c347447a3" id="r_a92d33352cb7e9ce63595a76c347447a3"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a92d33352cb7e9ce63595a76c347447a3"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a92d33352cb7e9ce63595a76c347447a3">add</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity)</td></tr>
+<tr class="memdesc:a92d33352cb7e9ce63595a76c347447a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches a new component <em>T</em> to an exact pair record.  <br /></td></tr>
+<tr class="separator:a92d33352cb7e9ce63595a76c347447a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a730bd1293329308354b59967bc08a19a" id="r_a730bd1293329308354b59967bc08a19a"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a730bd1293329308354b59967bc08a19a"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a730bd1293329308354b59967bc08a19a">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object, T &amp;&amp;value)</td></tr>
 <tr class="memdesc:a730bd1293329308354b59967bc08a19a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches <em>object</em> to <em>entity</em>. Also sets its value.  <br /></td></tr>
@@ -411,6 +435,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memitem:a4cc525cae8ef955e749e3e9e7796ec3d"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4cc525cae8ef955e749e3e9e7796ec3d">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, U &amp;&amp;value)</td></tr>
 <tr class="memdesc:a4cc525cae8ef955e749e3e9e7796ec3d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches a new component <em>T</em> to <em>entity</em>. Also sets its value.  <br /></td></tr>
 <tr class="separator:a4cc525cae8ef955e749e3e9e7796ec3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2af3a9c54e3448f947f00f7251bd2db2" id="r_a2af3a9c54e3448f947f00f7251bd2db2"><td class="memTemplParams" colspan="2">template&lt;typename T , typename U  = typename actual_type_t&lt;T&gt;::Type&gt; </td></tr>
+<tr class="memitem:a2af3a9c54e3448f947f00f7251bd2db2"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a2af3a9c54e3448f947f00f7251bd2db2">add</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, U &amp;&amp;value)</td></tr>
+<tr class="memdesc:a2af3a9c54e3448f947f00f7251bd2db2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches a new component <em>T</em> to an exact pair record and initializes its value.  <br /></td></tr>
+<tr class="separator:a2af3a9c54e3448f947f00f7251bd2db2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3eccffaf8ea84a8b48570cf51942b412" id="r_a3eccffaf8ea84a8b48570cf51942b412"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a3eccffaf8ea84a8b48570cf51942b412">override</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
 <tr class="memdesc:a3eccffaf8ea84a8b48570cf51942b412"><td class="mdescLeft">&#160;</td><td class="mdescRight">Materializes an inherited id as directly owned storage on <code>entity</code>.  <br /></td></tr>
 <tr class="separator:a3eccffaf8ea84a8b48570cf51942b412"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -486,50 +514,88 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memitem:a338d4efba597951cbcf9e00d63301830" id="r_a338d4efba597951cbcf9e00d63301830"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a338d4efba597951cbcf9e00d63301830">child</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#a79f6448dfaa8a80a0f7370c12cd55b3d">parent</a>)</td></tr>
 <tr class="memdesc:a338d4efba597951cbcf9e00d63301830"><td class="mdescLeft">&#160;</td><td class="mdescRight">Shortcut for add(entity, Pair(ChildOf, parent)).  <br /></td></tr>
 <tr class="separator:a338d4efba597951cbcf9e00d63301830"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aaeaa6200867d1e1f57b185df94ce5ed6" id="r_aaeaa6200867d1e1f57b185df94ce5ed6"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aaeaa6200867d1e1f57b185df94ce5ed6">child</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#a79f6448dfaa8a80a0f7370c12cd55b3d">parent</a>) const</td></tr>
-<tr class="memdesc:aaeaa6200867d1e1f57b185df94ce5ed6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether <em>entity</em> has a <code>ChildOf</code> relationship to <em>parent</em>.  <br /></td></tr>
-<tr class="separator:aaeaa6200867d1e1f57b185df94ce5ed6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9a7de99131801b18bc8268b4d2f374ec" id="r_a9a7de99131801b18bc8268b4d2f374ec"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a9a7de99131801b18bc8268b4d2f374ec">child</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#a79f6448dfaa8a80a0f7370c12cd55b3d">parent</a>)</td></tr>
+<tr class="memdesc:a9a7de99131801b18bc8268b4d2f374ec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a <code>ChildOf</code> relationship from an exact pair record to <em>parent</em>.  <br /></td></tr>
+<tr class="separator:a9a7de99131801b18bc8268b4d2f374ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0b88725e816ef22fca19f8e236737dbe" id="r_a0b88725e816ef22fca19f8e236737dbe"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a0b88725e816ef22fca19f8e236737dbe">is_child</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#a79f6448dfaa8a80a0f7370c12cd55b3d">parent</a>) const</td></tr>
+<tr class="memdesc:a0b88725e816ef22fca19f8e236737dbe"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether <em>entity</em> has a <code>ChildOf</code> relationship to <em>parent</em>.  <br /></td></tr>
+<tr class="separator:a0b88725e816ef22fca19f8e236737dbe"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a79f6448dfaa8a80a0f7370c12cd55b3d" id="r_a79f6448dfaa8a80a0f7370c12cd55b3d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a79f6448dfaa8a80a0f7370c12cd55b3d">parent</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentEntity)</td></tr>
 <tr class="memdesc:a79f6448dfaa8a80a0f7370c12cd55b3d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. The relationship is non-fragmenting and does not participate in archetype identity.  <br /></td></tr>
 <tr class="separator:a79f6448dfaa8a80a0f7370c12cd55b3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad3ed785c3d3ef27fb18d706a6a98a42e" id="r_ad3ed785c3d3ef27fb18d706a6a98a42e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad3ed785c3d3ef27fb18d706a6a98a42e">parent</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentEntity) const</td></tr>
-<tr class="memdesc:ad3ed785c3d3ef27fb18d706a6a98a42e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether <em>entity</em> has a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>.  <br /></td></tr>
-<tr class="separator:ad3ed785c3d3ef27fb18d706a6a98a42e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:affcc3be3aa368ccad922db0131ece550" id="r_affcc3be3aa368ccad922db0131ece550"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#affcc3be3aa368ccad922db0131ece550">is_parent</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentEntity) const</td></tr>
+<tr class="memdesc:affcc3be3aa368ccad922db0131ece550"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether <em>entity</em> has a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>.  <br /></td></tr>
+<tr class="separator:affcc3be3aa368ccad922db0131ece550"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a52c22a2481cc0139287fadd2b9baa57e" id="r_a52c22a2481cc0139287fadd2b9baa57e"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a52c22a2481cc0139287fadd2b9baa57e"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a52c22a2481cc0139287fadd2b9baa57e">modify</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a52c22a2481cc0139287fadd2b9baa57e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the component type <code>T</code> as modified. Best used with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae5686e2e275daafb210921672546dd3c" title="Starts a bulk set operation on entity.">acc_mut()</a>.<a class="el" href="classgaia_1_1ecs_1_1World.html#a48e2c009944e302c23fc92899e39f1fa" title="Returns silent mutable access to component type T on entity. This is a silent write and does not trig...">sset()</a> or <a class="el" href="classgaia_1_1ecs_1_1World.html#ab9a2b4c5fb90fb3c16f9b1777d05420b" title="Returns a write-back proxy for the component T on entity. The proxy copies the current value,...">set()</a> to manually trigger an update at user's whim. If <code>TriggerSetEffects</code> is true, also triggers the component's set side effects: set hooks and <code>OnSet</code> observers.  <br /></td></tr>
 <tr class="separator:a52c22a2481cc0139287fadd2b9baa57e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5e597296bd0753958700c3ffcdd5b9a1" id="r_a5e597296bd0753958700c3ffcdd5b9a1"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a5e597296bd0753958700c3ffcdd5b9a1"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a5e597296bd0753958700c3ffcdd5b9a1">modify</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity)</td></tr>
+<tr class="memdesc:a5e597296bd0753958700c3ffcdd5b9a1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks component type <code>T</code> as modified on an exact pair record. If <code>TriggerSetEffects</code> is true, also triggers set hooks and <code>OnSet</code> observers.  <br /></td></tr>
+<tr class="separator:a5e597296bd0753958700c3ffcdd5b9a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a862f63bf6f1d02dd12097766f49c3a2c" id="r_a862f63bf6f1d02dd12097766f49c3a2c"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a862f63bf6f1d02dd12097766f49c3a2c"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a862f63bf6f1d02dd12097766f49c3a2c">modify</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
 <tr class="memdesc:a862f63bf6f1d02dd12097766f49c3a2c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the component associated with <code>object</code> as modified on <code>entity</code>. Best used with <code>mut&lt;T&gt;(entity, object)</code> or <code>sset&lt;T&gt;(entity, object)</code> to manually trigger an update at user's whim. If <code>TriggerSetEffects</code> is true, also triggers the component's set side effects: set hooks and <code>OnSet</code> observers.  <br /></td></tr>
 <tr class="separator:a862f63bf6f1d02dd12097766f49c3a2c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acab2a05d1886f57193c77f751a947a70" id="r_acab2a05d1886f57193c77f751a947a70"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:acab2a05d1886f57193c77f751a947a70"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#acab2a05d1886f57193c77f751a947a70">modify</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
+<tr class="memdesc:acab2a05d1886f57193c77f751a947a70"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks a component selected by <code>object</code> as modified on an exact pair record. If <code>TriggerSetEffects</code> is true, also triggers set hooks and <code>OnSet</code> observers.  <br /></td></tr>
+<tr class="separator:acab2a05d1886f57193c77f751a947a70"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae5686e2e275daafb210921672546dd3c" id="r_ae5686e2e275daafb210921672546dd3c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html">ComponentSetter</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae5686e2e275daafb210921672546dd3c">acc_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:ae5686e2e275daafb210921672546dd3c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Starts a bulk set operation on <em>entity</em>.  <br /></td></tr>
 <tr class="separator:ae5686e2e275daafb210921672546dd3c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6f49deb8abb4750117bf8e140d8af35a" id="r_a6f49deb8abb4750117bf8e140d8af35a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html">ComponentSetter</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6f49deb8abb4750117bf8e140d8af35a">acc_mut</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity)</td></tr>
+<tr class="memdesc:a6f49deb8abb4750117bf8e140d8af35a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Starts a bulk set operation on an exact pair record.  <br /></td></tr>
+<tr class="separator:a6f49deb8abb4750117bf8e140d8af35a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab9a2b4c5fb90fb3c16f9b1777d05420b" id="r_ab9a2b4c5fb90fb3c16f9b1777d05420b"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:ab9a2b4c5fb90fb3c16f9b1777d05420b"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ab9a2b4c5fb90fb3c16f9b1777d05420b">set</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:ab9a2b4c5fb90fb3c16f9b1777d05420b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a write-back proxy for the component <em>T</em> on <em>entity</em>. The proxy copies the current value, lets the caller mutate it, then writes it back at the end of the full expression or scope. <code>OnSet</code> observers and chunk-backed set hooks are triggered only after the write-back completes.  <br /></td></tr>
 <tr class="separator:ab9a2b4c5fb90fb3c16f9b1777d05420b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6aa021d92dc1e791e505776805a0b5ee" id="r_a6aa021d92dc1e791e505776805a0b5ee"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a6aa021d92dc1e791e505776805a0b5ee"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6aa021d92dc1e791e505776805a0b5ee">set</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity)</td></tr>
+<tr class="memdesc:a6aa021d92dc1e791e505776805a0b5ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a write-back proxy for component <em>T</em> on an exact pair record.  <br /></td></tr>
+<tr class="separator:a6aa021d92dc1e791e505776805a0b5ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aca4ad6a85aeb2f663186cf2b3db5255b" id="r_aca4ad6a85aeb2f663186cf2b3db5255b"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:aca4ad6a85aeb2f663186cf2b3db5255b"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aca4ad6a85aeb2f663186cf2b3db5255b">set</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
 <tr class="memdesc:aca4ad6a85aeb2f663186cf2b3db5255b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a write-back proxy for the component associated with <em>object</em> on <em>entity</em>. The proxy copies the current value, lets the caller mutate it, then writes it back at the end of the full expression or scope. <code>OnSet</code> observers and chunk-backed set hooks are triggered only after the write-back completes.  <br /></td></tr>
 <tr class="separator:aca4ad6a85aeb2f663186cf2b3db5255b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1b798a953338422626ceb9c31fc64803" id="r_a1b798a953338422626ceb9c31fc64803"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a1b798a953338422626ceb9c31fc64803"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a1b798a953338422626ceb9c31fc64803">set</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
+<tr class="memdesc:a1b798a953338422626ceb9c31fc64803"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a write-back proxy for a runtime-selected component on an exact pair record.  <br /></td></tr>
+<tr class="separator:a1b798a953338422626ceb9c31fc64803"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a48e2c009944e302c23fc92899e39f1fa" id="r_a48e2c009944e302c23fc92899e39f1fa"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a48e2c009944e302c23fc92899e39f1fa"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a48e2c009944e302c23fc92899e39f1fa">sset</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a48e2c009944e302c23fc92899e39f1fa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns silent mutable access to component type <code>T</code> on <code>entity</code>. This is a silent write and does not trigger set hooks or <code>OnSet</code> observers.  <br /></td></tr>
 <tr class="separator:a48e2c009944e302c23fc92899e39f1fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9c570ba86abd99f3478ac2f6fb0fb71c" id="r_a9c570ba86abd99f3478ac2f6fb0fb71c"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a9c570ba86abd99f3478ac2f6fb0fb71c"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a9c570ba86abd99f3478ac2f6fb0fb71c">sset</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity)</td></tr>
+<tr class="memdesc:a9c570ba86abd99f3478ac2f6fb0fb71c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns silent mutable access to component type <code>T</code> on an exact pair record.  <br /></td></tr>
+<tr class="separator:a9c570ba86abd99f3478ac2f6fb0fb71c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aca620d8f84fe34c3b5b48b46b96af13b" id="r_aca620d8f84fe34c3b5b48b46b96af13b"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:aca620d8f84fe34c3b5b48b46b96af13b"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aca620d8f84fe34c3b5b48b46b96af13b">sset</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
 <tr class="memdesc:aca620d8f84fe34c3b5b48b46b96af13b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of the component associated with <code>object</code> on <code>entity</code> without updating world version. This is a silent write and does not trigger set hooks or <code>OnSet</code> observers.  <br /></td></tr>
 <tr class="separator:aca620d8f84fe34c3b5b48b46b96af13b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a48dd621ebeabb96b6a2ed46b1cec248d" id="r_a48dd621ebeabb96b6a2ed46b1cec248d"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a48dd621ebeabb96b6a2ed46b1cec248d"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a48dd621ebeabb96b6a2ed46b1cec248d">sset</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
+<tr class="memdesc:a48dd621ebeabb96b6a2ed46b1cec248d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Silently accesses a runtime-selected component on an exact pair record.  <br /></td></tr>
+<tr class="separator:a48dd621ebeabb96b6a2ed46b1cec248d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa8a839d62e12467eead0df4d0ceb1a0c" id="r_aa8a839d62e12467eead0df4d0ceb1a0c"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:aa8a839d62e12467eead0df4d0ceb1a0c"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aa8a839d62e12467eead0df4d0ceb1a0c">mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:aa8a839d62e12467eead0df4d0ceb1a0c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable reference or proxy to the component on <em>entity</em> without triggering a world version update. This is a silent raw write path. Call <code>modify&lt;T, true&gt;(entity)</code> when you need hooks or <code>OnSet</code>.  <br /></td></tr>
 <tr class="separator:aa8a839d62e12467eead0df4d0ceb1a0c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4e32cd69d9d08dcdc3b96134bdeefa7e" id="r_a4e32cd69d9d08dcdc3b96134bdeefa7e"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a4e32cd69d9d08dcdc3b96134bdeefa7e"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4e32cd69d9d08dcdc3b96134bdeefa7e">mut</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity)</td></tr>
+<tr class="memdesc:a4e32cd69d9d08dcdc3b96134bdeefa7e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns silent mutable access to a component on an exact pair record.  <br /></td></tr>
+<tr class="separator:a4e32cd69d9d08dcdc3b96134bdeefa7e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a22a240d3c0c6d76724c96b62ed8c0f2c" id="r_a22a240d3c0c6d76724c96b62ed8c0f2c"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a22a240d3c0c6d76724c96b62ed8c0f2c"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a22a240d3c0c6d76724c96b62ed8c0f2c">mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
 <tr class="memdesc:a22a240d3c0c6d76724c96b62ed8c0f2c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable reference or proxy to the component associated with <code>object</code> on <code>entity</code>. This is a silent raw write path. Call <code>modify&lt;T, true&gt;(entity, object)</code> when you need hooks or <code>OnSet</code>.  <br /></td></tr>
 <tr class="separator:a22a240d3c0c6d76724c96b62ed8c0f2c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afb1af7ae2320b46d67185f1edbfcf6f2" id="r_afb1af7ae2320b46d67185f1edbfcf6f2"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:afb1af7ae2320b46d67185f1edbfcf6f2"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#afb1af7ae2320b46d67185f1edbfcf6f2">mut</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
+<tr class="memdesc:afb1af7ae2320b46d67185f1edbfcf6f2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns silent mutable access to a runtime-selected component on an exact pair record.  <br /></td></tr>
+<tr class="separator:afb1af7ae2320b46d67185f1edbfcf6f2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6a639ee981edef57b4c783bc37dce52c" id="r_a6a639ee981edef57b4c783bc37dce52c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6a639ee981edef57b4c783bc37dce52c">get_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
 <tr class="memdesc:a6a639ee981edef57b4c783bc37dce52c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns raw read-only bytes for an AoS component or exact pair payload on <em>entity</em>. Inherited ids resolve to the owning entity. SoA and unsupported components return an invalid view.  <br /></td></tr>
 <tr class="separator:a6a639ee981edef57b4c783bc37dce52c"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -560,14 +626,25 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memitem:a7472812c1291e7d4478ce27e9fbad80a" id="r_a7472812c1291e7d4478ce27e9fbad80a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html">ComponentGetter</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a7472812c1291e7d4478ce27e9fbad80a">acc</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a7472812c1291e7d4478ce27e9fbad80a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Starts a bulk get operation on an entity.  <br /></td></tr>
 <tr class="separator:a7472812c1291e7d4478ce27e9fbad80a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0eff5b45a1f01e58d35107f311ede921" id="r_a0eff5b45a1f01e58d35107f311ede921"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html">ComponentGetter</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a0eff5b45a1f01e58d35107f311ede921">acc</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity) const</td></tr>
+<tr class="memdesc:a0eff5b45a1f01e58d35107f311ede921"><td class="mdescLeft">&#160;</td><td class="mdescRight">Starts a bulk get operation on an exact pair record.  <br /></td></tr>
+<tr class="separator:a0eff5b45a1f01e58d35107f311ede921"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a94a775123eb18fe3813daa2b7e71e60d" id="r_a94a775123eb18fe3813daa2b7e71e60d"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a94a775123eb18fe3813daa2b7e71e60d"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a94a775123eb18fe3813daa2b7e71e60d">get</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a94a775123eb18fe3813daa2b7e71e60d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in the component T on entity.  <br /></td></tr>
 <tr class="separator:a94a775123eb18fe3813daa2b7e71e60d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2f55da0e39e0fb3c7ee4c16434f16164" id="r_a2f55da0e39e0fb3c7ee4c16434f16164"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a2f55da0e39e0fb3c7ee4c16434f16164"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a2f55da0e39e0fb3c7ee4c16434f16164">get</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity) const</td></tr>
+<tr class="memdesc:a2f55da0e39e0fb3c7ee4c16434f16164"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in component <code>T</code> on an exact pair record.  <br /></td></tr>
+<tr class="separator:a2f55da0e39e0fb3c7ee4c16434f16164"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4494d54f6dca910f26f747dbede3d5a3" id="r_a4494d54f6dca910f26f747dbede3d5a3"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a4494d54f6dca910f26f747dbede3d5a3"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4494d54f6dca910f26f747dbede3d5a3">get</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object) const</td></tr>
 <tr class="memdesc:a4494d54f6dca910f26f747dbede3d5a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in the component associated with <code>object</code> on <code>entity</code>.  <br /></td></tr>
 <tr class="separator:a4494d54f6dca910f26f747dbede3d5a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2cf5736548cc44c2ed0805dc9b74a074" id="r_a2cf5736548cc44c2ed0805dc9b74a074"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a2cf5736548cc44c2ed0805dc9b74a074"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a2cf5736548cc44c2ed0805dc9b74a074">get</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object) const</td></tr>
+<tr class="memdesc:a2cf5736548cc44c2ed0805dc9b74a074"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a runtime-selected component value from an exact pair record.  <br /></td></tr>
+<tr class="separator:a2cf5736548cc44c2ed0805dc9b74a074"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a82c77cdc024fb2a43396a761a60e985a" id="r_a82c77cdc024fb2a43396a761a60e985a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a82c77cdc024fb2a43396a761a60e985a">has</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a82c77cdc024fb2a43396a761a60e985a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks if entity is currently used by the world.  <br /></td></tr>
 <tr class="separator:a82c77cdc024fb2a43396a761a60e985a"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -762,21 +839,36 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>defer_sort_inv_end</b
 <tr class="memitem:a2652099674355b6bf069ee785041f273" id="r_a2652099674355b6bf069ee785041f273"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a2652099674355b6bf069ee785041f273">enable</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, bool enable)</td></tr>
 <tr class="memdesc:a2652099674355b6bf069ee785041f273"><td class="mdescLeft">&#160;</td><td class="mdescRight">Enables or disables an entire entity.  <br /></td></tr>
 <tr class="separator:a2652099674355b6bf069ee785041f273"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1645f5b02df4db272bd4d0e8e620f5d5" id="r_a1645f5b02df4db272bd4d0e8e620f5d5"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a1645f5b02df4db272bd4d0e8e620f5d5">enable</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, bool enable)</td></tr>
+<tr class="memdesc:a1645f5b02df4db272bd4d0e8e620f5d5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Enables or disables an exact pair record.  <br /></td></tr>
+<tr class="separator:a1645f5b02df4db272bd4d0e8e620f5d5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4c5bd6896ca374681e5f341d163960b4" id="r_a4c5bd6896ca374681e5f341d163960b4"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4c5bd6896ca374681e5f341d163960b4">enabled</a> (const EntityContainer &amp;ec) const</td></tr>
 <tr class="memdesc:a4c5bd6896ca374681e5f341d163960b4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks if an entity is enabled.  <br /></td></tr>
 <tr class="separator:a4c5bd6896ca374681e5f341d163960b4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a769838ce7a231bfebee0eafeadf8b3ee" id="r_a769838ce7a231bfebee0eafeadf8b3ee"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a769838ce7a231bfebee0eafeadf8b3ee">enabled</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a769838ce7a231bfebee0eafeadf8b3ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks if an entity is enabled.  <br /></td></tr>
 <tr class="separator:a769838ce7a231bfebee0eafeadf8b3ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3d943abd955527cd6984069790ed4c29" id="r_a3d943abd955527cd6984069790ed4c29"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a3d943abd955527cd6984069790ed4c29">enabled</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity) const</td></tr>
+<tr class="memdesc:a3d943abd955527cd6984069790ed4c29"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether an exact pair record is enabled.  <br /></td></tr>
+<tr class="separator:a3d943abd955527cd6984069790ed4c29"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af8b70f1e6912f3d0b976401ffb6698a7" id="r_af8b70f1e6912f3d0b976401ffb6698a7"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#af8b70f1e6912f3d0b976401ffb6698a7">enabled_hierarchy</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
 <tr class="memdesc:af8b70f1e6912f3d0b976401ffb6698a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether an entity is enabled together with all of its ancestors reachable through <code>relation</code>. This keeps direct enabled state separate from hierarchy-aware gating.  <br /></td></tr>
 <tr class="separator:af8b70f1e6912f3d0b976401ffb6698a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4bc05f8836d98d5802bda5f5c6a63f19" id="r_a4bc05f8836d98d5802bda5f5c6a63f19"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4bc05f8836d98d5802bda5f5c6a63f19">enabled_hierarchy</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
+<tr class="memdesc:a4bc05f8836d98d5802bda5f5c6a63f19"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether an exact pair record is enabled together with all of its ancestors reachable through <code>relation</code>.  <br /></td></tr>
+<tr class="separator:a4bc05f8836d98d5802bda5f5c6a63f19"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acbb218e93764c9761fdaab3b138d53dd" id="r_acbb218e93764c9761fdaab3b138d53dd"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#acbb218e93764c9761fdaab3b138d53dd">get_chunk</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:acbb218e93764c9761fdaab3b138d53dd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a chunk containing the <em>entity</em>.  <br /></td></tr>
 <tr class="separator:acbb218e93764c9761fdaab3b138d53dd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aad1fb78eb56e0b785f34f19b6da56e65" id="r_aad1fb78eb56e0b785f34f19b6da56e65"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aad1fb78eb56e0b785f34f19b6da56e65">get_chunk</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity) const</td></tr>
+<tr class="memdesc:aad1fb78eb56e0b785f34f19b6da56e65"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the chunk containing an exact pair record.  <br /></td></tr>
+<tr class="separator:aad1fb78eb56e0b785f34f19b6da56e65"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a88bdaacd7edcca95ba4ee528b476a27b" id="r_a88bdaacd7edcca95ba4ee528b476a27b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a88bdaacd7edcca95ba4ee528b476a27b">get_chunk</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, uint32_t &amp;row) const</td></tr>
 <tr class="memdesc:a88bdaacd7edcca95ba4ee528b476a27b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a chunk containing the <em>entity</em>. Index of the entity is stored in <em>row</em>.  <br /></td></tr>
 <tr class="separator:a88bdaacd7edcca95ba4ee528b476a27b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aacf0afad0caf986114f41361d97ca67f" id="r_aacf0afad0caf986114f41361d97ca67f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aacf0afad0caf986114f41361d97ca67f">get_chunk</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, uint32_t &amp;row) const</td></tr>
+<tr class="memdesc:aacf0afad0caf986114f41361d97ca67f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the chunk and row containing an exact pair record.  <br /></td></tr>
+<tr class="separator:aacf0afad0caf986114f41361d97ca67f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ada278978c1e139aa66c90b8795753651" id="r_ada278978c1e139aa66c90b8795753651"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ada278978c1e139aa66c90b8795753651">size</a> () const</td></tr>
 <tr class="memdesc:ada278978c1e139aa66c90b8795753651"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of active entities.  <br /></td></tr>
 <tr class="separator:ada278978c1e139aa66c90b8795753651"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -980,7 +1072,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>unlock</b> (<a class=
 <div class="textblock"><p>Owns entities, components, archetypes, queries, observers, and systems. </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
 <a id="a7472812c1291e7d4478ce27e9fbad80a" name="a7472812c1291e7d4478ce27e9fbad80a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a7472812c1291e7d4478ce27e9fbad80a">&#9670;&#160;</a></span>acc()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a7472812c1291e7d4478ce27e9fbad80a">&#9670;&#160;</a></span>acc() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1017,8 +1109,46 @@ Undefined behavior if entity changes archetype after <a class="el" href="structg
 
 </div>
 </div>
+<a id="a0eff5b45a1f01e58d35107f311ede921" name="a0eff5b45a1f01e58d35107f311ede921"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0eff5b45a1f01e58d35107f311ede921">&#9670;&#160;</a></span>acc() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html">ComponentGetter</a> gaia::ecs::World::acc </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Starts a bulk get operation on an exact pair record. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Pair-record-scoped <a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html" title="Entity-scoped component accessor bound to a specific world, chunk and row. It is not a standalone chu...">ComponentGetter</a> bound to current storage. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd>
+<dd>
+Undefined behavior if <em>entity</em> changes archetype after <a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html" title="Entity-scoped component accessor bound to a specific world, chunk and row. It is not a standalone chu...">ComponentGetter</a> is created. </dd></dl>
+
+</div>
+</div>
 <a id="ae5686e2e275daafb210921672546dd3c" name="ae5686e2e275daafb210921672546dd3c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae5686e2e275daafb210921672546dd3c">&#9670;&#160;</a></span>acc_mut()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ae5686e2e275daafb210921672546dd3c">&#9670;&#160;</a></span>acc_mut() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1055,8 +1185,46 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 
 </div>
 </div>
+<a id="a6f49deb8abb4750117bf8e140d8af35a" name="a6f49deb8abb4750117bf8e140d8af35a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6f49deb8abb4750117bf8e140d8af35a">&#9670;&#160;</a></span>acc_mut() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html">ComponentSetter</a> gaia::ecs::World::acc_mut </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Starts a bulk set operation on an exact pair record. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Pair-record-scoped <a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html" title="Entity-scoped mutable component accessor bound to a specific world, chunk and row....">ComponentSetter</a> bound to current storage. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd>
+<dd>
+Undefined behavior if <em>entity</em> changes archetype after <a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html" title="Entity-scoped mutable component accessor bound to a specific world, chunk and row....">ComponentSetter</a> is created. </dd></dl>
+
+</div>
+</div>
 <a id="a3ecd256e20fc18e2a07bd190c706f3a7" name="a3ecd256e20fc18e2a07bd190c706f3a7"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3ecd256e20fc18e2a07bd190c706f3a7">&#9670;&#160;</a></span>add() <span class="overload">[1/9]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a3ecd256e20fc18e2a07bd190c706f3a7">&#9670;&#160;</a></span>add() <span class="overload">[1/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1092,7 +1260,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="aa3ca566ba0ec0108871bd831d88d7081" name="aa3ca566ba0ec0108871bd831d88d7081"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa3ca566ba0ec0108871bd831d88d7081">&#9670;&#160;</a></span>add() <span class="overload">[2/9]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#aa3ca566ba0ec0108871bd831d88d7081">&#9670;&#160;</a></span>add() <span class="overload">[2/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1138,7 +1306,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a57ed785ea944b3eb6896ff36782da42f" name="a57ed785ea944b3eb6896ff36782da42f"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a57ed785ea944b3eb6896ff36782da42f">&#9670;&#160;</a></span>add() <span class="overload">[3/9]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a57ed785ea944b3eb6896ff36782da42f">&#9670;&#160;</a></span>add() <span class="overload">[3/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1181,7 +1349,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a53f667ddfe6c1f3ec42cdb398b6024fc" name="a53f667ddfe6c1f3ec42cdb398b6024fc"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a53f667ddfe6c1f3ec42cdb398b6024fc">&#9670;&#160;</a></span>add() <span class="overload">[4/9]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a53f667ddfe6c1f3ec42cdb398b6024fc">&#9670;&#160;</a></span>add() <span class="overload">[4/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1226,7 +1394,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a40506c3fce6bd1ae3d902d556f679e75" name="a40506c3fce6bd1ae3d902d556f679e75"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a40506c3fce6bd1ae3d902d556f679e75">&#9670;&#160;</a></span>add() <span class="overload">[5/9]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a40506c3fce6bd1ae3d902d556f679e75">&#9670;&#160;</a></span>add() <span class="overload">[5/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1272,7 +1440,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a730bd1293329308354b59967bc08a19a" name="a730bd1293329308354b59967bc08a19a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a730bd1293329308354b59967bc08a19a">&#9670;&#160;</a></span>add() <span class="overload">[6/9]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a730bd1293329308354b59967bc08a19a">&#9670;&#160;</a></span>add() <span class="overload">[6/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1331,7 +1499,7 @@ It is expected <em>object</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a950a809f79f42dde23d9b82f7059a825" name="a950a809f79f42dde23d9b82f7059a825"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a950a809f79f42dde23d9b82f7059a825">&#9670;&#160;</a></span>add() <span class="overload">[7/9]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a950a809f79f42dde23d9b82f7059a825">&#9670;&#160;</a></span>add() <span class="overload">[7/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1377,7 +1545,7 @@ It is expected <em>object</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a4cc525cae8ef955e749e3e9e7796ec3d" name="a4cc525cae8ef955e749e3e9e7796ec3d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4cc525cae8ef955e749e3e9e7796ec3d">&#9670;&#160;</a></span>add() <span class="overload">[8/9]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a4cc525cae8ef955e749e3e9e7796ec3d">&#9670;&#160;</a></span>add() <span class="overload">[8/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1433,7 +1601,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a8e6ec95684084c20c5bb3361f74292cd" name="a8e6ec95684084c20c5bb3361f74292cd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a8e6ec95684084c20c5bb3361f74292cd">&#9670;&#160;</a></span>add() <span class="overload">[9/9]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a8e6ec95684084c20c5bb3361f74292cd">&#9670;&#160;</a></span>add() <span class="overload">[9/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1467,8 +1635,156 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 </div>
 </div>
+<a id="a92d33352cb7e9ce63595a76c347447a3" name="a92d33352cb7e9ce63595a76c347447a3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a92d33352cb7e9ce63595a76c347447a3">&#9670;&#160;</a></span>add() <span class="overload">[10/12]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::add </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Attaches a new component <em>T</em> to an exact pair record. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record receiving the component. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected the component is not present on <em>entity</em> yet. Undefined behavior otherwise. </dd>
+<dd>
+It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a2b83d263475248b2c5a9c133fd76beeb" name="a2b83d263475248b2c5a9c133fd76beeb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2b83d263475248b2c5a9c133fd76beeb">&#9670;&#160;</a></span>add() <span class="overload">[11/12]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::add </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>pair</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Attaches a relationship pair to an exact pair record. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record receiving the relationship. </td></tr>
+    <tr><td class="paramname">pair</td><td>Pair to attach. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected <em>entity</em> and the entities forming <em>pair</em> are valid. Undefined behavior otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a2af3a9c54e3448f947f00f7251bd2db2" name="a2af3a9c54e3448f947f00f7251bd2db2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2af3a9c54e3448f947f00f7251bd2db2">&#9670;&#160;</a></span>add() <span class="overload">[12/12]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename U  = typename actual_type_t&lt;T&gt;::Type&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::add </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">U &amp;&amp;&#160;</td>
+          <td class="paramname"><em>value</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Attaches a new component <em>T</em> to an exact pair record and initializes its value. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a>. </td></tr>
+    <tr><td class="paramname">U</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> value type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record receiving the component. </td></tr>
+    <tr><td class="paramname">value</td><td>Initial component value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected the component is not present on <em>entity</em> yet. Undefined behavior otherwise. </dd>
+<dd>
+It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl>
+
+</div>
+</div>
 <a id="ae58666166cac05d54064463aa9ee7289" name="ae58666166cac05d54064463aa9ee7289"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae58666166cac05d54064463aa9ee7289">&#9670;&#160;</a></span>add_n() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ae58666166cac05d54064463aa9ee7289">&#9670;&#160;</a></span>add_n() <span class="overload">[1/3]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1522,8 +1838,63 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 
 </div>
 </div>
+<a id="a6de81e38107b18ee93a19b15cf0b54ef" name="a6de81e38107b18ee93a19b15cf0b54ef"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6de81e38107b18ee93a19b15cf0b54ef">&#9670;&#160;</a></span>add_n() <span class="overload">[2/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::add_n </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>count</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">Func&#160;</td>
+          <td class="paramname"><em>func</em> = <code>func_void_with_entity</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates <em>count</em> of entities of the same archetype as an exact pair record. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Source pair record whose archetype is reused. </td></tr>
+    <tr><td class="paramname">count</td><td>Number of entities to create. </td></tr>
+    <tr><td class="paramname">func</td><td>Functor invoked for each new entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section note"><dt>Note</dt><dd>Similar to <a class="el" href="classgaia_1_1ecs_1_1World.html#ab5cbe9fb47bd97c2a6462d974b18f8f0" title="Creates count new entities by cloning an already existing one.">copy_n()</a>, but component payload is left uninitialized or default-initialized. </dd></dl>
+
+</div>
+</div>
 <a id="a973bc36f673e61902359555c758a50ee" name="a973bc36f673e61902359555c758a50ee"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a973bc36f673e61902359555c758a50ee">&#9670;&#160;</a></span>add_n() <span class="overload">[2/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a973bc36f673e61902359555c758a50ee">&#9670;&#160;</a></span>add_n() <span class="overload">[3/3]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2310,8 +2681,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="aaeaa6200867d1e1f57b185df94ce5ed6" name="aaeaa6200867d1e1f57b185df94ce5ed6"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aaeaa6200867d1e1f57b185df94ce5ed6">&#9670;&#160;</a></span>child() <span class="overload">[2/2]</span></h2>
+<a id="a9a7de99131801b18bc8268b4d2f374ec" name="a9a7de99131801b18bc8268b4d2f374ec"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9a7de99131801b18bc8268b4d2f374ec">&#9670;&#160;</a></span>child() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2320,9 +2691,9 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::child </td>
+          <td class="memname">void gaia::ecs::World::child </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
           <td class="paramname"><em>entity</em>, </td>
         </tr>
         <tr>
@@ -2334,7 +2705,7 @@ template&lt;typename T &gt; </div>
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> const</td>
+          <td></td><td></td>
         </tr>
       </table>
   </td>
@@ -2344,15 +2715,14 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Checks whether <em>entity</em> has a <code>ChildOf</code> relationship to <em>parent</em>. </p>
+<p>Adds a <code>ChildOf</code> relationship from an exact pair record to <em>parent</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to inspect. </td></tr>
-    <tr><td class="paramname">parent</td><td>Candidate parent entity. </td></tr>
+    <tr><td class="paramname">entity</td><td>Pair record receiving the ChildOf pair. </td></tr>
+    <tr><td class="paramname">parent</td><td>Parent target of the ChildOf pair. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>True if <em>entity</em> is a child of <em>parent</em>. False otherwise. </dd></dl>
 
 </div>
 </div>
@@ -3593,7 +3963,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a2652099674355b6bf069ee785041f273" name="a2652099674355b6bf069ee785041f273"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a2652099674355b6bf069ee785041f273">&#9670;&#160;</a></span>enable()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a2652099674355b6bf069ee785041f273">&#9670;&#160;</a></span>enable() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -3638,8 +4008,54 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 </div>
 </div>
+<a id="a1645f5b02df4db272bd4d0e8e620f5d5" name="a1645f5b02df4db272bd4d0e8e620f5d5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1645f5b02df4db272bd4d0e8e620f5d5">&#9670;&#160;</a></span>enable() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::enable </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>enable</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Enables or disables an exact pair record. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record. </td></tr>
+    <tr><td class="paramname">enable</td><td>Enable or disable the pair record. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl>
+
+</div>
+</div>
 <a id="a4c5bd6896ca374681e5f341d163960b4" name="a4c5bd6896ca374681e5f341d163960b4"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4c5bd6896ca374681e5f341d163960b4">&#9670;&#160;</a></span>enabled() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a4c5bd6896ca374681e5f341d163960b4">&#9670;&#160;</a></span>enabled() <span class="overload">[1/3]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -3674,7 +4090,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a769838ce7a231bfebee0eafeadf8b3ee" name="a769838ce7a231bfebee0eafeadf8b3ee"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a769838ce7a231bfebee0eafeadf8b3ee">&#9670;&#160;</a></span>enabled() <span class="overload">[2/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a769838ce7a231bfebee0eafeadf8b3ee">&#9670;&#160;</a></span>enabled() <span class="overload">[2/3]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -3709,8 +4125,44 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 </div>
 </div>
+<a id="a3d943abd955527cd6984069790ed4c29" name="a3d943abd955527cd6984069790ed4c29"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3d943abd955527cd6984069790ed4c29">&#9670;&#160;</a></span>enabled() <span class="overload">[3/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::enabled </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether an exact pair record is enabled. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if the pair record is enabled. False otherwise. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl>
+
+</div>
+</div>
 <a id="af8b70f1e6912f3d0b976401ffb6698a7" name="af8b70f1e6912f3d0b976401ffb6698a7"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af8b70f1e6912f3d0b976401ffb6698a7">&#9670;&#160;</a></span>enabled_hierarchy()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#af8b70f1e6912f3d0b976401ffb6698a7">&#9670;&#160;</a></span>enabled_hierarchy() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -3755,6 +4207,52 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 </div>
 </div>
+<a id="a4bc05f8836d98d5802bda5f5c6a63f19" name="a4bc05f8836d98d5802bda5f5c6a63f19"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4bc05f8836d98d5802bda5f5c6a63f19">&#9670;&#160;</a></span>enabled_hierarchy() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::enabled_hierarchy </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>relation</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether an exact pair record is enabled together with all of its ancestors reachable through <code>relation</code>. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record whose effective enabled state is requested. </td></tr>
+    <tr><td class="paramname">relation</td><td>Relation defining the ancestor chain. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when <code>entity</code> and every reachable ancestor are enabled. False otherwise. </dd></dl>
+
+</div>
+</div>
 <a id="a9a204b62da6a116b2f52fc677a4bfc0c" name="a9a204b62da6a116b2f52fc677a4bfc0c"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a9a204b62da6a116b2f52fc677a4bfc0c">&#9670;&#160;</a></span>enabled_hierarchy_version()</h2>
 
@@ -3780,6 +4278,109 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 <p>Returns the version that changes when entity enabled state changes. Hierarchy-aware cached traversals use this to invalidate ancestor gating state. </p>
 <dl class="section return"><dt>Returns</dt><dd>Enabled-hierarchy version. </dd></dl>
+
+</div>
+</div>
+<a id="afe3d7f40383ba37593820ff0a37593b3" name="afe3d7f40383ba37593820ff0a37593b3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afe3d7f40383ba37593820ff0a37593b3">&#9670;&#160;</a></span>entity_deletion_active()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::entity_deletion_active </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether <em>entity</em> is already being processed by the deletion pipeline. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to inspect. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when deletion is active for <em>entity</em>. </dd></dl>
+
+</div>
+</div>
+<a id="a59b614efd2f2e118c06107d820506a07" name="a59b614efd2f2e118c06107d820506a07"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a59b614efd2f2e118c06107d820506a07">&#9670;&#160;</a></span>entity_deletion_enter()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::entity_deletion_enter </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Marks <em>entity</em> as active in the deletion pipeline. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> entering deletion. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a6774d1f65aade3e9b71829390706d4d7" name="a6774d1f65aade3e9b71829390706d4d7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6774d1f65aade3e9b71829390706d4d7">&#9670;&#160;</a></span>entity_deletion_leave()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::entity_deletion_leave </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Removes <em>entity</em> from the active deletion stack. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> leaving deletion. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
@@ -4219,7 +4820,7 @@ Do not call this from an observer callback. Debug builds assert this contract. <
 </div>
 </div>
 <a id="a4720524a65fdfa327a327e563ec627b9" name="a4720524a65fdfa327a327e563ec627b9"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4720524a65fdfa327a327e563ec627b9">&#9670;&#160;</a></span>get() <span class="overload">[1/5]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a4720524a65fdfa327a327e563ec627b9">&#9670;&#160;</a></span>get() <span class="overload">[1/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -4255,7 +4856,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="ad665f68271141b2dc2daf28e70932289" name="ad665f68271141b2dc2daf28e70932289"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad665f68271141b2dc2daf28e70932289">&#9670;&#160;</a></span>get() <span class="overload">[2/5]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ad665f68271141b2dc2daf28e70932289">&#9670;&#160;</a></span>get() <span class="overload">[2/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -4301,7 +4902,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a94a775123eb18fe3813daa2b7e71e60d" name="a94a775123eb18fe3813daa2b7e71e60d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a94a775123eb18fe3813daa2b7e71e60d">&#9670;&#160;</a></span>get() <span class="overload">[3/5]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a94a775123eb18fe3813daa2b7e71e60d">&#9670;&#160;</a></span>get() <span class="overload">[3/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -4349,7 +4950,7 @@ Undefined behavior if entity changes archetype after <a class="el" href="structg
 </div>
 </div>
 <a id="a4494d54f6dca910f26f747dbede3d5a3" name="a4494d54f6dca910f26f747dbede3d5a3"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4494d54f6dca910f26f747dbede3d5a3">&#9670;&#160;</a></span>get() <span class="overload">[4/5]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a4494d54f6dca910f26f747dbede3d5a3">&#9670;&#160;</a></span>get() <span class="overload">[4/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -4403,7 +5004,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a6baa9865daeb02f7c630e8a4b3aa57f0" name="a6baa9865daeb02f7c630e8a4b3aa57f0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6baa9865daeb02f7c630e8a4b3aa57f0">&#9670;&#160;</a></span>get() <span class="overload">[5/5]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a6baa9865daeb02f7c630e8a4b3aa57f0">&#9670;&#160;</a></span>get() <span class="overload">[5/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -4437,8 +5038,108 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="a2f55da0e39e0fb3c7ee4c16434f16164" name="a2f55da0e39e0fb3c7ee4c16434f16164"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2f55da0e39e0fb3c7ee4c16434f16164">&#9670;&#160;</a></span>get() <span class="overload">[6/7]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::World::get </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the value stored in component <code>T</code> on an exact pair record. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Value stored in the component. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected the component is present on <em>entity</em>. Undefined behavior otherwise. </dd>
+<dd>
+It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a2cf5736548cc44c2ed0805dc9b74a074" name="a2cf5736548cc44c2ed0805dc9b74a074"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2cf5736548cc44c2ed0805dc9b74a074">&#9670;&#160;</a></span>get() <span class="overload">[7/7]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::World::get </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>object</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a runtime-selected component value from an exact pair record. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type represented by <em>object</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record to read, resolving inherited ownership when necessary. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity selecting the payload. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Read-only component value or proxy. </dd></dl>
+
+</div>
+</div>
 <a id="acbb218e93764c9761fdaab3b138d53dd" name="acbb218e93764c9761fdaab3b138d53dd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#acbb218e93764c9761fdaab3b138d53dd">&#9670;&#160;</a></span>get_chunk() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#acbb218e93764c9761fdaab3b138d53dd">&#9670;&#160;</a></span>get_chunk() <span class="overload">[1/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -4473,7 +5174,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a88bdaacd7edcca95ba4ee528b476a27b" name="a88bdaacd7edcca95ba4ee528b476a27b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a88bdaacd7edcca95ba4ee528b476a27b">&#9670;&#160;</a></span>get_chunk() <span class="overload">[2/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a88bdaacd7edcca95ba4ee528b476a27b">&#9670;&#160;</a></span>get_chunk() <span class="overload">[2/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -4515,6 +5216,87 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Chunk.html" title="Fixed-capacity archetype storage unit holding entities and their component columns.">Chunk</a> or nullptr if not found </dd></dl>
+
+</div>
+</div>
+<a id="aad1fb78eb56e0b785f34f19b6da56e65" name="aad1fb78eb56e0b785f34f19b6da56e65"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aad1fb78eb56e0b785f34f19b6da56e65">&#9670;&#160;</a></span>get_chunk() <span class="overload">[3/4]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> * gaia::ecs::World::get_chunk </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the chunk containing an exact pair record. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Chunk.html" title="Fixed-capacity archetype storage unit holding entities and their component columns.">Chunk</a> containing <em>entity</em>. </dd></dl>
+
+</div>
+</div>
+<a id="aacf0afad0caf986114f41361d97ca67f" name="aacf0afad0caf986114f41361d97ca67f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aacf0afad0caf986114f41361d97ca67f">&#9670;&#160;</a></span>get_chunk() <span class="overload">[4/4]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> * gaia::ecs::World::get_chunk </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t &amp;&#160;</td>
+          <td class="paramname"><em>row</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the chunk and row containing an exact pair record. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir"></td><td class="paramname">entity</td><td>Pair record. </td></tr>
+    <tr><td class="paramdir">[out]</td><td class="paramname">row</td><td>Row of <em>entity</em> within its chunk. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Chunk.html" title="Fixed-capacity archetype storage unit holding entities and their component columns.">Chunk</a> containing <em>entity</em>. </dd></dl>
 
 </div>
 </div>
@@ -5632,6 +6414,52 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 
 </div>
 </div>
+<a id="a0b88725e816ef22fca19f8e236737dbe" name="a0b88725e816ef22fca19f8e236737dbe"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0b88725e816ef22fca19f8e236737dbe">&#9670;&#160;</a></span>is_child()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::is_child </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>parent</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether <em>entity</em> has a <code>ChildOf</code> relationship to <em>parent</em>. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to inspect. </td></tr>
+    <tr><td class="paramname">parent</td><td>Candidate parent entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if <em>entity</em> is a child of <em>parent</em>. False otherwise. </dd></dl>
+
+</div>
+</div>
 <a id="aa7fd7f2406bece2c286f7398acc779e6" name="aa7fd7f2406bece2c286f7398acc779e6"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aa7fd7f2406bece2c286f7398acc779e6">&#9670;&#160;</a></span>is_dont_fragment()</h2>
 
@@ -5664,6 +6492,52 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>True if <em>entity</em> is marked DontFragment. False otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="affcc3be3aa368ccad922db0131ece550" name="affcc3be3aa368ccad922db0131ece550"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#affcc3be3aa368ccad922db0131ece550">&#9670;&#160;</a></span>is_parent()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::is_parent </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>parentEntity</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether <em>entity</em> has a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to inspect. </td></tr>
+    <tr><td class="paramname">parentEntity</td><td>Candidate parent entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if <em>entity</em> references <em>parentEntity</em> through <code>Parent</code>. False otherwise. </dd></dl>
 
 </div>
 </div>
@@ -5728,6 +6602,7 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 
 <p>Loads a world state from a buffer. The buffer is sought to 0 before any loading happens. NOTE: In order for custom version of load to be used for a given component, it needs to have either of the following functions defined: 1) member function: "void load(bin_stream&amp; s)" 2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, bin_stream&amp; s,
       YourType&amp; data)". </p>
+<dl class="section note"><dt>Note</dt><dd>Register the same non-core components in the same order and with the same storage layouts in the target world. Current snapshots validate this requirement before changing the target world. </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">inputSerializer</td><td>Serializer to read from, or an invalid handle to use the world's bound serializer. </td></tr>
@@ -5866,7 +6741,7 @@ template&lt;typename TSerializer &gt; </div>
 </div>
 </div>
 <a id="a52c22a2481cc0139287fadd2b9baa57e" name="a52c22a2481cc0139287fadd2b9baa57e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a52c22a2481cc0139287fadd2b9baa57e">&#9670;&#160;</a></span>modify() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a52c22a2481cc0139287fadd2b9baa57e">&#9670;&#160;</a></span>modify() <span class="overload">[1/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -5909,7 +6784,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a862f63bf6f1d02dd12097766f49c3a2c" name="a862f63bf6f1d02dd12097766f49c3a2c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a862f63bf6f1d02dd12097766f49c3a2c">&#9670;&#160;</a></span>modify() <span class="overload">[2/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a862f63bf6f1d02dd12097766f49c3a2c">&#9670;&#160;</a></span>modify() <span class="overload">[2/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -5955,6 +6830,103 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> whose component version is updated. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity associated with <code>T</code>. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a5e597296bd0753958700c3ffcdd5b9a1" name="a5e597296bd0753958700c3ffcdd5b9a1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5e597296bd0753958700c3ffcdd5b9a1">&#9670;&#160;</a></span>modify() <span class="overload">[3/4]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::modify </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Marks component type <code>T</code> as modified on an exact pair record. If <code>TriggerSetEffects</code> is true, also triggers set hooks and <code>OnSet</code> observers. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type. </td></tr>
+    <tr><td class="paramname">TriggerSetEffects</td><td>Triggers set side effects if true. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record whose component version is updated. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="acab2a05d1886f57193c77f751a947a70" name="acab2a05d1886f57193c77f751a947a70"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acab2a05d1886f57193c77f751a947a70">&#9670;&#160;</a></span>modify() <span class="overload">[4/4]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::modify </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>object</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Marks a component selected by <code>object</code> as modified on an exact pair record. If <code>TriggerSetEffects</code> is true, also triggers set hooks and <code>OnSet</code> observers. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type represented by <code>object</code>. </td></tr>
+    <tr><td class="paramname">TriggerSetEffects</td><td>Triggers set side effects if true. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record whose component version is updated. </td></tr>
     <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity associated with <code>T</code>. </td></tr>
   </table>
   </dd>
@@ -6055,7 +7027,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="aa8a839d62e12467eead0df4d0ceb1a0c" name="aa8a839d62e12467eead0df4d0ceb1a0c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa8a839d62e12467eead0df4d0ceb1a0c">&#9670;&#160;</a></span>mut() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#aa8a839d62e12467eead0df4d0ceb1a0c">&#9670;&#160;</a></span>mut() <span class="overload">[1/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -6103,7 +7075,7 @@ Undefined behavior if entity changes archetype after <a class="el" href="structg
 </div>
 </div>
 <a id="a22a240d3c0c6d76724c96b62ed8c0f2c" name="a22a240d3c0c6d76724c96b62ed8c0f2c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a22a240d3c0c6d76724c96b62ed8c0f2c">&#9670;&#160;</a></span>mut() <span class="overload">[2/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a22a240d3c0c6d76724c96b62ed8c0f2c">&#9670;&#160;</a></span>mut() <span class="overload">[2/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -6148,6 +7120,103 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> owning the component. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity selecting the payload. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable reference or proxy to the component payload. </dd></dl>
+
+</div>
+</div>
+<a id="a4e32cd69d9d08dcdc3b96134bdeefa7e" name="a4e32cd69d9d08dcdc3b96134bdeefa7e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4e32cd69d9d08dcdc3b96134bdeefa7e">&#9670;&#160;</a></span>mut() <span class="overload">[3/4]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::World::mut </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns silent mutable access to a component on an exact pair record. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable reference or proxy to the component payload. </dd></dl>
+
+</div>
+</div>
+<a id="afb1af7ae2320b46d67185f1edbfcf6f2" name="afb1af7ae2320b46d67185f1edbfcf6f2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afb1af7ae2320b46d67185f1edbfcf6f2">&#9670;&#160;</a></span>mut() <span class="overload">[4/4]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::World::mut </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>object</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns silent mutable access to a runtime-selected component on an exact pair record. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type represented by <em>object</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record. </td></tr>
     <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity selecting the payload. </td></tr>
   </table>
   </dd>
@@ -6937,7 +8006,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a79f6448dfaa8a80a0f7370c12cd55b3d" name="a79f6448dfaa8a80a0f7370c12cd55b3d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a79f6448dfaa8a80a0f7370c12cd55b3d">&#9670;&#160;</a></span>parent() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a79f6448dfaa8a80a0f7370c12cd55b3d">&#9670;&#160;</a></span>parent()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -6978,52 +8047,6 @@ template&lt;typename T &gt; </div>
   </table>
   </dd>
 </dl>
-
-</div>
-</div>
-<a id="ad3ed785c3d3ef27fb18d706a6a98a42e" name="ad3ed785c3d3ef27fb18d706a6a98a42e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad3ed785c3d3ef27fb18d706a6a98a42e">&#9670;&#160;</a></span>parent() <span class="overload">[2/2]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::parent </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>entity</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>parentEntity</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Checks whether <em>entity</em> has a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to inspect. </td></tr>
-    <tr><td class="paramname">parentEntity</td><td>Candidate parent entity. </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>True if <em>entity</em> references <em>parentEntity</em> through <code>Parent</code>. False otherwise. </dd></dl>
 
 </div>
 </div>
@@ -8132,7 +9155,7 @@ template&lt;typename Func &gt; </div>
 </div>
 </div>
 <a id="ab9a2b4c5fb90fb3c16f9b1777d05420b" name="ab9a2b4c5fb90fb3c16f9b1777d05420b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ab9a2b4c5fb90fb3c16f9b1777d05420b">&#9670;&#160;</a></span>set() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ab9a2b4c5fb90fb3c16f9b1777d05420b">&#9670;&#160;</a></span>set() <span class="overload">[1/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -8180,7 +9203,7 @@ Undefined behavior if <em>entity</em> changes archetype before the proxy writes 
 </div>
 </div>
 <a id="aca4ad6a85aeb2f663186cf2b3db5255b" name="aca4ad6a85aeb2f663186cf2b3db5255b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aca4ad6a85aeb2f663186cf2b3db5255b">&#9670;&#160;</a></span>set() <span class="overload">[2/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#aca4ad6a85aeb2f663186cf2b3db5255b">&#9670;&#160;</a></span>set() <span class="overload">[2/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -8235,6 +9258,109 @@ template&lt;typename T &gt; </div>
 It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd>
 <dd>
 Undefined behavior if <em>entity</em> changes archetype before the proxy writes the value back. </dd></dl>
+
+</div>
+</div>
+<a id="a6aa021d92dc1e791e505776805a0b5ee" name="a6aa021d92dc1e791e505776805a0b5ee"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6aa021d92dc1e791e505776805a0b5ee">&#9670;&#160;</a></span>set() <span class="overload">[3/4]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD auto gaia::ecs::World::set </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a write-back proxy for component <em>T</em> on an exact pair record. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Write-back proxy. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected the component is present on <em>entity</em>. Undefined behavior otherwise. </dd>
+<dd>
+It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a1b798a953338422626ceb9c31fc64803" name="a1b798a953338422626ceb9c31fc64803"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1b798a953338422626ceb9c31fc64803">&#9670;&#160;</a></span>set() <span class="overload">[4/4]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD auto gaia::ecs::World::set </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>object</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a write-back proxy for a runtime-selected component on an exact pair record. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type represented by <em>object</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Write-back proxy. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected the component is present on <em>entity</em>. Undefined behavior otherwise. </dd>
+<dd>
+It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl>
 
 </div>
 </div>
@@ -8908,6 +10034,60 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="a923c22e40cc89e9d615c0b46388f8032" name="a923c22e40cc89e9d615c0b46388f8032"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a923c22e40cc89e9d615c0b46388f8032">&#9670;&#160;</a></span>sparse_component_get_entity_value()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::World::sparse_component_get_entity_value </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a read-only sparse value for an ordinary entity without pair dispatch. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Expected payload type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td>Sparse component entity. </td></tr>
+    <tr><td class="paramname">entity</td><td>Ordinary entity owning the value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Read-only typed payload reference. </dd></dl>
+
+</div>
+</div>
 <a id="a7921a3944257d9dee186158880ad7581" name="a7921a3944257d9dee186158880ad7581"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7921a3944257d9dee186158880ad7581">&#9670;&#160;</a></span>sparse_component_get_value()</h2>
 
@@ -9297,7 +10477,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a48e2c009944e302c23fc92899e39f1fa" name="a48e2c009944e302c23fc92899e39f1fa"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a48e2c009944e302c23fc92899e39f1fa">&#9670;&#160;</a></span>sset() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a48e2c009944e302c23fc92899e39f1fa">&#9670;&#160;</a></span>sset() <span class="overload">[1/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -9345,7 +10525,7 @@ Undefined behavior if <code>entity</code> changes archetype after <a class="el" 
 </div>
 </div>
 <a id="aca620d8f84fe34c3b5b48b46b96af13b" name="aca620d8f84fe34c3b5b48b46b96af13b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aca620d8f84fe34c3b5b48b46b96af13b">&#9670;&#160;</a></span>sset() <span class="overload">[2/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#aca620d8f84fe34c3b5b48b46b96af13b">&#9670;&#160;</a></span>sset() <span class="overload">[2/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -9390,6 +10570,106 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> owning the component. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity selecting the payload. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable reference or proxy to the component payload. </dd></dl>
+
+</div>
+</div>
+<a id="a9c570ba86abd99f3478ac2f6fb0fb71c" name="a9c570ba86abd99f3478ac2f6fb0fb71c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9c570ba86abd99f3478ac2f6fb0fb71c">&#9670;&#160;</a></span>sset() <span class="overload">[3/4]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::World::sset </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns silent mutable access to component type <code>T</code> on an exact pair record. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable reference or proxy to the component payload. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected the component is present on <em>entity</em>. Undefined behavior otherwise. </dd>
+<dd>
+It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a48dd621ebeabb96b6a2ed46b1cec248d" name="a48dd621ebeabb96b6a2ed46b1cec248d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a48dd621ebeabb96b6a2ed46b1cec248d">&#9670;&#160;</a></span>sset() <span class="overload">[4/4]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::World::sset </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>object</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Silently accesses a runtime-selected component on an exact pair record. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type represented by <em>object</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Pair record. </td></tr>
     <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity selecting the payload. </td></tr>
   </table>
   </dd>
@@ -10597,7 +11877,7 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> to query. </td></tr>
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to read or mutate. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record to read or mutate. </td></tr>
   </table>
   </dd>
 </dl>
@@ -10651,7 +11931,7 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> to query. </td></tr>
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to read or mutate. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record to read or mutate. </td></tr>
   </table>
   </dd>
 </dl>

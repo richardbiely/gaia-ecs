@@ -65,6 +65,7 @@ var annotated_dup =
         [ "lock_scope", "structgaia_1_1core_1_1lock__scope.html", "structgaia_1_1core_1_1lock__scope" ],
         [ "output_iterator_tag", "structgaia_1_1core_1_1output__iterator__tag.html", null ],
         [ "random_access_iterator_tag", "structgaia_1_1core_1_1random__access__iterator__tag.html", null ],
+        [ "reverse_iterator", "classgaia_1_1core_1_1reverse__iterator.html", "classgaia_1_1core_1_1reverse__iterator" ],
         [ "reverse_iterator_tag", "structgaia_1_1core_1_1reverse__iterator__tag.html", null ],
         [ "span", "classgaia_1_1core_1_1span.html", "classgaia_1_1core_1_1span" ],
         [ "StringLookupKey", "structgaia_1_1core_1_1StringLookupKey.html", "structgaia_1_1core_1_1StringLookupKey" ],

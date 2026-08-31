@@ -184,20 +184,20 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "annotated.html",
-"classgaia_1_1cnt_1_1darr__ext__soa.html#ae453cadf9f7867af6c5f14e01ededa28",
-"classgaia_1_1cnt_1_1sarr__ext.html#a60dde08a63bac6447929630d6f176d94",
-"classgaia_1_1cnt_1_1sringbuffer.html#a70dfca04bc4e14f188fd7df582a17f81",
-"classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a420693a01f863e02eb1959065562021f",
-"classgaia_1_1ecs_1_1World.html#a53b9360110c61a4b3364dafd6af98e4c",
-"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752",
-"component__setter_8h_source.html",
-"index.html#world-serialization",
-"structgaia_1_1cnt_1_1page__iterator.html#a1cd79d8d890b3dc37bcf31c214749f62",
-"structgaia_1_1ecs_1_1Archetype_1_1Properties.html#a0efe769c0529a8951ef522c56df60de6",
-"structgaia_1_1ecs_1_1QueryCtx.html#a5c21e6754dd9afa669fecb6cb24f29e3a49bb0364f577658cbf45e111768ee977",
-"structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html#af367fdbd2003d1ab90d55405210b7477",
-"structgaia_1_1mem_1_1AllocHelper.html#a25aa19788f58d004f0069d95f48f8408",
-"structgaia_1_1ser_1_1is__int__kind__id.html"
+"classgaia_1_1cnt_1_1darr__ext__soa.html#adb8d3fccf92f1ed0f3a9eb21e72145ee",
+"classgaia_1_1cnt_1_1sarr__ext.html#a2b8bb125e5872b4e6fd9b3f597568aea",
+"classgaia_1_1cnt_1_1sringbuffer.html#a13a89af925686a71e88f802e6505fdd1",
+"classgaia_1_1ecs_1_1Chunk.html#a864f378c978face34073cd6b940c88cf",
+"classgaia_1_1ecs_1_1World.html#a17938f23777a128e4a4c0dd4511b3580",
+"classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a6dd8ec4aae2d21ce5354bd82cea0d99f",
+"classgaia_1_1ser_1_1bin__stream.html#af42d7d153fe68af4cff735ac13e32c9a",
+"index.html#examples",
+"structgaia_1_1cnt_1_1fwd__llist__iterator.html#a1b4b92b256b943bc37f45772ed04e539",
+"structgaia_1_1core_1_1StringLookupKey.html#a6ee30a6ca3f9deebfb3fc4a4a4567bff",
+"structgaia_1_1ecs_1_1Entity.html#a009183dea1af1ee1c16d4e3f3a3873ba",
+"structgaia_1_1ecs_1_1QueryMatchScratch.html#a6163f2de4753deb572d165e8691e3198",
+"structgaia_1_1ecs_1_1detail_1_1SystemCollectCtx.html",
+"structgaia_1_1mem_1_1data__view__policy__soa__set.html#aa11f6b86826572ffdb29722d8f657558"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

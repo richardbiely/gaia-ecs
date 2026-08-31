@@ -108,6 +108,7 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1detail_1_1NonFrag
 
 <div class="header">
   <div class="summary">
+<a href="#nested-classes">Classes</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore-members.html">List of all members</a>  </div>
   <div class="headertitle"><div class="title">gaia::ecs::detail::NonFragmentingRelationStore Struct Reference</div></div>
@@ -139,6 +140,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a0abdc1178d6f4245ac9b825bc9ad9296" id="r_a0abdc1178d6f4245ac9b825bc9ad9296"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#a0abdc1178d6f4245ac9b825bc9ad9296">collect_source_ids</a> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; EntityId &gt; &amp;out) const</td></tr>
 <tr class="memdesc:a0abdc1178d6f4245ac9b825bc9ad9296"><td class="mdescLeft">&#160;</td><td class="mdescRight">Appends ids of all bound source entities.  <br /></td></tr>
 <tr class="separator:a0abdc1178d6f4245ac9b825bc9ad9296"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac668e7959a4db657afa31b5a5a64f9dc" id="r_ac668e7959a4db657afa31b5a5a64f9dc"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#ac668e7959a4db657afa31b5a5a64f9dc">collect_pair_sources</a> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; &amp;out) const</td></tr>
+<tr class="memdesc:ac668e7959a4db657afa31b5a5a64f9dc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Appends all bound exact pair sources in deterministic entity order.  <br /></td></tr>
+<tr class="separator:ac668e7959a4db657afa31b5a5a64f9dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa9accc5309adbb4e25638b7dd020d49a" id="r_aa9accc5309adbb4e25638b7dd020d49a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#aa9accc5309adbb4e25638b7dd020d49a">remove_target_source</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#a47dde5cf28e69269190c48124a7f288f">target</a>, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source)</td></tr>
 <tr class="memdesc:aa9accc5309adbb4e25638b7dd020d49a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes <em>source</em> from the source bucket for <em>target</em>.  <br /></td></tr>
 <tr class="separator:aa9accc5309adbb4e25638b7dd020d49a"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -155,6 +159,40 @@ Public Member Functions</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Storage for exclusive relation pairs that do not fragment archetypes. </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="ac668e7959a4db657afa31b5a5a64f9dc" name="ac668e7959a4db657afa31b5a5a64f9dc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac668e7959a4db657afa31b5a5a64f9dc">&#9670;&#160;</a></span>collect_pair_sources()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::detail::NonFragmentingRelationStore::collect_pair_sources </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; &amp;&#160;</td>
+          <td class="paramname"><em>out</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Appends all bound exact pair sources in deterministic entity order. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">out</td><td>Output array receiving exact pair sources. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="a0abdc1178d6f4245ac9b825bc9ad9296" name="a0abdc1178d6f4245ac9b825bc9ad9296"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a0abdc1178d6f4245ac9b825bc9ad9296">&#9670;&#160;</a></span>collect_source_ids()</h2>
 

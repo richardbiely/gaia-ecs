@@ -305,6 +305,7 @@ var hierarchy =
     [ "gaia::ecs::QueryInfo::QueryState::DynamicCacheState::RelationPayload", "structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1RelationPayload.html", null ],
     [ "gaia::ecs::Remove_", "structgaia_1_1ecs_1_1Remove__.html", null ],
     [ "gaia::ecs::Requires_", "structgaia_1_1ecs_1_1Requires__.html", null ],
+    [ "gaia::core::reverse_iterator< It, Diff >", "classgaia_1_1core_1_1reverse__iterator.html", null ],
     [ "gaia::ecs::RuntimeConstantMeta< StringType >", "structgaia_1_1ecs_1_1RuntimeConstantMeta.html", null ],
     [ "gaia::ecs::RuntimeFieldMeta< StringType >", "structgaia_1_1ecs_1_1RuntimeFieldMeta.html", null ],
     [ "gaia::ecs::RuntimeOpaqueAdapter", "structgaia_1_1ecs_1_1RuntimeOpaqueAdapter.html", null ],

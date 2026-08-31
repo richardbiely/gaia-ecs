@@ -1783,7 +1783,7 @@ template&lt;typename T &gt; </div>
 </div><div class="memdoc">
 
 <p>Sets the user-owned context pointer visible through Iter::ctx() during iterator callbacks. Changing the pointer does not affect query identity, query matching, shared-cache lookup, or cached query storage. Identical shared-cache query shapes may therefore keep different context pointers. </p>
-<dl class="section note"><dt>Note</dt><dd>Gaia-ECS stores only the pointer. The caller owns allocation, lifetime, destruction, and any synchronization needed when a parallel query callback reads or writes the pointed-to data. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Gaia-ECS stores only the pointer. The caller owns allocation, lifetime, destruction, and any synchronization needed when a parallel query callback reads or writes the pointed-to data. To make shared context access visible to scheduling, use the same Gaia entity as a resource key in <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a54113ef0bb7babf43c525522dbafb927" title="Declares an additional id read by this query callback.">reads(Entity)</a> or <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752" title="Declares an additional id written by this query callback.">writes(Entity)</a> on every query that accesses the context. </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">pCtx</td><td>Context pointer. May be null. </td></tr>
@@ -1791,6 +1791,9 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Self reference. </dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a54113ef0bb7babf43c525522dbafb927" title="Declares an additional id read by this query callback.">reads(Entity)</a> </dd>
+<dd>
+<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752" title="Declares an additional id written by this query callback.">writes(Entity)</a> </dd></dl>
 
 </div>
 </div>
@@ -4596,7 +4599,7 @@ template&lt;typename T &gt; </div>
 </div><div class="memdoc">
 
 <p>Declares an additional id read by this query callback. </p>
-<p>Use this for data accessed inside the query kernel but not present as a positive query term. The declaration is scheduling metadata only. It does not change query matching or cache identity. </p><dl class="params"><dt>Parameters</dt><dd>
+<p>Use this for data accessed inside the query kernel but not present as a positive query term. The declaration is scheduling metadata only. It does not change query matching or cache identity. A plain Gaia entity may be used as a resource key for shared context or other application-owned state. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td>Component/entity id read by user code. </td></tr>
   </table>
@@ -5602,7 +5605,7 @@ template&lt;typename T &gt; </div>
 </div><div class="memdoc">
 
 <p>Declares an additional id written by this query callback. </p>
-<p>A write conflicts with any read or write of the same id when comparing two queries with <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ac1abf80c1227b1e32ad41f27046fea2b" title="Returns whether this query conflicts with another query&#39;s effective access declarations.">conflicts_with()</a>. The declaration is scheduling metadata only. It does not change query matching or cache identity. </p><dl class="params"><dt>Parameters</dt><dd>
+<p>A write conflicts with any read or write of the same id when comparing two queries with <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ac1abf80c1227b1e32ad41f27046fea2b" title="Returns whether this query conflicts with another query&#39;s effective access declarations.">conflicts_with()</a>. The declaration is scheduling metadata only. It does not change query matching or cache identity. A plain Gaia entity may be used as a resource key for shared context or other application-owned state. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td>Component/entity id written by user code. </td></tr>
   </table>

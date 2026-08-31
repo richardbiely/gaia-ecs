@@ -1,5 +1,6 @@
 var structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore =
 [
+    [ "collect_pair_sources", "structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#ac668e7959a4db657afa31b5a5a64f9dc", null ],
     [ "collect_source_ids", "structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#a0abdc1178d6f4245ac9b825bc9ad9296", null ],
     [ "empty", "structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#ac65a601588f29f7cdb3a5d7472122dfe", null ],
     [ "ensure_source_capacity", "structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#af9c9dbd63feec06e22e97a015d29864b", null ],

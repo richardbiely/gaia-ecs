@@ -680,11 +680,23 @@ Observers</h3>
 <p>Because observers are query-backed, query shaping helpers such as <code>depth_order(...)</code> can be used on them as well when you want cached top-down breadth-first iteration over fragmenting hierarchies like <code>ChildOf</code>.</p>
 <p>Observers also expose the same query cache controls as plain queries. By default an observer keeps cached query state locally. Use <code>scope(ecs::QueryCacheScope::Shared)</code> only when many identical observer query shapes are rebuilt and you want them to reuse one shared cache entry. Use <code>kind(ecs::QueryCacheKind::None)</code> only for special cases where you explicitly do not want observer query caches.</p>
 <p>Observer events currently mean:</p><ul>
-<li><code>OnAdd</code> - an entity starts matching because ids were added</li>
-<li><code>OnDel</code> - an entity stops matching because ids were removed</li>
+<li><code>OnAdd</code> - observe the query's add-side event. A negative term maps removal of its excluded id to this event</li>
+<li><code>OnDel</code> - observe the query's delete-side event. A negative term maps addition of its excluded id to this event</li>
 <li><code>OnSet</code> - a value of an already present component was explicitly written</li>
 </ul>
-<p><code>OnSet</code> is triggered by APIs such as <code>set&lt;T&gt;(entity)</code>, <code>set&lt;T&gt;(entity, object)</code>, <code>acc_mut(entity).set&lt;T&gt;(...)</code>, <code>modify&lt;T, true&gt;(entity)</code>, and <code>modify&lt;T, true&gt;(entity, object)</code>. It is not triggered by <code>sset(...)</code>, <code>modify&lt;T, false&gt;(...)</code>, or by the initial <code>add&lt;T&gt;(entity, value)</code> that creates the component.</p>
+<p>Use <code>.monitor()</code> when the callback must run only when the complete query changes from unmatched to matched or from matched to unmatched. The callback reads the actual transition from <code>it.event()</code>: <code>OnAdd</code> means the entity entered the result and <code>OnDel</code> means it left. Monitoring observers evaluate membership before and after a relevant structural change, so they cost more than ordinary event observers.</p>
+<div class="fragment"><div class="line">w.observer()</div>
+<div class="line">  .monitor()</div>
+<div class="line">  .all&lt;Position&gt;()</div>
+<div class="line">  .no&lt;Frozen&gt;()</div>
+<div class="line">  .on_each([](ecs::Iter&amp; it) {</div>
+<div class="line">    <span class="keywordflow">if</span> (it.event() == ecs::ObserverEvent::OnAdd) {</div>
+<div class="line">      <span class="comment">// The entity now matches both terms.</span></div>
+<div class="line">    } <span class="keywordflow">else</span> {</div>
+<div class="line">      <span class="comment">// The entity no longer matches both terms.</span></div>
+<div class="line">    }</div>
+<div class="line">  });</div>
+</div><!-- fragment --><p><code>OnSet</code> is triggered by APIs such as <code>set&lt;T&gt;(entity)</code>, <code>set&lt;T&gt;(entity, object)</code>, <code>acc_mut(entity).set&lt;T&gt;(...)</code>, <code>modify&lt;T, true&gt;(entity)</code>, and <code>modify&lt;T, true&gt;(entity, object)</code>. It is not triggered by <code>sset(...)</code>, <code>modify&lt;T, false&gt;(...)</code>, or by the initial <code>add&lt;T&gt;(entity, value)</code> that creates the component.</p>
 <p><code>set&lt;T&gt;(entity)</code> uses a write-back proxy, so <code>OnSet</code> is emitted after the full expression or scope writes the final value back.</p>
 <p>Mutable query and observer callbacks follow the same rule. When a callback writes through <code>Position&amp;</code> or <code>it.view_mut&lt;Position&gt;()</code>, <code>OnSet</code> is emitted after the callback returns, not in the middle of the callback.</p>
 <p>Following is an observer that generates an OnAdd event every time some entity is added Position and Velocity.</p>
@@ -3902,24 +3914,26 @@ Project settings</h3>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>GAIA_BUILD_EXAMPLES</b>   </td><td class="markdownTableBodyNone">Builds <a class="el" href="index.html#examples">example projects</a>    </td></tr>
 <tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><b>BUILD_TESTING</b>   </td><td class="markdownTableBodyNone">Registers available example smoke tests with CTest when examples are built (ON by default)    </td></tr>
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>GAIA_GENERATE_CC</b>   </td><td class="markdownTableBodyNone">Exports <code>compile_commands.json</code> and copies it to <code>ninja/compile_commands.json</code> for tooling when the active generator supports it    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>GAIA_GENERATE_DOCS</b>   </td><td class="markdownTableBodyNone">Builds the <a class="el" href="index.html#documentation">documentation</a>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>GAIA_GENERATE_SINGLE_HEADER</b>   </td><td class="markdownTableBodyNone">Generates a <a class="el" href="index.html#single-header">single-header</a> version of the framework    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>GAIA_FORMAT_SINGLE_HEADER</b>   </td><td class="markdownTableBodyNone">Formats the generated single header with <code>clang-format</code> when available (<code>ON</code> by default)    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>GAIA_PROFILER_CPU</b>   </td><td class="markdownTableBodyNone">Enables CPU <a class="el" href="index.html#profiling">profiling</a> features    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>GAIA_PROFILER_MEM</b>   </td><td class="markdownTableBodyNone">Enabled memory <a class="el" href="index.html#profiling">profiling</a> features    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>GAIA_PROFILER_BUILD</b>   </td><td class="markdownTableBodyNone">Builds the <a class="el" href="index.html#profiling">profiler</a> (<a href="https://github.com/wolfpld/tracy">Tracy</a> by default)    </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>GAIA_USE_SANITIZER</b>   </td><td class="markdownTableBodyNone">Applies the specified set of <a class="el" href="index.html#sanitizers">sanitizers</a>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>GAIA_FUNC_WRAPPER_SMALLBLOCK</b>   </td><td class="markdownTableBodyNone">Uses <code>SmallBlockAllocator</code> for <code>SmallFunc</code> and <code>MoveFunc</code> callables that are too large for their inline buffer. Enabled by default. Set to <code>0</code> to allocate those larger callables with the platform heap instead.    </td></tr>
+<td class="markdownTableBodyNone"><b>GAIA_USE_SANITIZER</b>   </td><td class="markdownTableBodyNone">Applies the specified set of <a class="el" href="index.html#sanitizers">sanitizers</a>    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>GAIA_FUNC_WRAPPER_SMALLBLOCK</b>   </td><td class="markdownTableBodyNone">Uses <code>SmallBlockAllocator</code> for <code>SmallFunc</code> and <code>MoveFunc</code> callables that are too large for their inline buffer. Enabled by default. Set to <code>0</code> to allocate those larger callables with the platform heap instead.    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>GAIA_ALLOC_ARENA_LOCK</b>   </td><td class="markdownTableBodyNone">Process-wide spinlock on alloc/free/flush of <code>mem::SmallBlockAllocator</code>, <code>ecs::ChunkAllocator</code>, and <code>mem::PagedAllocator</code>. Off by default (<code>0</code>). Set to <code>1</code> to allow independent Worlds to mutate concurrently. With the lock off, assert builds abort if two threads enter an allocator at once. See <a class="el" href="index.html#worlds-threads-and-allocation-arenas">Worlds, threads, and allocation arenas</a>.   </td></tr>
 </table>
 <h3><a class="anchor" id="sanitizers"></a>
