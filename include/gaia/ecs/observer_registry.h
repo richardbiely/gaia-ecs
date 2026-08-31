@@ -2,6 +2,7 @@
 #include "gaia/config/config.h"
 
 #include "gaia/cnt/darray.h"
+#include "gaia/cnt/darray_ext.h"
 #include "gaia/cnt/ilist.h"
 #include "gaia/cnt/map.h"
 #include "gaia/cnt/set.h"
@@ -171,8 +172,8 @@ namespace gaia {
 				//! \param cache Match results already collected during this dispatch.
 				//! \param obs Observer looking for an equivalent query result.
 				//! \return Cache index, or minus one when no equivalent query was found.
-				GAIA_NODISCARD static int32_t
-				find_match_cache_entry(cnt::darray<MatchCacheEntry>& cache, ObserverRuntimeData& obs);
+				template <typename TMatchCache>
+				GAIA_NODISCARD static int32_t find_match_cache_entry(TMatchCache& cache, ObserverRuntimeData& obs);
 
 				//! Captures observer query matches before a world mutation.
 				//! \param registry Registry that owns the observer indexes.

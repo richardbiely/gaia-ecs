@@ -64906,8 +64906,8 @@ namespace gaia {
 				//! \param cache Match results already collected during this dispatch.
 				//! \param obs Observer looking for an equivalent query result.
 				//! \return Cache index, or minus one when no equivalent query was found.
-				GAIA_NODISCARD static int32_t
-				find_match_cache_entry(cnt::darray<MatchCacheEntry>& cache, ObserverRuntimeData& obs);
+				template <typename TMatchCache>
+				GAIA_NODISCARD static int32_t find_match_cache_entry(TMatchCache& cache, ObserverRuntimeData& obs);
 
 				//! Captures observer query matches before a world mutation.
 				//! \param registry Registry that owns the observer indexes.
@@ -81083,8 +81083,9 @@ namespace gaia {
 			return true;
 		}
 
-		inline int32_t ObserverRegistry::DiffDispatcher::find_match_cache_entry(
-				cnt::darray<MatchCacheEntry>& cache, ObserverRuntimeData& obs) {
+		template <typename TMatchCache>
+		inline int32_t
+		ObserverRegistry::DiffDispatcher::find_match_cache_entry(TMatchCache& cache, ObserverRuntimeData& obs) {
 			auto& queryInfo = obs.query.fetch();
 			auto& queryCtx = queryInfo.ctx();
 			const auto queryHash = queryCtx.hashLookup.hash;
@@ -81369,9 +81370,9 @@ namespace gaia {
 				normalize_targets(ctx.targets);
 
 			// As with the before snapshot, equivalent observer queries share one result.
-			cnt::darray<MatchCacheEntry> matchesAfterCache;
-			cnt::darray<Entity> delta;
-			cnt::darray<Entity> monitorLeft;
+			cnt::darray_ext<MatchCacheEntry, 4> matchesAfterCache;
+			cnt::darray_ext<Entity, 16> delta;
+			cnt::darray_ext<Entity, 16> monitorLeft;
 
 			for (auto& snapshot: ctx.observers) {
 				auto* pObs = world.m_observers.data_try(snapshot.observer);
