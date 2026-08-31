@@ -523,9 +523,13 @@ namespace gaia {
 			//! The system stores this pointer on its underlying query, exactly like QueryImpl::ctx(void*). It does not own,
 			//! allocate, copy, or destroy the pointed-to data.
 			//! \note If the system runs through parallel query execution, every worker observes the same pointer. The caller
-			//! owns synchronization for mutable data referenced by the context.
+			//! owns synchronization for mutable data referenced by the context. To make shared context access visible to
+			//! scheduling, use the same Gaia entity as a resource key in reads(Entity) or writes(Entity) on every system that
+			//! accesses the context.
 			//! \param pCtx Context pointer. May be null.
 			//! \return Self reference.
+			//! \see reads(Entity)
+			//! \see writes(Entity)
 			SystemBuilder& ctx(void* pCtx) {
 				validate();
 				data().query.ctx(pCtx);
@@ -556,6 +560,7 @@ namespace gaia {
 			//! \name System access declarations
 			//! \{
 			//! Declares an additional id read by this system callback.
+			//! A plain Gaia entity may be used as a resource key for shared context or other application-owned state.
 			//! \param entity Component/entity id read by user code.
 			//! \return Self reference.
 			//! \see QueryImpl::reads(Entity)
@@ -577,6 +582,7 @@ namespace gaia {
 			}
 
 			//! Declares an additional id written by this system callback.
+			//! A plain Gaia entity may be used as a resource key for shared context or other application-owned state.
 			//! \param entity Component/entity id written by user code.
 			//! \return Self reference.
 			//! \see QueryImpl::writes(Entity)

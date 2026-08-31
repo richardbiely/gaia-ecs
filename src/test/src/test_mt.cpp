@@ -911,6 +911,54 @@ TEST_CASE("ECS - System update wires custom access dependencies") {
 	CHECK(independentHits == EntityCount);
 }
 
+TEST_CASE("ECS - System update wires shared context resource dependencies") {
+	struct SharedContext {
+		uint32_t value = 0;
+	};
+
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+
+	constexpr uint32_t EntityCount = 11;
+	GAIA_FOR(EntityCount) {
+		auto e = wld.add();
+		wld.add<Position>(e, {float(i), 0.0F, 0.0F});
+	}
+
+	SharedContext context{};
+	const auto contextResource = wld.add();
+	uint32_t observed = 0;
+	wld.system()
+			.ctx(&context)
+			.all<const Position>()
+			.writes(contextResource)
+			.mode(ecs::QueryExecType::Parallel)
+			.on_each([](ecs::Iter& it) {
+				auto& ctx = *static_cast<SharedContext*>(it.ctx());
+				ctx.value += (uint32_t)it.entity_rows().size();
+			});
+	wld.system()
+			.ctx(&context)
+			.all<const Position>()
+			.reads(contextResource)
+			.mode(ecs::QueryExecType::Parallel)
+			.on_each([&](ecs::Iter& it) {
+				const auto& ctx = *static_cast<const SharedContext*>(it.ctx());
+				observed += ctx.value;
+			});
+
+	wld.update();
+
+	CHECK(probe.addParallelCalls == 2);
+	CHECK(probe.submitCalls == 2);
+	CHECK(probe.depCalls == 1);
+	CHECK(probe.depFirst[0].value[0] == 1);
+	CHECK(probe.depSecond[0].value[0] == 2);
+	CHECK(context.value == EntityCount);
+	CHECK(observed == EntityCount);
+}
+
 TEST_CASE("ECS - System update treats phase boundaries as depth-first job barriers") {
 	TestWorld twld;
 	ExternalSchedProbe probe;

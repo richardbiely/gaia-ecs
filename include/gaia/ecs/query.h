@@ -1050,9 +1050,13 @@ namespace gaia {
 				//! Changing the pointer does not affect query identity, query matching, shared-cache lookup, or cached query
 				//! storage. Identical shared-cache query shapes may therefore keep different context pointers.
 				//! \note Gaia-ECS stores only the pointer. The caller owns allocation, lifetime, destruction, and any
-				//! synchronization needed when a parallel query callback reads or writes the pointed-to data.
+				//! synchronization needed when a parallel query callback reads or writes the pointed-to data. To make shared
+				//! context access visible to scheduling, use the same Gaia entity as a resource key in reads(Entity) or
+				//! writes(Entity) on every query that accesses the context.
 				//! \param pCtx Context pointer. May be null.
 				//! \return Self reference.
+				//! \see reads(Entity)
+				//! \see writes(Entity)
 				QueryImpl& ctx(void* pCtx) {
 					m_ctx = pCtx;
 					return *this;
@@ -1095,7 +1099,8 @@ namespace gaia {
 				//! Declares an additional id read by this query callback.
 				//!
 				//! Use this for data accessed inside the query kernel but not present as a positive query term. The declaration
-				//! is scheduling metadata only. It does not change query matching or cache identity.
+				//! is scheduling metadata only. It does not change query matching or cache identity. A plain Gaia entity may
+				//! be used as a resource key for shared context or other application-owned state.
 				//! \param entity Component/entity id read by user code.
 				//! \return Self reference.
 				//! \see writes(Entity)
@@ -1116,7 +1121,8 @@ namespace gaia {
 				//! Declares an additional id written by this query callback.
 				//!
 				//! A write conflicts with any read or write of the same id when comparing two queries with conflicts_with().
-				//! The declaration is scheduling metadata only. It does not change query matching or cache identity.
+				//! The declaration is scheduling metadata only. It does not change query matching or cache identity. A plain
+				//! Gaia entity may be used as a resource key for shared context or other application-owned state.
 				//! \param entity Component/entity id written by user code.
 				//! \return Self reference.
 				//! \see reads(Entity)
