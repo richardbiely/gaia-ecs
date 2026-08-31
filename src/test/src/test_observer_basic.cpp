@@ -1177,6 +1177,101 @@ TEST_CASE("Observer - del sparse with value payload") {
 	CHECK(pos.z == doctest::Approx(8.0f));
 }
 
+TEST_CASE("Observer - deleting an entity emits component OnDel") {
+	SUBCASE("table component") {
+		TestWorld twld;
+		uint32_t hits = 0;
+		float observedX = 0.0f;
+		const auto observer = wld.observer()
+									 .event(ecs::ObserverEvent::OnDel)
+									 .all<Position>()
+									 .on_each([&](ecs::Iter& it) {
+										 ++hits;
+										 observedX = it.view_any<Position>()[0].x;
+									 })
+									 .entity();
+
+		const auto entity = wld.add();
+		wld.add<Position>(entity, {1.0f, 2.0f, 3.0f});
+		wld.del(entity);
+		CHECK(hits == 1);
+		CHECK(observedX == doctest::Approx(1.0f));
+		wld.update();
+		CHECK(hits == 1);
+		(void)observer;
+	}
+
+	SUBCASE("fragmenting sparse component") {
+		TestWorld twld;
+		uint32_t hits = 0;
+		float observedX = 0.0f;
+		const auto observer = wld.observer()
+									 .event(ecs::ObserverEvent::OnDel)
+									 .all<PositionSparse>()
+									 .on_each([&](ecs::Iter& it) {
+										 ++hits;
+										 observedX = it.view_any<PositionSparse>()[0].x;
+									 })
+									 .entity();
+
+		const auto entity = wld.add();
+		wld.add<PositionSparse>(entity, {4.0f, 5.0f, 6.0f});
+		wld.del(entity);
+		CHECK(hits == 1);
+		CHECK(observedX == doctest::Approx(4.0f));
+		wld.update();
+		CHECK(hits == 1);
+		(void)observer;
+	}
+
+	SUBCASE("non-fragmenting sparse component") {
+		TestWorld twld;
+		const auto component = wld.add<PositionSparse>().entity;
+		wld.add(component, ecs::DontFragment);
+		uint32_t hits = 0;
+		float observedX = 0.0f;
+		const auto observer = wld.observer()
+									 .event(ecs::ObserverEvent::OnDel)
+									 .all<PositionSparse>()
+									 .on_each([&](ecs::Iter& it) {
+										 ++hits;
+										 observedX = it.view_any<PositionSparse>()[0].x;
+									 })
+									 .entity();
+
+		const auto entity = wld.add();
+		wld.add<PositionSparse>(entity, {7.0f, 8.0f, 9.0f});
+		wld.del(entity);
+		CHECK(hits == 1);
+		CHECK(observedX == doctest::Approx(7.0f));
+		wld.update();
+		CHECK(hits == 1);
+		(void)observer;
+	}
+
+	SUBCASE("multi-term observer runs once") {
+		TestWorld twld;
+		uint32_t hits = 0;
+		const auto observer = wld.observer()
+									 .event(ecs::ObserverEvent::OnDel)
+									 .all<Position>()
+									 .all<Rotation>()
+									 .on_each([&](ecs::Iter&) {
+										 ++hits;
+									 })
+									 .entity();
+
+		const auto entity = wld.add();
+		wld.add<Position>(entity);
+		wld.add<Rotation>(entity);
+		wld.del(entity);
+		CHECK(hits == 1);
+		wld.update();
+		CHECK(hits == 1);
+		(void)observer;
+	}
+}
+
 TEST_CASE("Observer - copy_ext sparse payload") {
 	TestWorld twld;
 

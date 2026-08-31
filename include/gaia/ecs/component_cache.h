@@ -45,6 +45,10 @@ namespace gaia {
 			//! Lookup of component items by their unique short symbol name (leaf after the last `::`).
 			//! Ambiguous short names keep a tracked representative but remain lookup misses.
 			cnt::map<ComponentCacheItem::SymbolLookupKey, ResolvedLookupEntry> m_compByShortSymbol;
+#if GAIA_ENABLE_HOOKS
+			//! True after mutable hook storage was requested for any registered component.
+			bool m_hooksAccessed = false;
+#endif
 
 			//! Clears the contents of the component cache
 			//! \warning Should be used only after worlds are cleared because it invalidates all currently
@@ -65,7 +69,18 @@ namespace gaia {
 
 				m_compByEntityId.clear();
 				m_symbols.clear();
+#if GAIA_ENABLE_HOOKS
+				m_hooksAccessed = false;
+#endif
 			}
+
+#if GAIA_ENABLE_HOOKS
+			//! Returns whether any component may have user-configured hooks.
+			//! \return True after mutable hook storage was requested.
+			GAIA_NODISCARD bool hooks_accessed() const noexcept {
+				return m_hooksAccessed;
+			}
+#endif
 
 			GAIA_NODISCARD static bool is_internal_symbol(util::str_view symbol) noexcept {
 				constexpr char InternalPrefix[] = "gaia::ecs::";
@@ -452,6 +467,9 @@ namespace gaia {
 
 				auto& item = *const_cast<ComponentCacheItem*>(pItem);
 				item.m_ownerCache = this;
+#if GAIA_ENABLE_HOOKS
+				item.m_pHooksAccessed = &m_hooksAccessed;
+#endif
 				add_name_mappings(item, scopePath);
 				return item;
 			}

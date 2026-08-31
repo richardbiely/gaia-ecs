@@ -206,6 +206,10 @@ namespace gaia {
 #endif
 
 		private:
+#if GAIA_ENABLE_HOOKS
+			//! Cache-level marker set when mutable hook storage is requested.
+			bool* m_pHooksAccessed = nullptr;
+#endif
 			//! Owning component cache used to resolve reflected runtime field type entities.
 			const ComponentCache* m_ownerCache = nullptr;
 			//! Non-owning symbol table shared by this item's component and runtime metadata.
@@ -657,6 +661,8 @@ namespace gaia {
 #if GAIA_ENABLE_HOOKS
 			//! \return Mutable hook callback storage for this component.
 			Hooks& hooks() {
+				if (m_pHooksAccessed != nullptr)
+					*m_pHooksAccessed = true;
 				return comp_hooks;
 			}
 

@@ -2186,7 +2186,7 @@ namespace gaia {
 							const auto* pItem = m_world.component_item(m_entity, entity);
 							if (pItem == nullptr)
 								continue;
-							const auto& hooks = ComponentCache::hooks(*pItem);
+							const auto& hooks = pItem->hooks();
 							if (hooks.func_add != nullptr)
 								hooks.func_add(m_world, *pItem, m_entity);
 						}
@@ -2236,7 +2236,7 @@ namespace gaia {
 							const auto* pItem = m_world.component_item(m_entity, entity);
 							if (pItem == nullptr)
 								continue;
-							const auto& hooks = ComponentCache::hooks(*pItem);
+							const auto& hooks = pItem->hooks();
 							if (hooks.func_del != nullptr)
 								hooks.func_del(m_world, *pItem, m_entity);
 						}
@@ -4661,7 +4661,7 @@ namespace gaia {
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
 				const auto* pItem = component_item(entity, object);
 				if (pItem != nullptr) {
-					const auto& hooks = ComponentCache::hooks(*pItem);
+					const auto& hooks = pItem->hooks();
 					if (hooks.func_add != nullptr)
 						hooks.func_add(*this, *pItem, entity);
 				}
@@ -4697,7 +4697,7 @@ namespace gaia {
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
 				const auto* pItem = component_item(entity, object);
 				if (pItem != nullptr) {
-					const auto& hooks = ComponentCache::hooks(*pItem);
+					const auto& hooks = pItem->hooks();
 					if (hooks.func_del != nullptr)
 						hooks.func_del(*this, *pItem, entity);
 				}
@@ -4707,6 +4707,98 @@ namespace gaia {
 #else
 				(void)entity;
 				(void)object;
+#endif
+			}
+
+			//! Dispatches component delete notifications before an entity leaves its storage.
+			//! \param ec Entity container associated with \a entity.
+			//! \param entity Entity whose directly owned components are about to be destroyed.
+			void notify_del_entity_components(const EntityContainer& ec, Entity entity) {
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+	#if GAIA_OBSERVERS_ENABLED
+				bool inspectObserverTerms =
+						ec.pArchetype->has_observed_terms() || !m_sparseComponentsByComp.empty();
+	#else
+				constexpr bool inspectObserverTerms = false;
+	#endif
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
+				const bool inspectHookTerms = m_compCache.hooks_accessed();
+	#else
+				constexpr bool inspectHookTerms = false;
+	#endif
+				if (!inspectObserverTerms && !inspectHookTerms)
+					return;
+				if GAIA_UNLIKELY (tearing_down())
+					return;
+
+				const auto& archetype = *ec.pArchetype;
+	#if GAIA_OBSERVERS_ENABLED
+				inspectObserverTerms = inspectObserverTerms && m_observers.has_on_del_observers();
+				if (!inspectObserverTerms && !inspectHookTerms)
+					return;
+	#endif
+
+				cnt::darray_ext<Entity, 32> observerTerms;
+				cnt::darray_ext<Entity, 32> hookTerms;
+
+	#if GAIA_OBSERVERS_ENABLED
+				if (inspectObserverTerms && archetype.has_observed_terms()) {
+					for (const auto term: archetype.ids_view())
+						observerTerms.push_back(term);
+				}
+	#endif
+
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
+				if (inspectHookTerms) {
+					for (const auto term: archetype.ids_view()) {
+						const auto* pItem = component_item(entity, term);
+						if (pItem != nullptr && pItem->hooks().func_del != nullptr)
+							hookTerms.push_back(term);
+					}
+				}
+	#endif
+
+				for (const auto& [componentKey, store]: m_sparseComponentsByComp) {
+					const auto component = componentKey.entity();
+					if (!component_is_non_fragmenting(component) || !store.func_has(store.pStore, entity))
+						continue;
+
+	#if GAIA_OBSERVERS_ENABLED
+					if ((fetch(component).flags & EntityContainerFlags::IsObserved) != 0)
+						observerTerms.push_back(component);
+	#endif
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
+					const auto* pItem = component_item(entity, component);
+					if (inspectHookTerms && pItem != nullptr && pItem->hooks().func_del != nullptr)
+						hookTerms.push_back(component);
+	#endif
+				}
+
+				if (observerTerms.empty() && hookTerms.empty())
+					return;
+
+				lock();
+
+	#if GAIA_OBSERVERS_ENABLED
+				if (!observerTerms.empty())
+					m_observers.on_del(*this, archetype, EntitySpan{observerTerms}, EntitySpan{&entity, 1});
+	#endif
+
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
+				for (const auto term: hookTerms) {
+					const auto* pItem = component_item(entity, term);
+					if (pItem == nullptr)
+						continue;
+					const auto& hooks = pItem->hooks();
+					if (hooks.func_del != nullptr)
+						hooks.func_del(*this, *pItem, entity);
+				}
+	#endif
+
+				unlock();
+#else
+				(void)ec;
+				(void)entity;
 #endif
 			}
 
@@ -5432,7 +5524,7 @@ namespace gaia {
 						continue;
 
 					const auto& item = comp_cache().get(id);
-					if (ComponentCache::hooks(item).func_add != nullptr)
+					if (item.hooks().func_add != nullptr)
 						outHookIds.push_back(id);
 				}
 			}
@@ -5499,7 +5591,7 @@ namespace gaia {
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
 					for (const auto id: addHookIds) {
 						const auto& item = comp_cache().get(id);
-						const auto& hooks = ComponentCache::hooks(item);
+						const auto& hooks = item.hooks();
 						GAIA_ASSERT(hooks.func_add != nullptr);
 						hooks.func_add(*this, item, instance);
 					}
@@ -5616,7 +5708,7 @@ namespace gaia {
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
 						for (const auto id: node.addHookIds) {
 							const auto& item = comp_cache().get(id);
-							const auto& hooks = ComponentCache::hooks(item);
+							const auto& hooks = item.hooks();
 							GAIA_ASSERT(hooks.func_add != nullptr);
 
 							GAIA_FOR2_(originalChunkSize, originalChunkSize + toCreate, rowIdx) {
@@ -11391,6 +11483,7 @@ namespace gaia {
 #else
 				del_nonfragmenting_relation_source(entity);
 #endif
+				notify_del_entity_components(ec, entity);
 				del_entity(ec, entity, false);
 #if GAIA_OBSERVERS_ENABLED
 				m_observers.finish_diff(*this, GAIA_MOV(delDiffCtx));

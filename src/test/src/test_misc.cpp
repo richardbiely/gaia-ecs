@@ -4395,10 +4395,18 @@ TEST_CASE("Hooks") {
 		wld.del<Position>(e);
 		CHECK(hook_trigger_cnt == 2);
 
+		// Deleting an entity also removes each owned component and must run its delete hook.
+		auto entityToDelete = wld.add();
+		wld.add<Position>(entityToDelete);
+		wld.del(entityToDelete);
+		CHECK(hook_trigger_cnt == 3);
+		wld.update();
+		CHECK(hook_trigger_cnt == 3);
+
 		#if !GAIA_ASSERT_ENABLED
 		// Don't trigger again
 		wld.del<Position>(e);
-		CHECK(hook_trigger_cnt == 2);
+		CHECK(hook_trigger_cnt == 3);
 		#endif
 	}
 	#endif
