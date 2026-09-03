@@ -166,8 +166,8 @@ void BM_ECS(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 		gaia::dont_optimize(queryPosCVel.empty());
@@ -240,8 +240,8 @@ void BM_ECS_ReadPositionOnly(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryPos.empty());
 	}
 
@@ -273,8 +273,8 @@ void BM_ECS_ReadHealthOnly(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryHealth.empty());
 	}
 
@@ -298,8 +298,8 @@ void BM_ECS_ReadHealthIterOnly(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryHealth.empty());
 	}
 
@@ -332,8 +332,8 @@ void BM_ECS_ReadHealthIterChunkRawOnly(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryHealth.empty());
 	}
 
@@ -362,8 +362,8 @@ void BM_ECS_ReadHealthArchRawOnly(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		auto& queryInfo = queryHealth.fetch();
 		queryHealth.match_all(queryInfo);
 		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
@@ -404,8 +404,8 @@ void BM_ECS_UpdatePositionOnly(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryPosCVel.empty());
 	}
 
@@ -428,8 +428,8 @@ void BM_ECS_UpdatePositionOnlyChunkRawBase(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		auto& queryInfo = queryPosCVel.fetch();
 		queryPosCVel.match_all(queryInfo);
 		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
@@ -484,8 +484,8 @@ void BM_ECS_UpdatePositionOnlyChunkPtrRawBase(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		auto& queryInfo = queryPosCVel.fetch();
 		queryPosCVel.match_all(queryInfo);
 		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
@@ -543,8 +543,8 @@ void BM_ECS_UpdatePositionOnlyIter(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryPosCVel.empty());
 	}
 
@@ -578,8 +578,8 @@ void BM_ECS_UpdatePositionOnlyEachArch(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryPosCVel.empty());
 	}
 
@@ -622,8 +622,8 @@ void BM_ECS_ReadPositionVelocityOnly(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryPosCVel.empty());
 	}
 
@@ -646,8 +646,8 @@ void BM_ECS_TouchPositionWithVelocity(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryPosCVel.empty());
 	}
 
@@ -670,8 +670,8 @@ void BM_ECS_UpdatePositionFixedDeltaWithReadback(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryPosCVel.empty());
 	}
 
@@ -710,8 +710,8 @@ void BM_ECS_UpdatePositionFixedDeltaWithReadbackTypedCaptured(picobench::state& 
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryPosCVel.empty());
 	}
 
@@ -737,8 +737,8 @@ void BM_ECS_PositionVelocityChunkRaw(picobench::state& state, Func func) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		auto& queryInfo = queryPosCVel.fetch();
 		queryPosCVel.match_all(queryInfo);
 		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
@@ -844,8 +844,8 @@ void BM_ECS_PositionVelocityChunkPtrRaw(picobench::state& state, Func func) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		auto& queryInfo = queryPosCVel.fetch();
 		queryPosCVel.match_all(queryInfo);
 		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
@@ -936,8 +936,8 @@ void BM_ECS_UpdatePositionFixedDeltaWithReadbackChunkPtrRawRestrictLocalSumBase(
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		auto& queryInfo = queryPosCVel.fetch();
 		queryPosCVel.match_all(queryInfo);
 		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
@@ -982,8 +982,8 @@ void BM_ECS_UpdatePositionFixedDeltaWithReadbackIter(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryPosCVel.empty());
 	}
 
@@ -1020,8 +1020,8 @@ void BM_ECS_UpdatePositionFixedDeltaWithReadbackIterLocalAccum(picobench::state&
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryPosCVel.empty());
 	}
 
@@ -1060,8 +1060,8 @@ void BM_ECS_UpdatePositionFixedDeltaWithReadbackIterLocalSum(picobench::state& s
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryPosCVel.empty());
 	}
 
@@ -1098,7 +1098,7 @@ template <uint32_t Groups>
 void BM_NonECS_DOD_ReadPositionVelocityChunked(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_NonECS_DOD_ReadPositionVelocityChunked);
 
-	const auto N = (uint32_t)state.user_data() / 2;
+	const auto N = (uint32_t)state.input_data() / 2;
 	const uint32_t NGroup = N / Groups;
 	struct Group {
 		cnt::darray<Position> positions;
@@ -1136,7 +1136,7 @@ void BM_NonECS_DOD_ReadPositionVelocityChunked(picobench::state& state) {
 void BM_NonECS_DOD_ReadPositionVelocityOnly(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_NonECS_DOD_ReadPositionVelocityOnly);
 
-	const auto N = (uint32_t)state.user_data() / 2;
+	const auto N = (uint32_t)state.input_data() / 2;
 	cnt::darray<Position> positions(N);
 	cnt::darray<Velocity> velocities(N);
 
@@ -1162,7 +1162,7 @@ template <uint32_t Groups>
 void BM_NonECS_DOD_UpdatePositionFixedDeltaWithReadbackChunked(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_NonECS_DOD_UpdatePositionFixedDeltaWithReadbackChunked);
 
-	const auto N = (uint32_t)state.user_data() / 2;
+	const auto N = (uint32_t)state.input_data() / 2;
 	const uint32_t NGroup = N / Groups;
 	struct Group {
 		cnt::darray<Position> positions;
@@ -1204,7 +1204,7 @@ void BM_NonECS_DOD_UpdatePositionFixedDeltaWithReadbackChunked(picobench::state&
 void BM_NonECS_DOD_UpdatePositionFixedDeltaWithReadback(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_NonECS_DOD_UpdatePositionFixedDeltaWithReadback);
 
-	const auto N = (uint32_t)state.user_data() / 2;
+	const auto N = (uint32_t)state.input_data() / 2;
 	cnt::darray<Position> positions(N);
 	cnt::darray<Velocity> velocities(N);
 
@@ -1239,8 +1239,8 @@ void BM_ECS_ReadVelocityOnly(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryVel.empty());
 	}
 
@@ -1263,8 +1263,8 @@ void BM_ECS_WriteVelocityOnly(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		gaia::dont_optimize(queryVel.empty());
 	}
 
@@ -1286,8 +1286,8 @@ void BM_ECS_ReadVelocityChunkRawOnly(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		auto& queryInfo = queryVel.fetch();
 		queryVel.match_all(queryInfo);
 		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
@@ -1324,8 +1324,8 @@ void BM_ECS_ReadVelocityChunkPtrRawOnly(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		auto& queryInfo = queryVel.fetch();
 		queryVel.match_all(queryInfo);
 		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
@@ -1363,8 +1363,8 @@ void BM_ECS_WriteVelocityChunkRawBase(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 		auto& queryInfo = queryVel.fetch();
 		queryVel.match_all(queryInfo);
 		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
@@ -1480,8 +1480,8 @@ void BM_ECS_Iter(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 		for (uint32_t i = 0; i < 10; ++i)
@@ -1570,8 +1570,8 @@ void BM_ECS_Iter_Dir(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.input_data() / 2);
 
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 		for (uint32_t i = 0; i < 10; ++i)
@@ -1672,8 +1672,8 @@ void BM_ECS_Iter_SoA(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<true>(w);
-		CreateECSEntities_Static<true>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<true>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<true>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<true>(w, (uint32_t)state.input_data() / 2);
 
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 		for (uint32_t i = 0; i < 10; ++i)
@@ -1774,8 +1774,8 @@ void BM_ECS_Iter_SoA_Dir(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		Register_ESC_Components<true>(w);
-		CreateECSEntities_Static<true>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<true>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Static<true>(w, (uint32_t)state.input_data() / 2);
+		CreateECSEntities_Dynamic<true>(w, (uint32_t)state.input_data() / 2);
 
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 		for (uint32_t i = 0; i < 10; ++i)
@@ -1986,7 +1986,7 @@ void BM_NonECS(picobench::state& state) {
 
 	// Create entities.
 	// We allocate via new to simulate the usual kind of behavior in games
-	const auto N = (uint32_t)state.user_data() / 2;
+	const auto N = (uint32_t)state.input_data() / 2;
 	cnt::darray<IUnit*> units(N * 2);
 	{
 		GAIA_PROF_SCOPE(setup);
@@ -2169,7 +2169,7 @@ namespace NonECS_BetterMemoryLayout {
 		Health h;
 
 		using UnitDynamic2::isAlive;
-		using UnitDynamic2 ::isAlive_verify;
+		using UnitDynamic2::isAlive_verify;
 		bool isAlive() const {
 			return h.value > 0;
 		}
@@ -2189,7 +2189,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 
 	using namespace NonECS_BetterMemoryLayout;
 
-	const auto N = (uint32_t)state.user_data() / 2;
+	const auto N = (uint32_t)state.input_data() / 2;
 	cnt::darray<UnitStatic> units_static(N);
 	cnt::darray<UnitDynamic1> units_dynamic1(N / 4);
 	cnt::darray<UnitDynamic2> units_dynamic2(N / 4);
@@ -2360,7 +2360,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 		}
 	};
 
-	const auto N = (uint32_t)state.user_data() / 2;
+	const auto N = (uint32_t)state.input_data() / 2;
 	const uint32_t NGroup = N / Groups;
 
 	struct static_units_group {
@@ -2466,7 +2466,7 @@ void BM_ECS_DepthOrder_Iter_EnabledOnly(picobench::state& state) {
 	auto child = w.add();
 	w.child(child, root);
 	w.add<Position>(child, {0, 0, 0});
-	w.copy_n(child, (uint32_t)state.user_data() - 1);
+	w.copy_n(child, (uint32_t)state.input_data() - 1);
 
 	auto q = w.query().all<Position>().depth_order(ecs::ChildOf);
 	gaia::dont_optimize(q.count());
@@ -2493,7 +2493,7 @@ void BM_ECS_DepthOrder_Iter_DisabledOnly(picobench::state& state) {
 	w.child(child, root);
 	w.add<Position>(child, {0, 0, 0});
 	w.enable(child, false);
-	w.copy_n(child, (uint32_t)state.user_data() - 1, [&](ecs::Entity e) {
+	w.copy_n(child, (uint32_t)state.input_data() - 1, [&](ecs::Entity e) {
 		w.enable(e, false);
 	});
 
@@ -2523,7 +2523,7 @@ void BM_ECS_DepthOrder_Typed_EnabledOnly(picobench::state& state) {
 	auto child = w.add();
 	w.child(child, root);
 	w.add<Position>(child, {1, 0, 0});
-	w.copy_n(child, (uint32_t)state.user_data() - 1);
+	w.copy_n(child, (uint32_t)state.input_data() - 1);
 
 	auto q = w.query().all<Position>().depth_order(ecs::ChildOf);
 	gaia::dont_optimize(q.count());
@@ -2544,7 +2544,7 @@ void BM_ECS_DepthOrder_Typed_PrunedEnabledOnly(picobench::state& state) {
 	ecs::World w;
 	(void)w.add<Position>();
 
-	const auto entityCount = (uint32_t)state.user_data();
+	const auto entityCount = (uint32_t)state.input_data();
 	const auto prunedCount = entityCount;
 	const auto enabledCount = entityCount;
 
@@ -2655,7 +2655,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		}
 	};
 
-	const auto N = (uint32_t)state.user_data() / 2;
+	const auto N = (uint32_t)state.input_data() / 2;
 	const uint32_t NGroup = N / Groups;
 	struct static_units_group {
 		cnt::darray_soa<PositionSoA> units_p;

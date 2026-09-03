@@ -8,7 +8,7 @@ namespace {
 
 	template <typename TPrepare, typename TAlloc, typename TFree>
 	void run_ping_pong(picobench::state& state, TPrepare&& prepare, TAlloc&& allocFn, TFree&& freeFn) {
-		const auto bytes = (uint32_t)state.user_data();
+		const auto bytes = (uint32_t)state.input_data();
 
 		for (auto _: state) {
 			(void)_;
@@ -32,7 +32,7 @@ namespace {
 
 	template <typename TPrepare, typename TAlloc, typename TFree>
 	void run_batch(picobench::state& state, TPrepare&& prepare, TAlloc&& allocFn, TFree&& freeFn) {
-		const auto bytes = (uint32_t)state.user_data();
+		const auto bytes = (uint32_t)state.input_data();
 		cnt::darray<void*> ptrs;
 		ptrs.resize(BatchSize);
 

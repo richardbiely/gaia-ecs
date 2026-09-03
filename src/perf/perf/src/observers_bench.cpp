@@ -5,7 +5,7 @@ template <uint32_t ObserverCount, uint32_t TermCount>
 void BM_Observer_OnAdd(picobench::state& state) {
 	static_assert(TermCount >= 1 && TermCount <= 8);
 
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	cnt::darray<ecs::Entity> entities;
 
 	for (auto _: state) {
@@ -47,7 +47,7 @@ template <uint32_t ObserverCount, uint32_t TermCount>
 void BM_Observer_OnDel(picobench::state& state) {
 	static_assert(TermCount >= 1 && TermCount <= 8);
 
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	cnt::darray<ecs::Entity> entities;
 
 	for (auto _: state) {
@@ -132,7 +132,7 @@ void BM_Observer_OnDel_50_8(picobench::state& state) {
 }
 
 void BM_Observer_DiffPairRelFiltered_OnAdd(picobench::state& state) {
-	const uint32_t observerCount = (uint32_t)state.user_data();
+	const uint32_t observerCount = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -178,7 +178,7 @@ void BM_Observer_DiffPairRelFiltered_OnAdd(picobench::state& state) {
 }
 
 void BM_Observer_DiffPairRelExistingMatches_OnAdd(picobench::state& state) {
-	const uint32_t existingMatchCount = (uint32_t)state.user_data();
+	const uint32_t existingMatchCount = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -221,7 +221,7 @@ void BM_Observer_DiffPairRelExistingMatches_OnAdd(picobench::state& state) {
 }
 
 void BM_Observer_DiffCopyExtFiltered_OnAdd(picobench::state& state) {
-	const uint32_t observerCount = (uint32_t)state.user_data();
+	const uint32_t observerCount = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -269,7 +269,7 @@ void BM_Observer_DiffCopyExtFiltered_OnAdd(picobench::state& state) {
 }
 
 void BM_Observer_DiffCopyExtExistingMatches_OnAdd(picobench::state& state) {
-	const uint32_t existingMatchCount = (uint32_t)state.user_data();
+	const uint32_t existingMatchCount = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -315,7 +315,7 @@ void BM_Observer_DiffCopyExtExistingMatches_OnAdd(picobench::state& state) {
 
 template <ecs::QueryCacheScope Scope>
 void BM_Observer_IdenticalTraversed_OnAdd(picobench::state& state) {
-	const uint32_t observerCount = (uint32_t)state.user_data();
+	const uint32_t observerCount = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -363,7 +363,7 @@ void BM_Observer_IdenticalTraversed_OnAdd_Shared(picobench::state& state) {
 }
 
 void BM_Observer_DiffAncestorExistingMatches_OnAdd(picobench::state& state) {
-	const uint32_t existingMatchCount = (uint32_t)state.user_data();
+	const uint32_t existingMatchCount = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -411,7 +411,7 @@ void BM_Observer_DiffAncestorExistingMatches_OnAdd(picobench::state& state) {
 }
 
 void BM_Observer_DiffRelationEdgeExistingMatches_OnAdd(picobench::state& state) {
-	const uint32_t existingMatchCount = (uint32_t)state.user_data();
+	const uint32_t existingMatchCount = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -459,7 +459,7 @@ void BM_Observer_DiffRelationEdgeExistingMatches_OnAdd(picobench::state& state) 
 }
 
 void BM_Observer_DiffAncestorFilteredObservers_OnAdd(picobench::state& state) {
-	const uint32_t observerCount = (uint32_t)state.user_data();
+	const uint32_t observerCount = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -498,7 +498,7 @@ void BM_Observer_DiffAncestorFilteredObservers_OnAdd(picobench::state& state) {
 }
 
 void BM_Observer_DiffAncestorCascadeDelete_OnDel(picobench::state& state) {
-	const uint32_t existingMatchCount = (uint32_t)state.user_data();
+	const uint32_t existingMatchCount = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -558,7 +558,7 @@ void BM_Observer_DiffAncestorCascadeDelete_OnDel(picobench::state& state) {
 }
 
 void BM_Observer_DiffAncestorUnrelatedExistingMatches_OnAdd(picobench::state& state) {
-	const uint32_t existingMatchCount = (uint32_t)state.user_data();
+	const uint32_t existingMatchCount = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -602,7 +602,7 @@ void BM_Observer_DiffAncestorUnrelatedExistingMatches_OnAdd(picobench::state& st
 }
 
 void BM_Observer_DiffCopyExtDirectFiltered_OnAdd(picobench::state& state) {
-	const uint32_t directObserverCount = (uint32_t)state.user_data();
+	const uint32_t directObserverCount = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -685,7 +685,7 @@ ecs::Entity create_is_fanout_fixture(
 
 template <uint32_t ChainDepth, bool Direct>
 void BM_Observer_IsMatchesAny(picobench::state& state) {
-	const uint32_t branches = (uint32_t)state.user_data();
+	const uint32_t branches = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> leaves;

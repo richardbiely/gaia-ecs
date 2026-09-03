@@ -2,7 +2,7 @@
 #include "registry.h"
 
 void BM_EntityCreate_Empty_Add(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -18,7 +18,7 @@ void BM_EntityCreate_Empty_Add(picobench::state& state) {
 }
 
 void BM_EntityCreate_Empty_AddN(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -34,7 +34,7 @@ void BM_EntityCreate_Empty_AddN(picobench::state& state) {
 }
 
 void BM_EntityCreate_4Comp_OneByOne(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -65,7 +65,7 @@ void BM_EntityCreate_4Comp_OneByOne(picobench::state& state) {
 }
 
 void BM_EntityCreate_4Comp_Builder(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -90,7 +90,7 @@ void BM_EntityCreate_4Comp_Builder(picobench::state& state) {
 }
 
 void BM_EntityCopyN_4Comp(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -112,7 +112,7 @@ void BM_EntityCopyN_4Comp(picobench::state& state) {
 }
 
 void BM_EntityInstantiateN_ParentedFallback_4Comp(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -135,7 +135,7 @@ void BM_EntityInstantiateN_ParentedFallback_4Comp(picobench::state& state) {
 }
 
 void BM_EntityInstantiateN_Prefab_4Comp(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -157,7 +157,7 @@ void BM_EntityInstantiateN_Prefab_4Comp(picobench::state& state) {
 }
 
 void BM_EntityInstantiateN_Prefab_1Comp(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -176,7 +176,7 @@ void BM_EntityInstantiateN_Prefab_1Comp(picobench::state& state) {
 }
 
 void BM_EntityInstantiateN_Prefab_8Comp(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -202,7 +202,7 @@ void BM_EntityInstantiateN_Prefab_8Comp(picobench::state& state) {
 }
 
 void BM_EntityInstantiateN_Prefab_Sparse_1Comp(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -221,7 +221,7 @@ void BM_EntityInstantiateN_Prefab_Sparse_1Comp(picobench::state& state) {
 }
 
 void BM_EntityInstantiateN_Prefab_Subtree_4Comp(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -259,7 +259,7 @@ void BM_EntityInstantiateN_Prefab_Subtree_4Comp(picobench::state& state) {
 }
 
 void BM_EntityDestroy_Empty(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	cnt::darray<ecs::Entity> entities;
 
 	for (auto _: state) {
@@ -280,7 +280,7 @@ void BM_EntityDestroy_Empty(picobench::state& state) {
 }
 
 void BM_EntityDestroy_4Comp(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	cnt::darray<ecs::Entity> entities;
 
 	for (auto _: state) {

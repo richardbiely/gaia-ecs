@@ -654,7 +654,7 @@ void BM_Run(picobench::state& state) {
 	{
 		GAIA_PROF_SCOPE(setup);
 		init_systems<SoA>(w, fb);
-		init_entities<SoA>(w, (uint32_t)state.user_data());
+		init_entities<SoA>(w, (uint32_t)state.input_data());
 	}
 
 	srand(0);
@@ -714,7 +714,7 @@ void BM_QueryMix(picobench::state& state) {
 	AppQueryWorkload workload;
 
 	state.stop_timer();
-	init_query_workload(workload, (uint32_t)state.user_data());
+	init_query_workload(workload, (uint32_t)state.input_data());
 
 	auto qMove = make_query<UseCaching>(workload.world).template all<PositionT>().template all<VelocityT>();
 	auto qDamage = make_query<UseCaching>(workload.world)

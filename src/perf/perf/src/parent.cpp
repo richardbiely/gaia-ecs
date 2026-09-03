@@ -122,7 +122,7 @@ void create_hierarchy_batch_prefab_children(
 
 template <bool UseParent>
 void BM_HierarchyBatch_SpawnManual(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -142,7 +142,7 @@ void BM_HierarchyBatch_SpawnManual(picobench::state& state) {
 }
 
 void BM_HierarchyBatch_SpawnFlatPositions(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -172,7 +172,7 @@ void BM_HierarchyBatch_SpawnFlatPositions(picobench::state& state) {
 
 template <bool UseParent>
 void BM_HierarchyBatch_EdgeOnly(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -214,7 +214,7 @@ void BM_HierarchyBatch_EdgeOnly(picobench::state& state) {
 }
 
 void BM_HierarchyBatch_ParentEdgeOnlyExistingTargets(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -267,7 +267,7 @@ void BM_HierarchyBatch_ParentEdgeOnlyExistingTargets(picobench::state& state) {
 }
 
 void BM_HierarchyBatch_ParentTargetPrepare(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -298,7 +298,7 @@ void BM_HierarchyBatch_ParentTargetPrepare(picobench::state& state) {
 }
 
 void BM_HierarchyBatch_SpawnParentPrefab(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -324,7 +324,7 @@ void BM_HierarchyBatch_SpawnParentPrefab(picobench::state& state) {
 //! Benchmarks the manual root-only part of the hierarchy-batch `Parent` spawn shape.
 //! This isolates root creation plus the scene-parent edge from the per-root prefab-child work.
 void BM_HierarchyBatch_SpawnParentRootOnly(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -351,7 +351,7 @@ void BM_HierarchyBatch_SpawnParentRootOnly(picobench::state& state) {
 //! Benchmarks root-only `instantiate_n(...)` under a scene parent for the hierarchy-batch prefab shape.
 //! This separates root prefab copy and direct parent batching from prefab child spawning/attachment.
 void BM_HierarchyBatch_SpawnParentPrefabRootOnly(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -378,7 +378,7 @@ void BM_HierarchyBatch_SpawnParentPrefabRootOnly(picobench::state& state) {
 //! This mirrors the prefab subtree attach phase without timing entity/component creation.
 template <bool UseParent>
 void BM_HierarchyBatch_PrefabChildAttachOnly(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -425,7 +425,7 @@ void BM_HierarchyBatch_PrefabChildAttachOnly(picobench::state& state) {
 //! This isolates prefab child-node copy cost from relation attachment cost.
 template <bool UseParent>
 void BM_HierarchyBatch_PrefabChildCopyOnly(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -451,7 +451,7 @@ void BM_HierarchyBatch_PrefabChildCopyOnly(picobench::state& state) {
 }
 
 void BM_HierarchyBatch_SpawnParentPrefabSingle(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -476,7 +476,7 @@ void BM_HierarchyBatch_SpawnParentPrefabSingle(picobench::state& state) {
 }
 
 void BM_HierarchyBatch_SpawnParentPrefabCopyIter(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -505,7 +505,7 @@ void BM_HierarchyBatch_SpawnParentPrefabCopyIter(picobench::state& state) {
 //! Benchmarks batched prefab-tree spawning when the child prefab edges use fragmenting `ChildOf`.
 //! Root instances are still attached to the scene through the public parented `instantiate_n(...)` API.
 void BM_HierarchyBatch_SpawnChildOfPrefab(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -531,7 +531,7 @@ void BM_HierarchyBatch_SpawnChildOfPrefab(picobench::state& state) {
 //! Benchmarks the `CopyIter` callback shape for a prefab tree whose child edges use `ChildOf`.
 //! This keeps the comparison with `Parent` prefab children callback-equivalent.
 void BM_HierarchyBatch_SpawnChildOfPrefabCopyIter(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 	uint64_t total = 0;
 
 	GAIA_FOR((uint32_t)state.iterations()) {
@@ -559,7 +559,7 @@ void BM_HierarchyBatch_SpawnChildOfPrefabCopyIter(picobench::state& state) {
 
 template <bool UseParent>
 void BM_HierarchyBatch_QueryPlain(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto scene = w.add();
@@ -586,7 +586,7 @@ void BM_HierarchyBatch_QueryPlain(picobench::state& state) {
 }
 
 void BM_HierarchyBatch_QueryChildOfDepthOrder(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto scene = w.add();
@@ -614,7 +614,7 @@ void BM_HierarchyBatch_QueryChildOfDepthOrder(picobench::state& state) {
 
 template <bool UseParent, bool DepthOrder>
 void BM_HierarchyBatch_QueryMulti(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto scene = w.add();
@@ -643,7 +643,7 @@ void BM_HierarchyBatch_QueryMulti(picobench::state& state) {
 }
 
 void BM_HierarchyBatch_QueryParentOrderBy(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto scene = w.add();
@@ -671,7 +671,7 @@ void BM_HierarchyBatch_QueryParentOrderBy(picobench::state& state) {
 
 template <bool UseParent>
 void BM_HierarchyBatch_QueryIterBatchesPlain(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto scene = w.add();
@@ -707,7 +707,7 @@ void BM_HierarchyBatch_QueryIterBatchesPlain(picobench::state& state) {
 
 template <bool UseParent, bool DepthOrder, bool UsePtr>
 void BM_HierarchyBatch_QueryChunkRaw(picobench::state& state) {
-	const uint32_t rootCount = (uint32_t)state.user_data();
+	const uint32_t rootCount = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto scene = w.add();
@@ -790,7 +790,7 @@ inline void disable_hierarchy_barrier(ecs::World& w, const cnt::darray<ecs::Enti
 
 template <bool UseParent>
 void BM_Hierarchy_Set(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -814,7 +814,7 @@ void BM_Hierarchy_Set(picobench::state& state) {
 
 template <bool UseParent, bool WithDisabledBarrier = false>
 void BM_Hierarchy_Traversal(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -843,7 +843,7 @@ void BM_Hierarchy_Traversal(picobench::state& state) {
 
 template <bool UseParent, bool WithDisabledBarrier = false>
 void BM_Query_Traversal(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -872,7 +872,7 @@ void BM_Query_Traversal(picobench::state& state) {
 }
 
 void BM_Query_Plain_ChildOf(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -898,7 +898,7 @@ void BM_Query_Plain_ChildOf(picobench::state& state) {
 }
 
 void BM_Query_Cascade_ChildOf(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -924,7 +924,7 @@ void BM_Query_Cascade_ChildOf(picobench::state& state) {
 }
 
 void BM_Query_Cascade_ChildOf_Disabled(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -952,7 +952,7 @@ void BM_Query_Cascade_ChildOf_Disabled(picobench::state& state) {
 
 template <uint32_t BranchingFactor>
 void BM_Query_DepthOrder_ChildOf_Fanout(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -979,7 +979,7 @@ void BM_Query_DepthOrder_ChildOf_Fanout(picobench::state& state) {
 
 template <uint32_t BranchingFactor>
 void BM_Query_Traversal_DependsOn(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1006,7 +1006,7 @@ void BM_Query_Traversal_DependsOn(picobench::state& state) {
 
 template <uint32_t BranchingFactor>
 void BM_Query_DepthOrder_DependsOn(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1033,7 +1033,7 @@ void BM_Query_DepthOrder_DependsOn(picobench::state& state) {
 
 template <uint32_t BranchingFactor>
 void BM_Query_DepthOrder_ChildOf_IterEmpty(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1060,7 +1060,7 @@ void BM_Query_DepthOrder_ChildOf_IterEmpty(picobench::state& state) {
 
 template <uint32_t BranchingFactor>
 void BM_Query_DepthOrder_DependsOn_IterEmpty(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1086,7 +1086,7 @@ void BM_Query_DepthOrder_DependsOn_IterEmpty(picobench::state& state) {
 }
 
 void BM_Query_Plain_ChildOf_Component(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1112,7 +1112,7 @@ void BM_Query_Plain_ChildOf_Component(picobench::state& state) {
 }
 
 void BM_Query_Traversal_ChildOf_Component(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1138,7 +1138,7 @@ void BM_Query_Traversal_ChildOf_Component(picobench::state& state) {
 }
 
 void BM_Query_Cascade_ChildOf_Component(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1164,7 +1164,7 @@ void BM_Query_Cascade_ChildOf_Component(picobench::state& state) {
 }
 
 void BM_Query_Plain_ChildOf_EachComponent(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1190,7 +1190,7 @@ void BM_Query_Plain_ChildOf_EachComponent(picobench::state& state) {
 }
 
 void BM_Query_Traversal_ChildOf_EachComponent(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1216,7 +1216,7 @@ void BM_Query_Traversal_ChildOf_EachComponent(picobench::state& state) {
 }
 
 void BM_Query_Cascade_ChildOf_EachComponent(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1242,7 +1242,7 @@ void BM_Query_Cascade_ChildOf_EachComponent(picobench::state& state) {
 }
 
 void BM_Query_Plain_ChildOf_Iter(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1274,7 +1274,7 @@ void BM_Query_Plain_ChildOf_Iter(picobench::state& state) {
 }
 
 void BM_Query_Traversal_ChildOf_Iter(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1306,7 +1306,7 @@ void BM_Query_Traversal_ChildOf_Iter(picobench::state& state) {
 }
 
 void BM_Query_Cascade_ChildOf_Iter(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1355,7 +1355,7 @@ void BM_Query_Traversal_Parent_Disabled(picobench::state& state) {
 
 template <bool UseParent>
 void BM_Hierarchy_TargetWalk(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1384,7 +1384,7 @@ void BM_Hierarchy_TargetWalk(picobench::state& state) {
 
 template <bool UseParent>
 void BM_Hierarchy_Sources(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1405,7 +1405,7 @@ void BM_Hierarchy_Sources(picobench::state& state) {
 }
 
 void BM_Relationship_SourcesWildcard(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1435,7 +1435,7 @@ void BM_Relationship_SourcesWildcard(picobench::state& state) {
 }
 
 void BM_Relationship_TargetsWildcard(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto source = w.add();
@@ -1468,7 +1468,7 @@ void BM_Relationship_TargetsWildcard(picobench::state& state) {
 
 template <bool UseParent>
 void BM_Hierarchy_DeleteTarget(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -1493,7 +1493,7 @@ void BM_Hierarchy_DeleteTarget(picobench::state& state) {
 
 template <bool UseParent>
 void BM_Query_DirectHierarchy_All(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto rootA = w.add();
@@ -1522,7 +1522,7 @@ void BM_Query_DirectHierarchy_All(picobench::state& state) {
 
 template <bool UseParent>
 void BM_Query_DirectHierarchy_Each(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto rootA = w.add();
@@ -1555,7 +1555,7 @@ void BM_Query_DirectHierarchy_Each(picobench::state& state) {
 
 template <bool UseParent>
 void BM_Query_DirectHierarchy_Or(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto rootA = w.add();
@@ -1589,7 +1589,7 @@ void BM_Query_DirectHierarchy_Or(picobench::state& state) {
 
 template <bool UseParent>
 void BM_Query_DirectHierarchy_Or_Each(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto rootA = w.add();
@@ -1668,7 +1668,7 @@ void BM_World_AsTargetsTrav_32(picobench::state& state) {
 //! Benchmarks deleting wildcard pairs matching (*, target) across many relations.
 //! The delete loop should avoid copying the full relation set before removing pairs.
 void BM_World_Delete_Wildcard_Target(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -1695,7 +1695,7 @@ void BM_World_Delete_Wildcard_Target(picobench::state& state) {
 //! This exercises incremental query registration against archetypes that repeat the same relation
 //! across many pair ids, which would otherwise create duplicate wildcard lookup keys.
 void BM_QueryCache_RegisterPairHeavy_RelWildcard(picobench::state& state) {
-	const uint32_t pairCnt = (uint32_t)state.user_data();
+	const uint32_t pairCnt = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;

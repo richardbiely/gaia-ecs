@@ -55,7 +55,7 @@ void Run_Schedule_Empty(uint32_t Jobs) {
 }
 
 void BM_Schedule_Empty(picobench::state& state) {
-	const auto user_data = state.user_data();
+	const auto user_data = state.input_data();
 	const uint32_t N = user_data & 0xFFFFFFFF;
 	const uint32_t Jobs = N;
 
@@ -95,7 +95,7 @@ void Run_Schedule_Simple(const Data* pArr, uint32_t Jobs, uint32_t ItemsPerJob, 
 }
 
 void BM_Schedule_Simple(picobench::state& state) {
-	const auto user_data = state.user_data();
+	const auto user_data = state.input_data();
 	const uint32_t N = user_data & 0xFFFFFFFF;
 	const uint32_t Jobs = user_data >> 32;
 	const uint32_t ItemsPerJob = N / Jobs;
@@ -111,7 +111,7 @@ void BM_Schedule_Simple(picobench::state& state) {
 }
 
 void BM_Schedule_Complex(picobench::state& state) {
-	const auto user_data = state.user_data();
+	const auto user_data = state.input_data();
 	const uint32_t N = user_data & 0xFFFFFFFF;
 	const uint32_t Jobs = user_data >> 32;
 	const uint32_t ItemsPerJob = N / Jobs;
@@ -127,7 +127,7 @@ void BM_Schedule_Complex(picobench::state& state) {
 }
 
 void BM_Schedule_ECS_Simple(picobench::state& state) {
-	const auto user_data = state.user_data();
+	const auto user_data = state.input_data();
 	const uint32_t N = user_data & 0xFFFFFFFF;
 	const uint32_t ExecMode = user_data >> 32;
 
@@ -162,7 +162,7 @@ void BM_Schedule_ECS_Simple(picobench::state& state) {
 }
 
 void BM_Schedule_ECS_Complex(picobench::state& state) {
-	const auto user_data = state.user_data();
+	const auto user_data = state.input_data();
 	const uint32_t N = user_data & 0xFFFFFFFF;
 	const uint32_t ExecMode = user_data >> 32;
 
@@ -214,7 +214,7 @@ void Run_ScheduleParallel(const Data* pArr, uint32_t Items, Func func) {
 }
 
 void BM_ScheduleParallel_Simple(picobench::state& state) {
-	const auto user_data = state.user_data();
+	const auto user_data = state.input_data();
 	const uint32_t N = user_data & 0xFFFFFFFF;
 
 	cnt::darray<Data> arr;
@@ -228,7 +228,7 @@ void BM_ScheduleParallel_Simple(picobench::state& state) {
 }
 
 void BM_ScheduleParallel_Complex(picobench::state& state) {
-	const auto user_data = state.user_data();
+	const auto user_data = state.input_data();
 	const uint32_t N = user_data & 0xFFFFFFFF;
 
 	cnt::darray<Data> arr;

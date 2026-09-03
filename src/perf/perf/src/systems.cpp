@@ -3,7 +3,7 @@
 
 template <uint32_t Systems>
 void BM_SystemFrame(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -39,7 +39,7 @@ void BM_SystemFrame_Serial_5(picobench::state& state) {
 
 template <ecs::QueryCacheScope Scope, uint32_t Systems>
 void BM_SystemFrame_Identical(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -120,7 +120,7 @@ ecs::Entity create_is_fanout_fixture(
 
 template <uint32_t ChainDepth, bool Direct>
 void BM_System_Is(picobench::state& state) {
-	const uint32_t branches = (uint32_t)state.user_data();
+	const uint32_t branches = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto root = create_is_fanout_fixture<ChainDepth>(w, branches, false);
@@ -159,7 +159,7 @@ void BM_System_Is(picobench::state& state) {
 
 template <uint32_t ChainDepth, bool Direct>
 void BM_System_IsIter(picobench::state& state) {
-	const uint32_t branches = (uint32_t)state.user_data();
+	const uint32_t branches = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto root = create_is_fanout_fixture<ChainDepth>(w, branches, false);
@@ -255,7 +255,7 @@ void add_balanced_depends_on_edges(ecs::World& w, const cnt::darray<ecs::Entity>
 
 template <uint32_t Systems>
 void BM_SystemSchedule_SerialOrder(picobench::state& state) {
-	(void)state.user_data();
+	(void)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -286,7 +286,7 @@ void BM_SystemSchedule_SerialOrder(picobench::state& state) {
 
 template <uint32_t Systems>
 void BM_SystemSchedule_PhasedOrder(picobench::state& state) {
-	(void)state.user_data();
+	(void)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -328,7 +328,7 @@ void BM_SystemSchedule_PhasedOrder(picobench::state& state) {
 
 template <uint32_t Systems>
 void BM_SystemSchedule_ParallelJobsAccess(picobench::state& state) {
-	(void)state.user_data();
+	(void)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;

@@ -241,11 +241,11 @@ if(NOT EMSCRIPTEN)
 
   if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM OR GAIA_PROFILER_BUILD)
     if(IS_FETCH_AVAILABLE)
-      find_package(tracy CONFIG QUIET 0.14.0)
+      find_package(tracy CONFIG QUIET 0.14.1)
       FetchContent_Declare(
         tracy
         GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-        GIT_TAG v0.14.0
+        GIT_TAG v0.14.1
         GIT_SHALLOW TRUE
       )
 
@@ -256,12 +256,14 @@ if(NOT EMSCRIPTEN)
         FetchContent_MakeAvailable(tracy)
       elseif(GAIA_PROFILER_BUILD)
         FetchContent_GetProperties(tracy)
+
         if(NOT tracy_POPULATED)
           FetchContent_Populate(tracy)
         endif()
       endif()
     else()
       find_package(tracy CONFIG REQUIRED 0.14.0)
+
       if(GAIA_PROFILER_BUILD)
         message(FATAL_ERROR "GAIA_PROFILER_BUILD requires FetchContent so the Tracy profiler source can be built")
       endif()
@@ -287,10 +289,12 @@ if(NOT EMSCRIPTEN)
         "${PROJECT_SOURCE_DIR}/build/tools/tracy-profiler-build")
       set(GAIA_TRACY_PROFILER_OLD_PLATFORM_BUILD_DIR
         "${PROJECT_SOURCE_DIR}/build/tools/tracy-profiler-build/${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
+
       if(DEFINED GAIA_TRACY_PROFILER_BUILD_DIR
-          AND GAIA_TRACY_PROFILER_BUILD_DIR STREQUAL GAIA_TRACY_PROFILER_OLD_PLATFORM_BUILD_DIR)
+        AND GAIA_TRACY_PROFILER_BUILD_DIR STREQUAL GAIA_TRACY_PROFILER_OLD_PLATFORM_BUILD_DIR)
         unset(GAIA_TRACY_PROFILER_BUILD_DIR CACHE)
       endif()
+
       set(GAIA_TRACY_PROFILER_OUTPUT_DIR
         "${PROJECT_SOURCE_DIR}/build/tools/tracy-profiler"
         CACHE PATH "Stable Tracy profiler GUI output directory")
@@ -304,6 +308,7 @@ if(NOT EMSCRIPTEN)
         OUTPUT_VARIABLE GAIA_TRACY_UPSTREAM_REF
         OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET)
+
       if(GAIA_TRACY_UPSTREAM_REF STREQUAL "")
         set(GAIA_TRACY_UPSTREAM_REF "unknown")
       endif()
@@ -311,13 +316,16 @@ if(NOT EMSCRIPTEN)
       set(GAIA_TRACY_UPSTREAM_REF_FILE "${PROJECT_SOURCE_DIR}/build/tools/tracy-upstream-ref.txt")
       file(MAKE_DIRECTORY "${PROJECT_SOURCE_DIR}/build/tools")
       set(gaia_write_tracy_ref ON)
+
       if(EXISTS "${GAIA_TRACY_UPSTREAM_REF_FILE}")
         file(READ "${GAIA_TRACY_UPSTREAM_REF_FILE}" gaia_existing_tracy_ref)
         string(STRIP "${gaia_existing_tracy_ref}" gaia_existing_tracy_ref)
+
         if(gaia_existing_tracy_ref STREQUAL GAIA_TRACY_UPSTREAM_REF)
           set(gaia_write_tracy_ref OFF)
         endif()
       endif()
+
       if(gaia_write_tracy_ref)
         file(WRITE "${GAIA_TRACY_UPSTREAM_REF_FILE}" "${GAIA_TRACY_UPSTREAM_REF}\n")
         file(REMOVE "${GAIA_TRACY_PROFILER_STAMP}")
@@ -326,18 +334,18 @@ if(NOT EMSCRIPTEN)
       add_custom_command(
         OUTPUT "${GAIA_TRACY_PROFILER_STAMP}"
         COMMAND ${CMAKE_COMMAND}
-          -DTRACY_UPSTREAM_SOURCE_DIR:PATH=${tracy_SOURCE_DIR}
-          -DTRACY_SHARED_SOURCE_DIR:PATH=${GAIA_TRACY_PROFILER_SOURCE_DIR}
-          -DTRACY_PROFILER_BUILD_DIR:PATH=${GAIA_TRACY_PROFILER_BUILD_DIR}
-          -DTRACY_PROFILER_OUTPUT_DIR:PATH=${GAIA_TRACY_PROFILER_OUTPUT_DIR}
-          -DTRACY_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
-          -DTRACY_PROFILER_STAMP:PATH=${GAIA_TRACY_PROFILER_STAMP}
-          -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/SharedTracyProfiler.cmake"
+        -DTRACY_UPSTREAM_SOURCE_DIR:PATH=${tracy_SOURCE_DIR}
+        -DTRACY_SHARED_SOURCE_DIR:PATH=${GAIA_TRACY_PROFILER_SOURCE_DIR}
+        -DTRACY_PROFILER_BUILD_DIR:PATH=${GAIA_TRACY_PROFILER_BUILD_DIR}
+        -DTRACY_PROFILER_OUTPUT_DIR:PATH=${GAIA_TRACY_PROFILER_OUTPUT_DIR}
+        -DTRACY_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
+        -DTRACY_PROFILER_STAMP:PATH=${GAIA_TRACY_PROFILER_STAMP}
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/SharedTracyProfiler.cmake"
         DEPENDS
-          "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/SharedTracyProfiler.cmake"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/SharedTracyProfiler.cmake"
         BYPRODUCTS
-          "${GAIA_TRACY_PROFILER_OUTPUT_DIR}/tracy-profiler${CMAKE_EXECUTABLE_SUFFIX}"
-          "${GAIA_TRACY_PROFILER_OUTPUT_DIR}/tracy-profiler.path"
+        "${GAIA_TRACY_PROFILER_OUTPUT_DIR}/tracy-profiler${CMAKE_EXECUTABLE_SUFFIX}"
+        "${GAIA_TRACY_PROFILER_OUTPUT_DIR}/tracy-profiler.path"
         COMMENT "Building shared Tracy profiler GUI"
         VERBATIM
         USES_TERMINAL)
@@ -349,13 +357,13 @@ if(NOT EMSCRIPTEN)
   # Benchmark
   if(GAIA_BUILD_BENCHMARK)
     if(IS_FETCH_AVAILABLE)
-      find_package(picobench CONFIG QUIET 2.8.0)
+      find_package(picobench CONFIG QUIET 2.10.0)
 
       if(NOT picobench_FOUND)
         FetchContent_Declare(
           picobench
           GIT_REPOSITORY https://github.com/iboB/picobench.git
-          GIT_TAG v2.8.0
+          GIT_TAG v2.10.0
         )
 
         FetchContent_MakeAvailable(picobench)
@@ -369,21 +377,16 @@ if(NOT EMSCRIPTEN)
   if(GAIA_BUILD_UNITTEST)
     if(IS_FETCH_AVAILABLE)
       if(NOT doctest_FOUND)
-        # FetchContent_Declare(
-        # doctest
-        # GIT_REPOSITORY "https://github.com/onqtam/doctest.git"
-        # GIT_TAG v2.4.12
-        # )
         FetchContent_Declare(
           doctest
           GIT_REPOSITORY "https://github.com/doctest/doctest.git"
-          GIT_TAG 32801043157b20e0d97faf9272f404b3c8d82a8
+          GIT_TAG v2.5.3
         )
 
         FetchContent_MakeAvailable(doctest)
       endif()
     else()
-      find_package(doctest CONFIG REQUIRED 2.4.12)
+      find_package(doctest CONFIG REQUIRED v2.5.3)
     endif()
 
     add_subdirectory(test)

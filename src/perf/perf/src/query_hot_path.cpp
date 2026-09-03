@@ -2,7 +2,7 @@
 #include "registry.h"
 
 void BM_Query_ReadOnly_1Comp(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	cnt::darray<ecs::Entity> entities;
 	ecs::World w;
 	create_linear_entities<false, false, false, false, false>(w, entities, n);
@@ -21,7 +21,7 @@ void BM_Query_ReadOnly_1Comp(picobench::state& state) {
 }
 
 void BM_Query_SelectiveAll_BroadFirst(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> tags;
@@ -48,7 +48,7 @@ void BM_Query_SelectiveAll_BroadFirst(picobench::state& state) {
 }
 
 void BM_Query_ReadWrite_2Comp(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	cnt::darray<ecs::Entity> entities;
 	ecs::World w;
 	create_linear_entities<true, false, false, false, false>(w, entities, n);
@@ -67,7 +67,7 @@ void BM_Query_ReadWrite_2Comp(picobench::state& state) {
 }
 
 void BM_Query_ReadWrite_2Comp_Readback(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	cnt::darray<ecs::Entity> entities;
 	ecs::World w;
 	create_linear_entities<true, false, false, false, false>(w, entities, n);
@@ -89,7 +89,7 @@ void BM_Query_ReadWrite_2Comp_Readback(picobench::state& state) {
 }
 
 void BM_Query_ReadWrite_2Comp_IterLocalReadback(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	cnt::darray<ecs::Entity> entities;
 	ecs::World w;
 	create_linear_entities<true, false, false, false, false>(w, entities, n);
@@ -130,7 +130,7 @@ query_update_position_readback_sum(Position* GAIA_RESTRICT p, const Velocity* GA
 }
 
 void BM_Query_ReadWrite_2Comp_IterHelper(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	cnt::darray<ecs::Entity> entities;
 	ecs::World w;
 	create_linear_entities<true, false, false, false, false>(w, entities, n);
@@ -151,7 +151,7 @@ void BM_Query_ReadWrite_2Comp_IterHelper(picobench::state& state) {
 }
 
 void BM_Query_ReadWrite_2Comp_EachArchLocalAccum(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	cnt::darray<ecs::Entity> entities;
 	ecs::World w;
 	create_linear_entities<true, false, false, false, false>(w, entities, n);
@@ -187,7 +187,7 @@ void BM_Query_ReadWrite_2Comp_EachArchLocalAccum(picobench::state& state) {
 }
 
 void BM_Query_ReadWrite_4Comp(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	cnt::darray<ecs::Entity> entities;
 	ecs::World w;
 	create_linear_entities<true, true, false, false, false>(w, entities, n);
@@ -211,7 +211,7 @@ void BM_Query_ReadWrite_4Comp(picobench::state& state) {
 }
 
 void BM_Query_Filter_NoFrozen(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	cnt::darray<ecs::Entity> entities;
 	ecs::World w;
 	create_linear_entities<true, false, false, false, true>(w, entities, n);
@@ -230,7 +230,7 @@ void BM_Query_Filter_NoFrozen(picobench::state& state) {
 
 template <bool BoundVar0>
 void BM_Query_Variable_Source(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 8;
 	constexpr uint32_t LinksPerEntity = 4;
 
@@ -327,7 +327,7 @@ void create_unrelated_archetypes(ecs::World& w, uint32_t archetypeCnt) {
 
 //! Benchmarks immediate structural cache maintenance when one new archetype fans out to many cached selectors.
 void BM_QueryCache_Create_Fanout(picobench::state& state) {
-	const uint32_t queryCnt = (uint32_t)state.user_data();
+	const uint32_t queryCnt = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -353,7 +353,7 @@ void BM_QueryCache_Create_Fanout(picobench::state& state) {
 
 template <uint32_t TermsPerQuery, uint32_t QueryCnt>
 void BM_QueryCache_Create_Fanout_Multi(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -490,7 +490,7 @@ void BM_QueryContext_Build_MixedDynamic_128q(picobench::state& state) {
 //! Benchmarks immediate structural cache maintenance in worlds that already contain many unrelated archetypes.
 template <uint32_t QueryCnt>
 void BM_QueryCache_Create_Fanout_Scaled(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -546,7 +546,7 @@ SourceChain create_parent_chain(ecs::World& w, uint32_t depth) {
 //! Benchmarks warm reads for a traversed source query, with traversed-source snapshot caching optional.
 template <bool CacheSourceState, uint32_t SourceDepth>
 void BM_QueryCache_SourceTraversal_WarmRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	cnt::darray<ecs::Entity> entities;
 	entities.reserve(n);
@@ -579,7 +579,7 @@ void BM_QueryCache_SourceTraversal_WarmRead(picobench::state& state) {
 //! Direct-source reuse is automatic, so the opt-in path measures redundant API usage overhead only.
 template <bool CacheSourceState>
 void BM_QueryCache_DirectSource_WarmRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	cnt::darray<ecs::Entity> entities;
 	entities.reserve(n);
@@ -610,7 +610,7 @@ void BM_QueryCache_DirectSource_WarmRead(picobench::state& state) {
 
 //! Benchmarks warm reads for a direct concrete-source query with no direct id terms.
 void BM_QueryCache_SourceOnly_WarmRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	cnt::darray<ecs::Entity> entities;
 	entities.reserve(n);
@@ -637,7 +637,7 @@ void BM_QueryCache_SourceOnly_WarmRead(picobench::state& state) {
 //! Benchmarks warm reads for a query with no source terms, with traversed-source snapshot caching toggled.
 template <bool CacheSourceState>
 void BM_QueryCache_NoSource_WarmRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	cnt::darray<ecs::Entity> entities;
 	entities.reserve(n);
@@ -695,7 +695,7 @@ void BM_QueryCache_SourceTraversal_WarmRead_LargeClosure(picobench::state& state
 
 //! Benchmarks warm reads for a relation-versioned dynamic query with a bound variable.
 void BM_QueryCache_DynamicRelation_WarmRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 8;
 
 	cnt::darray<ecs::Entity> sources;
@@ -739,7 +739,7 @@ static cnt::darray<ecs::Query> make_changed_queries(ecs::World& w, uint32_t quer
 
 template <ecs::QueryCacheScope CacheScope>
 void BM_QueryCache_ChangedProbe_IdenticalCached(picobench::state& state) {
-	const uint32_t queryCnt = (uint32_t)state.user_data();
+	const uint32_t queryCnt = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto e = w.add();
@@ -763,7 +763,7 @@ void BM_QueryCache_ChangedProbe_IdenticalCached(picobench::state& state) {
 //! each() is consuming for changed() queries, so the setup is rebuilt each sample.
 template <ecs::QueryCacheScope CacheScope>
 void BM_QueryCache_ChangedConsume_IdenticalCached(picobench::state& state) {
-	const uint32_t queryCnt = (uint32_t)state.user_data();
+	const uint32_t queryCnt = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -807,7 +807,7 @@ void BM_QueryCache_ChangedConsume_IdenticalCached_Shared(picobench::state& state
 
 //! Benchmarks repeated structural invalidation and cache refresh while entities churn between existing archetypes.
 void BM_QueryCache_Invalidate_Churn(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -845,7 +845,7 @@ void BM_QueryCache_Invalidate_Churn(picobench::state& state) {
 //! Benchmarks relation-driven query invalidation without forcing an immediate query repair.
 //! This isolates the cost of routing relation changes through QueryCache.
 void BM_QueryCache_Invalidate_Relation(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -888,7 +888,7 @@ void BM_QueryCache_Invalidate_Relation(picobench::state& state) {
 
 //! Benchmarks relation-driven invalidation followed by the next read that repairs the dynamic cache.
 void BM_QueryCache_Invalidate_Relation_Read(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -932,7 +932,7 @@ void BM_QueryCache_Invalidate_Relation_Read(picobench::state& state) {
 //! Benchmarks warm reads for a sorted query after writes to a component unrelated to the sort key.
 //! A narrow sort dirty signal should avoid rebuilding the sorted slices in this case.
 void BM_QueryCache_Sorted_UnrelatedWrite(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -964,7 +964,7 @@ void BM_QueryCache_Sorted_UnrelatedWrite(picobench::state& state) {
 //! Benchmarks steady-state warm reads for a sorted query with no intervening world changes.
 //! This isolates the read-time overhead of keeping the sorted slices valid.
 void BM_QueryCache_Sorted_WarmRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -991,7 +991,7 @@ void BM_QueryCache_Sorted_WarmRead(picobench::state& state) {
 //! Benchmarks steady-state warm reads for a cached sorted query spanning many matching archetypes.
 //! This isolates the exact sortBy remap path that now uses the component index for exact sort terms.
 void BM_QueryCache_Sorted_ExactMergeWarmRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1018,7 +1018,7 @@ void BM_QueryCache_Sorted_ExactMergeWarmRead(picobench::state& state) {
 //! Benchmarks steady-state warm reads for a cached sorted query whose exact sort term is not part of the query terms.
 //! This isolates the cached sortBy column remap path without relying on normal query-term remapping.
 void BM_QueryCache_Sorted_ExactExternalMergeWarmRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1045,7 +1045,7 @@ void BM_QueryCache_Sorted_ExactExternalMergeWarmRead(picobench::state& state) {
 //! Benchmarks warm reads for a grouped query with a stable group_id selection.
 //! The selected group range should be cached instead of scanning all group entries on every read.
 void BM_QueryCache_Grouped_WarmRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1075,7 +1075,7 @@ void BM_QueryCache_Grouped_WarmRead(picobench::state& state) {
 //! Benchmarks grouped-query cache refresh when no specific group is selected.
 //! Plain group_by iteration should not sort high-cardinality groups on every cache refresh.
 void BM_QueryCache_Grouped_UnselectedRefresh(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto rel = w.add();
@@ -1112,7 +1112,7 @@ void BM_QueryCache_Grouped_UnselectedRefresh(picobench::state& state) {
 //! Benchmarks grouped warm reads while rotating the selected group id.
 //! Cached group-id lookup should avoid rescanning all group ranges after each group switch.
 void BM_QueryCache_Grouped_SwitchingRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -1145,7 +1145,7 @@ void BM_QueryCache_Grouped_SwitchingRead(picobench::state& state) {
 //! Benchmarks renderer-shaped asset group discovery through `group_by(Is)`.
 //! This isolates the cost of collecting active prefab/base groups before extraction.
 void BM_Query_GroupByIs_Groups(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	static constexpr uint32_t AssetCount = 64;
 
 	ecs::World w;
@@ -1179,7 +1179,7 @@ void BM_Query_GroupByIs_Groups(picobench::state& state) {
 //! Benchmarks renderer-shaped extraction by discovering `Is` groups and scanning each selected group.
 //! This mirrors asset-bucketed render extraction without relying on globally unique instance names.
 void BM_Query_GroupByIs_RenderExtract(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	static constexpr uint32_t AssetCount = 64;
 
 	ecs::World w;
@@ -1221,7 +1221,7 @@ void BM_Query_GroupByIs_RenderExtract(picobench::state& state) {
 //! Benchmarks warm reads for a cached relation-wildcard query spanning many matching archetypes.
 //! This isolates steady-state wildcard selector reads after the cache has already registered all matching archetypes.
 void BM_QueryCache_Wildcard_WarmRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 	static constexpr uint32_t ArchetypeCnt = 32;
 
 	ecs::World w;
@@ -1260,7 +1260,7 @@ void BM_QueryCache_Wildcard_WarmRead(picobench::state& state) {
 //! This isolates the inheritance walk used by the query matcher.
 template <uint32_t ChainDepth>
 void BM_QueryMatch_IsChain(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	ecs::World w;
 
@@ -1321,7 +1321,7 @@ void BM_QueryMatch_IsChain_32(picobench::state& state) {
 //! Benchmarks uncached matching of an exact owned term across many archetypes.
 //! This exercises the component-index exact-term lookup path in the matcher.
 void BM_QueryMatch_ExactTerm(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto tag = w.add();
@@ -1356,7 +1356,7 @@ void BM_QueryMatch_ExactTerm(picobench::state& state) {
 //! Benchmarks immediate cached-query refresh as new exact/wildcard-matching archetypes are created.
 //! This isolates QueryInfo::register_archetype for the direct create-time path backed by the component index.
 void BM_QueryCache_CreateArchetype_ExactWildcard(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -1388,7 +1388,7 @@ void BM_QueryCache_CreateArchetype_ExactWildcard(picobench::state& state) {
 //! Benchmarks create-time routing misses for a mixed exact + wildcard ALL query compiled on an empty world.
 //! Selector tie-breaking should prefer the wildcard pair selector over the broad exact term in this case.
 void BM_QueryCache_CreateArchetype_ExactWildcard_Miss(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -1418,7 +1418,7 @@ void BM_QueryCache_CreateArchetype_ExactWildcard_Miss(picobench::state& state) {
 //! Benchmarks immediate cached-query refresh for mixed exact ALL+NOT queries as matching archetypes are created.
 //! This isolates the direct create-time path without going through the one-archetype VM matcher.
 void BM_QueryCache_CreateArchetype_ExactNot(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -1446,7 +1446,7 @@ void BM_QueryCache_CreateArchetype_ExactNot(picobench::state& state) {
 //! Benchmarks immediate cached-query refresh for mixed exact ALL+OR queries as matching archetypes are created.
 //! This isolates the direct create-time structural matcher on a common positive-selector shape.
 void BM_QueryCache_CreateArchetype_ExactOr(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -1475,7 +1475,7 @@ void BM_QueryCache_CreateArchetype_ExactOr(picobench::state& state) {
 //! Benchmarks immediate cached-query refresh for mixed exact ALL+ANY queries as archetypes are created.
 //! ANY terms are not hard requirements, so this measures the direct structural path skipping them.
 void BM_QueryCache_CreateArchetype_ExactAny(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -1503,7 +1503,7 @@ void BM_QueryCache_CreateArchetype_ExactAny(picobench::state& state) {
 //! Benchmarks immediate cached-query refresh for a broad-first exact ALL query.
 //! The create-selector planner should route this through the required selective term instead of every positive term.
 void BM_QueryCache_CreateArchetype_BroadFirstAll(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -1540,7 +1540,7 @@ void BM_QueryCache_CreateArchetype_BroadFirstAll(picobench::state& state) {
 //! Benchmarks create-time routing for non-matching broad archetypes under a cached broad-first ALL query.
 //! With narrowest-selector routing, Position-only archetype creation should not wake the query at all.
 void BM_QueryCache_CreateArchetype_BroadMissAll(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -1577,7 +1577,7 @@ void BM_QueryCache_CreateArchetype_BroadMissAll(picobench::state& state) {
 //! Benchmarks create-time routing for pair-heavy archetypes under a cached relation-wildcard query.
 //! This isolates duplicate `(rel, All)` lookup suppression in QueryCache::register_archetype_with_queries().
 void BM_QueryCache_CreateArchetype_PairHeavyRelWildcard(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 	static constexpr uint32_t PairCount = 30;
 
 	for (auto _: state) {
@@ -1649,7 +1649,7 @@ ecs::Entity create_is_fanout_fixture(
 
 template <uint32_t ChainDepth, bool Direct>
 void BM_Query_IsEach(picobench::state& state) {
-	const uint32_t branches = (uint32_t)state.user_data();
+	const uint32_t branches = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto root = create_is_fanout_fixture<ChainDepth>(w, branches, false);
@@ -1699,7 +1699,7 @@ ecs::Entity create_prefab_health_position_fixture(
 }
 
 void BM_Query_PrefabInherited_Read_Each(picobench::state& state) {
-	const uint32_t count = (uint32_t)state.user_data();
+	const uint32_t count = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto prefab = create_prefab_inherit_fixture(w, count);
@@ -1717,7 +1717,7 @@ void BM_Query_PrefabInherited_Read_Each(picobench::state& state) {
 }
 
 void BM_Query_PrefabInherited_Read_Iter(picobench::state& state) {
-	const uint32_t count = (uint32_t)state.user_data();
+	const uint32_t count = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto prefab = create_prefab_inherit_fixture(w, count);
@@ -1738,7 +1738,7 @@ void BM_Query_PrefabInherited_Read_Iter(picobench::state& state) {
 }
 
 void BM_Query_PrefabInherited_Write_Each(picobench::state& state) {
-	const uint32_t count = (uint32_t)state.user_data();
+	const uint32_t count = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -1761,7 +1761,7 @@ void BM_Query_PrefabInherited_Write_Each(picobench::state& state) {
 
 template <bool InheritedHealth, uint32_t LocalHealthPercent>
 void BM_Query_PrefabHealthPosition_Read_Each(picobench::state& state) {
-	const uint32_t count = (uint32_t)state.user_data();
+	const uint32_t count = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto prefab = create_prefab_health_position_fixture(w, count, InheritedHealth, LocalHealthPercent);
@@ -1780,7 +1780,7 @@ void BM_Query_PrefabHealthPosition_Read_Each(picobench::state& state) {
 
 template <bool InheritedHealth, uint32_t LocalHealthPercent>
 void BM_Query_PrefabHealthPosition_Read_ColdEach(picobench::state& state) {
-	const uint32_t count = (uint32_t)state.user_data();
+	const uint32_t count = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto prefab = create_prefab_health_position_fixture(w, count, InheritedHealth, LocalHealthPercent);
@@ -1822,7 +1822,7 @@ void BM_Query_PrefabHealthPosition_Read_ColdEach_Inherited(picobench::state& sta
 
 template <uint32_t ChainDepth, bool Direct>
 void BM_Query_IsEachIter(picobench::state& state) {
-	const uint32_t branches = (uint32_t)state.user_data();
+	const uint32_t branches = (uint32_t)state.input_data();
 
 	ecs::World w;
 	const auto root = create_is_fanout_fixture<ChainDepth>(w, branches, false);
@@ -1890,7 +1890,7 @@ static inline void add_var_match_tags(ecs::World& w, ecs::Entity e, uint32_t bit
 
 template <bool BoundVar0>
 void BM_QueryMatch_Variable_PairAll(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 16;
 
 	ecs::World w;
@@ -1957,7 +1957,7 @@ void BM_QueryMatch_Variable_PairAll_Unbound(picobench::state& state) {
 
 template <bool BoundVar0>
 void BM_QueryMatch_Variable_1Var(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 16;
 
 	ecs::World w;
@@ -2016,7 +2016,7 @@ void BM_QueryMatch_Variable_1Var_Unbound(picobench::state& state) {
 
 template <bool BoundVars>
 void BM_QueryMatch_Variable_2VarPairAll(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 24;
 
 	ecs::World w;
@@ -2085,7 +2085,7 @@ void BM_QueryMatch_Variable_2VarPairAll_Unbound(picobench::state& state) {
 
 template <bool BoundVars>
 void BM_QueryMatch_Variable_AllOnly(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 24;
 
 	ecs::World w;
@@ -2154,7 +2154,7 @@ void BM_QueryMatch_Variable_AllOnly_Unbound(picobench::state& state) {
 
 template <bool BoundVars>
 void BM_QueryMatch_Variable_AllOnlyCoupled(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 24;
 
 	ecs::World w;
@@ -2221,7 +2221,7 @@ void BM_QueryMatch_Variable_AllOnlyCoupled_Unbound(picobench::state& state) {
 
 template <bool BoundVars>
 void BM_QueryMatch_Variable_GenericSourceBacktrack(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 24;
 
 	ecs::World w;
@@ -2293,7 +2293,7 @@ void BM_QueryMatch_Variable_GenericSourceBacktrack_Unbound(picobench::state& sta
 
 template <bool BoundVar0>
 void BM_QueryMatch_Variable_1VarOr(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 16;
 
 	ecs::World w;
@@ -2357,7 +2357,7 @@ void BM_QueryMatch_Variable_1VarOr_Unbound(picobench::state& state) {
 
 template <bool BoundVar0>
 void BM_QueryMatch_Variable_1VarOrDown(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 16;
 
 	ecs::World w;
@@ -2426,7 +2426,7 @@ void BM_QueryMatch_Variable_1VarOrDown_Unbound(picobench::state& state) {
 
 template <bool BoundVar0>
 void BM_QueryMatch_Variable_1VarOrUpDown(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 16;
 
 	ecs::World w;
@@ -2496,7 +2496,7 @@ void BM_QueryMatch_Variable_1VarOrUpDown_Unbound(picobench::state& state) {
 
 template <bool BoundVar0>
 void BM_QueryMatch_Variable_1VarAny(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 16;
 
 	ecs::World w;
@@ -2554,7 +2554,7 @@ void BM_QueryMatch_Variable_1VarAny_Unbound(picobench::state& state) {
 
 template <bool BoundVar0>
 void BM_QueryMatch_Variable_1VarMixed(picobench::state& state) {
-	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	const uint32_t archetypeCnt = (uint32_t)state.input_data();
 	constexpr uint32_t SourceCnt = 16;
 
 	ecs::World w;
@@ -2852,7 +2852,7 @@ struct VariableBuildFixture_GenericSourceBacktrack {
 
 template <typename Fixture>
 void BM_QueryBuild_Variable_Uncached(picobench::state& state) {
-	Fixture fixture((uint32_t)state.user_data());
+	Fixture fixture((uint32_t)state.input_data());
 
 	state.stop_timer();
 	for (auto _: state) {
@@ -2871,7 +2871,7 @@ void BM_QueryBuild_Variable_Uncached(picobench::state& state) {
 
 template <typename Fixture>
 void BM_QueryBuild_Variable_Recompile(picobench::state& state) {
-	Fixture fixture((uint32_t)state.user_data());
+	Fixture fixture((uint32_t)state.input_data());
 
 	auto q = fixture.query();
 	auto& qi = q.fetch();
@@ -2895,7 +2895,7 @@ void BM_QueryBuild_Variable_Recompile(picobench::state& state) {
 
 template <typename Fixture>
 void BM_QueryCompile_Variable_Uncached(picobench::state& state) {
-	Fixture fixture((uint32_t)state.user_data());
+	Fixture fixture((uint32_t)state.input_data());
 
 	state.stop_timer();
 	for (auto _: state) {
@@ -2919,7 +2919,7 @@ void BM_QueryCompile_Variable_Uncached(picobench::state& state) {
 
 template <typename Fixture>
 void BM_QueryCompile_Variable_Recompile(picobench::state& state) {
-	Fixture fixture((uint32_t)state.user_data());
+	Fixture fixture((uint32_t)state.input_data());
 
 	auto q = fixture.query();
 	dont_optimize(q);

@@ -18,7 +18,7 @@ void setup_sparse_component_entities(ecs::World& w, cnt::darray<ecs::Entity>& en
 
 template <bool DontFragment>
 void BM_SparseComponent_Add(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -36,7 +36,7 @@ void BM_SparseComponent_Add(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_SparseComponent_Set(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -57,7 +57,7 @@ void BM_SparseComponent_Set(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_SparseComponent_Del(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -78,7 +78,7 @@ void BM_SparseComponent_Del(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_SparseComponent_DeleteEntity(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -100,7 +100,7 @@ void BM_SparseComponent_DeleteEntity(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_DirectSparse_All(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -126,7 +126,7 @@ void BM_Query_DirectSparse_All(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_DirectSparse_Each(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -156,7 +156,7 @@ void BM_Query_DirectSparse_Each(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_SparsePayload_Read(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -179,7 +179,7 @@ void BM_Query_SparsePayload_Read(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_SparsePayload_IterRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -203,7 +203,7 @@ void BM_Query_SparsePayload_IterRead(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_SparsePayload_IterWrite(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -228,7 +228,7 @@ void BM_Query_SparsePayload_IterWrite(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_SparsePayload_Write(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -248,7 +248,7 @@ void BM_Query_SparsePayload_Write(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_MixedSparsePayload_Read(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -276,7 +276,7 @@ void BM_Query_MixedSparsePayload_Read(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_DirectSparse_Or(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -303,7 +303,7 @@ void BM_Query_DirectSparse_Or(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_DirectSparse_Or_Each(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -353,7 +353,7 @@ void setup_plain_pair_entities(ecs::World& w, cnt::darray<ecs::Entity>& entities
 
 template <bool DontFragment>
 void BM_PlainPair_Add(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -386,7 +386,7 @@ void setup_sparse_pair_entities(ecs::World& w, cnt::darray<ecs::Entity>& entitie
 
 template <bool DontFragment>
 void BM_SparsePair_Add(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -404,7 +404,7 @@ void BM_SparsePair_Add(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_SparsePair_Del(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -424,7 +424,7 @@ void BM_SparsePair_Del(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_SparsePairPayload_IterRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -470,7 +470,7 @@ void setup_runtime_sparse_component_entities(
 
 template <bool DontFragment>
 void BM_RuntimeSparseComponent_Add(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -489,7 +489,7 @@ void BM_RuntimeSparseComponent_Add(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_RuntimeSparseComponent_Set(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -511,7 +511,7 @@ void BM_RuntimeSparseComponent_Set(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_RuntimeSparseComponent_Del(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -533,7 +533,7 @@ void BM_RuntimeSparseComponent_Del(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_RuntimeSparseComponent_DeleteEntity(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	for (auto _: state) {
 		(void)_;
@@ -556,7 +556,7 @@ void BM_RuntimeSparseComponent_DeleteEntity(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_RuntimeSparsePayload_Read(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -583,7 +583,7 @@ void BM_RuntimeSparsePayload_Read(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_RuntimeSparsePayload_Write(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -611,7 +611,7 @@ void BM_RuntimeSparsePayload_Write(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_RuntimeMixedSparsePayload_Read(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -761,10 +761,7 @@ void register_sparse(PerfRunMode mode) {
 			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)
 			.label("sparse pair dontfrag add 10K");
-	PICOBENCH_REG(BM_PlainPair_Add<false>)
-			.PICO_SETTINGS_BATCH()
-			.user_data(NEntitiesFew)
-			.label("plain pair frag add 10K");
+	PICOBENCH_REG(BM_PlainPair_Add<false>).PICO_SETTINGS_BATCH().user_data(NEntitiesFew).label("plain pair frag add 10K");
 	PICOBENCH_REG(BM_PlainPair_Add<true>)
 			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)

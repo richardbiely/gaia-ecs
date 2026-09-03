@@ -2,7 +2,7 @@
 #include "registry.h"
 
 void BM_MixedFrame_Churn(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.user_data();
+	const uint32_t n = (uint32_t)state.input_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;

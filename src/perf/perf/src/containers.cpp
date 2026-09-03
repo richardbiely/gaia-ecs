@@ -118,7 +118,7 @@ namespace {
 
 	template <typename TList>
 	void run_alloc_free(picobench::state& state) {
-		const auto count = (uint32_t)state.user_data();
+		const auto count = (uint32_t)state.input_data();
 
 		TList list;
 		cnt::darray<ListHandle> handles;
@@ -142,7 +142,7 @@ namespace {
 
 	template <typename TList>
 	void run_iter_dense(picobench::state& state) {
-		const auto count = (uint32_t)state.user_data();
+		const auto count = (uint32_t)state.input_data();
 
 		TList list;
 		cnt::darray<ListHandle> handles;
@@ -162,7 +162,7 @@ namespace {
 
 	template <typename TList>
 	void run_access_stable_random(picobench::state& state) {
-		const auto count = (uint32_t)state.user_data();
+		const auto count = (uint32_t)state.input_data();
 
 		TList list;
 		cnt::darray<ListHandle> activeHandles;
@@ -185,7 +185,7 @@ namespace {
 
 	template <typename TList>
 	void run_mixed(picobench::state& state) {
-		const auto count = (uint32_t)state.user_data();
+		const auto count = (uint32_t)state.input_data();
 		const auto probeCount = count / 2;
 		const auto churnCount = count >= 32 ? count / 16 : 2;
 
