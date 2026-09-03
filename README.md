@@ -4472,7 +4472,7 @@ Note, the operating system has the last word here. It might decide to schedule l
 
 If you already have your own task scheduler or are integrating Gaia-ECS into a larger engine, ECS parallel execution can be routed through a custom scheduler instead of the built-in Gaia thread pool.
 
-Scheduler task descriptors carry `SchedFlags`. When `SchedFlags::Background` is present, the adapter should route the task to a scheduler lane that is allowed to outlive the current frame. The default Gaia-ECS scheduler maps this flag to `ThreadPool::sched_background`; external adapters need to preserve it for both `SchedTaskDesc` and `SchedParDesc` so background work does not silently fall back to a frame-bound queue.
+Scheduler task descriptors carry `SchedFlags`. When `SchedFlags::Background` is present, the adapter should route the task to a scheduler lane that is allowed to outlive the current frame. The default Gaia-ECS scheduler maps this flag to `ThreadPool::sched_background`. External adapters need to preserve it for both `SchedTaskDesc` and `SchedParDesc` so background work does not silently fall back to a frame-bound queue.
 
 ```cpp
 struct MySchedCtx {
@@ -4539,16 +4539,16 @@ ecs::World w;
 w.set_sched(sched);
 ```
 
-After installing the scheduler, ECS paths that use `QueryExecType::Parallel`, `QueryExecType::ParallelPerf`, or `QueryExecType::ParallelEff` route their multithreaded workload through it:
+After installing the scheduler via `World::set_sched`, ECS paths that use `QueryExecType::Parallel`, `QueryExecType::ParallelPerf`, or `QueryExecType::ParallelEff` route their multithreaded workload through it:
 
 ```cpp
 ecs::Query q = w.query().all<Position>();
 q.each([](const Position&) {
-  // ...
+  // ... runs through your custom scheduler
 }, ecs::QueryExecType::Parallel);
 
 w.system().all<Velocity>().mode(ecs::QueryExecType::Parallel).on_each([](Velocity&) {
-  // ...
+  // ... runs through your custom scheduler
 });
 ```
 
@@ -4559,11 +4559,11 @@ ecs::Query moveQuery = w.query().all<Position>().all<Velocity>();
 ecs::Query boundsQuery = w.query().all<Position>();
 
 auto moveJob = moveQuery.job([](ecs::Iter& it) {
-  // ...
+  // ... some work
 }, ecs::QueryExecType::Parallel);
 
 auto boundsJob = boundsQuery.job([](ecs::Iter& it) {
-  // ...
+  // ... some work
 }, ecs::QueryExecType::Parallel);
 
 boundsJob.dep(moveJob);
