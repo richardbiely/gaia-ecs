@@ -63,14 +63,11 @@ namespace gaia {
 		}
 
 		GAIA_NODISCARD inline Archetype* archetype_from_entity(const World& world, Entity entity) {
-			if (!world.valid(entity))
+			const auto* pEc = world.try_live_record(entity);
+			if (pEc == nullptr)
 				return nullptr;
 
-			const auto& ec = world.fetch(entity);
-			if (World::is_req_del(ec))
-				return nullptr;
-
-			return ec.pArchetype;
+			return pEc->pArchetype;
 		}
 
 		GAIA_NODISCARD inline util::str_view entity_name(const World& world, Entity entity) {

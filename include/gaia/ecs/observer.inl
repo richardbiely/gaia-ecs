@@ -89,9 +89,12 @@ namespace gaia {
 
 							const auto queryId = termIds[i];
 							auto compIdx = world_component_index_comp_idx(*pWorld, *ec.pArchetype, queryId);
-							if (compIdx == BadIndex)
+							if (compIdx == BadIndex || compIdx == ComponentIndexBad)
 								compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
-							cachedIndices[i] = (uint8_t)compIdx;
+							cachedIndices[i] = (compIdx != BadIndex && compIdx != ComponentIndexBad &&
+																	compIdx < ec.pArchetype->ids_view().size())
+																						 ? (uint8_t)compIdx
+																						 : (uint8_t)0xFF;
 						}
 					}
 				}

@@ -2088,14 +2088,17 @@ namespace gaia {
 					}
 
 					auto compIdx = world_component_index_comp_idx(*world(), *pArchetype, queryId);
-					if (compIdx == BadIndex) {
+					if (compIdx == BadIndex || compIdx == ComponentIndexBad) {
 						// Wildcard/semantic terms are not represented by an exact component index entry.
 						// OR terms may also be absent from this matching archetype. Use a safe lookup so
 						// absent terms stay unmapped instead of becoming a past-the-end chunk column.
 						compIdx = core::get_index(pArchetype->ids_view(), queryId);
 					}
 
-					cacheData.indices[fieldIdx] = compIdx != BadIndex ? (uint8_t)compIdx : (uint8_t)0xFF;
+					cacheData.indices[fieldIdx] = (compIdx != BadIndex && compIdx != ComponentIndexBad &&
+																				 compIdx < pArchetype->ids_view().size())
+																						? (uint8_t)compIdx
+																						: (uint8_t)0xFF;
 				}
 				return cacheData;
 			}

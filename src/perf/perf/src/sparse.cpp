@@ -16,9 +16,132 @@ void setup_sparse_component_entities(ecs::World& w, cnt::darray<ecs::Entity>& en
 	}
 }
 
+struct EmptyFragTag {};
+
+struct EmptyDontFragTag {
+	GAIA_STORAGE(DontFragment);
+};
+
+template <bool DontFragment>
+void setup_empty_tag_entities(ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count) {
+	entities.clear();
+	entities.reserve(count);
+
+	if constexpr (DontFragment)
+		(void)w.add<EmptyDontFragTag>();
+	else
+		(void)w.add<EmptyFragTag>();
+
+	GAIA_FOR(count) {
+		const auto e = w.add();
+		entities.push_back(e);
+	}
+}
+
+template <bool DontFragment>
+void add_empty_tag(ecs::World& w, ecs::Entity entity) {
+	if constexpr (DontFragment)
+		w.add<EmptyDontFragTag>(entity);
+	else
+		w.add<EmptyFragTag>(entity);
+}
+
+template <bool DontFragment>
+ecs::Entity empty_tag_id(ecs::World& w) {
+	if constexpr (DontFragment)
+		return w.add<EmptyDontFragTag>().entity;
+	else
+		return w.add<EmptyFragTag>().entity;
+}
+
+template <bool DontFragment>
+void BM_EmptyTag_Add(picobench::state& state) {
+	const uint32_t n = bench_entities(state);
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> entities;
+		setup_empty_tag_entities<DontFragment>(w, entities, n);
+
+		state.start_timer();
+		for (auto e: entities)
+			add_empty_tag<DontFragment>(w, e);
+		state.stop_timer();
+	}
+}
+
+template <bool DontFragment>
+void BM_EmptyTag_QueryEach(picobench::state& state) {
+	const uint32_t n = bench_entities(state);
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	setup_empty_tag_entities<DontFragment>(w, entities, n);
+	for (auto e: entities)
+		add_empty_tag<DontFragment>(w, e);
+
+	auto q = w.query().all(empty_tag_id<DontFragment>(w));
+	uint32_t total = 0;
+	for (auto _: state) {
+		(void)_;
+		uint32_t sum = 0;
+		q.each([&](ecs::Iter& it) {
+			sum += it.size();
+		});
+		total += sum;
+	}
+	dont_optimize(total);
+}
+
+template <bool DontFragment>
+void BM_EmptyTag_QueryCount(picobench::state& state) {
+	const uint32_t n = bench_entities(state);
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	setup_empty_tag_entities<DontFragment>(w, entities, n);
+	for (auto e: entities)
+		add_empty_tag<DontFragment>(w, e);
+
+	auto q = w.query().all(empty_tag_id<DontFragment>(w));
+	uint32_t total = 0;
+	for (auto _: state) {
+		(void)_;
+		total += q.count();
+	}
+	dont_optimize(total);
+}
+
+template <bool DontFragment>
+void BM_EmptyTag_QueryWithPositionEach(picobench::state& state) {
+	const uint32_t n = bench_entities(state);
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	setup_empty_tag_entities<DontFragment>(w, entities, n);
+	GAIA_FOR(n) {
+		w.add<Position>(entities[i], {(float)i, 1.0f, 2.0f});
+		add_empty_tag<DontFragment>(w, entities[i]);
+	}
+
+	auto q = w.query().all<Position>().all(empty_tag_id<DontFragment>(w));
+	uint64_t total = 0;
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		q.each([&](const Position& p) {
+			sum += (uint64_t)(p.x + p.y + p.z);
+		});
+		total += sum;
+	}
+	dont_optimize(total);
+}
+
 template <bool DontFragment>
 void BM_SparseComponent_Add(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	for (auto _: state) {
 		(void)_;
@@ -36,7 +159,7 @@ void BM_SparseComponent_Add(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_SparseComponent_Set(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -57,7 +180,7 @@ void BM_SparseComponent_Set(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_SparseComponent_Del(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	for (auto _: state) {
 		(void)_;
@@ -78,7 +201,7 @@ void BM_SparseComponent_Del(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_SparseComponent_DeleteEntity(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	for (auto _: state) {
 		(void)_;
@@ -100,7 +223,7 @@ void BM_SparseComponent_DeleteEntity(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_DirectSparse_All(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -126,7 +249,7 @@ void BM_Query_DirectSparse_All(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_DirectSparse_Each(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -156,7 +279,7 @@ void BM_Query_DirectSparse_Each(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_SparsePayload_Read(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -179,7 +302,7 @@ void BM_Query_SparsePayload_Read(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_SparsePayload_IterRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -203,7 +326,7 @@ void BM_Query_SparsePayload_IterRead(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_SparsePayload_IterWrite(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -228,7 +351,7 @@ void BM_Query_SparsePayload_IterWrite(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_SparsePayload_Write(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -248,7 +371,7 @@ void BM_Query_SparsePayload_Write(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_MixedSparsePayload_Read(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -276,7 +399,7 @@ void BM_Query_MixedSparsePayload_Read(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_DirectSparse_Or(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -303,7 +426,7 @@ void BM_Query_DirectSparse_Or(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_DirectSparse_Or_Each(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -353,7 +476,7 @@ void setup_plain_pair_entities(ecs::World& w, cnt::darray<ecs::Entity>& entities
 
 template <bool DontFragment>
 void BM_PlainPair_Add(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	for (auto _: state) {
 		(void)_;
@@ -386,7 +509,7 @@ void setup_sparse_pair_entities(ecs::World& w, cnt::darray<ecs::Entity>& entitie
 
 template <bool DontFragment>
 void BM_SparsePair_Add(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	for (auto _: state) {
 		(void)_;
@@ -404,7 +527,7 @@ void BM_SparsePair_Add(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_SparsePair_Del(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	for (auto _: state) {
 		(void)_;
@@ -424,7 +547,7 @@ void BM_SparsePair_Del(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_Query_SparsePairPayload_IterRead(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -470,7 +593,7 @@ void setup_runtime_sparse_component_entities(
 
 template <bool DontFragment>
 void BM_RuntimeSparseComponent_Add(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	for (auto _: state) {
 		(void)_;
@@ -489,7 +612,7 @@ void BM_RuntimeSparseComponent_Add(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_RuntimeSparseComponent_Set(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -511,7 +634,7 @@ void BM_RuntimeSparseComponent_Set(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_RuntimeSparseComponent_Del(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	for (auto _: state) {
 		(void)_;
@@ -533,7 +656,7 @@ void BM_RuntimeSparseComponent_Del(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_RuntimeSparseComponent_DeleteEntity(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	for (auto _: state) {
 		(void)_;
@@ -556,7 +679,7 @@ void BM_RuntimeSparseComponent_DeleteEntity(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_RuntimeSparsePayload_Read(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -583,7 +706,7 @@ void BM_RuntimeSparsePayload_Read(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_RuntimeSparsePayload_Write(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -611,7 +734,7 @@ void BM_RuntimeSparsePayload_Write(picobench::state& state) {
 
 template <bool DontFragment>
 void BM_RuntimeMixedSparsePayload_Read(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
@@ -649,6 +772,38 @@ void register_sparse(PerfRunMode mode) {
 		return;
 
 	PICOBENCH_SUITE_REG("Structural changes");
+	PICOBENCH_REG(BM_EmptyTag_Add<false>)
+			.PICO_SETTINGS_BATCH()
+			.user_data(NEntitiesFew)
+			.label("empty tag frag add 10K");
+	PICOBENCH_REG(BM_EmptyTag_Add<true>)
+			.PICO_SETTINGS_BATCH()
+			.user_data(NEntitiesFew)
+			.label("empty tag dontfrag add 10K");
+	PICOBENCH_REG(BM_EmptyTag_QueryEach<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("empty tag frag query each 10K");
+	PICOBENCH_REG(BM_EmptyTag_QueryEach<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("empty tag dontfrag query each 10K");
+	PICOBENCH_REG(BM_EmptyTag_QueryCount<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("empty tag frag query count 10K");
+	PICOBENCH_REG(BM_EmptyTag_QueryCount<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("empty tag dontfrag query count 10K");
+	PICOBENCH_REG(BM_EmptyTag_QueryWithPositionEach<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("empty tag frag query pos each 10K");
+	PICOBENCH_REG(BM_EmptyTag_QueryWithPositionEach<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("empty tag dontfrag query pos each 10K");
 	PICOBENCH_REG(BM_SparseComponent_Add<false>)
 			.PICO_SETTINGS_BATCH()
 			.user_data(NEntitiesFew)

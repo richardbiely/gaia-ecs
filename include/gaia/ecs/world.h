@@ -600,6 +600,19 @@ namespace gaia {
 					ec.pChunk->update_entity_order_version();
 			}
 
+			//! Marks non-fragmenting membership add or delete in the owning chunk's change-filter state.
+			//! Empty DontFragment tags have no payload write path, so add/del must publish the same
+			//! chunk-granular entity-order signal used by non-fragmenting sparse payload writes.
+			//! \param entity Entity whose membership changed.
+			//! \param term Non-fragmenting component entity.
+			void mark_non_fragmenting_membership_changed(Entity entity, Entity term) {
+				if (tearing_down())
+					return;
+
+				::gaia::ecs::update_version(m_worldVersion);
+				mark_sparse_component_write(entity, term);
+			}
+
 			//! Finishes a deferred raw write on \a term attached to \a entity.
 			//! Ensures direct owned storage exists when needed, updates table or sparse version state,
 			//! and emits `OnSet` for the completed write.
@@ -895,6 +908,53 @@ namespace gaia {
 
 			uint32_t m_structuralChangesLocked = 0;
 
+			//! Returns the entity record for a non-pair id in one lookup.
+			//! Use this instead of `valid()` followed by `fetch()` when only the record is needed.
+			//! \param entity Ordinary entity to inspect.
+			//! \return Record pointer when the id and generation match a live slot. Nullptr otherwise.
+			GAIA_NODISCARD const EntityContainer* try_entity_record(Entity entity) const {
+				if (entity.pair())
+					return nullptr;
+
+				const auto* pEc = m_recs.entities.try_get(entity.id());
+				if (pEc == nullptr || pEc->data.gen != entity.gen())
+					return nullptr;
+
+				return pEc;
+			}
+
+			//! Returns the record for an ordinary entity or an exact pair in one lookup.
+			//! Wildcard pairs have no record and return nullptr.
+			//! \param entity Entity or exact pair.
+			//! \return Record pointer when the id is present. Nullptr otherwise.
+			GAIA_NODISCARD const EntityContainer* try_fetch_record(Entity entity) const {
+				if (entity == EntityBad)
+					return nullptr;
+
+				if (entity.pair()) {
+					if (is_wildcard(entity))
+						return nullptr;
+					return m_recs.pair_record_find(entity);
+				}
+
+				return try_entity_record(entity);
+			}
+
+			//! Returns the record for an ordinary entity or an exact pair in one lookup.
+			//! \param entity Entity or exact pair.
+			//! \return Mutable record pointer when the id is present. Nullptr otherwise.
+			GAIA_NODISCARD EntityContainer* try_fetch_record(Entity entity) {
+				return const_cast<EntityContainer*>(static_cast<const World*>(this)->try_fetch_record(entity));
+			}
+
+			//! Returns whether a relation record uses exclusive DontFragment storage.
+			//! \param ec Relation entity record.
+			//! \return True when both Exclusive and DontFragment flags are set.
+			GAIA_NODISCARD static bool record_uses_non_fragmenting_relation_storage(const EntityContainer& ec) {
+				return (ec.flags & EntityContainerFlags::IsExclusive) != 0 &&
+							 (ec.flags & EntityContainerFlags::IsDontFragment) != 0;
+			}
+
 		public:
 			World():
 					// Command buffer for the main thread
@@ -1042,6 +1102,24 @@ namespace gaia {
 				return ec.pArchetype != nullptr && ec.pArchetype->is_req_del();
 			}
 
+			//! Returns a record that is present and not delete-requested.
+			//! This is the one-lookup replacement for `valid()` followed by `fetch()`.
+			//! \param entity Entity or exact pair.
+			//! \return Record pointer when the id is live. Nullptr otherwise.
+			GAIA_NODISCARD const EntityContainer* try_live_record(Entity entity) const {
+				const auto* pEc = try_fetch_record(entity);
+				if (pEc == nullptr || !valid(*pEc, entity))
+					return nullptr;
+				return pEc;
+			}
+
+			//! Returns a record that is present and not delete-requested.
+			//! \param entity Entity or exact pair.
+			//! \return Mutable record pointer when the id is live. Nullptr otherwise.
+			GAIA_NODISCARD EntityContainer* try_live_record(Entity entity) {
+				return const_cast<EntityContainer*>(static_cast<const World*>(this)->try_live_record(entity));
+			}
+
 #if GAIA_OBSERVERS_ENABLED
 	#if GAIA_ASSERT_ENABLED
 			//! Marks entry into an observer callback.
@@ -1092,14 +1170,15 @@ namespace gaia {
 			//! \param entity Entity
 			//! \return True if \a entity is marked DontFragment. False otherwise.
 			GAIA_NODISCARD bool is_dont_fragment(Entity entity) const {
-				return (fetch(entity).flags & EntityContainerFlags::IsDontFragment) != 0;
+				const auto* pEc = try_entity_record(entity);
+				return pEc != nullptr && (pEc->flags & EntityContainerFlags::IsDontFragment) != 0;
 			}
 
 			//! Returns whether \a relation is non-fragmenting.
 			//! \param relation Relation entity
 			//! \return True if \a relation is valid and non-fragmenting. False otherwise.
 			GAIA_NODISCARD bool relation_is_non_fragmenting(Entity relation) const {
-				return valid(relation) && !relation.pair() && is_dont_fragment(relation);
+				return is_dont_fragment(relation);
 			}
 
 			//! Returns whether \a relation uses non-fragmenting relation storage.
@@ -1107,12 +1186,8 @@ namespace gaia {
 			//! \param relation Relation entity
 			//! \return True if \a relation uses non-fragmenting relation storage. False otherwise.
 			GAIA_NODISCARD bool relation_uses_non_fragmenting_storage(Entity relation) const {
-				if (!valid(relation) || relation.pair())
-					return false;
-
-				const auto& ec = fetch(relation);
-				return (ec.flags & EntityContainerFlags::IsExclusive) != 0 &&
-							 (ec.flags & EntityContainerFlags::IsDontFragment) != 0;
+				const auto* pEc = try_entity_record(relation);
+				return pEc != nullptr && record_uses_non_fragmenting_relation_storage(*pEc);
 			}
 
 			//! Returns true for hierarchy-like relations whose targets form an exclusive traversable parent chain.
@@ -1120,10 +1195,11 @@ namespace gaia {
 			//! \param relation Relation entity to inspect.
 			//! \return True when \p relation is exclusive and traversable. False otherwise.
 			GAIA_NODISCARD bool relation_is_hierarchy(Entity relation) const {
-				if (!valid(relation) || relation.pair())
+				const auto* pEc = try_entity_record(relation);
+				if (pEc == nullptr || (pEc->flags & EntityContainerFlags::IsExclusive) == 0 || pEc->pArchetype == nullptr)
 					return false;
 
-				return has(relation, Exclusive) && has(relation, Traversable);
+				return pEc->pArchetype->has(Traversable);
 			}
 
 			//! Returns true when the relation still participates in archetype identity.
@@ -1131,7 +1207,11 @@ namespace gaia {
 			//! \param relation Relation entity to inspect.
 			//! \return True when \p relation participates in archetype identity. False otherwise.
 			GAIA_NODISCARD bool relation_is_fragmenting(Entity relation) const {
-				return valid(relation) && !relation.pair() && !is_dont_fragment(relation);
+				const auto* pEc = try_entity_record(relation);
+				if (pEc == nullptr)
+					return false;
+
+				return (pEc->flags & EntityContainerFlags::IsDontFragment) == 0;
 			}
 
 			//! Returns true for hierarchy relations that still fragment archetypes.
@@ -1167,7 +1247,8 @@ namespace gaia {
 			//! \return True when the component uses sparse storage.
 			GAIA_NODISCARD bool component_uses_sparse_storage(Entity component) const {
 				if (!component.pair()) {
-					if (!valid(component) || component.entity())
+					const auto* pEc = try_entity_record(component);
+					if (pEc == nullptr || pEc->data.ent != 0)
 						return false;
 
 					const auto* pItem = comp_cache().find(component);
@@ -1182,11 +1263,21 @@ namespace gaia {
 			}
 
 			//! Returns whether \a component is non-fragmenting.
-			//! Non-fragmenting components do not participate in archetype identity.
+			//! Non-fragmenting component ids do not participate in archetype identity.
+			//! Exclusive+DontFragment is a relation trait, not empty-tag membership.
 			//! \param component Component entity to inspect.
 			//! \return True when the component is non-fragmenting.
 			GAIA_NODISCARD bool component_is_non_fragmenting(Entity component) const {
-				return sparse_storage_mode(component) == SparseStorageMode::NonFragmenting;
+				if (component.pair())
+					return sparse_storage_mode(component) == SparseStorageMode::NonFragmenting;
+
+				const auto* pEc = try_entity_record(component);
+				if (pEc == nullptr || pEc->data.ent != 0)
+					return false;
+
+				const auto flags = pEc->flags;
+				return (flags & EntityContainerFlags::IsDontFragment) != 0 &&
+							 (flags & EntityContainerFlags::IsExclusive) == 0;
 			}
 
 			//! Returns the sparse storage mode used by a component.
@@ -1194,20 +1285,24 @@ namespace gaia {
 			//! \return Sparse storage mode, or SparseStorageMode::None when the component is not sparse.
 			GAIA_NODISCARD SparseStorageMode sparse_storage_mode(Entity component) const {
 				if (!component.pair()) {
-					if (!valid(component) || component.entity())
+					const auto* pEc = try_entity_record(component);
+					if (pEc == nullptr || pEc->data.ent != 0)
 						return SparseStorageMode::None;
 
 					const auto* pItem = comp_cache().find(component);
 					if (pItem == nullptr || pItem->comp.soa() != 0 || !gaia::ecs::component_uses_sparse_storage(pItem->comp))
 						return SparseStorageMode::None;
-				} else {
-					const auto* pItem = comp_cache().find_pair_payload(component);
-					if (pItem == nullptr || pItem->comp.soa() != 0 || !gaia::ecs::component_uses_sparse_storage(pItem->comp))
-						return SparseStorageMode::None;
+
+					return (pEc->flags & EntityContainerFlags::IsDontFragment) != 0 ? SparseStorageMode::NonFragmenting
+																																				 : SparseStorageMode::Fragmenting;
 				}
 
-				const auto storageTraitOwner = component.pair() ? pair_rel(*this, component) : component;
-				return is_dont_fragment(storageTraitOwner) ? SparseStorageMode::NonFragmenting : SparseStorageMode::Fragmenting;
+				const auto* pItem = comp_cache().find_pair_payload(component);
+				if (pItem == nullptr || pItem->comp.soa() != 0 || !gaia::ecs::component_uses_sparse_storage(pItem->comp))
+					return SparseStorageMode::None;
+
+				return is_dont_fragment(pair_rel(*this, component)) ? SparseStorageMode::NonFragmenting
+																													 : SparseStorageMode::Fragmenting;
 			}
 
 			//! Checks whether an inter-world copy includes a sparse component payload.
@@ -1217,7 +1312,8 @@ namespace gaia {
 			//! \return True when \p srcEntity owns the sparse payload and \p comp uses sparse storage.
 			GAIA_NODISCARD bool
 			copies_sparse_payload_inter(Entity comp, Entity srcEntity, const SparseComponentStoreErased& store) const {
-				return store.func_has(store.pStore, srcEntity) && sparse_storage_mode(comp) != SparseStorageMode::None;
+				return store.func_has(store.pStore, srcEntity) &&
+							 (component_is_non_fragmenting(comp) || sparse_storage_mode(comp) != SparseStorageMode::None);
 			}
 
 			//! Checks whether an inter-world copy includes a non-fragmenting sparse payload.
@@ -1227,15 +1323,14 @@ namespace gaia {
 			//! \return True when the copied sparse payload does not participate in archetype identity.
 			GAIA_NODISCARD bool copies_non_frag_sparse_payload_inter(
 					Entity comp, Entity srcEntity, const SparseComponentStoreErased& store) const {
-				return copies_sparse_payload_inter(comp, srcEntity, store) &&
-							 sparse_storage_mode(comp) == SparseStorageMode::NonFragmenting;
+				return store.func_has(store.pStore, srcEntity) && component_is_non_fragmenting(comp);
 			}
 
 			//! Checks whether copying a sparse payload must also add its id to the destination entity.
 			//! \param comp Sparse component entity being copied.
 			//! \return True for non-fragmenting sparse components. False otherwise.
 			GAIA_NODISCARD bool sparse_copy_adds_id_inter(Entity comp) const {
-				return sparse_storage_mode(comp) == SparseStorageMode::NonFragmenting;
+				return component_is_non_fragmenting(comp);
 			}
 
 			//----------------------------------------------------------------------
@@ -1302,17 +1397,21 @@ namespace gaia {
 			}
 
 			//! Latches DontFragment on a component entity record.
-			//! This first moves the payload out of chunks, then removes the id from archetype identity.
+			//! Payload-bearing components are moved to sparse storage first. Empty tags only latch membership.
 			//! \param component Component entity.
 			//! \param ec Component entity container.
 			void set_component_dont_fragment(Entity component, EntityContainer& ec) {
-				if (component.comp())
-					set_component_sparse_storage(component);
+				if (component.comp()) {
+					const auto& item = comp_cache().get(component);
+					if (item.comp.size() != 0)
+						set_component_sparse_storage(component);
+				}
 
 				if ((ec.flags & EntityContainerFlags::IsDontFragment) != 0)
 					return;
 
 				ec.flags |= EntityContainerFlags::IsDontFragment;
+				invalidate_queries_for_structural_entity(EntityLookupKey(component));
 			}
 
 			//! Latches Sparse storage on a component entity before any instances exist.
@@ -1331,6 +1430,10 @@ namespace gaia {
 				if (item.comp.storage_type() == DataStorageType::Sparse)
 					return;
 
+				GAIA_ASSERT(item.comp.size() != 0);
+				if (item.comp.size() == 0)
+					return;
+
 				GAIA_ASSERT(item.comp.soa() == 0);
 				if (item.comp.soa() != 0)
 					return;
@@ -1346,15 +1449,23 @@ namespace gaia {
 			}
 
 			//! Returns whether a runtime storage trait can be attached to \a component.
-			//! Compile-time component storage is authoritative. Runtime component descriptors remain mutable.
+			//! Compile-time component payload storage is authoritative. Runtime component descriptors remain mutable.
+			//! Empty typed tags can still latch `DontFragment` before any instances exist.
 			//! \param component Component entity.
-			//! \return True for runtime components or typed sparse components.
-			GAIA_NODISCARD bool can_add_component_storage_trait(Entity component) const {
+			//! \param trait `Sparse` or `DontFragment`.
+			//! \return True when \a trait can be attached.
+			GAIA_NODISCARD bool can_add_component_storage_trait(Entity component, Entity trait) const {
 				if (!component.comp())
 					return true;
 
 				const auto& item = comp_cache().get(component);
-				return item.func_create_sparse_store == nullptr || item.comp.storage_type() == DataStorageType::Sparse;
+				if (item.func_create_sparse_store == nullptr || item.comp.storage_type() == DataStorageType::Sparse)
+					return true;
+
+				if (trait.id() != DontFragment.id() || item.comp.size() != 0)
+					return false;
+
+				return count_direct_term_entities_direct(component) == 0;
 			}
 
 			//! Sparse storage supports plain components and exact relationship pairs.
@@ -1413,7 +1524,7 @@ namespace gaia {
 				if constexpr (!supports_sparse_component_storage<T>())
 					return false;
 				else {
-					if (!valid(object))
+					if (try_live_record(object) == nullptr)
 						return false;
 
 					const auto* pItem = object.pair() ? comp_cache().find_pair_payload(object) : comp_cache().find(object);
@@ -2374,8 +2485,7 @@ namespace gaia {
 				//! Removes deferred sparse payloads for ids detached by the builder.
 				void cleanup_deleted_sparse_components() {
 					for (auto entity: tl_del_comps) {
-						if (entity.pair() || !m_world.component_uses_sparse_storage(entity) ||
-								m_world.component_is_non_fragmenting(entity))
+						if (entity.pair() || m_world.sparse_storage_mode(entity) != SparseStorageMode::Fragmenting)
 							continue;
 
 						const auto it = m_world.m_sparseComponentsByComp.find(EntityLookupKey(entity));
@@ -2986,6 +3096,26 @@ namespace gaia {
 					(void)store.func_add(store.pStore, m_entity);
 				}
 
+				//! Attaches a non-fragmenting component through membership storage rather than archetype identity.
+				//! \param component Component entity being attached.
+				void add_nonfragmenting_component_id(Entity component) {
+					const auto* pItem = m_world.comp_cache().find(component);
+					GAIA_ASSERT(pItem != nullptr);
+					if (pItem == nullptr)
+						return;
+
+					auto& store = m_world.sparse_component_store_erased_mut(component, *pItem);
+					(void)store.func_add(store.pStore, m_entity);
+				}
+
+				//! Removes a non-fragmenting component from membership storage.
+				//! \param component Component entity being detached.
+				void del_nonfragmenting_component_id(Entity component) {
+					const auto it = m_world.m_sparseComponentsByComp.find(EntityLookupKey(component));
+					if (it != m_world.m_sparseComponentsByComp.end())
+						it->second.func_del(it->second.pStore, m_entity);
+				}
+
 				//! Removes the sparse payload instance associated with a detached relationship pair.
 				//! \param pair Exact relationship pair being detached.
 				void del_sparse_pair_payload(Entity pair) {
@@ -3016,7 +3146,30 @@ namespace gaia {
 					if (has_archetype_id(entity))
 						return false;
 
-					if (is_component_storage_trait(entity) && !m_world.can_add_component_storage_trait(m_entity))
+					if (m_world.component_is_non_fragmenting(entity)) {
+						if (m_world.has_direct_sparse_component_inter(m_entity, entity))
+							return false;
+
+						try_set_flags(entity, true);
+						if constexpr (!IsBootstrap) {
+#if GAIA_OBSERVERS_ENABLED
+							auto addDiffCtx = m_world.m_observers.prepare_diff(
+									m_world, ObserverEvent::OnAdd, EntitySpan{&entity, 1}, EntitySpan{&m_entity, 1});
+#endif
+							add_nonfragmenting_component_id(entity);
+							handle_DependsOn(entity, true);
+							m_world.mark_non_fragmenting_membership_changed(m_entity, entity);
+							m_world.notify_add_single(m_entity, entity);
+#if GAIA_OBSERVERS_ENABLED
+							m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
+#endif
+						} else {
+							add_nonfragmenting_component_id(entity);
+						}
+						return true;
+					}
+
+					if (is_component_storage_trait(entity) && !m_world.can_add_component_storage_trait(m_entity, entity))
 						return false;
 
 					try_set_flags(entity, true);
@@ -3177,8 +3330,24 @@ namespace gaia {
 #endif
 
 					// Don't delete what has not beed added
-					if (!has_archetype_id(entity))
+					if (!has_archetype_id(entity)) {
+						if (m_world.component_is_non_fragmenting(entity) &&
+								m_world.has_direct_sparse_component_inter(m_entity, entity)) {
+							try_set_flags(entity, false);
+							handle_DependsOn(entity, false);
+#if GAIA_OBSERVERS_ENABLED
+							auto delDiffCtx = m_world.m_observers.prepare_diff(
+									m_world, ObserverEvent::OnDel, EntitySpan{&entity, 1}, EntitySpan{&m_entity, 1});
+#endif
+							del_nonfragmenting_component_id(entity);
+							m_world.mark_non_fragmenting_membership_changed(m_entity, entity);
+							m_world.notify_del_single(m_entity, entity);
+#if GAIA_OBSERVERS_ENABLED
+							m_world.m_observers.finish_diff(m_world, GAIA_MOV(delDiffCtx));
+#endif
+						}
 						return;
+					}
 
 					try_set_flags(entity, false);
 					handle_DependsOn(entity, false);
@@ -4204,6 +4373,8 @@ namespace gaia {
 					(void)world.sparse_component_store_mut<FT>(component);
 				};
 				finalize_component_registration(item, item.comp.storage_type() == DataStorageType::Sparse);
+				if constexpr (uses_ct_dont_fragment_v<FT>)
+					add(item.entity, DontFragment);
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (item.comp.storage_type() == DataStorageType::Sparse)
 						(void)sparse_component_store_mut<FT>(item.entity);
@@ -4238,6 +4409,8 @@ namespace gaia {
 					(void)world.sparse_component_store_mut<FT>(component);
 				};
 				finalize_component_registration(item, item.comp.storage_type() == DataStorageType::Sparse);
+				if constexpr (uses_ct_dont_fragment_v<FT>)
+					add(item.entity, DontFragment);
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (item.comp.storage_type() == DataStorageType::Sparse)
 						(void)sparse_component_store_mut<FT>(item.entity);
@@ -5243,7 +5416,7 @@ namespace gaia {
 			//! \param id Id to inspect.
 			//! \return True when the id is inherited through Is edges.
 			GAIA_NODISCARD bool id_uses_inherit_policy(Entity id) const {
-				return !is_wildcard(id) && valid(id) && target(id, OnInstantiate) == Inherit;
+				return !is_wildcard(id) && target(id, OnInstantiate) == Inherit;
 			}
 
 			//! Finds the inheritance source that owns an id.
@@ -5280,13 +5453,14 @@ namespace gaia {
 			//! \param object Non-wildcard id being queried.
 			//! \return Direct owner, inherited owner, or EntityBad.
 			GAIA_NODISCARD Entity id_owner_inter(Entity entity, Entity object) const {
-				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(object != EntityBad);
 				GAIA_ASSERT(!is_wildcard(object));
 
-				const auto& ec = fetch(entity);
-				if (is_req_del(ec))
+				const auto* pEc = try_live_record(entity);
+				if (pEc == nullptr)
 					return EntityBad;
+
+				const auto& ec = *pEc;
 
 				if (object.pair()) {
 					if (has_nonfragmenting_relation_pair(entity, object) || ec.pArchetype->has(object))
@@ -5603,8 +5777,7 @@ namespace gaia {
 			//! \param object Sparse component id.
 			//! \return True when a payload was copied.
 			GAIA_NODISCARD bool copy_sparse_payload_inter(Entity dstEntity, Entity srcEntity, Entity object) {
-				const auto mode = sparse_storage_mode(object);
-				if (mode == SparseStorageMode::None)
+				if (!component_is_non_fragmenting(object) && sparse_storage_mode(object) == SparseStorageMode::None)
 					return false;
 
 				const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
@@ -6506,6 +6679,14 @@ namespace gaia {
 					return;
 				}
 
+				if constexpr (!is_pair<FT>::value) {
+					const auto* pItem = comp_cache().template find<FT>();
+					if (pItem != nullptr && component_is_non_fragmenting(pItem->entity)) {
+						del(entity, pItem->entity);
+						return;
+					}
+				}
+
 				EntityBuilder(*this, entity).del<FT>();
 			}
 
@@ -6973,7 +7154,7 @@ namespace gaia {
 			//! \param component Component entity or exact relationship pair being read.
 			//! \return Raw payload view, or invalid view when the component cannot be resolved.
 			GAIA_NODISCARD ComponentRawView get_raw(Entity entity, Entity component) const {
-				if (component == EntityBad || !valid(entity))
+				if (component == EntityBad)
 					return {};
 
 				const auto owner = id_owner_inter(entity, component);
@@ -7009,12 +7190,14 @@ namespace gaia {
 			//! \param component Component entity or exact relationship pair being mutated.
 			//! \return Raw mutable payload view, or invalid view when the component is absent or unsupported.
 			GAIA_NODISCARD ComponentRawMutView mut_raw(Entity entity, Entity component) {
-				if (component == EntityBad || !valid(entity))
+				if (component == EntityBad)
 					return {};
 
-				const auto& ec = fetch(entity);
-				if (is_req_del(ec))
+				const auto* pEc = try_live_record(entity);
+				if (pEc == nullptr)
 					return {};
+
+				const auto& ec = *pEc;
 
 				const auto* pItem = component_item(entity, component);
 				if (pItem == nullptr || !raw_component_supported(*pItem))
@@ -7045,7 +7228,7 @@ namespace gaia {
 			//! \param fieldIdx SoA field array index.
 			//! \return Raw field value view, or an invalid view when unavailable.
 			GAIA_NODISCARD ComponentRawView get_raw_field(Entity entity, Entity component, uint32_t fieldIdx) const {
-				if (component == EntityBad || !valid(entity))
+				if (component == EntityBad)
 					return {};
 
 				const auto owner = id_owner_inter(entity, component);
@@ -7077,12 +7260,14 @@ namespace gaia {
 			//! \param fieldIdx SoA field array index.
 			//! \return Mutable raw field value view, or an invalid view when unavailable.
 			GAIA_NODISCARD ComponentRawMutView mut_raw_field(Entity entity, Entity component, uint32_t fieldIdx) {
-				if (component == EntityBad || !valid(entity))
+				if (component == EntityBad)
 					return {};
 
-				const auto& ec = fetch(entity);
-				if (is_req_del(ec))
+				const auto* pEc = try_live_record(entity);
+				if (pEc == nullptr)
 					return {};
+
+				const auto& ec = *pEc;
 
 				const auto* pItem = component_item(entity, component);
 				if (pItem == nullptr || !soa_field_supported(*pItem) || fieldIdx >= pItem->comp.soa() ||
@@ -7123,7 +7308,7 @@ namespace gaia {
 			//! \param size Payload byte count. Must match the registered component size.
 			//! \return True when the component was added and initialized.
 			bool add_raw(Entity entity, Entity component, const void* data, uint32_t size) {
-				if (component == EntityBad || !valid(entity))
+				if (component == EntityBad || try_live_record(entity) == nullptr)
 					return false;
 
 				const auto* pItem = component.pair() ? comp_cache().find_pair_payload(component) : comp_cache().find(component);
@@ -7190,11 +7375,15 @@ namespace gaia {
 			//! \param component Runtime component entity previously passed to mut_raw().
 			void modify_raw(Entity entity, Entity component) {
 				if (!mut_raw(entity, component).valid()) {
-					if (component == EntityBad || !valid(entity))
+					if (component == EntityBad)
 						return;
 
-					const auto& ec = fetch(entity);
-					const auto* pItem = !is_req_del(ec) ? component_item(entity, component) : nullptr;
+					const auto* pEc = try_live_record(entity);
+					if (pEc == nullptr)
+						return;
+
+					const auto& ec = *pEc;
+					const auto* pItem = component_item(entity, component);
 					if (pItem == nullptr || !soa_field_supported(*pItem) ||
 							core::get_index(ec.pChunk->ids_view(), component) == BadIndex)
 						return;
@@ -7441,9 +7630,11 @@ namespace gaia {
 			//! \param allowSemanticIs True to include semantic inheritance.
 			//! \return True when the requested id is present under the selected semantics.
 			GAIA_NODISCARD bool has_inter(Entity entity, Entity object, bool allowSemanticIs) const {
-				const auto& ec = fetch(entity);
-				if (is_req_del(ec))
+				const auto* pEc = try_live_record(entity);
+				if (pEc == nullptr)
 					return false;
+
+				const auto& ec = *pEc;
 
 				if (object.pair() && has_nonfragmenting_relation_pair(entity, object))
 					return true;
@@ -7914,8 +8105,8 @@ namespace gaia {
 			//! \return Relationship target. EntityBad if there is nothing to return.
 			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD Entity relation(Entity entity, Entity target) const {
-				GAIA_ASSERT(valid(entity));
-				if (!valid(target))
+				const auto* pEc = try_live_record(entity);
+				if (pEc == nullptr || try_live_record(target) == nullptr)
 					return EntityBad;
 
 				for (const auto& it: m_nonFragmentingRelationsByRel) {
@@ -7923,8 +8114,7 @@ namespace gaia {
 						return it.first.entity();
 				}
 
-				const auto& ec = fetch(entity);
-				const auto* pArchetype = ec.pArchetype;
+				const auto* pArchetype = pEc->pArchetype;
 
 				// Early exit if there are no pairs on the archetype
 				if (pArchetype->pairs() == 0)
@@ -7947,8 +8137,8 @@ namespace gaia {
 			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void relations(Entity entity, Entity target, Func func) const {
-				GAIA_ASSERT(valid(entity));
-				if (!valid(target))
+				const auto* pEc = try_live_record(entity);
+				if (pEc == nullptr || try_live_record(target) == nullptr)
 					return;
 
 				for (const auto& it: m_nonFragmentingRelationsByRel) {
@@ -7956,8 +8146,7 @@ namespace gaia {
 						func(it.first.entity());
 				}
 
-				const auto& ec = fetch(entity);
-				const auto* pArchetype = ec.pArchetype;
+				const auto* pArchetype = pEc->pArchetype;
 
 				// Early exit if there are no pairs on the archetype
 				if (pArchetype->pairs() == 0)
@@ -7981,8 +8170,8 @@ namespace gaia {
 			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void relations_if(Entity entity, Entity target, Func func) const {
-				GAIA_ASSERT(valid(entity));
-				if (!valid(target))
+				const auto* pEc = try_live_record(entity);
+				if (pEc == nullptr || try_live_record(target) == nullptr)
 					return;
 
 				for (const auto& it: m_nonFragmentingRelationsByRel) {
@@ -7990,8 +8179,7 @@ namespace gaia {
 						return;
 				}
 
-				const auto& ec = fetch(entity);
-				const auto* pArchetype = ec.pArchetype;
+				const auto* pArchetype = pEc->pArchetype;
 
 				// Early exit if there are no pairs on the archetype
 				if (pArchetype->pairs() == 0)
@@ -8099,7 +8287,7 @@ namespace gaia {
 
 				auto& cache = m_targetsTravCache[key];
 				m_relationCachesPopulated = true;
-				if (!valid(relation) || !valid(source))
+				if (try_live_record(relation) == nullptr || try_live_record(source) == nullptr)
 					return cache;
 
 				auto curr = source;
@@ -8127,7 +8315,8 @@ namespace gaia {
 
 				auto& cache = m_targetsAllCache[key];
 				m_relationCachesPopulated = true;
-				if (!valid(source))
+				const auto* pEc = try_live_record(source);
+				if (pEc == nullptr)
 					return cache;
 
 				const auto visitStamp = next_entity_visit_stamp();
@@ -8138,8 +8327,7 @@ namespace gaia {
 						cache.push_back(target);
 				}
 
-				const auto& ec = fetch(source);
-				const auto* pArchetype = ec.pArchetype;
+				const auto* pArchetype = pEc->pArchetype;
 				if (pArchetype->pairs() == 0)
 					return cache;
 
@@ -8168,7 +8356,7 @@ namespace gaia {
 
 				auto& cache = m_sourcesAllCache[key];
 				m_relationCachesPopulated = true;
-				if (!valid(target))
+				if (try_live_record(target) == nullptr)
 					return cache;
 
 				const auto visitStamp = next_entity_visit_stamp();
@@ -8218,7 +8406,7 @@ namespace gaia {
 			//! \param func Callable invoked for each enabled target.
 			template <typename Func>
 			void targets_trav(Entity relation, Entity source, Func func) const {
-				if (!valid(relation) || !valid(source))
+				if (try_live_record(relation) == nullptr || try_live_record(source) == nullptr)
 					return;
 
 				auto curr = source;
@@ -8243,7 +8431,7 @@ namespace gaia {
 			//! \return True if traversal was stopped by \p func, false otherwise.
 			template <typename Func>
 			GAIA_NODISCARD bool targets_trav_if(Entity relation, Entity source, Func func) const {
-				if (!valid(relation) || !valid(source))
+				if (try_live_record(relation) == nullptr || try_live_record(source) == nullptr)
 					return false;
 
 				auto curr = source;
@@ -8395,9 +8583,8 @@ namespace gaia {
 			//! \return Relationship target. EntityBad if there is nothing to return.
 			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD Entity target(Entity entity, Entity relation) const {
-				if (!valid(entity))
-					return EntityBad;
-				if (relation != All && !valid(relation))
+				const auto* pEc = try_live_record(entity);
+				if (pEc == nullptr)
 					return EntityBad;
 
 				if (relation == All) {
@@ -8405,7 +8592,11 @@ namespace gaia {
 					return targets.empty() ? EntityBad : targets[0];
 				}
 
-				if (relation_uses_non_fragmenting_storage(relation)) {
+				const auto* pRel = try_entity_record(relation);
+				if (pRel == nullptr)
+					return EntityBad;
+
+				if (record_uses_non_fragmenting_relation_storage(*pRel)) {
 					const auto* pStore = nonfragmenting_relation_store(relation);
 					if (pStore == nullptr)
 						return EntityBad;
@@ -8413,8 +8604,7 @@ namespace gaia {
 					return pStore->target(entity);
 				}
 
-				const auto& ec = fetch(entity);
-				const auto* pArchetype = ec.pArchetype;
+				const auto* pArchetype = pEc->pArchetype;
 
 				// Early exit if there are no pairs on the archetype
 				if (pArchetype->pairs() == 0)
@@ -8439,9 +8629,8 @@ namespace gaia {
 			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void targets(Entity entity, Entity relation, Func func) const {
-				if (!valid(entity))
-					return;
-				if (relation != All && !valid(relation))
+				const auto* pEc = try_live_record(entity);
+				if (pEc == nullptr)
 					return;
 
 				if (relation == All) {
@@ -8450,15 +8639,22 @@ namespace gaia {
 					return;
 				}
 
-				if (relation_uses_non_fragmenting_storage(relation)) {
-					const auto target = this->target(entity, relation);
+				const auto* pRel = try_entity_record(relation);
+				if (pRel == nullptr)
+					return;
+
+				if (record_uses_non_fragmenting_relation_storage(*pRel)) {
+					const auto* pStore = nonfragmenting_relation_store(relation);
+					if (pStore == nullptr)
+						return;
+
+					const auto target = pStore->target(entity);
 					if (target != EntityBad)
 						func(target);
 					return;
 				}
 
-				const auto& ec = fetch(entity);
-				const auto* pArchetype = ec.pArchetype;
+				const auto* pArchetype = pEc->pArchetype;
 
 				// Early exit if there are no pairs on the archetype
 				if (pArchetype->pairs() == 0)
@@ -8482,8 +8678,8 @@ namespace gaia {
 			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void targets_if(Entity entity, Entity relation, Func func) const {
-				GAIA_ASSERT(valid(entity));
-				if (relation != All && !valid(relation))
+				const auto* pEc = try_live_record(entity);
+				if (pEc == nullptr)
 					return;
 
 				if (relation == All) {
@@ -8494,15 +8690,22 @@ namespace gaia {
 					return;
 				}
 
-				if (relation_uses_non_fragmenting_storage(relation)) {
-					const auto target = this->target(entity, relation);
+				const auto* pRel = try_entity_record(relation);
+				if (pRel == nullptr)
+					return;
+
+				if (record_uses_non_fragmenting_relation_storage(*pRel)) {
+					const auto* pStore = nonfragmenting_relation_store(relation);
+					if (pStore == nullptr)
+						return;
+
+					const auto target = pStore->target(entity);
 					if (target != EntityBad)
 						(void)func(target);
 					return;
 				}
 
-				const auto& ec = fetch(entity);
-				const auto* pArchetype = ec.pArchetype;
+				const auto* pArchetype = pEc->pArchetype;
 
 				// Early exit if there are no pairs on the archetype
 				if (pArchetype->pairs() == 0)
@@ -8542,7 +8745,7 @@ namespace gaia {
 			//! \warning It is expected \a relation and \a target are valid. Undefined behavior otherwise.
 			template <typename Func>
 			void sources(Entity relation, Entity target, Func func) const {
-				if ((relation != All && !valid(relation)) || !valid(target))
+				if (try_live_record(target) == nullptr)
 					return;
 
 				if (relation == All) {
@@ -8551,7 +8754,11 @@ namespace gaia {
 					return;
 				}
 
-				if (relation_uses_non_fragmenting_storage(relation)) {
+				const auto* pRel = try_entity_record(relation);
+				if (pRel == nullptr)
+					return;
+
+				if (record_uses_non_fragmenting_relation_storage(*pRel)) {
 					const auto* pStore = nonfragmenting_relation_store(relation);
 					if (pStore == nullptr)
 						return;
@@ -8599,7 +8806,7 @@ namespace gaia {
 			//! \warning It is expected \a relation and \a target are valid. Undefined behavior otherwise.
 			template <typename Func>
 			void sources_if(Entity relation, Entity target, Func func) const {
-				if ((relation != All && !valid(relation)) || !valid(target))
+				if (try_live_record(target) == nullptr)
 					return;
 
 				if (relation == All) {
@@ -8610,7 +8817,11 @@ namespace gaia {
 					return;
 				}
 
-				if (relation_uses_non_fragmenting_storage(relation)) {
+				const auto* pRel = try_entity_record(relation);
+				if (pRel == nullptr)
+					return;
+
+				if (record_uses_non_fragmenting_relation_storage(*pRel)) {
 					const auto* pStore = nonfragmenting_relation_store(relation);
 					if (pStore == nullptr)
 						return;
@@ -9426,11 +9637,8 @@ namespace gaia {
 			//! \param relation Relation defining the ancestor chain.
 			//! \return True when \p entity and every reachable ancestor are enabled. False otherwise.
 			GAIA_NODISCARD bool enabled_hierarchy(Entity entity, Entity relation) const {
-				GAIA_ASSERT(valid(entity));
-				GAIA_ASSERT(valid(relation));
-				if (!valid(entity) || !valid(relation))
-					return false;
-				if (!enabled(entity))
+				const auto* pEc = try_live_record(entity);
+				if (pEc == nullptr || try_live_record(relation) == nullptr || !enabled(*pEc))
 					return false;
 
 				auto curr = entity;
@@ -9453,11 +9661,8 @@ namespace gaia {
 			//! \return True when \p entity and every reachable ancestor are enabled. False otherwise.
 			GAIA_NODISCARD bool enabled_hierarchy(Pair entity, Entity relation) const {
 				const auto source = (Entity)entity;
-				GAIA_ASSERT(valid(source));
-				GAIA_ASSERT(valid(relation));
-				if (!valid(source) || !valid(relation))
-					return false;
-				if (!enabled(entity))
+				const auto* pEc = try_live_record(source);
+				if (pEc == nullptr || try_live_record(relation) == nullptr || !enabled(*pEc))
 					return false;
 
 				auto curr = source;
@@ -9600,10 +9805,11 @@ namespace gaia {
 			//! \param lifespan How many world updates an empty archetype is kept.
 			//!                 If zero, the archetype it kept indefinitely.
 			void set_max_lifespan(Entity entity, uint32_t lifespan = Archetype::MAX_ARCHETYPE_LIFESPAN) {
-				if (!valid(entity))
+				auto* pEc = try_live_record(entity);
+				if (pEc == nullptr)
 					return;
 
-				auto& ec = fetch(entity);
+				auto& ec = *pEc;
 				const auto prevLifespan = ec.pArchetype->max_lifespan();
 				ec.pArchetype->set_max_lifespan(lifespan);
 
@@ -10160,7 +10366,10 @@ namespace gaia {
 
 					const auto* pItem =
 							component.pair() ? comp_cache().find_pair_payload(component) : comp_cache().find(component);
-					if (pItem == nullptr || pItem->comp.storage_type() != DataStorageType::Sparse) {
+					// Empty DontFragment tags keep a table-sized descriptor and still serialize through
+					// the membership store. Non-empty payloads must be Sparse.
+					if (pItem == nullptr ||
+							(pItem->comp.size() != 0 && pItem->comp.storage_type() != DataStorageType::Sparse)) {
 						GAIA_LOG_E("Missing sparse component metadata for entity %u", component.id());
 						return false;
 					}
@@ -11618,13 +11827,17 @@ namespace gaia {
 					return;
 				}
 
-				// Make sure not to add too many entities/components
-				auto ids = archetype.ids_view();
-				if GAIA_UNLIKELY (ids.size() + 1 > ChunkHeader::MAX_COMPONENTS) {
-					GAIA_ASSERT2(false, "Trying to add too many entities to entity!");
-					GAIA_LOG_W("Trying to add an entity to entity [%u:%u] but there's no space left!", entity.id(), entity.gen());
-					print_archetype_entities(world, archetype, addEntity, true);
-					return;
+				// Make sure not to add too many entities/components.
+				// Non-fragmenting ids live outside archetype identity, so they do not consume a column.
+				if (!world.component_is_non_fragmenting(addEntity)) {
+					auto ids = archetype.ids_view();
+					if GAIA_UNLIKELY (ids.size() + 1 > ChunkHeader::MAX_COMPONENTS) {
+						GAIA_ASSERT2(false, "Trying to add too many entities to entity!");
+						GAIA_LOG_W(
+								"Trying to add an entity to entity [%u:%u] but there's no space left!", entity.id(), entity.gen());
+						print_archetype_entities(world, archetype, addEntity, true);
+						return;
+					}
 				}
 			}
 
@@ -11642,8 +11855,10 @@ namespace gaia {
 					return;
 				}
 
-				// Make sure the entity is present on the archetype
-				if GAIA_UNLIKELY (!archetype.has(func_del)) {
+				// Make sure the id is present on the archetype or in non-fragmenting membership storage.
+				if GAIA_UNLIKELY (
+						!archetype.has(func_del) &&
+						(func_del.pair() || !world.has_direct_sparse_component_inter(entity, func_del))) {
 					GAIA_ASSERT2(false, "Trying to remove an entity which wasn't added");
 					GAIA_LOG_W("Trying to del an entity from entity [%u:%u] but it was never added", entity.id(), entity.gen());
 					print_archetype_entities(world, archetype, func_del, false);
@@ -15713,9 +15928,9 @@ namespace gaia {
 		//! \param world World to query.
 		//! \param term Term to inspect.
 		//! \return True if \a term uses inherit policy.
-		inline bool world_term_uses_inherit_policy(const World& world, Entity term) {
-			return !is_wildcard(term) && world.valid(term) && world.target(term, OnInstantiate) == Inherit;
-		}
+			inline bool world_term_uses_inherit_policy(const World& world, Entity term) {
+				return !is_wildcard(term) && world.target(term, OnInstantiate) == Inherit;
+			}
 
 		//! Checks whether \a entity directly owns \a term without inheritance.
 		//! \param world World to query.
@@ -16511,7 +16726,7 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 			if (world.tearing_down())
 				return;
-			if (!world.valid(entity))
+			if (world.try_live_record(entity) == nullptr)
 				return;
 			if (!world.observers().has_on_set_observers(term))
 				return;
@@ -16555,7 +16770,7 @@ namespace gaia {
 		//! \param entity Source entity whose archetype-membership version is requested.
 		//! \return Tracked version, one for a newly tracked live entity, or zero for an invalid entity.
 		inline uint32_t world_entity_archetype_version(const World& world, Entity entity) {
-			if (!world.valid(entity))
+			if (world.try_live_record(entity) == nullptr)
 				return 0;
 
 			const auto key = EntityLookupKey(entity);

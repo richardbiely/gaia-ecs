@@ -24,13 +24,16 @@ namespace gaia {
 			Table,
 			//! Data stored in sparse storage
 			Sparse,
+			//! Non-fragmenting membership. Empty tags stay table-sized with no payload.
+			//! AoS payloads use sparse storage and keep the id outside archetype identity.
+			DontFragment,
 
-			//! Number of supported storage modes.
+			//! Number of packed payload storage modes. `DontFragment` maps to `Table` or `Sparse`.
 			Count = 2
 		};
 
 //! Declares the storage mode used when registering a typed C++ component.
-//! \param storage_name `DataStorageType` enumerator name such as `Table` or `Sparse`.
+//! \param storage_name `DataStorageType` enumerator name such as `Table`, `Sparse`, or `DontFragment`.
 #define GAIA_STORAGE(storage_name) static constexpr auto gaia_Data_Storage = ::gaia::ecs::DataStorageType::storage_name
 
 		// ------------------------------------------------------------------------------------

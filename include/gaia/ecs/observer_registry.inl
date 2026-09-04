@@ -4,11 +4,8 @@ namespace gaia {
 		inline void ObserverRegistry::DiffDispatcher::collect_query_matches(
 				World& world, ObserverRuntimeData& obs, cnt::darray<Entity>& out) {
 			out.clear();
-			if (!world.valid(obs.entity))
-				return;
-
-			const auto& ec = world.fetch(obs.entity);
-			if (!world.enabled(ec))
+			const auto* pEc = world.try_live_record(obs.entity);
+			if (pEc == nullptr || !world.enabled(*pEc))
 				return;
 
 			// Reset the query iterator so this snapshot always starts from the first match.
@@ -24,23 +21,17 @@ namespace gaia {
 		inline void ObserverRegistry::DiffDispatcher::collect_query_target_matches(
 				World& world, ObserverRuntimeData& obs, EntitySpan targets, cnt::darray<Entity>& out) {
 			out.clear();
-			if (!world.valid(obs.entity))
-				return;
-
-			const auto& ec = world.fetch(obs.entity);
-			if (!world.enabled(ec))
+			const auto* pEc = world.try_live_record(obs.entity);
+			if (pEc == nullptr || !world.enabled(*pEc))
 				return;
 
 			auto& queryInfo = obs.query.fetch();
 			for (auto entity: targets) {
-				if (!world.valid(entity))
+				const auto* pEcTarget = world.try_live_record(entity);
+				if (pEcTarget == nullptr || pEcTarget->pArchetype == nullptr)
 					continue;
 
-				const auto& ecTarget = world.fetch(entity);
-				if (ecTarget.pArchetype == nullptr)
-					continue;
-
-				if (obs.query.matches_any(queryInfo, *ecTarget.pArchetype, EntitySpan{&entity, 1}))
+				if (obs.query.matches_any(queryInfo, *pEcTarget->pArchetype, EntitySpan{&entity, 1}))
 					out.push_back(entity);
 			}
 		}
@@ -48,7 +39,7 @@ namespace gaia {
 		inline void
 		ObserverRegistry::DiffDispatcher::add_valid_targets(World& world, cnt::darray<Entity>& out, EntitySpan targets) {
 			for (auto entity: targets) {
-				if (world.valid(entity))
+				if (world.try_live_record(entity) != nullptr)
 					out.push_back(entity);
 			}
 		}
@@ -292,10 +283,13 @@ namespace gaia {
 				ctx.observers.push_back({});
 				auto& snapshot = ctx.observers.back();
 				snapshot.observer = pObs->entity;
-				const auto& ecObserver = world.fetch(pObs->entity);
-				const auto observerCompIdx = ecObserver.pChunk->comp_idx(Observer);
+				const auto* pEcObserver = world.try_live_record(pObs->entity);
+				if (pEcObserver == nullptr)
+					continue;
+
+				const auto observerCompIdx = pEcObserver->pChunk->comp_idx(Observer);
 				const auto& observerData =
-						*reinterpret_cast<const Observer_*>(ecObserver.pChunk->comp_ptr(observerCompIdx, ecObserver.row));
+						*reinterpret_cast<const Observer_*>(pEcObserver->pChunk->comp_ptr(observerCompIdx, pEcObserver->row));
 				snapshot.event = observerData.event;
 				snapshot.monitorsQuery = observerData.monitorsQuery;
 				if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
@@ -372,10 +366,13 @@ namespace gaia {
 				if (pObs == nullptr)
 					continue;
 
-				const auto& ecObserver = world.fetch(pObs->entity);
-				const auto observerCompIdx = ecObserver.pChunk->comp_idx(Observer);
+				const auto* pEcObserver = world.try_live_record(pObs->entity);
+				if (pEcObserver == nullptr)
+					continue;
+
+				const auto observerCompIdx = pEcObserver->pChunk->comp_idx(Observer);
 				const auto& observerData =
-						*reinterpret_cast<const Observer_*>(ecObserver.pChunk->comp_ptr(observerCompIdx, ecObserver.row));
+						*reinterpret_cast<const Observer_*>(pEcObserver->pChunk->comp_ptr(observerCompIdx, pEcObserver->row));
 				// A newly created entity cannot leave a query because it had no prior membership.
 				if (observerData.event != ObserverEvent::OnAdd && !observerData.monitorsQuery)
 					continue;
@@ -430,8 +427,7 @@ namespace gaia {
 
 				// Some removal paths delete the target before this function runs. Their last
 				// valid matches were captured in the before snapshot and are the event targets.
-				if (ctx.targetsRemovedAfterPrepare &&
-						(snapshot.event == ObserverEvent::OnDel || snapshot.monitorsQuery)) {
+				if (ctx.targetsRemovedAfterPrepare && (snapshot.event == ObserverEvent::OnDel || snapshot.monitorsQuery)) {
 					GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
 					const auto& matchesBefore = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
 					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesBefore}, ObserverEvent::OnDel);
@@ -457,8 +453,7 @@ namespace gaia {
 
 				// Newly created entities have no meaningful before result. Every matching
 				// entity in the after snapshot is therefore an added match.
-				if (ctx.targetsAddedAfterPrepare &&
-						(snapshot.event == ObserverEvent::OnAdd || snapshot.monitorsQuery)) {
+				if (ctx.targetsAddedAfterPrepare && (snapshot.event == ObserverEvent::OnAdd || snapshot.monitorsQuery)) {
 					SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesAfter}, ObserverEvent::OnAdd);
 					continue;
 				}
@@ -566,13 +561,16 @@ namespace gaia {
 			for (auto* pObs: relevantObservers) {
 				if (pObs == nullptr)
 					continue;
+
 				const auto observer = pObs->entity;
-				if (!world.valid(observer) || !world.enabled(world.fetch(observer)))
+				const auto* pObsEc = world.try_live_record(observer);
+				if (pObsEc == nullptr || !world.enabled(*pObsEc))
 					continue;
 
 				auto& obs = *pObs;
 				if (!obs.plan.uses_direct_dispatch())
 					continue;
+
 				QueryInfo* pQueryInfo = nullptr;
 				if (archetypeIsPrefab) {
 					pQueryInfo = &obs.query.fetch();
@@ -586,8 +584,7 @@ namespace gaia {
 
 				if (matches)
 					SharedDispatch::execute_targets(
-							world, obs, targets,
-							obs.plan.hasNegativeTerm ? ObserverEvent::OnDel : ObserverEvent::OnAdd);
+							world, obs, targets, obs.plan.hasNegativeTerm ? ObserverEvent::OnDel : ObserverEvent::OnAdd);
 			}
 		}
 
@@ -634,13 +631,16 @@ namespace gaia {
 			for (auto* pObs: relevantObservers) {
 				if (pObs == nullptr)
 					continue;
+
 				const auto observer = pObs->entity;
-				if (!world.valid(observer) || !world.enabled(world.fetch(observer)))
+				const auto* pObsEc = world.try_live_record(observer);
+				if (pObsEc == nullptr || !world.enabled(*pObsEc))
 					continue;
 
 				auto& obs = *pObs;
 				if (!obs.plan.uses_direct_dispatch())
 					continue;
+
 				QueryInfo* pQueryInfo = nullptr;
 				if (archetypeIsPrefab) {
 					pQueryInfo = &obs.query.fetch();
@@ -654,8 +654,7 @@ namespace gaia {
 
 				if (matches)
 					SharedDispatch::execute_targets(
-							world, obs, targets,
-							obs.plan.hasNegativeTerm ? ObserverEvent::OnAdd : ObserverEvent::OnDel);
+							world, obs, targets, obs.plan.hasNegativeTerm ? ObserverEvent::OnAdd : ObserverEvent::OnDel);
 			}
 		}
 
@@ -690,22 +689,20 @@ namespace gaia {
 			for (auto* pObs: relevantObservers) {
 				if (pObs == nullptr)
 					continue;
-				const auto observer = pObs->entity;
+
+				const auto* pObsEc = world.try_live_record(pObs->entity);
+				if (pObsEc == nullptr || !world.enabled(*pObsEc))
+					continue;
+
+				auto& obs = *pObs;
+				auto& queryInfo = obs.query.fetch();
 				for (auto entity: targets) {
-					if (!world.valid(observer) || !world.enabled(world.fetch(observer)))
-						break;
-
-					auto& obs = *pObs;
-					if (!world.valid(entity))
+					const auto* pEc = world.try_live_record(entity);
+					if (pEc == nullptr || pEc->pArchetype == nullptr)
 						continue;
-
-					auto& queryInfo = obs.query.fetch();
-					const auto& ec = world.fetch(entity);
-					if (ec.pArchetype == nullptr)
+					if (pEc->pArchetype->has(Prefab) && !queryInfo.matches_prefab_entities())
 						continue;
-					if (ec.pArchetype->has(Prefab) && !queryInfo.matches_prefab_entities())
-						continue;
-					if (!obs.query.matches_any(queryInfo, *ec.pArchetype, EntitySpan{&entity, 1}))
+					if (!obs.query.matches_any(queryInfo, *pEc->pArchetype, EntitySpan{&entity, 1}))
 						continue;
 
 					SharedDispatch::execute_targets(world, obs, EntitySpan{&entity, 1}, ObserverEvent::OnSet);
@@ -730,8 +727,8 @@ namespace gaia {
 				if (pObs->lastMatchStamp == matchStamp)
 					continue;
 
-				const auto& ec = world.fetch(observer);
-				if (!world.enabled(ec))
+				const auto* pEc = world.try_live_record(observer);
+				if (pEc == nullptr || !world.enabled(*pEc))
 					continue;
 
 				if constexpr (DiffOnly) {
@@ -756,8 +753,8 @@ namespace gaia {
 				if (pObs->lastMatchStamp == matchStamp)
 					continue;
 
-				const auto& ec = world.fetch(observer);
-				if (!world.enabled(ec))
+				const auto* pEc = world.try_live_record(observer);
+				if (pEc == nullptr || !world.enabled(*pEc))
 					continue;
 
 				pObs->lastMatchStamp = matchStamp;
@@ -787,11 +784,17 @@ namespace gaia {
 		void ObserverRegistry::SharedDispatch::collect_for_event_term(
 				ObserverRegistry& registry, World& world, const TObserverMap& map, Entity term, uint64_t matchStamp,
 				TObserverList& out) {
-			if (!world.valid(term))
+			if (is_wildcard(term)) {
+				collect_from_map<false>(registry, world, map, term, matchStamp, out);
+				return;
+			}
+
+			const auto* pEc = world.try_fetch_record(term);
+			if (pEc == nullptr)
 				return;
 
 			if (!is_semantic_is_term(term)) {
-				if ((world.fetch(term).flags & EntityContainerFlags::IsObserved) == 0)
+				if ((pEc->flags & EntityContainerFlags::IsObserved) == 0)
 					return;
 			}
 
@@ -809,15 +812,12 @@ namespace gaia {
 		void ObserverRegistry::SharedDispatch::for_each_inherited_term(World& world, Entity baseEntity, Func&& func) {
 			// Only plain component terms can be inherited through OnInstantiate.
 			auto collectTerms = [&](Entity entity) {
-				if (!world.valid(entity))
+				const auto* pEc = world.try_live_record(entity);
+				if (pEc == nullptr || pEc->pArchetype == nullptr)
 					return;
 
-				const auto& ec = world.fetch(entity);
-				if (ec.pArchetype == nullptr)
-					return;
-
-				for (const auto id: ec.pArchetype->ids_view()) {
-					if (id.pair() || is_wildcard(id) || !world.valid(id))
+				for (const auto id: pEc->pArchetype->ids_view()) {
+					if (id.pair() || is_wildcard(id))
 						continue;
 					if (world.target(id, OnInstantiate) != Inherit)
 						continue;
@@ -1222,7 +1222,11 @@ namespace gaia {
 				World& world, Entity observer, QueryOpKind op, Entity term, const QueryTermOptions& options) {
 			GAIA_ASSERT(world.valid(observer));
 
-			const auto& ec = world.fetch(observer);
+			const auto* pEc = world.try_live_record(observer);
+			if (pEc == nullptr)
+				return;
+
+			const auto& ec = *pEc;
 			const auto compIdx = ec.pChunk->comp_idx(Observer);
 			const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
 
@@ -1320,12 +1324,13 @@ namespace gaia {
 		inline void ObserverRegistry::try_mark_term_observed(World& world, Entity term) {
 			if (!has_on_add_observers() && !has_on_del_observers() && !m_hasOnSetObservers)
 				return;
-
 			if (!can_mark_term_observed(world, term))
 				return;
 			if (!has_observers_for_term(term))
 				return;
-			if ((world.fetch(term).flags & EntityContainerFlags::IsObserved) != 0)
+
+			const auto* pEc = world.try_fetch_record(term);
+			if (pEc == nullptr || (pEc->flags & EntityContainerFlags::IsObserved) != 0)
 				return;
 
 			mark_term_observed(world, term, true);
@@ -1344,9 +1349,13 @@ namespace gaia {
 			// state to skip registry work for terms that nobody observes.
 			const auto wasObserved = has_observers_for_term(term);
 			const auto canMarkObserved = can_mark_term_observed(world, term);
-			const auto& ec = world.fetch(observer);
-			const auto compIdx = ec.pChunk->comp_idx(Observer);
-			const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
+
+			const auto* pEc = world.try_live_record(observer);
+			if (pEc == nullptr)
+				return;
+
+			const auto compIdx = pEc->pChunk->comp_idx(Observer);
+			const auto& obs = *reinterpret_cast<const Observer_*>(pEc->pChunk->comp_ptr(compIdx, pEc->row));
 			if (obs.monitorsQuery) {
 				add_observer_to_map(m_observer_map_add, term, observer);
 				add_observer_to_map(m_observer_map_del, term, observer);

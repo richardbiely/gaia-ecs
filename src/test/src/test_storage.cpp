@@ -17,6 +17,48 @@ namespace {
 			add_sparse_touch_probes<Idx + 1, Count>(world, entity);
 	}
 
+	struct DontFragmentEmptyTag {
+		GAIA_STORAGE(DontFragment);
+	};
+
+	struct DontFragmentEmptyTagB {
+		GAIA_STORAGE(DontFragment);
+	};
+
+	template <uint32_t Idx>
+	struct DontFragmentEmptyTagN {
+		GAIA_STORAGE(DontFragment);
+	};
+
+	template <uint32_t Idx, uint32_t Count>
+	void add_empty_dontfrag_tags(ecs::World& world, ecs::Entity entity) {
+		world.add<DontFragmentEmptyTagN<Idx>>(entity);
+		if constexpr (Idx + 1 < Count)
+			add_empty_dontfrag_tags<Idx + 1, Count>(world, entity);
+	}
+
+	template <uint32_t Idx, uint32_t Count>
+	void expect_empty_dontfrag_tags(ecs::World& world, ecs::Entity entity) {
+		CHECK(world.has<DontFragmentEmptyTagN<Idx>>(entity));
+		CHECK_FALSE(world.fetch(entity).pArchetype->has(world.add<DontFragmentEmptyTagN<Idx>>().entity));
+		if constexpr (Idx + 1 < Count)
+			expect_empty_dontfrag_tags<Idx + 1, Count>(world, entity);
+	}
+
+	struct DontFragmentPayload {
+		GAIA_STORAGE(DontFragment);
+		float x = 0.0f;
+	};
+
+	struct DontFragmentRuntimeLatchTag {};
+
+	struct DontFragmentLatchAfterInstancesTag {};
+
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+	thread_local uint32_t g_emptyDontFragAddHooks = 0;
+	thread_local uint32_t g_emptyDontFragDelHooks = 0;
+#endif
+
 	template <uint32_t Idx, uint32_t Count>
 	void write_sparse_touch_probes(ecs::Iter& it) {
 		using Probe = SparseTouchProbe<Idx>;
@@ -634,6 +676,701 @@ TEST_CASE("Compile-time table component storage is authoritative") {
 	CHECK(pos.x == doctest::Approx(1.0f));
 	CHECK(pos.y == doctest::Approx(2.0f));
 	CHECK(pos.z == doctest::Approx(3.0f));
+}
+
+TEST_CASE("Compile-time DontFragment empty tag stays outside archetype identity") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<DontFragmentEmptyTag>();
+	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Table);
+	CHECK(compItem.comp.size() == 0);
+	CHECK(wld.has(compItem.entity, ecs::DontFragment));
+	CHECK_FALSE(wld.has(compItem.entity, ecs::Sparse));
+	CHECK_FALSE(wld.component_uses_sparse_storage(compItem.entity));
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add<DontFragmentEmptyTag>(e);
+	CHECK(wld.has<DontFragmentEmptyTag>(e));
+	CHECK(wld.has(e, compItem.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+	CHECK_FALSE(wld.fetch(e).pArchetype->has(compItem.entity));
+
+	auto q = wld.query().all<DontFragmentEmptyTag>();
+	CHECK(q.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::EntitySeed);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {e});
+
+	wld.del<DontFragmentEmptyTag>(e);
+	CHECK_FALSE(wld.has<DontFragmentEmptyTag>(e));
+	CHECK_FALSE(wld.has(e, compItem.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+	CHECK(q.count() == 0);
+
+	wld.add<DontFragmentEmptyTag>(e);
+	wld.build(e).del<DontFragmentEmptyTag>();
+	CHECK_FALSE(wld.has<DontFragmentEmptyTag>(e));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+
+TEST_CASE("Compile-time DontFragment AoS payload uses sparse non-fragmenting storage") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<DontFragmentPayload>();
+	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Sparse);
+	CHECK(wld.has(compItem.entity, ecs::DontFragment));
+	CHECK(wld.has(compItem.entity, ecs::Sparse));
+	CHECK(wld.component_uses_sparse_storage(compItem.entity));
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add<DontFragmentPayload>(e, {4.0f});
+	CHECK(wld.has<DontFragmentPayload>(e));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+	CHECK_FALSE(wld.fetch(e).pArchetype->has(compItem.entity));
+	CHECK(wld.get<DontFragmentPayload>(e).x == doctest::Approx(4.0f));
+
+	{
+		auto payload = wld.set<DontFragmentPayload>(e);
+		payload.x = 8.0f;
+	}
+	CHECK(wld.get<DontFragmentPayload>(e).x == doctest::Approx(8.0f));
+
+	wld.del<DontFragmentPayload>(e);
+	CHECK_FALSE(wld.has<DontFragmentPayload>(e));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+
+TEST_CASE("Runtime DontFragment latches on a fresh empty typed tag") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<DontFragmentRuntimeLatchTag>();
+	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Table);
+	CHECK_FALSE(wld.has(compItem.entity, ecs::DontFragment));
+	CHECK_FALSE(wld.has(compItem.entity, ecs::Sparse));
+
+	wld.add(compItem.entity, ecs::DontFragment);
+	CHECK(wld.has(compItem.entity, ecs::DontFragment));
+	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Table);
+	CHECK_FALSE(wld.component_uses_sparse_storage(compItem.entity));
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add(e, compItem.entity);
+	CHECK(wld.has<DontFragmentRuntimeLatchTag>(e));
+	CHECK(wld.has(e, compItem.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+	CHECK_FALSE(wld.fetch(e).pArchetype->has(compItem.entity));
+
+	auto q = wld.query().all<DontFragmentRuntimeLatchTag>();
+	CHECK(q.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::EntitySeed);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {e});
+
+	wld.del(e, compItem.entity);
+	CHECK_FALSE(wld.has<DontFragmentRuntimeLatchTag>(e));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+
+TEST_CASE("Runtime DontFragment latches on a fresh empty runtime tag") {
+	TestWorld twld;
+
+	const auto& runtimeComp =
+			add_runtime_component(wld, "Runtime_Empty_DontFragment_Tag", 0, ecs::DataStorageType::Table, 1);
+	CHECK(runtimeComp.comp.storage_type() == ecs::DataStorageType::Table);
+	CHECK_FALSE(wld.has(runtimeComp.entity, ecs::DontFragment));
+
+	wld.add(runtimeComp.entity, ecs::DontFragment);
+	CHECK(wld.has(runtimeComp.entity, ecs::DontFragment));
+	CHECK(runtimeComp.comp.storage_type() == ecs::DataStorageType::Table);
+	CHECK_FALSE(wld.component_uses_sparse_storage(runtimeComp.entity));
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add(e, runtimeComp.entity);
+	CHECK(wld.has(e, runtimeComp.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+	CHECK_FALSE(wld.fetch(e).pArchetype->has(runtimeComp.entity));
+
+	auto q = wld.query().all(runtimeComp.entity);
+	CHECK(q.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::EntitySeed);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {e});
+
+	wld.del(e, runtimeComp.entity);
+	CHECK_FALSE(wld.has(e, runtimeComp.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+
+TEST_CASE("Runtime DontFragment does not latch on an empty tag that already has instances") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<DontFragmentLatchAfterInstancesTag>();
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add<DontFragmentLatchAfterInstancesTag>(e);
+	CHECK(wld.has<DontFragmentLatchAfterInstancesTag>(e));
+	CHECK(wld.fetch(e).pArchetype != pArchetypeBefore);
+	CHECK(wld.fetch(e).pArchetype->has(compItem.entity));
+
+	wld.add(compItem.entity, ecs::DontFragment);
+	CHECK_FALSE(wld.has(compItem.entity, ecs::DontFragment));
+	CHECK(wld.fetch(e).pArchetype->has(compItem.entity));
+}
+
+TEST_CASE("Copy keeps empty DontFragment tag membership outside the archetype") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<DontFragmentEmptyTag>();
+	const auto src = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(src).pArchetype;
+	wld.add<DontFragmentEmptyTag>(src);
+
+	const auto dst = wld.copy(src);
+	CHECK(wld.has<DontFragmentEmptyTag>(src));
+	CHECK(wld.has<DontFragmentEmptyTag>(dst));
+	CHECK(wld.fetch(src).pArchetype == pArchetypeBefore);
+	CHECK(wld.fetch(dst).pArchetype == pArchetypeBefore);
+	CHECK_FALSE(wld.fetch(dst).pArchetype->has(compItem.entity));
+
+	wld.del<DontFragmentEmptyTag>(src);
+	CHECK_FALSE(wld.has<DontFragmentEmptyTag>(src));
+	CHECK(wld.has<DontFragmentEmptyTag>(dst));
+}
+
+TEST_CASE("Empty DontFragment tag query all, no, and or with a table neighbor") {
+	TestWorld twld;
+
+	const auto eA = wld.add();
+	const auto eB = wld.add();
+	const auto eC = wld.add();
+	wld.add<Position>(eA);
+	wld.add<Position>(eB);
+	wld.add<Position>(eC);
+	wld.add<Scale>(eC);
+	wld.add<DontFragmentEmptyTag>(eA);
+
+	auto qAll = wld.query().all<Position>().all<DontFragmentEmptyTag>();
+	CHECK(qAll.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::EntitySeed);
+	CHECK(qAll.count() == 1);
+	expect_exact_entities(qAll, {eA});
+
+	auto qNo = wld.query().all<Position>().no<DontFragmentEmptyTag>();
+	CHECK(qNo.count() == 2);
+	expect_exact_entities(qNo, {eB, eC});
+
+	auto qOr = wld.query().or_<DontFragmentEmptyTag>().or_<Scale>();
+	CHECK(qOr.count() == 2);
+	expect_exact_entities(qOr, {eA, eC});
+}
+
+#if GAIA_OBSERVERS_ENABLED
+TEST_CASE("Empty DontFragment tag observers fire on add and del") {
+	TestWorld twld;
+
+	uint32_t addHits = 0;
+	uint32_t delHits = 0;
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all<DontFragmentEmptyTag>()
+			.on_each([&]() {
+				++addHits;
+			})
+			.entity();
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnDel)
+			.all<DontFragmentEmptyTag>()
+			.on_each([&]() {
+				++delHits;
+			})
+			.entity();
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+	wld.add<DontFragmentEmptyTag>(e);
+	CHECK(addHits == 1);
+	wld.del<DontFragmentEmptyTag>(e);
+	CHECK(delHits == 1);
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+#endif
+
+TEST_CASE("Empty DontFragment tag command buffers, instantiate, clear, and entity delete") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<DontFragmentEmptyTag>();
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	ecs::CommandBufferST commandBuffer(wld);
+	commandBuffer.add<DontFragmentEmptyTag>(e);
+	commandBuffer.commit();
+	CHECK(wld.has<DontFragmentEmptyTag>(e));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+
+	commandBuffer.del<DontFragmentEmptyTag>(e);
+	commandBuffer.commit();
+	CHECK_FALSE(wld.has<DontFragmentEmptyTag>(e));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+
+	const auto prefab = wld.prefab();
+	wld.add<DontFragmentEmptyTag>(prefab);
+	const auto instance = wld.instantiate(prefab);
+	CHECK(wld.has<DontFragmentEmptyTag>(instance));
+	CHECK_FALSE(wld.fetch(instance).pArchetype->has(compItem.entity));
+
+	wld.add<DontFragmentEmptyTag>(e);
+	wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+	const auto* pArchetypeWithPosition = wld.fetch(e).pArchetype;
+	wld.clear(e);
+	CHECK(wld.has(e));
+	CHECK_FALSE(wld.has<DontFragmentEmptyTag>(e));
+	CHECK_FALSE(wld.has<Position>(e));
+	CHECK(wld.fetch(e).pArchetype != pArchetypeWithPosition);
+
+	wld.add<DontFragmentEmptyTag>(e);
+	CHECK(wld.query().all<DontFragmentEmptyTag>().count() == 2);
+	wld.del(e);
+	CHECK_FALSE(wld.has(e));
+	CHECK(wld.query().all<DontFragmentEmptyTag>().count() == 1);
+	expect_exact_entities(wld.query().all<DontFragmentEmptyTag>(), {instance});
+}
+
+TEST_CASE("Empty DontFragment tag query each reads a table neighbor") {
+	TestWorld twld;
+
+	const auto eA = wld.add();
+	const auto eB = wld.add();
+	wld.add<Position>(eA, {1.0f, 2.0f, 3.0f});
+	wld.add<Position>(eB, {4.0f, 5.0f, 6.0f});
+	wld.add<DontFragmentEmptyTag>(eA);
+
+	auto q = wld.query().all<Position>().all<DontFragmentEmptyTag>();
+	CHECK(q.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::EntitySeed);
+
+	float sum = 0.0f;
+	uint32_t hits = 0;
+	q.each([&](ecs::Iter& it) {
+		auto pos = it.view<Position>();
+		GAIA_EACH(it) {
+			sum += pos[i].x;
+			++hits;
+		}
+	});
+	CHECK(hits == 1);
+	CHECK(sum == doctest::Approx(1.0f));
+
+	auto qWrite = wld.query().all<Position&>().all<DontFragmentEmptyTag>();
+	CHECK(qWrite.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::EntitySeed);
+	hits = 0;
+	qWrite.each([&](Position& p) {
+		p.x += 10.0f;
+		++hits;
+	});
+	CHECK(hits == 1);
+	CHECK(wld.get<Position>(eA).x == doctest::Approx(11.0f));
+	CHECK(wld.get<Position>(eB).x == doctest::Approx(4.0f));
+}
+
+TEST_CASE("Empty DontFragment tag uncached query") {
+	TestWorld twld;
+
+	const auto e = wld.add();
+	wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+	wld.add<DontFragmentEmptyTag>(e);
+
+	auto q = wld.uquery().all<Position>().all<DontFragmentEmptyTag>();
+	CHECK(q.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::EntitySeed);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {e});
+
+	float sum = 0.0f;
+	q.each([&](ecs::Iter& it) {
+		auto pos = it.view<Position>();
+		GAIA_EACH(it) sum += pos[i].x;
+	});
+	CHECK(sum == doctest::Approx(1.0f));
+}
+
+TEST_CASE("Empty DontFragment tag disabled entities") {
+	TestWorld twld;
+
+	const auto eEnabled = wld.add();
+	const auto eDisabled = wld.add();
+	wld.add<DontFragmentEmptyTag>(eEnabled);
+	wld.add<DontFragmentEmptyTag>(eDisabled);
+	wld.enable(eDisabled, false);
+
+	auto q = wld.query().all<DontFragmentEmptyTag>();
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {eEnabled});
+	CHECK(q.count(ecs::Constraints::DisabledOnly) == 1);
+	CHECK(q.count(ecs::Constraints::AcceptAll) == 2);
+
+	uint32_t disabledHits = 0;
+	q.each(
+			[&](ecs::Iter& it) {
+				auto ents = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					CHECK(ents[i] == eDisabled);
+					++disabledHits;
+				}
+			},
+			ecs::Constraints::DisabledOnly);
+	CHECK(disabledHits == 1);
+
+	uint32_t acceptHits = 0;
+	q.each(
+			[&](ecs::Iter& it) {
+				acceptHits += it.size();
+			},
+			ecs::Constraints::AcceptAll);
+	CHECK(acceptHits == 2);
+}
+
+TEST_CASE("Empty DontFragment tag recycled entity slots") {
+	TestWorld twld;
+
+	const auto entity = wld.add();
+	wld.add<DontFragmentEmptyTag>(entity);
+	CHECK(wld.has<DontFragmentEmptyTag>(entity));
+
+	wld.del(entity);
+	wld.update();
+
+	const auto recycled = wld.add();
+	CHECK(recycled.id() == entity.id());
+	CHECK(recycled.gen() != entity.gen());
+	CHECK_FALSE(wld.has<DontFragmentEmptyTag>(recycled));
+	CHECK(wld.query().all<DontFragmentEmptyTag>().count() == 0);
+
+	ecs::CommandBufferST commandBuffer(wld);
+	commandBuffer.add<DontFragmentEmptyTag>(recycled);
+	commandBuffer.commit();
+	CHECK(wld.has<DontFragmentEmptyTag>(recycled));
+	CHECK(wld.query().all<DontFragmentEmptyTag>().count() == 1);
+	expect_exact_entities(wld.query().all<DontFragmentEmptyTag>(), {recycled});
+}
+
+TEST_CASE("Empty DontFragment tag CommandBufferMT and iterator command buffers") {
+	TestWorld twld;
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	ecs::CommandBufferMT commandBuffer(wld);
+	commandBuffer.add<DontFragmentEmptyTag>(e);
+	commandBuffer.commit();
+	CHECK(wld.has<DontFragmentEmptyTag>(e));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+
+	commandBuffer.del<DontFragmentEmptyTag>(e);
+	commandBuffer.commit();
+	CHECK_FALSE(wld.has<DontFragmentEmptyTag>(e));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+
+	const auto eKeep = wld.add();
+	const auto eDrop = wld.add();
+	wld.add<DontFragmentEmptyTag>(eKeep);
+	wld.add<DontFragmentEmptyTag>(eDrop);
+
+	auto q = wld.query().all<DontFragmentEmptyTag>();
+	CHECK(q.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::EntitySeed);
+	q.each([&](ecs::Iter& it) {
+		const auto entities = it.view<ecs::Entity>();
+		auto& cb = it.cmd_buffer_mt();
+		GAIA_EACH(it) {
+			if (entities[i] == eDrop)
+				cb.del<DontFragmentEmptyTag>(entities[i]);
+		}
+	});
+
+	CHECK(wld.has<DontFragmentEmptyTag>(eKeep));
+	CHECK_FALSE(wld.has<DontFragmentEmptyTag>(eDrop));
+	expect_exact_entities(wld.query().all<DontFragmentEmptyTag>(), {eKeep});
+}
+
+#if GAIA_OBSERVERS_ENABLED
+TEST_CASE("Empty DontFragment tag monitor observers") {
+	TestWorld twld;
+
+	uint32_t addHits = 0;
+	uint32_t delHits = 0;
+	ecs::Entity callbackEntity = ecs::EntityBad;
+	const auto observer = wld.observer()
+														.monitor()
+														.all<DontFragmentEmptyTag>()
+														.on_each([&](ecs::Iter& it) {
+															callbackEntity = it.view<ecs::Entity>()[0];
+															if (it.event() == ecs::ObserverEvent::OnAdd)
+																++addHits;
+															else if (it.event() == ecs::ObserverEvent::OnDel)
+																++delHits;
+														})
+														.entity();
+
+	const auto entity = wld.add();
+	wld.add<Position>(entity);
+	CHECK(addHits == 0);
+	CHECK(delHits == 0);
+
+	wld.add<DontFragmentEmptyTag>(entity);
+	CHECK(addHits == 1);
+	CHECK(delHits == 0);
+	CHECK(callbackEntity == entity);
+
+	wld.add<Scale>(entity);
+	CHECK(addHits == 1);
+	CHECK(delHits == 0);
+
+	wld.del<DontFragmentEmptyTag>(entity);
+	CHECK(addHits == 1);
+	CHECK(delHits == 1);
+	CHECK(callbackEntity == entity);
+	(void)observer;
+}
+#endif
+
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+TEST_CASE("Empty DontFragment tag add and del hooks") {
+	TestWorld twld;
+
+	const auto& item = wld.add<DontFragmentEmptyTag>();
+	g_emptyDontFragAddHooks = 0;
+	g_emptyDontFragDelHooks = 0;
+	ecs::ComponentCache::hooks(item).func_add = [](const ecs::World&, const ecs::ComponentCacheItem&, ecs::Entity) {
+		++g_emptyDontFragAddHooks;
+	};
+	ecs::ComponentCache::hooks(item).func_del = [](const ecs::World&, const ecs::ComponentCacheItem&, ecs::Entity) {
+		++g_emptyDontFragDelHooks;
+	};
+
+	const auto entity = wld.add();
+	wld.add<DontFragmentEmptyTag>(entity);
+	CHECK(g_emptyDontFragAddHooks == 1);
+	CHECK(g_emptyDontFragDelHooks == 0);
+
+	wld.del<DontFragmentEmptyTag>(entity);
+	CHECK(g_emptyDontFragAddHooks == 1);
+	CHECK(g_emptyDontFragDelHooks == 1);
+
+	wld.add<DontFragmentEmptyTag>(entity);
+	const auto copied = wld.copy_ext(entity);
+	CHECK(g_emptyDontFragAddHooks == 3);
+	CHECK(wld.has<DontFragmentEmptyTag>(copied));
+}
+#endif
+
+#if GAIA_SYSTEMS_ENABLED
+TEST_CASE("Empty DontFragment tag systems") {
+	TestWorld twld;
+
+	uint32_t hits = 0;
+	wld.system().all<DontFragmentEmptyTag>().all<Position&>().on_each([&](Position& p) {
+		p.x += 1.0f;
+		++hits;
+	});
+
+	const auto eTagged = wld.add();
+	const auto ePlain = wld.add();
+	wld.add<Position>(eTagged, {1.0f, 0.0f, 0.0f});
+	wld.add<Position>(ePlain, {4.0f, 0.0f, 0.0f});
+	wld.add<DontFragmentEmptyTag>(eTagged);
+
+	wld.systems_run();
+	CHECK(hits == 1);
+	CHECK(wld.get<Position>(eTagged).x == doctest::Approx(2.0f));
+	CHECK(wld.get<Position>(ePlain).x == doctest::Approx(4.0f));
+
+	wld.del<DontFragmentEmptyTag>(eTagged);
+	wld.systems_run();
+	CHECK(hits == 1);
+	CHECK(wld.get<Position>(eTagged).x == doctest::Approx(2.0f));
+}
+#endif
+
+TEST_CASE("Empty DontFragment tag copy_ext and copy_n") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<DontFragmentEmptyTag>();
+	const auto src = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(src).pArchetype;
+	wld.add<DontFragmentEmptyTag>(src);
+	wld.add<Position>(src, {1.0f, 2.0f, 3.0f});
+
+	const auto dstExt = wld.copy_ext(src);
+	CHECK(wld.has<DontFragmentEmptyTag>(src));
+	CHECK(wld.has<DontFragmentEmptyTag>(dstExt));
+	CHECK(wld.has<Position>(dstExt));
+	CHECK_FALSE(wld.fetch(dstExt).pArchetype->has(compItem.entity));
+
+	cnt::darray<ecs::Entity> copies;
+	wld.copy_n(src, 3, [&](ecs::Entity entity) {
+		copies.push_back(entity);
+	});
+	CHECK(copies.size() == 3);
+	for (const auto entity: copies) {
+		CHECK(wld.has<DontFragmentEmptyTag>(entity));
+		CHECK(wld.has<Position>(entity));
+		CHECK_FALSE(wld.fetch(entity).pArchetype->has(compItem.entity));
+	}
+
+	cnt::darray<ecs::Entity> observedCopies;
+	wld.copy_ext_n(src, 2, [&](ecs::Entity entity) {
+		observedCopies.push_back(entity);
+	});
+	CHECK(observedCopies.size() == 2);
+	for (const auto entity: observedCopies) {
+		CHECK(wld.has<DontFragmentEmptyTag>(entity));
+		CHECK_FALSE(wld.fetch(entity).pArchetype->has(compItem.entity));
+	}
+
+	CHECK(wld.fetch(src).pArchetype != pArchetypeBefore);
+}
+
+TEST_CASE("Empty DontFragment tag multiple tags on one entity") {
+	TestWorld twld;
+
+	const auto& tagA = wld.add<DontFragmentEmptyTag>();
+	const auto& tagB = wld.add<DontFragmentEmptyTagB>();
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add<DontFragmentEmptyTag>(e);
+	wld.add<DontFragmentEmptyTagB>(e);
+	CHECK(wld.has<DontFragmentEmptyTag>(e));
+	CHECK(wld.has<DontFragmentEmptyTagB>(e));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+	CHECK_FALSE(wld.fetch(e).pArchetype->has(tagA.entity));
+	CHECK_FALSE(wld.fetch(e).pArchetype->has(tagB.entity));
+
+	auto qBoth = wld.query().all<DontFragmentEmptyTag>().all<DontFragmentEmptyTagB>();
+	CHECK(qBoth.count() == 1);
+	expect_exact_entities(qBoth, {e});
+
+	wld.del<DontFragmentEmptyTag>(e);
+	CHECK_FALSE(wld.has<DontFragmentEmptyTag>(e));
+	CHECK(wld.has<DontFragmentEmptyTagB>(e));
+	CHECK(qBoth.count() == 0);
+	expect_exact_entities(wld.query().all<DontFragmentEmptyTagB>(), {e});
+}
+
+TEST_CASE("Empty DontFragment tag does not consume archetype component capacity") {
+	TestWorld twld;
+
+	ecs::Entity ids[ecs::ChunkHeader::MAX_COMPONENTS]{};
+	const auto entity = wld.add();
+	GAIA_FOR(ecs::ChunkHeader::MAX_COMPONENTS) {
+		ids[i] = wld.add();
+		wld.add(entity, ids[i]);
+	}
+
+	const auto archetypeSize = wld.fetch(entity).pArchetype->ids_view().size();
+	CHECK(archetypeSize == ecs::ChunkHeader::MAX_COMPONENTS);
+
+	wld.add<DontFragmentEmptyTag>(entity);
+	CHECK(wld.has<DontFragmentEmptyTag>(entity));
+	CHECK(wld.fetch(entity).pArchetype->ids_view().size() == archetypeSize);
+	GAIA_FOR(ecs::ChunkHeader::MAX_COMPONENTS) CHECK(wld.has(entity, ids[i]));
+
+	const auto many = wld.add();
+	const auto sizeBefore = wld.fetch(many).pArchetype->ids_view().size();
+	add_empty_dontfrag_tags<0, ecs::ChunkHeader::MAX_COMPONENTS + 1>(wld, many);
+	expect_empty_dontfrag_tags<0, ecs::ChunkHeader::MAX_COMPONENTS + 1>(wld, many);
+	CHECK(wld.fetch(many).pArchetype->ids_view().size() == sizeBefore);
+}
+
+TEST_CASE("Empty DontFragment tag query any, changed, sort, and group") {
+	TestWorld twld;
+
+	const auto eats = wld.add();
+	const auto carrot = wld.add();
+	const auto salad = wld.add();
+
+	const auto eA = wld.add();
+	const auto eB = wld.add();
+	const auto eC = wld.add();
+	wld.add<Position>(eA, {3.0f, 0.0f, 0.0f});
+	wld.add<Position>(eB, {1.0f, 0.0f, 0.0f});
+	wld.add<Position>(eC, {2.0f, 0.0f, 0.0f});
+	wld.add(eA, ecs::Pair(eats, carrot));
+	wld.add(eB, ecs::Pair(eats, carrot));
+	wld.add(eC, ecs::Pair(eats, salad));
+	wld.add<DontFragmentEmptyTag>(eA);
+	wld.add<DontFragmentEmptyTag>(eC);
+
+	auto qAny = wld.query().all<Position>().any<DontFragmentEmptyTag>();
+	CHECK(qAny.count() == 3);
+	expect_exact_entities(qAny, {eA, eB, eC});
+
+	auto qChanged = wld.query().all<DontFragmentEmptyTag>().changed<DontFragmentEmptyTag>();
+	expect_changed_consume_exact(qChanged, {eA, eC});
+	expect_changed_consume_exact(qChanged, {});
+
+	wld.del<DontFragmentEmptyTag>(eC);
+	expect_changed_consume_exact(qChanged, {});
+	wld.add<DontFragmentEmptyTag>(eC);
+	expect_changed_consume_exact(qChanged, {eC});
+
+	const auto sortByX = []([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+		const auto& p0 = *static_cast<const Position*>(pData0);
+		const auto& p1 = *static_cast<const Position*>(pData1);
+		return (p0.x < p1.x) ? -1 : ((p0.x > p1.x) ? 1 : 0);
+	};
+	auto qSorted = wld.query().all<Position>().all<DontFragmentEmptyTag>().sort_by<Position>(sortByX);
+	cnt::darray<ecs::Entity> ordered;
+	qSorted.each([&](ecs::Entity entity) {
+		ordered.push_back(entity);
+	});
+	CHECK(ordered.size() == 2);
+	CHECK(ordered[0] == eC);
+	CHECK(ordered[1] == eA);
+
+	auto qGrouped = wld.query().all<Position>().all<DontFragmentEmptyTag>().group_by(eats);
+	CHECK(qGrouped.count() == 2);
+	qGrouped.group_id(carrot);
+	CHECK(qGrouped.count() == 1);
+	expect_exact_entities(qGrouped, {eA});
+	qGrouped.group_id(salad);
+	CHECK(qGrouped.count() == 1);
+	expect_exact_entities(qGrouped, {eC});
+}
+
+TEST_CASE("Fragmenting sparse neighbor keeps table view_mut") {
+	TestWorld twld;
+
+	const auto& sparseItem = wld.add<PositionSparse>();
+	CHECK_FALSE(wld.has(sparseItem.entity, ecs::DontFragment));
+
+	const auto e = wld.add();
+	wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+	wld.add<PositionSparse>(e, {4.0f, 5.0f, 6.0f});
+	CHECK(wld.fetch(e).pArchetype->has(sparseItem.entity));
+	CHECK(wld.fetch(e).pArchetype->has(wld.add<Position>().entity));
+
+	auto q = wld.query().all<Position&>();
+	uint32_t hits = 0;
+	q.each([&](ecs::Iter& it) {
+		auto posView = it.view_mut<Position>();
+		auto posSView = it.sview_mut<Position>();
+		CHECK(posView.data() != nullptr);
+		CHECK(posSView.data() != nullptr);
+		CHECK(posView.size() == 1);
+		CHECK(posSView.size() == 1);
+		posView[0].x += 10.0f;
+		posSView[0].y += 20.0f;
+		++hits;
+	});
+
+	CHECK(hits == 1);
+	CHECK(wld.get<Position>(e).x == doctest::Approx(11.0f));
+	CHECK(wld.get<Position>(e).y == doctest::Approx(22.0f));
+	CHECK(wld.get<PositionSparse>(e).x == doctest::Approx(4.0f));
 }
 
 TEST_CASE("Sparse prefab instantiate copies sparse payload") {

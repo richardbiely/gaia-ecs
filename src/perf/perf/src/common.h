@@ -117,6 +117,12 @@ static constexpr uint32_t NEntitiesMedium = 100'000;
 static constexpr uint32_t NEntitiesMany = 1'000'000;
 static constexpr uint32_t NObserverEntities = 10'000;
 
+//! Count passed to `.user_data()`. Picobench's `input_data()` is the iterations payload and stays 0.
+GAIA_NODISCARD inline uint32_t bench_entities(const picobench::state& state) {
+	const auto fromUser = (uint32_t)state.benchmark_user_data();
+	return fromUser != 0 ? fromUser : (uint32_t)state.input_data();
+}
+
 static constexpr float DeltaTime = 0.016f;
 
 ////////////////////////////////////////////////////////////////////////////////

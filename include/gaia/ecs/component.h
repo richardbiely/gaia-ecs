@@ -79,16 +79,38 @@ namespace gaia {
 				using FT = typename component_type_t<Arg>::TypeFull;
 				using U = typename actual_type_t<Arg>::Type;
 
-				static constexpr bool value = !mem::is_soa_layout_v<U> && auto_storage_policy_v<U> == DataStorageType::Sparse;
+				static constexpr bool value =
+						!mem::is_soa_layout_v<U> &&
+						(auto_storage_policy_v<U> == DataStorageType::Sparse ||
+						 (auto_storage_policy_v<U> == DataStorageType::DontFragment && !std::is_empty_v<U>));
+			};
+
+			template <typename T, bool IsEntity = std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity>>
+			struct uses_ct_dont_fragment: std::false_type {};
+
+			template <typename T>
+			struct uses_ct_dont_fragment<T, false> {
+				using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+				using U = typename actual_type_t<Arg>::Type;
+
+				static constexpr bool value = auto_storage_policy_v<U> == DataStorageType::DontFragment;
 			};
 		} // namespace detail
 		//! \endcond
 
 		//! True when a typed component uses Gaia's compile-time sparse payload path.
 		//! Sparse storage applies only to AoS payloads. SoA component forms use table storage.
+		//! `GAIA_STORAGE(DontFragment)` on a non-empty AoS payload also selects this path.
 		//! \tparam T Component API type.
 		template <typename T>
 		inline constexpr bool uses_ct_sparse_storage_v = detail::uses_ct_sparse_storage<T>::value;
+
+		//! True when a typed component declares `GAIA_STORAGE(DontFragment)`.
+		//! Empty tags keep table-sized descriptors and latch `DontFragment` on registration.
+		//! Non-empty AoS payloads use sparse storage and non-fragmenting membership.
+		//! \tparam T Component API type.
+		template <typename T>
+		inline constexpr bool uses_ct_dont_fragment_v = detail::uses_ct_dont_fragment<T>::value;
 
 		//----------------------------------------------------------------------
 		// Component verification

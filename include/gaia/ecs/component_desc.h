@@ -384,19 +384,29 @@ namespace gaia {
 				}
 
 				//! Returns the compile-time storage mode requested for the component payload.
+				//! `GAIA_STORAGE(DontFragment)` maps to table storage for empty tags and sparse storage for AoS payloads.
 				//! \return Component storage mode.
 				static constexpr DataStorageType storage_type() {
 					constexpr auto storageType = auto_storage_policy_v<U>;
-					static_assert(
-							storageType == DataStorageType::Table || storageType == DataStorageType::Sparse,
-							"Unsupported component storage type");
-					static_assert(
-							storageType != DataStorageType::Sparse || !std::is_empty_v<U>,
-							"GAIA_STORAGE(Sparse) requires a non-empty component payload");
-					static_assert(
-							storageType != DataStorageType::Sparse || !mem::is_soa_layout_v<U>,
-							"GAIA_STORAGE(Sparse) is not compatible with SoA layouts");
-					return storageType;
+					if constexpr (storageType == DataStorageType::DontFragment) {
+						static_assert(
+								!mem::is_soa_layout_v<U>, "GAIA_STORAGE(DontFragment) is not compatible with SoA layouts");
+						if constexpr (std::is_empty_v<U>)
+							return DataStorageType::Table;
+						else
+							return DataStorageType::Sparse;
+					} else {
+						static_assert(
+								storageType == DataStorageType::Table || storageType == DataStorageType::Sparse,
+								"Unsupported component storage type");
+						static_assert(
+								storageType != DataStorageType::Sparse || !std::is_empty_v<U>,
+								"GAIA_STORAGE(Sparse) requires a non-empty component payload");
+						static_assert(
+								storageType != DataStorageType::Sparse || !mem::is_soa_layout_v<U>,
+								"GAIA_STORAGE(Sparse) is not compatible with SoA layouts");
+						return storageType;
+					}
 				}
 
 				//! Builds the optional constructor callback for typed AoS payloads.

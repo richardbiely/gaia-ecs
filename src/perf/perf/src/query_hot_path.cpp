@@ -2,7 +2,7 @@
 #include "registry.h"
 
 void BM_Query_ReadOnly_1Comp(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 	cnt::darray<ecs::Entity> entities;
 	ecs::World w;
 	create_linear_entities<false, false, false, false, false>(w, entities, n);

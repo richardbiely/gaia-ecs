@@ -463,27 +463,40 @@ auto cooldownValue = w.set<Cooldown>(e);
 cooldownValue.value = 1.5f;
 ```
 
-`GAIA_STORAGE(Table)` is the default and usually does not need to be written. A typed component's declared policy is authoritative: adding `ecs::Sparse` or `ecs::DontFragment` to a typed table component does not change its storage. Runtime component descriptors can still select their storage mode before instances are attached.
+`GAIA_STORAGE(Table)` is the default and usually does not need to be written. A typed component's declared payload storage is authoritative for data-bearing structs: adding `ecs::Sparse` or `ecs::DontFragment` to a typed table payload such as `Position` does not change its storage. Empty tags are the exception. They can latch `ecs::DontFragment` after registration and before any instances exist. Runtime component descriptors can still select their storage mode before instances are attached.
 
 #### Non-fragmenting membership
 
-`ecs::DontFragment` controls archetype membership, not payload storage. It keeps the component id outside the entity's archetype, so adding or removing the component does not move the entity between archetypes. Typed non-fragmenting components must declare `GAIA_STORAGE(Sparse)` because table payloads require an archetype column.
+`ecs::DontFragment` controls archetype membership, not payload storage. It keeps the component id outside the entity's archetype, so adding or removing the component does not move the entity between archetypes.
+
+Empty tags do not need `Sparse`. Declare `GAIA_STORAGE(DontFragment)`, or call `world.add(componentEntity, ecs::DontFragment)` immediately after registration and before any instances exist. Data-bearing AoS structs that should stay outside archetype identity declare `GAIA_STORAGE(DontFragment)` (sparse payload plus non-fragmenting membership) or `GAIA_STORAGE(Sparse)` plus a runtime `DontFragment` latch. Table payloads still require an archetype column, so a typed table data component cannot become non-fragmenting at runtime.
 
 ```cpp
+struct Pending {
+  GAIA_STORAGE(DontFragment);
+};
+
 struct Cooldown {
-  GAIA_STORAGE(Sparse);
+  GAIA_STORAGE(DontFragment);
   float value = 0.0f;
 };
 
 ecs::World w;
-const auto& cooldown = w.add<Cooldown>();
-// Keep Cooldown membership outside archetype identity.
-w.add(cooldown.entity, ecs::DontFragment);
-
 auto e = w.add();
+w.add<Pending>(e);
 w.add<Cooldown>(e);
 auto cooldownValue = w.set<Cooldown>(e);
 cooldownValue.value = 1.5f;
+```
+
+An empty tag without a compile-time declaration can still latch before instances exist:
+
+```cpp
+struct Pending {};
+
+ecs::World w;
+const auto& pending = w.add<Pending>();
+w.add(pending.entity, ecs::DontFragment);
 ```
 
 The resulting configurations are:
@@ -493,6 +506,9 @@ The resulting configurations are:
 | `GAIA_STORAGE(Table)` | `Table` | In archetype | Yes |
 | `GAIA_STORAGE(Sparse)` | `Sparse` | In archetype | Yes |
 | `GAIA_STORAGE(Sparse)` + `DontFragment` | `Sparse` | Outside archetype | No |
+| `GAIA_STORAGE(DontFragment)` empty tag | `Table` (size 0) | Outside archetype | No |
+| empty tag + runtime `DontFragment` before instances | `Table` (size 0) | Outside archetype | No |
+| `GAIA_STORAGE(DontFragment)` AoS payload | `Sparse` | Outside archetype | No |
 
 Data-bearing relationships use the same payload/membership split. When the payload type of an exact
 `(relation, target)` pair uses sparse storage, Gaia keeps one separate sparse payload store for that exact pair. The
@@ -501,21 +517,25 @@ without putting the payload in a chunk column. For an `Exclusive` relation marke
 membership and its sparse payload stay outside the archetype, so changing the target does not move the source
 entity.
 
+Empty `Exclusive`+`DontFragment` ids such as `Parent` and `OnInstantiate` remain relation traits. They do not take the empty-tag membership path.
+
 Rule of thumb:
 - Keep hot, common, frequently iterated data in table storage.
 - Use `Sparse` when the payload needs a stable address, but the component should still participate in archetype identity.
-- Use `GAIA_STORAGE(Sparse)` with `DontFragment` for frequently toggled typed optional state such as cooldowns, temporary status effects, markers, or runtime tool state.
+- Use `GAIA_STORAGE(DontFragment)` for empty optional markers and for typed optional AoS state such as cooldowns, temporary status effects, or runtime tool state.
+- Queries that filter on a `DontFragment` empty tag use entity-seed matching, same as other non-fragmenting ids. Adding the tag is cheap because the archetype does not change. Iterating or counting those tags is slower than iterating an archetype-resident empty tag. `changed()` on an empty `DontFragment` tag uses the same chunk-granular entity-order signal as other non-fragmenting ids.
+- `GAIA_STORAGE(Sparse)` plus a runtime `DontFragment` latch is equivalent for data-bearing AoS payloads.
 - Avoid sparse storage for components such as `Position` or `Velocity` that benefit from sequential table access, unless profiling justifies it.
 
 Directly adding or removing an already-registered `DontFragment` component is safe during serial query iteration because the entity does not move to another archetype. If the active query filters on that component, later rows are matched against the current world state rather than a snapshot taken before iteration.
 
->**NOTE:<br/>** 
+>**NOTE:<br/>**
 Component layout and storage follow the same rules for ordinary components and relationship payloads. Table storage
 supports AoS and SoA layouts. Sparse storage is intended for individually addressed payloads and supports only plain
-supports only plain AoS components. `GAIA_STORAGE(Sparse)` and `ecs::Sparse` cannot be combined with a SoA layout.<br/>
+AoS components. `GAIA_STORAGE(Sparse)`, `GAIA_STORAGE(DontFragment)`, and `ecs::Sparse` cannot be combined with a SoA layout.<br/>
 
->**NOTE:<br/>** 
-Runtime component storage and fragmentation traits must be set before the component has instances attached to entities. They do not override a typed component's `GAIA_STORAGE` policy.<br/>
+>**NOTE:<br/>**
+Runtime component storage and fragmentation traits must be set before the component has instances attached to entities. They do not override a typed data component's `GAIA_STORAGE` policy. Empty tags may still latch `ecs::DontFragment` before instances exist.<br/>
 
 >**NOTE:<br/>**
 Once a component is marked `ecs::Sparse` or `ecs::DontFragment`, it stays that way. Both entities carry the [ecs::Requires trait](#entity-dependencies).<br/>

@@ -5098,9 +5098,12 @@ namespace gaia {
 							}
 
 							auto compIdx = world_component_index_comp_idx(world, *ec.pArchetype, queryId);
-							if (compIdx == BadIndex)
+							if (compIdx == BadIndex || compIdx == ComponentIndexBad)
 								compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
-							pIndices[fieldIdx] = (uint8_t)compIdx;
+							pIndices[fieldIdx] = (compIdx != BadIndex && compIdx != ComponentIndexBad &&
+																		compIdx < ec.pArchetype->ids_view().size())
+																				 ? (uint8_t)compIdx
+																				 : (uint8_t)0xFF;
 						}
 
 						it.set_archetype(ec.pArchetype);

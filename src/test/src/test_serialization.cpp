@@ -109,6 +109,10 @@ struct RuntimeRejectingOpaque {
 	float value;
 };
 
+struct SerializedEmptyDontFragmentTag {
+	GAIA_STORAGE(DontFragment);
+};
+
 struct SparseSerializedValue {
 	GAIA_STORAGE(Sparse);
 	uint32_t value = 0;
@@ -2137,6 +2141,58 @@ TEST_CASE("Serialization - world preserves sparse component payloads") {
 			CHECK(value.y == 11.0f);
 			CHECK(value.z == 12.0f);
 		}
+	}
+
+	SUBCASE("non-fragmenting empty tag") {
+		ecs::World in;
+		(void)in.add<SerializedEmptyDontFragmentTag>();
+		const auto entity = in.add();
+		const auto* pArchetypeBefore = in.fetch(entity).pArchetype;
+		in.add<SerializedEmptyDontFragmentTag>(entity);
+		CHECK(in.fetch(entity).pArchetype == pArchetypeBefore);
+		CHECK_FALSE(in.fetch(entity).pArchetype->has(in.add<SerializedEmptyDontFragmentTag>().entity));
+
+		ser::bin_stream buffer;
+		in.set_serializer(buffer);
+		in.save();
+
+		ecs::World out;
+		const auto& outItem = out.add<SerializedEmptyDontFragmentTag>();
+		CHECK(out.load(buffer));
+		CHECK(out.has<SerializedEmptyDontFragmentTag>(entity));
+		CHECK_FALSE(out.fetch(entity).pArchetype->has(outItem.entity));
+		CHECK(out.query().all<SerializedEmptyDontFragmentTag>().count() == 1);
+
+		bool okJson = false;
+		const auto json = in.save_json(okJson);
+		CHECK(okJson);
+		ecs::World outJson;
+		(void)outJson.add<SerializedEmptyDontFragmentTag>();
+		CHECK(outJson.load_json(json));
+		CHECK(outJson.has<SerializedEmptyDontFragmentTag>(entity));
+		CHECK(outJson.query().all<SerializedEmptyDontFragmentTag>().count() == 1);
+	}
+
+	SUBCASE("non-fragmenting empty tag without destination registration") {
+		ecs::World in;
+		(void)in.add<SerializedEmptyDontFragmentTag>();
+		const auto entity = in.add();
+		in.add<SerializedEmptyDontFragmentTag>(entity);
+
+		ser::bin_stream buffer;
+		in.set_serializer(buffer);
+		in.save();
+
+		ecs::World out;
+		CHECK_FALSE(out.load(buffer));
+
+		bool okJson = false;
+		const auto json = in.save_json(okJson);
+		CHECK(okJson);
+		ecs::World outJson;
+		(void)outJson.load_json(json);
+		if (outJson.valid(entity))
+			CHECK_FALSE(outJson.has<SerializedEmptyDontFragmentTag>(entity));
 	}
 
 	SUBCASE("custom sparse serializer") {
