@@ -32269,6 +32269,8 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		//! Wrapper for two Entities forming a relationship pair.
+		//! Conversion to `Entity` stores only `id()` of each endpoint, so nested pairs are not
+		//! representable as pair ids.
 		template <>
 		class pair<Entity, Entity>: public detail::pair_base {
 			Entity m_first;
@@ -68440,11 +68442,15 @@ namespace gaia {
 				//! Prepares an archetype movement by following the "add" edge of the current archetype.
 				//! \param pair Relationship pair
 				//! \return This builder.
+				//! \warning Pair endpoints must be ordinary entities.
 				EntityBuilder& add(Pair pair) {
 					GAIA_PROF_SCOPE(EntityBuilder::add);
 					GAIA_ASSERT(m_world.valid(m_entity));
 					GAIA_ASSERT(m_world.valid(pair.first()));
 					GAIA_ASSERT(m_world.valid(pair.second()));
+					GAIA_ASSERT(!pair.first().pair());
+					GAIA_ASSERT(!pair.second().pair());
+					GAIA_ASSERT(pair.first() != Is || !m_entity.pair());
 
 					add_inter(pair);
 					return *this;
@@ -68455,6 +68461,8 @@ namespace gaia {
 				//! \param entityBase Entity to inherit from
 				//! \return This builder.
 				EntityBuilder& as(Entity entityBase) {
+					GAIA_ASSERT(!m_entity.pair());
+					GAIA_ASSERT(!entityBase.pair());
 					return add(Pair(Is, entityBase));
 				}
 
@@ -69153,6 +69161,8 @@ namespace gaia {
 					if (entity.id() != Is.id())
 						return true;
 
+					GAIA_ASSERT(!m_entity.pair());
+
 					auto e = m_world.try_get(entity.gen());
 					if (e == EntityBad)
 						return false;
@@ -69536,6 +69546,7 @@ namespace gaia {
 				//! \return True when add processing should continue.
 				GAIA_NODISCARD bool prepare_pair_add(Entity entity, RelationMutationPath relationPath) {
 					GAIA_ASSERT(entity.pair());
+					GAIA_ASSERT(entity.id() != Is.id() || !m_entity.pair());
 
 					if (relationPath == RelationMutationPath::NonFragmentingExclusive) {
 						if (has_nonfragmenting_relation_id(entity))
@@ -70523,6 +70534,7 @@ namespace gaia {
 			//! \param pair Pair to attach.
 			//! \warning It is expected both \a entity and the entities forming the relationship are valid.
 			//!          Undefined behavior otherwise.
+			//! \warning Pair endpoints must be ordinary entities.
 			void add(Entity entity, Pair pair) {
 				auto& ec = cont(entity);
 				EntityBuilder builder(*this, entity, ec);
@@ -70535,6 +70547,7 @@ namespace gaia {
 			//! \param pair Pair to attach.
 			//! \warning It is expected \a entity and the entities forming \a pair are valid.
 			//!          Undefined behavior otherwise.
+			//! \warning Pair endpoints must be ordinary entities.
 			void add(Pair entity, Pair pair) {
 				const auto source = (Entity)entity;
 				auto& ec = fetch(source);
@@ -72751,6 +72764,9 @@ namespace gaia {
 			//! \param entity Entity receiving the inheritance pair.
 			//! \param entityBase Base entity to inherit from.
 			void as(Entity entity, Entity entityBase) {
+				GAIA_ASSERT(!entity.pair());
+				GAIA_ASSERT(!entityBase.pair());
+
 				// Form the relationship
 				add(entity, Pair(Is, entityBase));
 			}
@@ -72758,14 +72774,14 @@ namespace gaia {
 			//! Checks if \a entity inherits from \a entityBase.
 			//! \param entity Entity
 			//! \param entityBase Base entity
-			//! \return True if entity is located in entityBase. False otherwise.
+			//! \return True if entity inherits from entityBase. False otherwise.
 			GAIA_NODISCARD bool is(Entity entity, Entity entityBase) const {
 				return is_inter<false>(entity, entityBase);
 			}
 
 			//! Checks if \a entity is located in \a entityBase.
 			//! This is almost the same as "is" with the exception that false is returned
-			//! if \a entity matches \a entityBase
+			//! if \a entity matches \a entityBase.
 			//! \param entity Entity
 			//! \param entityBase Base entity
 			//! \return True if entity is located in entityBase. False otherwise.
@@ -72777,11 +72793,10 @@ namespace gaia {
 			//! \param target Candidate base entity.
 			//! \return True when \p target has a derived entity. False otherwise.
 			GAIA_NODISCARD bool is_base(Entity target) const {
-				GAIA_ASSERT(valid_entity(target));
-
-				// Pairs are not supported
-				if (target.pair())
+				if GAIA_UNLIKELY (target.pair())
 					return false;
+
+				GAIA_ASSERT(valid_entity(target));
 
 				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
 				return it != m_entityToAsRelations.end();
@@ -79903,12 +79918,11 @@ namespace gaia {
 			//! \return True if \a entity inherits from or is located in \a entityBase. False otherwise.
 			template <bool CheckIn>
 			GAIA_NODISCARD bool is_inter(Entity entity, Entity entityBase) const {
+				if GAIA_UNLIKELY (entity.pair() || entityBase.pair())
+					return false;
+
 				GAIA_ASSERT(valid_entity(entity));
 				GAIA_ASSERT(valid_entity(entityBase));
-
-				// Pairs are not supported
-				if (entity.pair() || entityBase.pair())
-					return false;
 
 				if constexpr (!CheckIn) {
 					if (entity == entityBase)
@@ -79931,11 +79945,10 @@ namespace gaia {
 			//! \param func Callback invoked for each visited entity.
 			template <bool CheckIn, typename Func>
 			void as_up_trav(Entity entity, Func func) {
-				GAIA_ASSERT(valid_entity(entity));
-
-				// Pairs are not supported
-				if (entity.pair())
+				if GAIA_UNLIKELY (entity.pair())
 					return;
+
+				GAIA_ASSERT(valid_entity(entity));
 
 				if constexpr (!CheckIn) {
 					func(entity);

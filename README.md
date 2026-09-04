@@ -2395,7 +2395,7 @@ For dependency-aware deferred execution, add the query as a scheduler job with `
 Entity relationship is a feature that allows users to model simple relations, hierarchies or graphs in an ergonomic, easy and safe way.
 Each relationship is expressed as following: "source, (relation, target)". All three elements of a relationship are entities. We call the "(relation, target)" part a relationship pair.
 
-Relationship pair is a special kind of entity where the id of the "relation" entity becomes the pair's id and the "target" entity's id becomes the pairs generation. The pair is created by calling `ecs::Pair(relation, target`) with two valid entities as its arguments.
+Relationship pair is a special kind of entity where the id of the "relation" entity becomes the pair's id and the "target" entity's id becomes the pairs generation. The pair is created by calling `ecs::Pair(relation, target`) with two valid entities as its arguments. Only each endpoint's `id()` is stored, so both endpoints must be ordinary entities. Nested pairs are rejected when the relationship is attached.
 
 Adding a relationship to any entity is as simple as adding any other entity.
 
@@ -2617,7 +2617,7 @@ isSwitched = w.has(wallSwitch, ecs::Pair{toggled, on}); // false
 ```
 
 ### Entity inheritance
-Entities can inherit from other entities by using the (Is, target) relationship. This is a powerful feature that helps you identify an entire group of entities using a single entity.
+Entities can inherit from other entities by using the (Is, target) relationship. This is a powerful feature that helps you identify an entire group of entities using a single entity. Pair records do not participate in inheritance.
 
 ```cpp
 ecs::World w;

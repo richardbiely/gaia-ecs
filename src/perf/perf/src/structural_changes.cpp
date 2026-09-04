@@ -95,6 +95,54 @@ void BM_World_ChunkDeleteQueue_GC(picobench::state& state) {
 	}
 }
 
+void BM_World_As(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.input_data();
+	cnt::darray<ecs::Entity> entities;
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+		ecs::World w;
+		const auto root = w.add();
+		entities.clear();
+		entities.reserve(n);
+		for (uint32_t i = 0; i < n; ++i)
+			entities.push_back(w.add());
+
+		{
+			auto warm = w.add();
+			w.as(warm, root);
+		}
+
+		state.start_timer();
+		for (auto e: entities)
+			w.as(e, root);
+		state.stop_timer();
+	}
+}
+
+void BM_World_Is(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.input_data();
+	ecs::World w;
+	const auto root = w.add();
+	cnt::darray<ecs::Entity> entities;
+	entities.reserve(n);
+	for (uint32_t i = 0; i < n; ++i) {
+		const auto e = w.add();
+		w.as(e, root);
+		entities.push_back(e);
+	}
+
+	uint32_t hits = 0;
+	for (auto _: state) {
+		(void)_;
+		hits = 0;
+		for (auto e: entities)
+			hits += (uint32_t)w.is(e, root);
+		dont_optimize(hits);
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void register_structural_changes(PerfRunMode mode) {
@@ -112,6 +160,8 @@ void register_structural_changes(PerfRunMode mode) {
 					.PICO_SETTINGS_FOCUS()
 					.user_data(NEntitiesFew)
 					.label("chunk delete queue gc 10K");
+			PICOBENCH_REG(BM_World_As).PICO_SETTINGS().user_data(NEntitiesFew).label("as 10K");
+			PICOBENCH_REG(BM_World_Is).PICO_SETTINGS().user_data(NEntitiesFew).label("is 10K");
 			return;
 		case PerfRunMode::Profiling:
 		default:

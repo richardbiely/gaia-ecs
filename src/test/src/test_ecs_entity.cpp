@@ -3,7 +3,6 @@
 // ECS
 //-----------------------------------------------------------------
 
-
 GAIA_GCC_WARNING_PUSH()
 GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers")
 GAIA_CLANG_WARNING_PUSH()
@@ -1728,6 +1727,52 @@ TEST_CASE("Inheritance (Is)") {
 			++i;
 		});
 		CHECK(i == 4);
+	}
+}
+
+TEST_CASE("Inheritance (Is) - pair records are not subjects or bases") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto rabbit = wld.add();
+	wld.as(rabbit, animal);
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto owner = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(owner, pair);
+	const auto pairEntity = (ecs::Entity)pair;
+
+	CHECK(pairEntity.pair());
+	CHECK(wld.valid(pairEntity));
+
+	CHECK(wld.is(rabbit, animal));
+	CHECK(wld.in(rabbit, animal));
+	CHECK_FALSE(wld.is(pairEntity, animal));
+	CHECK_FALSE(wld.in(pairEntity, animal));
+	CHECK_FALSE(wld.is(rabbit, pairEntity));
+	CHECK_FALSE(wld.is(animal, pairEntity));
+	CHECK_FALSE(wld.is(pairEntity, pairEntity));
+	CHECK_FALSE(wld.is_base(pairEntity));
+	CHECK(wld.is_base(animal));
+	CHECK_FALSE(wld.has_direct(pairEntity, ecs::Pair(ecs::Is, animal)));
+	CHECK_FALSE(wld.has_direct(rabbit, ecs::Pair(ecs::Is, relation)));
+
+	const auto parent = wld.add();
+	wld.child(pair, parent);
+	CHECK(wld.is_child(pairEntity, parent));
+	CHECK_FALSE(wld.is(pairEntity, animal));
+
+	{
+		uint32_t n = 0;
+		bool sawPair = false;
+		wld.query().is(animal).each([&](ecs::Entity entity) {
+			sawPair |= entity.pair();
+			++n;
+		});
+		CHECK(n == 2);
+		CHECK_FALSE(sawPair);
 	}
 }
 

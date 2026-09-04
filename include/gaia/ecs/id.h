@@ -538,6 +538,8 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		//! Wrapper for two Entities forming a relationship pair.
+		//! Conversion to `Entity` stores only `id()` of each endpoint, so nested pairs are not
+		//! representable as pair ids.
 		template <>
 		class pair<Entity, Entity>: public detail::pair_base {
 			Entity m_first;
@@ -548,8 +550,7 @@ namespace gaia {
 
 			operator Entity() const noexcept {
 				return Entity(
-						m_first.id(), m_second.id(),
-						false,
+						m_first.id(), m_second.id(), false,
 						// Always true for pairs
 						true);
 			}
