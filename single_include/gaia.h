@@ -57644,8 +57644,9 @@ namespace gaia {
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 							const auto inheritedDataView =
 									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
-							m_batches.push_back(
-									{pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow, endRow});
+							push_matching_chunk_batch(
+									m_batches, queryInfo, pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow,
+									endRow);
 						}
 						return;
 					}
@@ -57672,7 +57673,8 @@ namespace gaia {
 									continue;
 							}
 
-							m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, from, to});
+							push_matching_chunk_batch(
+									m_batches, queryInfo, pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, from, to);
 						}
 					}
 				}
@@ -58309,6 +58311,12 @@ namespace gaia {
 
 					lock(*m_storage.world());
 					ChunkBatchArray chunkBatches;
+					const auto flush_chunk_batches = [&]() {
+						if (chunkBatches.empty())
+							return;
+						run_query_func_runtime(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()}, constraints);
+						chunkBatches.clear();
+					};
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
@@ -58337,8 +58345,9 @@ namespace gaia {
 							const auto inheritedDataView =
 									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
 
-							chunkBatches.push_back(
-									{pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow, endRow});
+							push_matching_chunk_batch(
+									chunkBatches, queryInfo, pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow,
+									endRow, flush_chunk_batches);
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
 								run_query_func_runtime(
@@ -58376,7 +58385,9 @@ namespace gaia {
 											continue;
 									}
 
-									chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, from, to});
+									push_matching_chunk_batch(
+											chunkBatches, queryInfo, pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, from, to,
+											flush_chunk_batches);
 								}
 
 								if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -58442,8 +58453,9 @@ namespace gaia {
 							const auto inheritedDataView =
 									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
 
-							m_batches.push_back(
-									{pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow, endRow});
+							push_matching_chunk_batch(
+									m_batches, queryInfo, pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow,
+									endRow);
 						}
 					} else {
 						for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
@@ -58468,7 +58480,8 @@ namespace gaia {
 										continue;
 								}
 
-								m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, from, to});
+								push_matching_chunk_batch(
+										m_batches, queryInfo, pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, from, to);
 							}
 						}
 					}
@@ -58519,6 +58532,12 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_with_group_id);
 
 					ChunkBatchArray chunkBatches;
+					const auto flush_chunk_batches = [&]() {
+						if (chunkBatches.empty())
+							return;
+						run_query_func_runtime(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()}, constraints);
+						chunkBatches.clear();
+					};
 					auto cacheView = queryInfo.cache_archetype_view();
 					const bool hasInheritedData = (plan.flags & QueryPlanFlag_InheritedPayload) != 0;
 					const bool needsBarrierCache = (plan.flags & QueryPlanFlag_BarrierCache) != 0;
@@ -58558,7 +58577,9 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, from, to});
+								push_matching_chunk_batch(
+										chunkBatches, queryInfo, pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, from,
+										to, flush_chunk_batches);
 							}
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -58616,7 +58637,8 @@ namespace gaia {
 									continue;
 							}
 
-							m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, from, to});
+							push_matching_chunk_batch(
+									m_batches, queryInfo, pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, from, to);
 						}
 					}
 
@@ -58860,6 +58882,9 @@ namespace gaia {
 						return plan;
 					}
 
+					// DirectDense exposes whole cached chunk windows. Entity-filter terms such as DontFragment
+					// are not archetype identity, so those windows must be split by match_entity_filters in the
+					// generic batch runner. Keep General mode here.
 					if ((plan.flags & QueryPlanFlag_EntityFilter) != 0)
 						return plan;
 
@@ -59992,6 +60017,85 @@ namespace gaia {
 					}
 
 					return true;
+				}
+
+				//! Emits contiguous iterator row ranges that pass per-entity filters such as DontFragment terms.
+				//! Public Iter callbacks need these windows so size() and chunk views match count().
+				//! Typed callbacks already skip non-matching rows and keep whole chunk ranges.
+				//! \param queryInfo Prepared query used to evaluate entity filters.
+				//! \param pChunk Chunk whose rows `[from, to)` are considered.
+				//! \param from Inclusive start row.
+				//! \param to Exclusive end row.
+				//! \param emit Callback invoked as emit(rangeFrom, rangeTo) for each matching subrange.
+				//! \see count(Constraints)
+				//! \see Iter::size() const
+				template <typename Emit>
+				static void for_each_matching_iter_range(
+						const QueryInfo& queryInfo, Chunk* pChunk, uint16_t from, uint16_t to, Emit&& emit) {
+					if (pChunk == nullptr || from >= to)
+						return;
+					if (!queryInfo.has_entity_filter_terms()) {
+						emit(from, to);
+						return;
+					}
+
+					const auto entities = pChunk->entity_view();
+					uint16_t rangeFrom = from;
+					bool inRange = false;
+					for (uint16_t row = from; row < to; ++row) {
+						const bool match = match_entity_filters(*queryInfo.world(), entities[row], queryInfo);
+						if (match) {
+							if (!inRange) {
+								rangeFrom = row;
+								inRange = true;
+							}
+						} else if (inRange) {
+							emit(rangeFrom, row);
+							inRange = false;
+						}
+					}
+					if (inRange)
+						emit(rangeFrom, to);
+				}
+
+				//! Pushes matching iterator ranges into an unbounded chunk-batch list.
+				//! \tparam Batches Destination list of ChunkBatch entries.
+				//! \param batches List that receives matching ranges.
+				//! \param queryInfo Prepared query used to evaluate entity filters.
+				//! \param pArchetype Archetype that owns \a pChunk.
+				//! \param pChunk Chunk whose rows `[from, to)` are considered.
+				//! \param pCompIndices Component-column indices for the iterator.
+				//! \param inheritedData Inherited-term data associated with the batch.
+				//! \param groupId Group identifier stored on the batch.
+				//! \param from Inclusive start row.
+				//! \param to Exclusive end row.
+				//! \see for_each_matching_iter_range
+				template <typename Batches>
+				static void push_matching_chunk_batch(
+						Batches& batches, const QueryInfo& queryInfo, const Archetype* pArchetype, Chunk* pChunk,
+						const uint8_t* pCompIndices, InheritedTermDataView inheritedData, GroupId groupId, uint16_t from,
+						uint16_t to) {
+					for_each_matching_iter_range(queryInfo, pChunk, from, to, [&](uint16_t rangeFrom, uint16_t rangeTo) {
+						batches.push_back({pArchetype, pChunk, pCompIndices, inheritedData, groupId, rangeFrom, rangeTo});
+					});
+				}
+
+				//! Same as the unbounded overload, but drains \a batches via \a flush when the list is full.
+				//! \tparam Flush Callable invoked as flush() when \a batches reaches capacity.
+				//! \param flush Callback that drains \a batches.
+				//! \see push_matching_chunk_batch(Batches&, const QueryInfo&, const Archetype*, Chunk*, const uint8_t*,
+				//! InheritedTermDataView, GroupId, uint16_t, uint16_t)
+				//! \see for_each_matching_iter_range
+				template <typename Flush>
+				static void push_matching_chunk_batch(
+						ChunkBatchArray& batches, const QueryInfo& queryInfo, const Archetype* pArchetype, Chunk* pChunk,
+						const uint8_t* pCompIndices, InheritedTermDataView inheritedData, GroupId groupId, uint16_t from,
+						uint16_t to, Flush&& flush) {
+					for_each_matching_iter_range(queryInfo, pChunk, from, to, [&](uint16_t rangeFrom, uint16_t rangeTo) {
+						if (batches.size() == batches.max_size())
+							flush();
+						batches.push_back({pArchetype, pChunk, pCompIndices, inheritedData, groupId, rangeFrom, rangeTo});
+					});
 				}
 
 				//! Evaluates the entity-level terms that are not fully represented by archetype membership.
@@ -61364,9 +61468,13 @@ namespace gaia {
 				}
 
 				//! Iterates query matches using the default execution mode.
+				//! Each callback receives a contiguous chunk window. DontFragment / sparse entity-filter
+				//! terms restrict that window to matching rows, the same set count() reports. A chunk with
+				//! mixed membership can therefore invoke \a func more than once.
 				//! \tparam Func Iterator callback type invocable with `Iter&`.
 				//! \param func Callable invoked for each match.
 				//! \see Iter::ctx() const
+				//! \see count(Constraints)
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func) {
 					each_runtime_inter<QueryExecType::Default, Func>(func, Constraints::EnabledOnly);

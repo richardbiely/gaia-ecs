@@ -75,6 +75,37 @@ namespace {
 		if constexpr (Idx + 1 < Count)
 			write_sparse_touch_probes<Idx + 1, Count>(it);
 	}
+
+	void collect_iter_entities(ecs::Query& query, cnt::darray<ecs::Entity>& out, uint32_t& callbackCnt) {
+		callbackCnt = 0;
+		out.clear();
+		query.each([&](ecs::Iter& it) {
+			++callbackCnt;
+			CHECK(it.size() > 0);
+			const auto entities = it.entity_rows();
+			GAIA_EACH(it) {
+				out.push_back(entities[i]);
+			}
+		});
+	}
+
+	void expect_iter_entities(ecs::Query& query, std::initializer_list<ecs::Entity> expected) {
+		cnt::darray<ecs::Entity> actual;
+		uint32_t callbacks = 0;
+		collect_iter_entities(query, actual, callbacks);
+		CHECK(query.count() == (uint32_t)expected.size());
+		CHECK(actual.size() == expected.size());
+		for (const auto exp: expected) {
+			bool found = false;
+			for (const auto got: actual) {
+				if (got != exp)
+					continue;
+				found = true;
+				break;
+			}
+			CHECK(found);
+		}
+	}
 } // namespace
 
 TEST_CASE("Bare Requires prevents direct trait removal") {
@@ -324,16 +355,144 @@ TEST_CASE("Sparse DontFragment component direct query terms are evaluated as ent
 	wld.add<PositionSparse>(eA);
 
 	auto qAll = wld.query().all<Position>().all<PositionSparse>();
+	CHECK(qAll.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::EntitySeed);
 	CHECK(qAll.count() == 1);
 	expect_exact_entities(qAll, {eA});
+	expect_iter_entities(qAll, {eA});
 
 	auto qNo = wld.query().all<Position>().no<PositionSparse>();
+	CHECK(qNo.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::General);
+	CHECK((qNo.test_iter_plan().flags & ecs::detail::QueryImpl::QueryPlanFlag_EntityFilter) != 0);
 	CHECK(qNo.count() == 2);
 	expect_exact_entities(qNo, {eB, eC});
+	expect_iter_entities(qNo, {eB, eC});
 
 	auto qOr = wld.query().or_<PositionSparse>().or_<Scale>();
 	CHECK(qOr.count() == 2);
 	expect_exact_entities(qOr, {eA, eC});
+	expect_iter_entities(qOr, {eA, eC});
+}
+
+TEST_CASE("Iter each splits DontFragment entity-filter ranges and keeps views aligned") {
+	SparseTestWorld twld;
+
+	const auto& compItem = wld.add<PositionSparse>();
+	wld.add(compItem.entity, ecs::DontFragment);
+
+	constexpr uint32_t N = 80;
+	cnt::darray<ecs::Entity> entities;
+	entities.reserve(N);
+	GAIA_FOR(N) {
+		const auto e = wld.add();
+		wld.add<Position>(e, {(float)i, (float)i, 0.0f});
+		if ((i & 1U) == 0U)
+			wld.add<PositionSparse>(e);
+		entities.push_back(e);
+	}
+
+	auto qNo = wld.query().all<Position>().no<PositionSparse>();
+	CHECK(qNo.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::General);
+	CHECK(qNo.count() == N / 2);
+
+	uint32_t callbacks = 0;
+	uint32_t hits = 0;
+	qNo.each([&](ecs::Iter& it) {
+		++callbacks;
+		CHECK(it.size() > 0);
+		const auto rows = it.entity_rows();
+		const auto positions = it.view<Position>();
+		GAIA_EACH(it) {
+			++hits;
+			uint32_t entIdx = N;
+			for (uint32_t e = 0; e < N; ++e) {
+				if (entities[e] != rows[i])
+					continue;
+				entIdx = e;
+				break;
+			}
+			CHECK(entIdx < N);
+			CHECK((entIdx & 1U) == 1U);
+			CHECK(positions[i].x == doctest::Approx((float)entIdx));
+			CHECK_FALSE(wld.has<PositionSparse>(rows[i]));
+		}
+	});
+	CHECK(hits == N / 2);
+	CHECK(callbacks == N / 2);
+
+	qNo.each([&](ecs::Iter& it) {
+		auto positions = it.view_mut<Position>();
+		GAIA_EACH(it) {
+			positions[i].x += 100.0f;
+		}
+	});
+	GAIA_FOR(N) {
+		const auto x = wld.get<Position>(entities[i]).x;
+		if ((i & 1U) == 0U)
+			CHECK(x == doctest::Approx((float)i));
+		else
+			CHECK(x == doctest::Approx((float)i + 100.0f));
+	}
+
+	wld.enable(entities[1], false);
+	CHECK(qNo.count() == N / 2 - 1);
+	uint32_t enabledHits = 0;
+	qNo.each([&](ecs::Iter& it) {
+		const auto rows = it.entity_rows();
+		GAIA_EACH(it) {
+			++enabledHits;
+			CHECK(rows[i] != entities[1]);
+			CHECK_FALSE(wld.has<PositionSparse>(rows[i]));
+		}
+	});
+	CHECK(enabledHits == N / 2 - 1);
+
+	auto qAllMarked = wld.query().all<Position>().all<PositionSparse>();
+	CHECK(qAllMarked.count() == N / 2);
+	cnt::darray<ecs::Entity> marked;
+	uint32_t markedCallbacks = 0;
+	collect_iter_entities(qAllMarked, marked, markedCallbacks);
+	CHECK(marked.size() == N / 2);
+	CHECK(markedCallbacks == N / 2);
+	for (const auto e: marked)
+		CHECK(wld.has<PositionSparse>(e));
+
+	auto qEmpty = wld.query().all<Position>().no<PositionSparse>().all<Scale>();
+	uint32_t emptyCallbacks = 0;
+	qEmpty.each([&](ecs::Iter& it) {
+		++emptyCallbacks;
+		(void)it;
+	});
+	CHECK(qEmpty.count() == 0);
+	CHECK(emptyCallbacks == 0);
+}
+
+TEST_CASE("System Iter each respects DontFragment entity filters") {
+	SparseTestWorld twld;
+
+	const auto& compItem = wld.add<PositionSparse>();
+	wld.add(compItem.entity, ecs::DontFragment);
+
+	const auto eA = wld.add();
+	const auto eB = wld.add();
+	wld.add<Position>(eA, {1.0f, 0.0f, 0.0f});
+	wld.add<Position>(eB, {2.0f, 0.0f, 0.0f});
+	wld.add<PositionSparse>(eA);
+
+	uint32_t hits = 0;
+	float sum = 0.0f;
+	wld.system().all<Position>().no<PositionSparse>().on_each([&](ecs::Iter& it) {
+		const auto rows = it.entity_rows();
+		const auto positions = it.view<Position>();
+		GAIA_EACH(it) {
+			++hits;
+			sum += positions[i].x;
+			CHECK(rows[i] == eB);
+			CHECK_FALSE(wld.has<PositionSparse>(rows[i]));
+		}
+	});
+	wld.update();
+	CHECK(hits == 1);
+	CHECK(sum == doctest::Approx(2.0f));
 }
 
 TEST_CASE("Sparse DontFragment typed callbacks bind direct payloads per entity") {
@@ -859,14 +1018,17 @@ TEST_CASE("Empty DontFragment tag query all, no, and or with a table neighbor") 
 	CHECK(qAll.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::EntitySeed);
 	CHECK(qAll.count() == 1);
 	expect_exact_entities(qAll, {eA});
+	expect_iter_entities(qAll, {eA});
 
 	auto qNo = wld.query().all<Position>().no<DontFragmentEmptyTag>();
 	CHECK(qNo.count() == 2);
 	expect_exact_entities(qNo, {eB, eC});
+	expect_iter_entities(qNo, {eB, eC});
 
 	auto qOr = wld.query().or_<DontFragmentEmptyTag>().or_<Scale>();
 	CHECK(qOr.count() == 2);
 	expect_exact_entities(qOr, {eA, eC});
+	expect_iter_entities(qOr, {eA, eC});
 }
 
 #if GAIA_OBSERVERS_ENABLED

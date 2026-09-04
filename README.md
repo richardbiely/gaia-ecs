@@ -523,7 +523,7 @@ Rule of thumb:
 - Keep hot, common, frequently iterated data in table storage.
 - Use `Sparse` when the payload needs a stable address, but the component should still participate in archetype identity.
 - Use `GAIA_STORAGE(DontFragment)` for empty optional markers and for typed optional AoS state such as cooldowns, temporary status effects, or runtime tool state.
-- Queries that filter on a `DontFragment` empty tag use entity-seed matching, same as other non-fragmenting ids. Adding the tag is cheap because the archetype does not change. Iterating or counting those tags is slower than iterating an archetype-resident empty tag. `changed()` on an empty `DontFragment` tag uses the same chunk-granular entity-order signal as other non-fragmenting ids.
+- Queries whose required terms include a `DontFragment` id use entity-seed matching, same as other non-fragmenting ids. Queries that only exclude a `DontFragment` id still walk the table neighbor and apply per-entity filters. Adding the tag is cheap because the archetype does not change. Iterating or counting those tags is slower than iterating an archetype-resident empty tag. `count()`, `arr()`, typed `each()`, and `Iter& each()` all use the same filters, so `it.size()` and chunk views cover only matching rows. `changed()` on an empty `DontFragment` tag uses the same chunk-granular entity-order signal as other non-fragmenting ids.
 - `GAIA_STORAGE(Sparse)` plus a runtime `DontFragment` latch is equivalent for data-bearing AoS payloads.
 - Avoid sparse storage for components such as `Position` or `Velocity` that benefit from sequential table access, unless profiling justifies it.
 
@@ -2076,7 +2076,7 @@ q.each([](ecs::Iter& it) {
 }, ecs::Constraints::AcceptAll);
 ```
 
->**NOTE:**<br/>The functor accepting an iterator can be called any number of times per one `Query::each`. Currently, the functor is invoked once per archetype chunk that matches the query. In the future, this can change. Therefore, it is best to make no assumptions about it and simply expect that the functor might be triggered multiple times per call to `each`.
+>**NOTE:**<br/>The functor accepting an iterator can be called any number of times per one `Query::each`. A matching chunk is the common case, but `DontFragment` / sparse entity-filter terms can split one chunk into several contiguous windows when membership is mixed. Therefore, it is best to make no assumptions about it and simply expect that the functor might be triggered multiple times per call to `each`.
 
 ### Constraints
 By default, Gaia queries operate on enabled entities only. `Constraints` let you switch that row-selection behavior without changing archetypes:
