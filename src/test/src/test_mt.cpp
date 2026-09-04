@@ -1000,6 +1000,50 @@ TEST_CASE("ECS - System update treats phase boundaries as depth-first job barrie
 	CHECK(phaseBHits == EntityCount);
 }
 
+TEST_CASE("ECS - systems_run(phase) prepares only that phase's scheduler jobs") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+
+	constexpr uint32_t EntityCount = 7;
+	GAIA_FOR(EntityCount) {
+		auto e = wld.add();
+		wld.add<Position>(e, {float(i), 0.0F, 0.0F});
+		wld.add<Acceleration>(e, {1.0F, 0.0F, 0.0F});
+	}
+
+	const auto phaseA = wld.add();
+	const auto phaseB = wld.add();
+	wld.add(phaseB, {ecs::DependsOn, phaseA});
+
+	uint32_t phaseAHits = 0;
+	uint32_t phaseBHits = 0;
+	wld.system().phase(phaseA).all<Position&>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		CHECK(phaseBHits == EntityCount);
+		phaseAHits += (uint32_t)it.entity_rows().size();
+	});
+	wld.system().phase(phaseB).all<const Acceleration>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		CHECK(phaseAHits == 0);
+		phaseBHits += (uint32_t)it.entity_rows().size();
+	});
+
+	wld.systems_run(phaseB);
+	CHECK(probe.addParallelCalls == 1);
+	CHECK(probe.submitCalls == 1);
+	CHECK(probe.waitCalls == 1);
+	CHECK(probe.delCalls == 1);
+	CHECK(phaseAHits == 0);
+	CHECK(phaseBHits == EntityCount);
+
+	wld.systems_run(phaseA);
+	CHECK(probe.addParallelCalls == 2);
+	CHECK(probe.submitCalls == 2);
+	CHECK(probe.waitCalls == 2);
+	CHECK(probe.delCalls == 2);
+	CHECK(phaseAHits == EntityCount);
+	CHECK(phaseBHits == EntityCount);
+}
+
 TEST_CASE("ECS - System update treats main-thread systems as job barriers") {
 	TestWorld twld;
 	ExternalSchedProbe probe;

@@ -75707,10 +75707,25 @@ namespace gaia {
 			//!
 			//! \warning Parallel systems must not structurally mutate the world while other scheduler jobs are pending unless
 			//! they synchronize externally or opt into main_thread().
+			//! \see systems_run(Entity)
 			//! \see SystemBuilder::mode(QueryExecType)
 			//! \see QueryImpl::can_run_parallel(const QueryImpl&) const
 			//! \see Sched
 			void systems_run();
+
+			//! Runs enabled systems assigned to \a phase.
+			//!
+			//! Only systems attached with SystemBuilder::phase(phase) run. Other phases, descendant
+			//! phases, and unphased systems are not executed. Intra-phase DependsOn order matches
+			//! that phase's slice of systems_run(). Disabled systems and a disabled phase are skipped.
+			//!
+			//! \param phase Phase entity assigned with SystemBuilder::phase(Entity).
+			//! \warning Parallel systems must not structurally mutate the world while other scheduler jobs are pending unless
+			//! they synchronize externally or opt into main_thread().
+			//! \see systems_run()
+			//! \see SystemBuilder::phase(Entity)
+			//! \see SystemBuilder::exec()
+			void systems_run(Entity phase);
 
 			//! Creates a system entity with a default local cached query.
 			//! \return System builder bound to the new system entity.
@@ -83604,13 +83619,14 @@ namespace gaia {
 			//! The phase is represented with existing Gaia relationships: `(ChildOf, phase)` for grouping and enabled-state
 			//! inheritance, plus `(DependsOn, phase)` so the system joins the phase's depth-first postorder path. During
 			//! World::systems_run(), phased systems are batched by phase and phase subtrees run before their DependsOn
-			//! target phase. Explicit DependsOn edges between systems use the same child-before-target postorder inside
-			//! the same phase.
+			//! target phase. World::systems_run(phase) runs only systems assigned to that phase. Explicit DependsOn
+			//! edges between systems use the same child-before-target postorder inside the same phase.
 			//!
 			//! \param phaseEntity Entity representing the phase this system belongs to.
 			//! \return Self reference.
 			//! \warning This appends relationships and does not remove an earlier phase assignment.
 			//! \see World::systems_run()
+			//! \see World::systems_run(Entity)
 			//! \see DependsOn
 			//! \see ChildOf
 			SystemBuilder& phase(Entity phaseEntity) {
@@ -87934,6 +87950,47 @@ namespace gaia {
 				auto& out = *static_cast<cnt::darray<Entity>*>(pCtx);
 				out.push_back(systemEntity);
 			}
+
+			//! Collects enabled systems assigned to \a phase.
+			//! Direct `(ChildOf, phase)` + `(DependsOn, phase)` matches only. Descendant phases are not included.
+			//! \param world World containing the phase and system entities.
+			//! \param phase Phase entity assigned with SystemBuilder::phase().
+			//! \param items Output array receiving scheduling keys for that phase only.
+			inline void
+			collect_phase_system_schedule_items(World& world, Entity phase, cnt::darray<SystemScheduleItem>& items) {
+				world.sources(ChildOf, phase, [&](Entity source) {
+					if (!world.has(source, System))
+						return;
+					if (!world.has(source, Pair(DependsOn, phase)))
+						return;
+					if (!world.enabled(source))
+						return;
+					items.push_back(system_schedule_item(world, source));
+				});
+			}
+
+			//! Runs already-collected system scheduling keys with the systems_run() scheduler path.
+			//! \param world World that owns the systems.
+			//! \param items Ordered scheduling keys to run.
+			inline void run_system_schedule(World& world, const cnt::darray<SystemScheduleItem>& items) {
+				cnt::darray<PendingSystemJob> pending;
+				SystemRunCtx ctx{};
+				ctx.pWorld = &world;
+				ctx.pPending = &pending;
+				ctx.canScheduleSystems = sched_supports_deferred_system_jobs(world_sched(world));
+
+				for (const auto& item: items)
+					run_system_entity_erased(&ctx, item);
+				flush_pending_system_jobs(pending);
+			}
+
+			//! Orders collected scheduling keys and runs them.
+			//! \param world World that owns the systems and scheduler scratch.
+			//! \param scratch Reusable scheduler scratch containing the collected items.
+			inline void order_and_run_system_schedule(World& world, SystemScheduleScratch& scratch) {
+				order_system_schedule_items(world, scratch.items, scratch);
+				run_system_schedule(world, scratch.items);
+			}
 		} // namespace detail
 
 		inline void World::systems_init() {
@@ -87951,17 +88008,24 @@ namespace gaia {
 			collectCtx.pWorld = this;
 			collectCtx.pItems = &items;
 			m_systemsQuery.each_entity_enabled(&collectCtx, detail::collect_system_schedule_item_erased);
-			detail::order_system_schedule_items(*this, items, m_systemScheduleScratch);
+			detail::order_and_run_system_schedule(*this, m_systemScheduleScratch);
+		}
 
-			cnt::darray<detail::PendingSystemJob> pending;
-			detail::SystemRunCtx ctx{};
-			ctx.pWorld = this;
-			ctx.pPending = &pending;
-			ctx.canScheduleSystems = detail::sched_supports_deferred_system_jobs(world_sched(*this));
+		inline void World::systems_run(Entity phase) {
+			if GAIA_UNLIKELY (tearing_down())
+				return;
 
-			for (auto& item: items)
-				detail::run_system_entity_erased(&ctx, item);
-			detail::flush_pending_system_jobs(pending);
+			GAIA_ASSERT(valid(phase));
+			GAIA_ASSERT(!phase.pair());
+			if (!valid(phase) || phase.pair())
+				return;
+			if (!enabled_hierarchy(phase, ChildOf))
+				return;
+
+			auto& items = m_systemScheduleScratch.items;
+			items.clear();
+			detail::collect_phase_system_schedule_items(*this, phase, items);
+			detail::order_and_run_system_schedule(*this, m_systemScheduleScratch);
 		}
 
 		inline void World::systems_done() {

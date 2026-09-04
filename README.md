@@ -3159,6 +3159,17 @@ Letting systems run via **World::update** automatically is the preferred path. G
 
 If an external engine loop calls `w.systems_run()` directly, call `w.frame_cleanup()` and then `w.frame_end()` once per frame. `frame_cleanup()` finalizes deferred deletion and garbage collection without running systems again. `frame_end()` flushes logs and emits the profiler frame marker.
 
+A fixed-step loop can run one phase at a time without collecting every enabled system and without adding or removing a tick component to gate work:
+
+```cpp
+w.systems_run(phaseSim);
+w.systems_run(phaseView);
+w.frame_cleanup();
+w.frame_end();
+```
+
+`World::systems_run(phase)` runs only systems assigned to that phase with `SystemBuilder::phase(phase)`. It does not run other phases, descendant phases, or unphased systems. Intra-phase `DependsOn` order matches that phase's slice of a full `systems_run()` pass.
+
 ### System dependencies
 `World::update()` uses a clear rule for system `DependsOn`:
 

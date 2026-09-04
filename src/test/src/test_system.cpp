@@ -1101,6 +1101,169 @@ TEST_CASE("System - phase assignment can be moved after warm update") {
 	}
 }
 
+TEST_CASE("System - systems_run(phase) runs only that phase") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	const auto phaseA = wld.add();
+	const auto phaseB = wld.add();
+	wld.add(phaseA, {ecs::DependsOn, phaseB});
+
+	auto sysA = wld.system().phase(phaseA).all<Position>().on_each([&order](Position) {
+		order.push_back('A');
+	});
+	auto sysC = wld.system().phase(phaseA).all<Position>().on_each([&order](Position) {
+		order.push_back('C');
+	});
+	wld.system().phase(phaseB).all<Position>().on_each([&order](Position) {
+		order.push_back('B');
+	});
+	wld.system().all<Position>().on_each([&order](Position) {
+		order.push_back('U');
+	});
+	wld.add(sysC.entity(), {ecs::DependsOn, sysA.entity()});
+
+	const auto phaseNested = wld.add();
+	wld.child(phaseNested, phaseA);
+	wld.system().phase(phaseNested).all<Position>().on_each([&order](Position) {
+		order.push_back('N');
+	});
+
+	const auto orphan = wld.add();
+	wld.child(orphan, phaseA);
+
+	wld.systems_run(phaseA);
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'C');
+		CHECK(order[1] == 'A');
+	}
+
+	order.clear();
+	wld.systems_run(phaseNested);
+	CHECK(order.size() == 1);
+	if (order.size() == 1)
+		CHECK(order[0] == 'N');
+
+	order.clear();
+	wld.systems_run(phaseB);
+	CHECK(order.size() == 1);
+	if (order.size() == 1)
+		CHECK(order[0] == 'B');
+
+	order.clear();
+	wld.systems_run();
+	CHECK(order.size() == 5);
+	if (order.size() == 5) {
+		CHECK(order[0] == 'C');
+		CHECK(order[1] == 'A');
+		CHECK(order[2] == 'B');
+		CHECK(order[3] == 'N');
+		CHECK(order[4] == 'U');
+	}
+}
+
+TEST_CASE("System - sequential systems_run(phase) commits commands for a later phase") {
+	struct PhaseLocalSource {};
+	struct PhaseLocalResult {};
+
+	TestWorld twld;
+	(void)wld.add<PhaseLocalSource>();
+	(void)wld.add<PhaseLocalResult>();
+
+	const auto producerPhase = wld.add();
+	const auto consumerPhase = wld.add();
+	wld.add(producerPhase, {ecs::DependsOn, consumerPhase});
+
+	const auto e = wld.add();
+	wld.add<PhaseLocalSource>(e);
+
+	uint32_t producerHits = 0;
+	uint32_t consumerHits = 0;
+
+	wld.system().phase(producerPhase).all<PhaseLocalSource>().on_each([&](ecs::Iter& it) {
+		auto& cb = it.cmd_buffer_st();
+		auto ev = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			cb.add<PhaseLocalResult>(ev[i]);
+			++producerHits;
+		}
+	});
+
+	wld.system().phase(consumerPhase).all<PhaseLocalResult>().on_each([&](ecs::Iter& it) {
+		consumerHits += it.size();
+	});
+
+	wld.systems_run(producerPhase);
+	CHECK(producerHits == 1);
+	CHECK(consumerHits == 0);
+	CHECK(wld.has<PhaseLocalResult>(e));
+
+	wld.systems_run(consumerPhase);
+	CHECK(consumerHits == 1);
+}
+
+TEST_CASE("System - systems_run(phase) skips disabled phase and disabled systems") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	const auto phase = wld.add();
+	auto sysA = wld.system().phase(phase).all<Position>().on_each([&order](Position) {
+		order.push_back('A');
+	});
+	wld.system().phase(phase).all<Position>().on_each([&order](Position) {
+		order.push_back('B');
+	});
+
+	wld.enable(sysA.entity(), false);
+	wld.systems_run(phase);
+	CHECK(order.size() == 1);
+	if (order.size() == 1)
+		CHECK(order[0] == 'B');
+
+	wld.enable(sysA.entity(), true);
+	wld.enable(phase, false);
+	order.clear();
+	wld.systems_run(phase);
+	CHECK(order.empty());
+}
+
+TEST_CASE("System - systems_run(phase) collects a system added after a warm run") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	const auto phase = wld.add();
+	wld.system().phase(phase).all<Position>().on_each([&order](Position) {
+		order.push_back('A');
+	});
+
+	wld.systems_run(phase);
+	CHECK(order.size() == 1);
+	if (order.size() == 1)
+		CHECK(order[0] == 'A');
+
+	wld.system().phase(phase).all<Position>().on_each([&order](Position) {
+		order.push_back('B');
+	});
+	order.clear();
+	wld.systems_run(phase);
+
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'A');
+		CHECK(order[1] == 'B');
+	}
+}
+
 TEST_CASE("System - shrinking a large schedule clears stale scratch rows") {
 	cnt::darr<uint32_t> order;
 	cnt::darr<ecs::Entity> systems;
