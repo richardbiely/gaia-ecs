@@ -1043,6 +1043,34 @@ TEST_CASE("Command buffer table payload replay addresses exact pair records") {
 	CHECK_FALSE(wld.has<Position>(relation));
 }
 
+TEST_CASE("Command buffer sparse payload replay addresses exact pair records") {
+	SparseTestWorld twld;
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto owner = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(owner, pair);
+
+	ecs::CommandBufferST commandBuffer(wld);
+	commandBuffer.add<PositionSparse>(pair, PositionSparse{1.0f, 2.0f, 3.0f});
+	commandBuffer.commit();
+	CHECK(wld.has<PositionSparse>(pair));
+	CHECK_FALSE(wld.has<PositionSparse>(relation));
+	CHECK(wld.get<PositionSparse>(pair).x == doctest::Approx(1.0f));
+
+	commandBuffer.set<PositionSparse>(pair, PositionSparse{4.0f, 5.0f, 6.0f});
+	commandBuffer.commit();
+	CHECK(wld.get<PositionSparse>(pair).x == doctest::Approx(4.0f));
+	CHECK(wld.get<PositionSparse>(pair).y == doctest::Approx(5.0f));
+	CHECK(wld.get<PositionSparse>(pair).z == doctest::Approx(6.0f));
+	CHECK_FALSE(wld.has<PositionSparse>(relation));
+
+	commandBuffer.del<PositionSparse>(pair);
+	commandBuffer.commit();
+	CHECK_FALSE(wld.has<PositionSparse>(pair));
+	CHECK_FALSE(wld.has<PositionSparse>(relation));
+}
+
 TEST_CASE("Command buffer delays entity deletion until relationship replay finishes") {
 	auto run = [](bool targetBeforeSource) {
 		TestWorld twld;

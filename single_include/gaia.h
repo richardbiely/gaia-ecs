@@ -66991,6 +66991,26 @@ namespace gaia {
 				}
 			};
 
+			//! Returns the EntityContainer for an ordinary entity or an exact pair.
+			//! Ordinary entities use the direct entity array. Exact pair records use fetch().
+			//! \param entity Entity or exact pair.
+			//! \return Mutable EntityContainer.
+			GAIA_NODISCARD EntityContainer& cont(Entity entity) {
+				if (entity.pair())
+					return fetch(entity);
+				return m_recs.entities[entity.id()];
+			}
+
+			//! Returns the EntityContainer for an ordinary entity or an exact pair.
+			//! Ordinary entities use the direct entity array. Exact pair records use fetch().
+			//! \param entity Entity or exact pair.
+			//! \return Const EntityContainer.
+			GAIA_NODISCARD const EntityContainer& cont(Entity entity) const {
+				if (entity.pair())
+					return fetch(entity);
+				return m_recs.entities[entity.id()];
+			}
+
 			//! Returns mutable storage for a direct typed component, adding it when absent.
 			//! \tparam T Component API type.
 			//! \param entity Entity owning the component.
@@ -67003,7 +67023,7 @@ namespace gaia {
 				if constexpr (uses_ct_sparse_storage<FT>())
 					return sparse_component_store_mut<FT>(item.entity).mut(entity);
 
-				const auto& ec = m_recs.entities[entity.id()];
+				const auto& ec = cont(entity);
 				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
 					return ec.pChunk->template set<T>(ec.row);
 				else
@@ -67067,7 +67087,7 @@ namespace gaia {
 						return sparse_component_mut_value<FT>(object, entity);
 				}
 
-				const auto& ec = m_recs.entities[entity.id()];
+				const auto& ec = cont(entity);
 				return ec.pChunk->template set<T>(ec.row, object);
 			}
 
@@ -70827,7 +70847,7 @@ namespace gaia {
 			//! \warning It is expected both \a entity and the entities forming the relationship are valid.
 			//!          Undefined behavior otherwise.
 			void add(Entity entity, Pair pair) {
-				auto& ec = m_recs.entities[entity.id()];
+				auto& ec = cont(entity);
 				EntityBuilder builder(*this, entity, ec);
 				builder.add(pair);
 				builder.commit();
@@ -70946,7 +70966,7 @@ namespace gaia {
 				builder.add_inter_init(object);
 				builder.commit();
 
-				const auto& ec = m_recs.entities[entity.id()];
+				const auto& ec = cont(entity);
 				// Make sure the idx is 0 for unique payload storage.
 				const auto idx = uint16_t(ec.row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
 				ComponentSetter{*this, ec.pChunk, entity, idx}.sset<T>(GAIA_FWD(value));
@@ -73306,7 +73326,7 @@ namespace gaia {
 			GAIA_NODISCARD ComponentSetter acc_mut(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& ec = m_recs.entities[entity.id()];
+				const auto& ec = cont(entity);
 				return ComponentSetter{*this, ec.pChunk, entity, ec.row};
 			}
 
@@ -73751,7 +73771,7 @@ namespace gaia {
 			ComponentGetter acc(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& ec = m_recs.entities[entity.id()];
+				const auto& ec = cont(entity);
 				return ComponentGetter{*this, ec.pChunk, entity, ec.row};
 			}
 
@@ -73792,12 +73812,15 @@ namespace gaia {
 					GAIA_ASSERT(owner != EntityBad);
 					const auto* pStore = sparse_component_store<FT>(compEntity);
 					GAIA_ASSERT(pStore != nullptr);
+					if (owner.pair())
+						return pStore->get(owner);
 					return pStore->get_entity(owner);
 				}
 
 				const auto owner = id_owner_inter(entity, compEntity);
 				GAIA_ASSERT(owner != EntityBad);
-				return acc(owner).template get<T>();
+				const auto& ec = cont(owner);
+				return ComponentGetter{*this, ec.pChunk, owner, ec.row}.template get<T>();
 			}
 
 			//! Returns the value stored in component `T` on an exact pair record.
@@ -73845,13 +73868,16 @@ namespace gaia {
 					if (can_use_sparse_component_storage<FT>(object)) {
 						const auto owner = id_owner_inter(entity, object);
 						GAIA_ASSERT(owner != EntityBad);
+						if (owner.pair())
+							return sparse_component_get_value<FT>(object, owner);
 						return sparse_component_get_entity_value<FT>(object, owner);
 					}
 				}
 
 				const auto owner = id_owner_inter(entity, object);
 				GAIA_ASSERT(owner != EntityBad);
-				return acc(owner).template get<T>(object);
+				const auto& ec = cont(owner);
+				return ComponentGetter{*this, ec.pChunk, owner, ec.row}.template get<T>(object);
 			}
 
 			//! Returns a runtime-selected component value from an exact pair record.

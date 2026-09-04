@@ -4304,6 +4304,11 @@ TEST_CASE("Exact pair records - sparse payload identity and deletion") {
 	query.each([&](ecs::Entity entity) {
 		foundRelation |= entity == relation;
 		foundPair |= entity == pair;
+		const auto& value = wld.get<PositionSparse>(entity);
+		if (entity == relation)
+			CHECK(value.x == doctest::Approx(1.0f));
+		else if (entity == pair)
+			CHECK(value.x == doctest::Approx(4.0f));
 	});
 	CHECK(foundRelation);
 	CHECK(foundPair);
@@ -4506,6 +4511,30 @@ TEST_CASE("Exact pair records - hierarchy enable state") {
 	wld.enable(grandparent, true);
 
 	CHECK(wld.enabled_hierarchy(pair, ecs::ChildOf));
+}
+
+TEST_CASE("Exact pair records - Entity-typed pair sources receive relationships") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto parent = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(source, pair);
+
+	const ecs::Entity pairEntity = pair;
+	wld.child(pairEntity, parent);
+	CHECK(wld.is_child(pair, parent));
+	CHECK_FALSE(wld.is_child(relation, parent));
+	CHECK(wld.has(pair, ecs::Pair(ecs::ChildOf, parent)));
+	CHECK_FALSE(wld.has(relation, ecs::Pair(ecs::ChildOf, parent)));
+
+	wld.add<Position>(pairEntity, {1.0f, 2.0f, 3.0f});
+	CHECK(wld.get<Position>(pairEntity).x == doctest::Approx(1.0f));
+	CHECK_FALSE(wld.has<Position>(relation));
+	wld.acc_mut(pairEntity).sset<Position>({4.0f, 5.0f, 6.0f});
+	CHECK(wld.get<Position>(pair).z == doctest::Approx(6.0f));
 }
 
 TEST_CASE("Exact pair records - archetype-based creation") {
