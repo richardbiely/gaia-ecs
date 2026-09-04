@@ -68,9 +68,9 @@ namespace gaia {
 
 			Chunk(
 					const World& wld, const ComponentCache& cc, //
-					uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, //
+					uint32_t chunkIndex, uint16_t capacity, //
 					uint32_t& worldVersion): //
-					m_header(wld, cc, chunkIndex, capacity, genEntities, worldVersion) {
+					m_header(wld, cc, chunkIndex, capacity, worldVersion) {
 				// Chunk data area consist of memory offsets, entities, and component data. Normally,  we would need
 				// to in-place construct all of it manually.
 				// However, the memory offsets and entities are all trivial types and components are initialized via
@@ -127,17 +127,8 @@ namespace gaia {
 						if (!component_uses_table_storage(rec.comp))
 							continue;
 
-						const auto e = m_records.pCompEntities[i];
-						if (e.kind() == EntityKind::EK_Gen) {
-							m_header.hasAnyCustomGenCtor |= (rec.pItem->func_ctor != nullptr);
-							m_header.hasAnyCustomGenDtor |= (rec.pItem->func_dtor != nullptr);
-						} else {
-							m_header.hasAnyCustomUniCtor |= (rec.pItem->func_ctor != nullptr);
-							m_header.hasAnyCustomUniDtor |= (rec.pItem->func_dtor != nullptr);
-
-							// We construct unique components right away if possible
-							call_ctor(0, i, *rec.pItem);
-						}
+						m_header.hasAnyCustomCtor |= (rec.pItem->func_ctor != nullptr);
+						m_header.hasAnyCustomDtor |= (rec.pItem->func_dtor != nullptr);
 					}
 				}
 
@@ -182,37 +173,25 @@ namespace gaia {
 					using U = typename component_type_t<TT>::Type;
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
-					constexpr auto kind = entity_kind_v<TT>;
-
 					if constexpr (mem::is_soa_layout_v<U>) {
 						GAIA_ASSERT(from == 0);
 						GAIA_ASSERT(to == capacity());
 						return {comp_ptr(compIdx), to};
-					} else if constexpr (kind == EntityKind::EK_Gen) {
-						GAIA_ASSERT(to <= m_header.count);
-						return {comp_ptr(compIdx, from), to - from};
 					} else {
 						GAIA_ASSERT(to <= m_header.count);
-						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
-						return {comp_ptr(compIdx), 1};
+						return {comp_ptr(compIdx, from), to - from};
 					}
 				} else {
 					using U = typename component_type_t<T>::Type;
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
-					constexpr auto kind = entity_kind_v<T>;
-
 					if constexpr (mem::is_soa_layout_v<U>) {
 						GAIA_ASSERT(from == 0);
 						GAIA_ASSERT(to == capacity());
 						return {comp_ptr(compIdx), to};
-					} else if constexpr (kind == EntityKind::EK_Gen) {
-						GAIA_ASSERT(to <= m_header.count);
-						return {comp_ptr(compIdx, from), to - from};
 					} else {
 						GAIA_ASSERT(to <= m_header.count);
-						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
-						return {comp_ptr(compIdx), 1};
+						return {comp_ptr(compIdx, from), to - from};
 					}
 				}
 			}
@@ -234,10 +213,6 @@ namespace gaia {
 					return view_inter_idx<T>(comp_idx((Entity)Pair(rel, tgt)), from, to);
 				} else {
 					const auto comp = m_header.cc->get<T>().entity;
-#if GAIA_ASSERT_ENABLED
-					constexpr auto kind = entity_kind_v<T>;
-					GAIA_ASSERT(comp.kind() == kind);
-#endif
 					return view_inter_idx<T>(comp_idx(comp), from, to);
 				}
 			}
@@ -260,8 +235,6 @@ namespace gaia {
 					using U = typename component_type_t<TT>::Type;
 					static_assert(!std::is_empty_v<U>, "view_mut can't be used to modify tag components");
 
-					constexpr auto kind = entity_kind_v<TT>;
-
 					// Update version number if necessary so we know RW access was used on the chunk
 					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
@@ -277,18 +250,13 @@ namespace gaia {
 						GAIA_ASSERT(from == 0);
 						GAIA_ASSERT(to == capacity());
 						return {comp_ptr_mut(compIdx), to};
-					} else if constexpr (kind == EntityKind::EK_Gen) {
-						GAIA_ASSERT(to <= m_header.count);
-						return {comp_ptr_mut(compIdx, from), to - from};
 					} else {
 						GAIA_ASSERT(to <= m_header.count);
-						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
-						return {comp_ptr_mut(compIdx), 1};
+						return {comp_ptr_mut(compIdx, from), to - from};
 					}
 				} else {
 					using U = typename component_type_t<T>::Type;
 					static_assert(!std::is_empty_v<U>, "view_mut can't be used to modify tag components");
-					constexpr auto kind = entity_kind_v<T>;
 
 					// Update version number if necessary so we know RW access was used on the chunk
 					if constexpr (WorldVersionUpdateWanted) {
@@ -305,13 +273,9 @@ namespace gaia {
 						GAIA_ASSERT(from == 0);
 						GAIA_ASSERT(to == capacity());
 						return {comp_ptr_mut(compIdx), to};
-					} else if constexpr (kind == EntityKind::EK_Gen) {
-						GAIA_ASSERT(to <= m_header.count);
-						return {comp_ptr_mut(compIdx, from), to - from};
 					} else {
 						GAIA_ASSERT(to <= m_header.count);
-						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
-						return {comp_ptr_mut(compIdx), 1};
+						return {comp_ptr_mut(compIdx, from), to - from};
 					}
 				}
 			}
@@ -325,10 +289,6 @@ namespace gaia {
 					return view_mut_inter_idx<T, WorldVersionUpdateWanted>(comp_idx((Entity)Pair(rel, tgt)), from, to);
 				} else {
 					const auto comp = m_header.cc->get<T>().entity;
-#if GAIA_ASSERT_ENABLED
-					constexpr auto kind = entity_kind_v<T>;
-					GAIA_ASSERT(comp.kind() == kind);
-#endif
 					return view_mut_inter_idx<T, WorldVersionUpdateWanted>(comp_idx(comp), from, to);
 				}
 			}
@@ -403,17 +363,10 @@ namespace gaia {
 				GAIA_ASSERT(row < m_header.count);
 				if constexpr (mem::is_soa_layout_v<U>)
 					return view_raw<T>(comp_ptr(compIdx), capacity())[row];
-				else if constexpr (actual_type_t<T>::Kind == EntityKind::EK_Gen) {
-					if constexpr (sizeof(RetValueType) <= 8)
-						return view_raw<T>(comp_ptr(compIdx, row), 1)[0];
-					else
-						return (const U&)view_raw<T>(comp_ptr(compIdx, row), 1)[0];
-				} else {
-					if constexpr (sizeof(RetValueType) <= 8)
-						return view_raw<T>(comp_ptr(compIdx), 1)[0];
-					else
-						return (const U&)view_raw<T>(comp_ptr(compIdx), 1)[0];
-				}
+				else if constexpr (sizeof(RetValueType) <= 8)
+					return view_raw<T>(comp_ptr(compIdx, row), 1)[0];
+				else
+					return (const U&)view_raw<T>(comp_ptr(compIdx, row), 1)[0];
 			}
 
 			template <typename T, bool WorldVersionUpdateWanted>
@@ -423,10 +376,8 @@ namespace gaia {
 				GAIA_ASSERT(row < m_header.capacity);
 				if constexpr (mem::is_soa_layout_v<U>)
 					return view_mut_raw<T>(comp_ptr_mut_gen<WorldVersionUpdateWanted>(compIdx, 0), capacity())[row];
-				else if constexpr (actual_type_t<T>::Kind == EntityKind::EK_Gen)
-					return view_mut_raw<T>(comp_ptr_mut_gen<WorldVersionUpdateWanted>(compIdx, row), 1)[0];
 				else
-					return view_mut_raw<T>(comp_ptr_mut_gen<WorldVersionUpdateWanted>(compIdx, 0), 1)[0];
+					return view_mut_raw<T>(comp_ptr_mut_gen<WorldVersionUpdateWanted>(compIdx, row), 1)[0];
 			}
 
 		public:
@@ -478,7 +429,7 @@ namespace gaia {
 			//! \return Newly allocated chunk
 			static Chunk* create(
 					const World& wld, const ComponentCache& cc, //
-					uint32_t chunkIndex, uint16_t capacity, uint8_t cntEntities, uint8_t genEntities, //
+					uint32_t chunkIndex, uint16_t capacity, uint8_t cntEntities, //
 					uint16_t dataBytes, uint32_t& worldVersion,
 					// data offsets
 					const ChunkDataOffsets& offsets,
@@ -491,14 +442,14 @@ namespace gaia {
 				const auto totalBytes = chunk_total_bytes(dataBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				(void)new (pChunk) Chunk(wld, cc, chunkIndex, capacity, genEntities, worldVersion);
+				(void)new (pChunk) Chunk(wld, cc, chunkIndex, capacity, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto sizeType = mem_block_size_type(totalBytes);
 				const auto allocSize = mem_block_size(sizeType);
 				auto* pChunkMem = mem::AllocHelper::alloc<uint8_t>(allocSize);
 				std::memset(pChunkMem, 0, allocSize);
-				auto* pChunk = new (pChunkMem) Chunk(wld, cc, chunkIndex, capacity, genEntities, worldVersion);
+				auto* pChunk = new (pChunkMem) Chunk(wld, cc, chunkIndex, capacity, worldVersion);
 #endif
 
 				pChunk->init((uint32_t)cntEntities, ids, pItems, offsets, compOffs);
@@ -590,7 +541,7 @@ namespace gaia {
 				}
 
 				// Load component data. Call constructors first as necessary.
-				call_gen_ctors(prevCount, cnt);
+				call_ctors(prevCount, cnt);
 				{
 					for (const auto& rec: comp_rec_view()) {
 						// Skip the component if there's no size associated with it
@@ -756,9 +707,6 @@ namespace gaia {
 					using U = typename component_type_t<TT>::Type;
 					static_assert(!std::is_empty_v<U>, "mut can't be used to modify tag components");
 
-#if GAIA_ASSERT_ENABLED
-					// constexpr auto kind = entity_kind_v<TT>;
-#endif
 					const auto rel = m_header.cc->get<typename T::rel>().entity;
 					const auto tgt = m_header.cc->get<typename T::tgt>().entity;
 					const auto compIdx = comp_idx((Entity)Pair(rel, tgt));
@@ -777,11 +725,7 @@ namespace gaia {
 					using U = typename component_type_t<T>::Type;
 					static_assert(!std::is_empty_v<U>, "mut can't be used to modify tag components");
 
-#if GAIA_ASSERT_ENABLED
-					constexpr auto kind = entity_kind_v<T>;
-#endif
 					const auto comp = m_header.cc->get<T>().entity;
-					GAIA_ASSERT(comp.kind() == kind);
 					const auto compIdx = comp_idx(comp);
 
 					// Update version number if necessary so we know RW access was used on the chunk
@@ -941,9 +885,8 @@ namespace gaia {
 
 				auto srcRecs = pSrcChunk->comp_rec_view();
 
-				// Copy generic component data from reference entity to our new entity.
-				// Unique components do not change place in the chunk so there is no need to move them.
-				GAIA_FOR(pSrcChunk->m_header.genEntities) {
+				// Copy component data from reference entity to our new entity.
+				GAIA_FOR(pSrcChunk->m_header.cntEntities) {
 					const auto& rec = srcRecs[i];
 					if (!component_uses_table_storage(rec.comp))
 						continue;
@@ -973,9 +916,8 @@ namespace gaia {
 
 				auto srcRecs = pSrcChunk->comp_rec_view();
 
-				// Copy generic component data from the reference entity to all newly allocated rows.
-				// Unique components do not change place in the chunk so there is no need to move them.
-				GAIA_FOR(pSrcChunk->m_header.genEntities) {
+				// Copy component data from the reference entity to all newly allocated rows.
+				GAIA_FOR(pSrcChunk->m_header.cntEntities) {
 					const auto& rec = srcRecs[i];
 					if (!component_uses_table_storage(rec.comp))
 						continue;
@@ -1009,7 +951,7 @@ namespace gaia {
 
 				uint32_t i = 0;
 				uint32_t j = 0;
-				while (i < pSrcChunk->m_header.genEntities && j < pDstChunk->m_header.genEntities) {
+				while (i < pSrcChunk->m_header.cntEntities && j < pDstChunk->m_header.cntEntities) {
 					const auto oldId = srcIds[i];
 					const auto newId = dstIds[j];
 
@@ -1039,7 +981,7 @@ namespace gaia {
 					}
 				}
 
-				for (; j < pDstChunk->m_header.genEntities; ++j) {
+				for (; j < pDstChunk->m_header.cntEntities; ++j) {
 					const auto& rec = dstRecs[j];
 					if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
 						auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
@@ -1059,9 +1001,8 @@ namespace gaia {
 				auto* pSrcChunk = ec.pChunk;
 				auto srcRecs = pSrcChunk->comp_rec_view();
 
-				// Copy generic component data from reference entity to our new entity.
-				// Unique components do not change place in the chunk so there is no need to move them.
-				GAIA_FOR(pSrcChunk->m_header.genEntities) {
+				// Copy component data from reference entity to our new entity.
+				GAIA_FOR(pSrcChunk->m_header.cntEntities) {
 					const auto& rec = srcRecs[i];
 					if (!component_uses_table_storage(rec.comp))
 						continue;
@@ -1092,11 +1033,10 @@ namespace gaia {
 				// Find intersection of the two component lists.
 				// Arrays are sorted so we can do linear intersection lookup.
 				// Call constructor on each match.
-				// Unique components do not change place in the chunk so there is no need to move them.
 				{
 					uint32_t i = 0;
 					uint32_t j = 0;
-					while (i < pSrcChunk->m_header.genEntities && j < pDstChunk->m_header.genEntities) {
+					while (i < pSrcChunk->m_header.cntEntities && j < pDstChunk->m_header.cntEntities) {
 						const auto oldId = srcIds[i];
 						const auto newId = dstIds[j];
 
@@ -1124,8 +1064,8 @@ namespace gaia {
 						}
 					}
 
-					// Initialize the rest of the components if they are generic.
-					for (; j < pDstChunk->m_header.genEntities; ++j) {
+					// Initialize remaining destination columns.
+					for (; j < pDstChunk->m_header.cntEntities; ++j) {
 						const auto& rec = dstRecs[j];
 						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
 							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
@@ -1155,11 +1095,10 @@ namespace gaia {
 				// Find intersection of the two component lists.
 				// Arrays are sorted so we can do linear intersection lookup.
 				// Call constructor on each match.
-				// Unique components do not change place in the chunk so there is no need to move them.
 				{
 					uint32_t i = 0;
 					uint32_t j = 0;
-					while (i < pSrcChunk->m_header.genEntities && j < pDstChunk->m_header.genEntities) {
+					while (i < pSrcChunk->m_header.cntEntities && j < pDstChunk->m_header.cntEntities) {
 						const auto oldId = srcIds[i];
 						const auto newId = dstIds[j];
 
@@ -1187,8 +1126,8 @@ namespace gaia {
 						}
 					}
 
-					// Initialize the rest of the components if they are generic.
-					for (; j < pDstChunk->m_header.genEntities; ++j) {
+					// Initialize remaining destination columns.
+					for (; j < pDstChunk->m_header.cntEntities; ++j) {
 						const auto& rec = dstRecs[j];
 						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
 							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
@@ -1233,7 +1172,7 @@ namespace gaia {
 
 					// Move component data from entityB to entityA
 					auto recView = comp_rec_view();
-					GAIA_FOR(m_header.genEntities) {
+					GAIA_FOR(m_header.cntEntities) {
 						const auto& rec = recView[i];
 						if (!component_uses_table_storage(rec.comp))
 							continue;
@@ -1248,10 +1187,10 @@ namespace gaia {
 					// Entity has been replaced with the last one in our chunk. Update its container record.
 					ecB.row = rowA;
 					ecB.pEntity = &ev[rowA];
-				} else if (m_header.hasAnyCustomGenDtor) {
+				} else if (m_header.hasAnyCustomDtor) {
 					// This is the last entity in the chunk so simply destroy its data
 					auto recView = comp_rec_view();
-					GAIA_FOR(m_header.genEntities) {
+					GAIA_FOR(m_header.cntEntities) {
 						const auto& rec = recView[i];
 						if (!component_uses_table_storage(rec.comp))
 							continue;
@@ -1321,7 +1260,7 @@ namespace gaia {
 
 				// Swap component data
 				auto recView = comp_rec_view();
-				GAIA_FOR(m_header.genEntities) {
+				GAIA_FOR(m_header.cntEntities) {
 					const auto& rec = recView[i];
 					if (!component_uses_table_storage(rec.comp))
 						continue;
@@ -1366,7 +1305,7 @@ namespace gaia {
 
 				// Swap component data
 				auto recViewA = pChunkA->comp_rec_view();
-				GAIA_FOR(pChunkA->m_header.genEntities) {
+				GAIA_FOR(pChunkA->m_header.cntEntities) {
 					const auto& recA = recViewA[i];
 					if (!component_uses_table_storage(recA.comp))
 						continue;
@@ -1465,17 +1404,17 @@ namespace gaia {
 				item.func_ctor(pSrc, 1);
 			}
 
-			//! Invokes registered constructors for all generic columns at a row range.
+			//! Invokes registered constructors for component columns at a row range.
 			//! \param entIdx First entity row to construct.
 			//! \param entCnt Number of entity rows to construct.
-			void call_gen_ctors(uint32_t entIdx, uint32_t entCnt) {
-				if (!m_header.hasAnyCustomGenCtor)
+			void call_ctors(uint32_t entIdx, uint32_t entCnt) {
+				if (!m_header.hasAnyCustomCtor)
 					return;
 
-				GAIA_PROF_SCOPE(Chunk::call_gen_ctors);
+				GAIA_PROF_SCOPE(Chunk::call_ctors);
 
 				auto recs = comp_rec_view();
-				GAIA_FOR(m_header.genEntities) {
+				GAIA_FOR(m_header.cntEntities) {
 					const auto& rec = recs[i];
 					if (!component_uses_table_storage(rec.comp))
 						continue;
@@ -1491,12 +1430,11 @@ namespace gaia {
 
 			//! Invokes registered destructors for all custom component instances before release.
 			void call_all_dtors() {
-				if (!m_header.hasAnyCustomGenDtor && !m_header.hasAnyCustomUniCtor)
+				if (!m_header.hasAnyCustomDtor)
 					return;
 
 				GAIA_PROF_SCOPE(Chunk::call_all_dtors);
 
-				auto ids = ids_view();
 				auto recs = comp_rec_view();
 				const auto recs_cnt = recs.size();
 				GAIA_FOR(recs_cnt) {
@@ -1509,8 +1447,7 @@ namespace gaia {
 						continue;
 
 					auto* pSrc = (void*)comp_ptr_mut(i, 0);
-					const auto e = ids[i];
-					const auto cnt = (e.kind() == EntityKind::EK_Gen) ? m_header.count : (uint16_t)1;
+					const auto cnt = m_header.count;
 					pItem->func_dtor(pSrc, cnt);
 				}
 			};
@@ -1546,7 +1483,7 @@ namespace gaia {
 			// Set component data
 			//----------------------------------------------------------------------
 
-			//! Sets the value of the unique component \a T on \a row in the chunk.
+			//! Sets the value of component \a T on \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
@@ -1554,10 +1491,6 @@ namespace gaia {
 			template <typename T>
 			decltype(auto) set(uint16_t row) {
 				verify_comp<T>();
-
-				GAIA_ASSERT2(
-						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
-						"Set providing a row can only be used with generic components");
 
 				// Update the world version
 				::gaia::ecs::update_version(m_header.worldVersion);
@@ -1567,7 +1500,7 @@ namespace gaia {
 				return view_mut<T>()[row];
 			}
 
-			//! Sets the value of a generic component using a pre-resolved component column.
+			//! Sets the value of a component using a pre-resolved component column.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \param compIdx Pre-resolved component column index
@@ -1575,10 +1508,6 @@ namespace gaia {
 			template <typename T>
 			decltype(auto) set_idx(uint16_t row, uint32_t compIdx) {
 				verify_comp<T>();
-
-				GAIA_ASSERT2(
-						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
-						"Set providing a row can only be used with generic components");
 
 				// Update the world version
 				::gaia::ecs::update_version(m_header.worldVersion);
@@ -1588,25 +1517,7 @@ namespace gaia {
 				return comp_mut_idx<T, true>(row, compIdx);
 			}
 
-			//! Sets the value of a unique component using a pre-resolved component column.
-			//! \tparam T Component or pair
-			//! \param compIdx Pre-resolved component column index
-			//! \return Mutable reference to the component value.
-			template <typename T>
-			decltype(auto) set_idx(uint32_t compIdx) {
-				verify_comp<T>();
-				static_assert(
-						entity_kind_v<T> != EntityKind::EK_Gen,
-						"Set not providing a row can only be used with non-generic components");
-
-				// Update the world version
-				::gaia::ecs::update_version(m_header.worldVersion);
-
-				world_notify_on_set(*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx], *this, 0, 1);
-				return comp_mut_idx<T, true>(0, compIdx);
-			}
-
-			//! Sets the value of a generic entity \a type at the position \a row in the chunk.
+			//! Sets the value of component \a type at the position \a row in the chunk.
 			//! \param row Row of entity in the chunk
 			//! \param type Component/entity/pair
 			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
@@ -1614,11 +1525,7 @@ namespace gaia {
 			template <typename T>
 			decltype(auto) set(uint16_t row, Entity type) {
 				const uint32_t compIdx = comp_idx(type);
-				GAIA_ASSERT2(
-						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
-						"Set providing a row can only be used with generic components");
 				GAIA_ASSERT(m_records.pRecords[compIdx].pItem != nullptr);
-				GAIA_ASSERT(m_records.pRecords[compIdx].pItem->entity.kind() == actual_type_t<T>::Kind);
 
 				// Update the world version
 				::gaia::ecs::update_version(m_header.worldVersion);
@@ -1628,7 +1535,7 @@ namespace gaia {
 				return comp_mut_idx<T, true>(row, compIdx);
 			}
 
-			//! Sets the value of the unique component \a T on \a row in the chunk.
+			//! Sets the value of component \a T on \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
@@ -1636,42 +1543,21 @@ namespace gaia {
 			//! \return Mutable reference to the component value.
 			template <typename T>
 			decltype(auto) sset(uint16_t row) {
-				GAIA_ASSERT2(
-						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
-						"Set providing a row can only be used with generic components");
-
 				GAIA_ASSERT(row < m_header.capacity);
 				return sview_mut<T>()[row];
 			}
 
-			//! Sets the value of a generic component using a pre-resolved component column.
+			//! Sets the value of a component using a pre-resolved component column.
 			//! \warning World version is not updated so Query filters will not be able to catch this change.
 			//! \return Mutable reference to the component value.
 			template <typename T>
 			decltype(auto) sset_idx(uint16_t row, uint32_t compIdx) {
 				verify_comp<T>();
 
-				GAIA_ASSERT2(
-						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
-						"Set providing a row can only be used with generic components");
-
 				return comp_mut_idx<T, false>(row, compIdx);
 			}
 
-			//! Sets the value of a unique component using a pre-resolved component column.
-			//! \warning World version is not updated so Query filters will not be able to catch this change.
-			//! \return Mutable reference to the component value.
-			template <typename T>
-			decltype(auto) sset_idx(uint32_t compIdx) {
-				verify_comp<T>();
-				static_assert(
-						entity_kind_v<T> != EntityKind::EK_Gen,
-						"SSet not providing a row can only be used with non-generic components");
-
-				return comp_mut_idx<T, false>(0, compIdx);
-			}
-
-			//! Sets the value of a generic entity \a type at the position \a row in the chunk.
+			//! Sets the value of component \a type at the position \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \param type Component/entity/pair
@@ -1683,11 +1569,7 @@ namespace gaia {
 				static_assert(core::is_raw_v<T>);
 
 				const uint32_t compIdx = comp_idx(type);
-				GAIA_ASSERT2(
-						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
-						"Set providing a row can only be used with generic components");
 				GAIA_ASSERT(m_records.pRecords[compIdx].pItem != nullptr);
-				GAIA_ASSERT(m_records.pRecords[compIdx].pItem->entity.kind() == actual_type_t<T>::Kind);
 
 				GAIA_ASSERT(row < m_header.capacity);
 				return comp_mut_idx<T, false>(row, compIdx);
@@ -1697,7 +1579,7 @@ namespace gaia {
 			// Read component data
 			//----------------------------------------------------------------------
 
-			//! Returns the value stored in the generic component \a T on \a row in the chunk.
+			//! Returns the value stored in component \a T on \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \warning It is expected the \a row is valid. Undefined behavior otherwise.
@@ -1705,28 +1587,20 @@ namespace gaia {
 			//! \return Value stored in the component.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(uint16_t row) const {
-				static_assert(
-						actual_type_t<T>::Kind == EntityKind::EK_Gen,
-						"Get providing a row can only be used with generic components");
-
 				return comp_inter<T>(row);
 			}
 
-			//! Returns the value stored in the generic component \a T using a pre-resolved component column.
+			//! Returns the value stored in component \a T using a pre-resolved component column.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \param compIdx Pre-resolved component column index
 			//! \return Value stored in the component.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get_idx(uint16_t row, uint32_t compIdx) const {
-				static_assert(
-						actual_type_t<T>::Kind == EntityKind::EK_Gen,
-						"Get providing a row can only be used with generic components");
-
 				return comp_inter_idx<T>(row, compIdx);
 			}
 
-			//! Returns the value stored in the generic component \a type on \a row in the chunk.
+			//! Returns the value stored in component \a type on \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \param type Component/entity/pair
@@ -1736,38 +1610,8 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) get(uint16_t row, Entity type) const {
 				GAIA_ASSERT(row < m_header.count);
 				const uint32_t compIdx = comp_idx(type);
-				GAIA_ASSERT2(
-						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
-						"Get providing a row can only be used with generic components");
 				GAIA_ASSERT(m_records.pRecords[compIdx].pItem != nullptr);
-				GAIA_ASSERT(m_records.pRecords[compIdx].pItem->entity.kind() == actual_type_t<T>::Kind);
 				return comp_inter_idx<T>(row, compIdx);
-			}
-
-			//! Returns the value stored in the unique component \a T.
-			//! \tparam T Component or pair
-			//! \warning It is expected the unique component \a T is present. Undefined behavior otherwise.
-			//! \return Value stored in the component.
-			template <typename T>
-			GAIA_NODISCARD decltype(auto) get() const {
-				static_assert(
-						actual_type_t<T>::Kind != EntityKind::EK_Gen,
-						"Get not providing a row can only be used with non-generic components");
-
-				return comp_inter<T>(0);
-			}
-
-			//! Returns the value stored in the unique component \a T using a pre-resolved component column.
-			//! \tparam T Component or pair
-			//! \param compIdx Pre-resolved component column index
-			//! \return Value stored in the component.
-			template <typename T>
-			GAIA_NODISCARD decltype(auto) get_idx(uint32_t compIdx) const {
-				static_assert(
-						actual_type_t<T>::Kind != EntityKind::EK_Gen,
-						"Get not providing a row can only be used with non-generic components");
-
-				return comp_inter_idx<T>(0, compIdx);
 			}
 
 			//! Component entity for the chunk archetype contents.
@@ -1931,12 +1775,6 @@ namespace gaia {
 				return m_header.capacity;
 			}
 
-			//! Returns the total number of generic entities/components in the chunk
-			//! \return Number of generic entity or component columns.
-			GAIA_NODISCARD uint8_t size_generic() const {
-				return m_header.genEntities;
-			}
-
 			//! Returns true if the provided version is newer than the one stored internally.
 			//! Use when checking if there was a movement in data in the world. E.g. if an entity
 			//! was added, removed or moved in its archetype.
@@ -2001,7 +1839,7 @@ namespace gaia {
 				auto* versions = m_records.pVersions;
 				// We update the version of the entity and all components to match the world version.
 				versions[0] = m_header.worldVersion;
-				GAIA_FOR(m_header.genEntities) versions[1 + i] = m_header.worldVersion;
+				GAIA_FOR(m_header.cntEntities) versions[1 + i] = m_header.worldVersion;
 				m_header.entityOrderVersion = m_header.worldVersion;
 			}
 

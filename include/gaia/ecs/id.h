@@ -148,56 +148,13 @@ namespace gaia {
 		};
 
 		//----------------------------------------------------------------------
-		// Entity kind
-		//----------------------------------------------------------------------
-
-		enum EntityKind : uint8_t {
-			//! Generic entity with one value per entity.
-			EK_Gen = 0,
-			//! Unique entity with one value per chunk.
-			EK_Uni
-		};
-
-		inline constexpr const char* EntityKindString[] = {"Gen", "Uni"};
-
-		//----------------------------------------------------------------------
 		// Id type deduction
 		//----------------------------------------------------------------------
 
-		//! Wraps a type as a unique entity kind with one value per chunk.
-		template <typename T>
-		struct uni {
-			static_assert(core::is_raw_v<T>);
-			static_assert(
-					std::is_trivial_v<T> ||
-							// For non-trivial T the comparison operator must be implemented because
-							// defragmentation needs it to figure out if entities can be moved around.
-							(core::has_ffunc_equals<T>::value || core::has_func_equals<T>::value),
-					"Non-trivial Uni component must implement operator==");
-
-			//! Component kind
-			static constexpr EntityKind Kind = EntityKind::EK_Uni;
-
-			//! Raw type with no additional sugar
-			using TType = T;
-			//! uni<TType>
-			using TTypeFull = uni<TType>;
-			//! Original template type
-			using TTypeOriginal = T;
-		};
-
 		//! \cond INTERNAL
 		namespace detail {
-			template <typename, typename = void>
-			struct has_entity_kind: std::false_type {};
 			template <typename T>
-			struct has_entity_kind<T, std::void_t<decltype(T::Kind)>>: std::true_type {};
-
-			template <typename T>
-			struct ExtractComponentType_NoEntityKind {
-				//! Component kind
-				static constexpr EntityKind Kind = EntityKind::EK_Gen;
-
+			struct ExtractComponentType {
 				//! Raw type with no additional sugar
 				using Type = core::raw_t<T>;
 				//! Same as Type
@@ -207,39 +164,14 @@ namespace gaia {
 			};
 
 			template <typename T>
-			struct ExtractComponentType_WithEntityKind {
-				//! Component kind
-				static constexpr EntityKind Kind = T::Kind;
-
-				//! Raw type with no additional sugar
-				using Type = typename T::TType;
-				//! T or uni<T> depending on entity kind specified
-				using TypeFull = std::conditional_t<Kind == EntityKind::EK_Gen, Type, uni<Type>>;
-				//! Original template type
-				using TypeOriginal = typename T::TTypeOriginal;
-			};
-
-			template <typename, typename = void>
-			struct is_gen_component: std::true_type {};
-			template <typename T>
-			struct is_gen_component<T, std::void_t<decltype(T::Kind)>>: std::bool_constant<T::Kind == EntityKind::EK_Gen> {};
-
-			template <typename T, typename = void>
 			struct component_type {
-				using type = typename detail::ExtractComponentType_NoEntityKind<T>;
-			};
-			template <typename T>
-			struct component_type<T, std::void_t<decltype(T::Kind)>> {
-				using type = typename detail::ExtractComponentType_WithEntityKind<T>;
+				using type = ExtractComponentType<T>;
 			};
 		} // namespace detail
 		//! \endcond
 
 		template <typename T>
 		using component_type_t = typename detail::component_type<T>::type;
-
-		template <typename T>
-		inline constexpr EntityKind entity_kind_v = component_type_t<T>::Kind;
 
 		//----------------------------------------------------------------------
 		// Pair helpers
@@ -264,9 +196,9 @@ namespace gaia {
 			using tgt_comp_type = component_type_t<Tgt>;
 
 		public:
-			//! Full relation type, either the relation or a \a uni wrapper.
+			//! Full relation type.
 			using rel = typename rel_comp_type::TypeFull;
-			//! Full target type, either the target or a \a uni wrapper.
+			//! Full target type.
 			using tgt = typename tgt_comp_type::TypeFull;
 			//! Raw relation type.
 			using rel_type = typename rel_comp_type::Type;
@@ -292,7 +224,7 @@ namespace gaia {
 		// ------------------------------------------------------------------------------------
 
 		//! Identifier of an entity or component instance in the world.
-		//! Packs the entity index, generation, kind and flags into one 64-bit value.
+		//! Packs the entity index, generation, reserved bit and flags into one 64-bit value.
 		struct GAIA_API Entity final {
 			//! Bit mask covering all valid entity indices.
 			static constexpr uint32_t IdMask = IdentifierIdBad;
@@ -314,8 +246,8 @@ namespace gaia {
 				IdentifierData ent : 1;
 				//! 0-ordinary, 1-pair
 				IdentifierData pair : 1;
-				//! 0-EntityKind::CT_Gen, 1-EntityKind::CT_Uni
-				IdentifierData kind : 1;
+				//! Reserved for future use. Always 0.
+				IdentifierData reserved : 1;
 				//! 0-real entity, 1-temporary entity
 				IdentifierData tmp : 1;
 
@@ -345,12 +277,13 @@ namespace gaia {
 				data.gen = gen;
 			}
 
-			Entity(EntityId id, IdentifierData gen, bool isEntity, bool isPair, EntityKind kind) noexcept {
+			Entity(EntityId id, IdentifierData gen, bool isEntity, bool isPair) noexcept {
+				val = 0;
 				data.id = id;
 				data.gen = gen;
 				data.ent = isEntity;
 				data.pair = isPair;
-				data.kind = kind;
+				data.reserved = 0;
 				data.tmp = 0;
 			}
 
@@ -382,12 +315,6 @@ namespace gaia {
 			//! \return True when a component.
 			GAIA_NODISCARD constexpr bool comp() const noexcept {
 				return (data.pair | data.ent) == 0;
-			}
-
-			//! Entity kind of this id.
-			//! \return Entity kind.
-			GAIA_NODISCARD constexpr auto kind() const noexcept {
-				return (EntityKind)data.kind;
 			}
 
 			//! Raw identifier value.
@@ -497,13 +424,13 @@ namespace gaia {
 				if (!entity.pair()) {
 					return Entity(
 							(EntityId)remap_loaded_entity_id(entity.id(), savedLastCoreComponentId, currLastCoreComponentId),
-							entity.gen(), entity.entity(), false, entity.kind());
+							entity.gen(), entity.entity(), false);
 				}
 
 				return Entity(
 						(EntityId)remap_loaded_entity_id(entity.id(), savedLastCoreComponentId, currLastCoreComponentId),
 						(IdentifierData)remap_loaded_entity_id(entity.gen(), savedLastCoreComponentId, currLastCoreComponentId),
-						entity.entity(), true, entity.kind());
+						false, true);
 			}
 
 			GAIA_NODISCARD inline Entity remap_loaded_entity(Entity entity) noexcept {
@@ -524,6 +451,7 @@ namespace gaia {
 		template <typename Serializer>
 		inline void Entity::load(Serializer& s) {
 			s.load(val);
+			data.reserved = 0;
 			*this = detail::remap_loaded_entity(*this);
 		}
 
@@ -621,13 +549,9 @@ namespace gaia {
 			operator Entity() const noexcept {
 				return Entity(
 						m_first.id(), m_second.id(),
-						// Pairs have no way of telling gen and uni entities apart.
-						// Therefore, for first, we use the entity bit as Gen/Uni...
-						(bool)m_first.kind(),
+						false,
 						// Always true for pairs
-						true,
-						// ... and for second, we use the kind bit.
-						m_second.kind());
+						true);
 			}
 
 			//! First entity of the pair.
@@ -726,58 +650,58 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		// Core component. The entity it is attached to is ignored by queries
-		inline Entity Core = Entity(0, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Core = Entity(0, 0, false, false);
+		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false);
+		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false);
 		// Cleanup rules
-		inline Entity OnDelete = Entity(3, 0, false, false, EntityKind::EK_Gen);
-		inline Entity OnDeleteTarget = Entity(4, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Remove = Entity(5, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Delete = Entity(6, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Error = Entity(7, 0, false, false, EntityKind::EK_Gen);
+		inline Entity OnDelete = Entity(3, 0, false, false);
+		inline Entity OnDeleteTarget = Entity(4, 0, false, false);
+		inline Entity Remove = Entity(5, 0, false, false);
+		inline Entity Delete = Entity(6, 0, false, false);
+		inline Entity Error = Entity(7, 0, false, false);
 		// Entity dependencies
 		//! Runtime entity for `Requires_`.
 		//! \see Requires_
-		inline Entity Requires = Entity(8, 0, false, false, EntityKind::EK_Gen);
-		inline Entity CantCombine = Entity(9, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Exclusive = Entity(10, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Requires = Entity(8, 0, false, false);
+		inline Entity CantCombine = Entity(9, 0, false, false);
+		inline Entity Exclusive = Entity(10, 0, false, false);
 		// Entity storage
-		inline Entity DontFragment = Entity(11, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Sparse = Entity(12, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DontFragment = Entity(11, 0, false, false);
+		inline Entity Sparse = Entity(12, 0, false, false);
 		// Graph properties
-		inline Entity Acyclic = Entity(13, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Traversable = Entity(14, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Acyclic = Entity(13, 0, false, false);
+		inline Entity Traversable = Entity(14, 0, false, false);
 		// Wildcard query entity
-		inline Entity All = Entity(15, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(15, 0, false, false);
 		//! Fragmenting physical hierarchy relation.
 		//! The target participates in archetype identity and is deleted with its children.
-		inline Entity ChildOf = Entity(16, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(16, 0, false, false);
 		//! Non-fragmenting logical hierarchy relation.
 		//! Parent changes do not move the source entity to another archetype.
-		inline Entity Parent = Entity(17, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Parent = Entity(17, 0, false, false);
 		// Alias for a base entity/inheritance
-		inline Entity Is = Entity(18, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Is = Entity(18, 0, false, false);
 		// Template entity excluded from queries by default unless explicitly requested.
-		inline Entity Prefab = Entity(19, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Prefab = Entity(19, 0, false, false);
 		// Prefab instantiation policy relation and values.
-		inline Entity OnInstantiate = Entity(20, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Override = Entity(21, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Inherit = Entity(22, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DontInherit = Entity(23, 0, false, false, EntityKind::EK_Gen);
+		inline Entity OnInstantiate = Entity(20, 0, false, false);
+		inline Entity Override = Entity(21, 0, false, false);
+		inline Entity Inherit = Entity(22, 0, false, false);
+		inline Entity DontInherit = Entity(23, 0, false, false);
 		// Systems
-		inline Entity System = Entity(24, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(25, 0, false, false, EntityKind::EK_Gen);
+		inline Entity System = Entity(24, 0, false, false);
+		inline Entity DependsOn = Entity(25, 0, false, false);
 		// Observers
-		inline Entity Observer = Entity(26, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Observer = Entity(26, 0, false, false);
 		// Query variables
-		inline Entity Var0 = Entity(27, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var1 = Entity(28, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var2 = Entity(29, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var3 = Entity(30, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var4 = Entity(31, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var5 = Entity(32, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var6 = Entity(33, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var7 = Entity(34, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var0 = Entity(27, 0, false, false);
+		inline Entity Var1 = Entity(28, 0, false, false);
+		inline Entity Var2 = Entity(29, 0, false, false);
+		inline Entity Var3 = Entity(30, 0, false, false);
+		inline Entity Var4 = Entity(31, 0, false, false);
+		inline Entity Var5 = Entity(32, 0, false, false);
+		inline Entity Var6 = Entity(33, 0, false, false);
+		inline Entity Var7 = Entity(34, 0, false, false);
 		// Runtime primitive type entities. Supported entity ids are aligned with ser::serialization_type_id:
 		// runtime_primitive_type_entity(t).id() == RuntimePrimitiveTypeBaseId + (uint32_t)t.
 		inline constexpr uint32_t RuntimePrimitiveTypeBaseId = 34;
@@ -790,7 +714,7 @@ namespace gaia {
 			const auto typeId = (uint32_t)type;
 			if (!is_runtime_primitive_serialization_type_id(typeId))
 				return EntityBad;
-			return Entity((EntityId)(RuntimePrimitiveTypeBaseId + typeId), 0, false, false, EntityKind::EK_Gen);
+			return Entity((EntityId)(RuntimePrimitiveTypeBaseId + typeId), 0, false, false);
 		}
 
 		GAIA_NODISCARD inline bool

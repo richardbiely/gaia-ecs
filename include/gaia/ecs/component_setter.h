@@ -30,8 +30,7 @@ namespace gaia {
 				GAIA_ASSERT(m_pWorld != nullptr);
 				GAIA_ASSERT(m_entity != EntityBad);
 				GAIA_ASSERT(m_pChunk != nullptr);
-				const auto row = (uint16_t)(m_row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
-				return const_cast<Chunk*>(m_pChunk)->template sset<T>(row);
+				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
 			}
 
 			//! Sets the value of the component \tparam T and then emits the normal post-write set notifications.
@@ -74,8 +73,7 @@ namespace gaia {
 				GAIA_ASSERT(m_pWorld != nullptr);
 				GAIA_ASSERT(m_entity != EntityBad);
 				GAIA_ASSERT(m_pChunk != nullptr);
-				const auto row = (uint16_t)(m_row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
-				return const_cast<Chunk*>(m_pChunk)->template sset<T>(row);
+				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
 			}
 
 			//! Sets the value of the component without triggering a world version update.

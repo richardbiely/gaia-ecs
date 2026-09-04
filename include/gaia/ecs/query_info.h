@@ -1622,9 +1622,8 @@ namespace gaia {
 
 					// Wildcard pair lookups use the same special records as the world-level
 					// entity-to-archetype map, so incremental matching can reuse the normal VM path.
-					const auto relKind = entity.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
-					const auto rel = Entity((EntityId)entity.id(), 0, false, false, relKind);
-					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
+					const auto rel = Entity((EntityId)entity.id(), 0, false, false);
+					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false);
 					addLookupUnique(Pair(All, tgt), ComponentIndexBad, 1);
 					addLookupUnique(Pair(rel, All), ComponentIndexBad, 1);
 					addLookupUnique(Pair(All, All), ComponentIndexBad, 1);

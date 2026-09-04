@@ -35,7 +35,6 @@ namespace gaia {
 		struct EntityContainerCtx {
 			bool isEntity;
 			bool isPair;
-			EntityKind kind;
 		};
 
 		using EntityContainerFlagsType = uint16_t;
@@ -74,8 +73,8 @@ namespace gaia {
 				uint32_t ent : 1;
 				//! 0-ordinary, 1-pair
 				uint32_t pair : 1;
-				//! Component kind
-				uint32_t kind : 1;
+				//! Reserved for future use. Always 0.
+				uint32_t reserved : 1;
 				//! Disabled
 				//! Entity does not use this bit (always zero) so we steal it
 				//! for special purposes.
@@ -127,12 +126,11 @@ namespace gaia {
 				ec.data.gen = generation;
 				ec.data.ent = (uint32_t)ctx->isEntity;
 				ec.data.pair = (uint32_t)ctx->isPair;
-				ec.data.kind = (uint32_t)ctx->kind;
 				return ec;
 			}
 
 			GAIA_NODISCARD static Entity handle(const EntityContainer& ec) {
-				return Entity(ec.idx, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair, (EntityKind)ec.data.kind);
+				return Entity(ec.idx, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair);
 			}
 
 			void req_del() {
@@ -369,7 +367,7 @@ namespace gaia {
 		template <>
 		struct ilist_handle_traits<ecs::Entity> {
 			static ecs::Entity make(uint32_t id, uint32_t gen, const ecs::Entity& prev) {
-				return ecs::Entity((ecs::EntityId)id, gen, prev.entity(), prev.pair(), prev.kind());
+				return ecs::Entity((ecs::EntityId)id, gen, prev.entity(), prev.pair());
 			}
 		};
 	} // namespace cnt

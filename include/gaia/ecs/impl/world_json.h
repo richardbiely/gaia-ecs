@@ -1512,8 +1512,6 @@ namespace gaia {
 									writer.value_int(entity.gen());
 									writer.key("pair");
 									writer.value_bool(entity.pair());
-									writer.key("kind");
-									writer.value_string(EntityKindString[entity.kind()]);
 									const auto entityName = name(entity);
 									if (!entityName.empty()) {
 										writer.key("name");
@@ -1546,7 +1544,7 @@ namespace gaia {
 											continue;
 										}
 
-										const auto row = component.kind() == EntityKind::EK_Uni ? 0U : i;
+										const auto row = i;
 
 										if ((item.field_count() != 0 || detail::runtime_json_is_direct_value(item)) &&
 												rec.comp.soa() == 0) {
@@ -1718,7 +1716,7 @@ namespace gaia {
 					return loc;
 
 				loc.pBase = ec.pChunk->comp_ptr_mut(compIdx, 0);
-				loc.row = component.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+				loc.row = ec.row;
 				return loc;
 			};
 

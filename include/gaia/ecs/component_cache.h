@@ -819,9 +819,9 @@ namespace gaia {
 				auto logDesc = [](const ComponentCacheItem& item) {
 					const auto symbol = item.symbol_name();
 					GAIA_LOG_N(
-							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %.*s [%s]", item.hashLookup.hash,
+							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %.*s", item.hashLookup.hash,
 							item.comp.size(), item.comp.alig(), item.entity.id(), item.entity.gen(), (int)symbol.size(),
-							symbol.data(), EntityKindString[item.entity.kind()]);
+							symbol.data());
 				};
 				for (const auto& [entityId, pItem]: m_compByEntityId) {
 					(void)entityId;

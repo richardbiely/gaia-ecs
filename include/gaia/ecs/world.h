@@ -468,10 +468,7 @@ namespace gaia {
 					return sparse_component_store_mut<FT>(item.entity).mut(entity);
 
 				const auto& ec = cont(entity);
-				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
-					return ec.pChunk->template set<T>(ec.row);
-				else
-					return ec.pChunk->template set<T>();
+				return ec.pChunk->template set<T>(ec.row);
 			}
 
 			//! Resolves the metadata backing an exact component or pair column on \a entity.
@@ -635,7 +632,7 @@ namespace gaia {
 				}
 
 				const auto& ec = fetch(entity);
-				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
+				const auto row = ec.row;
 				(void)ec.pChunk->comp_ptr_mut_gen<true>(compIdx, row);
 				world_notify_on_set_entity(*this, term, entity);
 			}
@@ -657,7 +654,7 @@ namespace gaia {
 				}
 
 				const auto& ec = fetch(entity);
-				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
+				const auto row = ec.row;
 				ComponentSetter{*this, ec.pChunk, entity, row}.sset<TApi>(value);
 				finish_write(entity, term);
 			}
@@ -679,7 +676,7 @@ namespace gaia {
 				}
 
 				const auto& ec = fetch(entity);
-				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
+				const auto row = ec.row;
 				ComponentSetter{*this, ec.pChunk, entity, row}.template smut<TValue>(term) = value;
 				finish_write(entity, term);
 			}
@@ -1165,7 +1162,7 @@ namespace gaia {
 			}
 
 			//! Returns whether \a component stores instance data in sparse storage instead of archetype chunks.
-			//! This is the storage path used for sparse plain generic AoS components and exact pair AoS payloads.
+			//! This is the storage path used for sparse plain AoS components and exact pair AoS payloads.
 			//! \param component Component or exact pair id to inspect.
 			//! \return True when the component uses sparse storage.
 			GAIA_NODISCARD bool component_uses_sparse_storage(Entity component) const {
@@ -1174,7 +1171,7 @@ namespace gaia {
 						return false;
 
 					const auto* pItem = comp_cache().find(component);
-					if (pItem == nullptr || component.kind() != EntityKind::EK_Gen || pItem->comp.soa() != 0)
+					if (pItem == nullptr || pItem->comp.soa() != 0)
 						return false;
 
 					return gaia::ecs::component_uses_sparse_storage(pItem->comp);
@@ -1201,7 +1198,7 @@ namespace gaia {
 						return SparseStorageMode::None;
 
 					const auto* pItem = comp_cache().find(component);
-					if (pItem == nullptr || component.kind() != EntityKind::EK_Gen || pItem->comp.soa() != 0 ||
+					if (pItem == nullptr || pItem->comp.soa() != 0 ||
 							!gaia::ecs::component_uses_sparse_storage(pItem->comp))
 						return SparseStorageMode::None;
 				} else {
@@ -1321,14 +1318,13 @@ namespace gaia {
 
 			//! Latches Sparse storage on a component entity before any instances exist.
 			//! This moves the payload out of chunks while keeping the id in archetype identity.
-			//! Only plain generic AoS components are supported.
+			//! Only plain AoS components are supported.
 			//! \param component Component entity.
 			void set_component_sparse_storage(Entity component) {
 				GAIA_ASSERT(valid(component));
 				GAIA_ASSERT(component.comp());
 				GAIA_ASSERT(!component.pair());
 				GAIA_ASSERT(!component.entity());
-				GAIA_ASSERT(component.kind() == EntityKind::EK_Gen);
 
 				const auto& item = comp_cache().get(component);
 				GAIA_ASSERT(item.entity == component);
@@ -1362,14 +1358,14 @@ namespace gaia {
 				return item.func_create_sparse_store == nullptr || item.comp.storage_type() == DataStorageType::Sparse;
 			}
 
-			//! Sparse storage supports plain generic components and exact relationship pairs.
-			//! Unique components and SoA layouts stay on the normal archetype path.
+			//! Sparse storage supports plain components and exact relationship pairs.
+			//! SoA layouts stay on the normal archetype path.
 			//! \tparam T Component type to inspect.
 			//! \return True when \a T can use the sparse storage path.
 			template <typename T>
 			GAIA_NODISCARD static constexpr bool supports_sparse_component_storage() {
 				using U = typename actual_type_t<T>::Type;
-				return entity_kind_v<T> == EntityKind::EK_Gen && !mem::is_soa_layout_v<U>;
+				return !mem::is_soa_layout_v<U>;
 			}
 
 			//! Returns whether \a T has compile-time sparse payload storage.
@@ -1428,7 +1424,7 @@ namespace gaia {
 
 					using U = typename actual_type_t<T>::Type;
 					return pItem->comp.size() == (uint32_t)sizeof(U) && pItem->comp.alig() == (uint32_t)alignof(U) &&
-								 pItem->comp.soa() == 0 && object.kind() == entity_kind_v<T>;
+								 pItem->comp.soa() == 0;
 				}
 			}
 
@@ -2452,9 +2448,7 @@ namespace gaia {
 						const auto& ecRel = m_world.m_recs.entities[entity.id()];
 						//! An archetype with no pairs cannot already contain another target for this exclusive relation.
 						if ((ecRel.flags & EntityContainerFlags::IsExclusive) != 0 && m_pArchetype->pairs() != 0) {
-							auto rel = Entity(
-									entity.id(), ecRel.data.gen, (bool)ecRel.data.ent, (bool)ecRel.data.pair,
-									(EntityKind)ecRel.data.kind);
+							auto rel = Entity(entity.id(), ecRel.data.gen, (bool)ecRel.data.ent, (bool)ecRel.data.pair);
 							auto tgt = m_world.try_get(entity.gen());
 							if (tgt == EntityBad)
 								return false;
@@ -4088,7 +4082,7 @@ namespace gaia {
 					return EntityBad;
 
 				const auto& ec = m_recs.entities[id];
-				return Entity(id, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair, (EntityKind)ec.data.kind);
+				return Entity(id, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair);
 			}
 
 			//! Returns the entity for \p id when it is still live, or EntityBad for stale cleanup-time ids.
@@ -4129,17 +4123,15 @@ namespace gaia {
 			}
 
 			//! Creates a new empty entity.
-			//! \param kind Entity kind. Generic entity by default.
 			//! \return New entity.
-			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
-				return add(*m_pEntityArchetype, true, false, kind);
+			GAIA_NODISCARD Entity add() {
+				return add(*m_pEntityArchetype, true, false);
 			}
 
 			//! Creates a new prefab entity.
-			//! \param kind Entity kind. Generic entity by default.
 			//! \return New prefab entity.
-			GAIA_NODISCARD Entity prefab(EntityKind kind = EntityKind::EK_Gen) {
-				const auto entity = add(kind);
+			GAIA_NODISCARD Entity prefab() {
+				const auto entity = add();
 				add(entity, Prefab);
 				return entity;
 			}
@@ -4191,13 +4183,11 @@ namespace gaia {
 
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-				constexpr auto kind = CT::Kind;
-
 				const auto* pItem = comp_cache().find<FT>();
 				if (pItem != nullptr)
 					return *pItem;
 
-				const auto entity = add(*m_pCompArchetype, false, false, kind);
+				const auto entity = add(*m_pCompArchetype, false, false);
 				util::str scopePath;
 				(void)current_scope_path(scopePath);
 
@@ -4226,14 +4216,12 @@ namespace gaia {
 
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-				constexpr auto kind = CT::Kind;
-
 				const auto* pItem = comp_cache().find<FT>();
 				if (pItem != nullptr)
 					return *pItem;
 
 				validate_runtime_semantics(runtimeType);
-				const auto entity = add(*m_pCompArchetype, false, false, kind);
+				const auto entity = add(*m_pCompArchetype, false, false);
 				util::str scopePath;
 				(void)current_scope_path(scopePath);
 
@@ -4252,9 +4240,8 @@ namespace gaia {
 
 			//! Creates a new runtime component from a plain component descriptor if not found already.
 			//! \param desc Component registration descriptor.
-			//! \param kind Entity kind assigned to the new component entity.
 			//! \return Mutable component cache item of the component.
-			GAIA_NODISCARD ComponentCacheItem& add(const ComponentDesc& desc, EntityKind kind = EntityKind::EK_Gen) {
+			GAIA_NODISCARD ComponentCacheItem& add(const ComponentDesc& desc) {
 				GAIA_ASSERT(!desc.name.empty());
 				GAIA_ASSERT(desc.name.size() < ComponentCacheItem::MaxNameLength);
 
@@ -4262,7 +4249,7 @@ namespace gaia {
 					return *comp_cache_mut().find(pItem->entity);
 
 				validate_runtime_semantics(desc.runtimeType);
-				const auto entity = add(*m_pCompArchetype, false, false, kind);
+				const auto entity = add(*m_pCompArchetype, false, false);
 				util::str scopePath;
 				(void)current_scope_path(scopePath);
 				auto& itemInfo = comp_cache_mut().add(entity, desc, scopePath.view());
@@ -4372,8 +4359,7 @@ namespace gaia {
 				eb.commit();
 
 				const auto& ec = fetch(entity);
-				// Make sure the idx is 0 for unique entities
-				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
+				const auto idx = ec.row;
 				ComponentSetter{*this, ec.pChunk, entity, idx}.sset(object, GAIA_FWD(value));
 				notify_add_single(entity, object);
 #if GAIA_OBSERVERS_ENABLED
@@ -4411,8 +4397,7 @@ namespace gaia {
 				builder.commit();
 
 				const auto& ec = cont(entity);
-				// Make sure the idx is 0 for unique payload storage.
-				const auto idx = uint16_t(ec.row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
+				const auto idx = ec.row;
 				ComponentSetter{*this, ec.pChunk, entity, idx}.sset<T>(GAIA_FWD(value));
 				notify_add_single(entity, object);
 #if GAIA_OBSERVERS_ENABLED
@@ -4559,12 +4544,12 @@ namespace gaia {
 				collect_copy_add_hook_ids(srcEntity, *pDstArchetype, EntitySpan{nonfragmentingPairs}, addHookIds);
 
 				if (hasEntityDesc) {
-					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
+					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair());
 					auto& ecDst = m_recs.entities[dstEntity.id()];
 					Chunk::copy_foreign_entity_data(ec.pChunk, ec.row, ecDst.pChunk, ecDst.row);
 				} else {
 					// No description associated with the entity, direct copy is possible
-					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
+					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair());
 					Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
 				}
 
@@ -4580,7 +4565,7 @@ namespace gaia {
 			//! \param count Number of clones to make
 			//! \param func Functor executed every time a copy is created.
 			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
-			//! \warning It is expected \a entity is valid generic entity. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on \a entity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
@@ -4639,12 +4624,12 @@ namespace gaia {
 
 				Entity dstEntity;
 				if (hasEntityDesc) {
-					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
+					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair());
 					auto& ecDst = m_recs.entities[dstEntity.id()];
 					Chunk::copy_foreign_entity_data(ec.pChunk, ec.row, ecDst.pChunk, ecDst.row);
 				} else {
 					// No description associated with the entity, direct copy is possible
-					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
+					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair());
 					Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
 				}
 
@@ -4666,7 +4651,7 @@ namespace gaia {
 			//! \param count Number of clones to make
 			//! \param func Functor executed every time a copy is created.
 			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
-			//! \warning It is expected \a entity is valid generic entity. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on \a entity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
@@ -5175,7 +5160,7 @@ namespace gaia {
 				// of our source entity.
 				const auto srcRow = ec.row;
 
-				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
+				EntityContainerCtx ctx{true, false};
 
 				uint32_t left = count;
 				do {
@@ -5206,7 +5191,7 @@ namespace gaia {
 					pDstArchetype->try_update_free_chunk_idx();
 
 					if (!hasEntityDesc) {
-						pDstChunk->call_gen_ctors(originalChunkSize, toCreate);
+						pDstChunk->call_ctors(originalChunkSize, toCreate);
 
 						{
 							GAIA_PROF_SCOPE(World::copy_n_entity_data);
@@ -5706,8 +5691,8 @@ namespace gaia {
 				const auto compIdxSrc = ecSrc.pChunk->comp_idx(object);
 				GAIA_ASSERT(compIdxDst != BadIndex && compIdxSrc != BadIndex);
 
-				const auto idxDst = uint16_t(ecDst.row * (1U - (uint32_t)object.kind()));
-				const auto idxSrc = uint16_t(ecSrc.row * (1U - (uint32_t)object.kind()));
+				const auto idxDst = ecDst.row;
+				const auto idxSrc = ecSrc.row;
 				void* pDst = ecDst.pChunk->comp_ptr_mut(compIdxDst);
 				const void* pSrc = ecSrc.pChunk->comp_ptr(compIdxSrc);
 				item.copy(pDst, pSrc, idxDst, idxSrc, ecDst.pChunk->capacity(), ecSrc.pChunk->capacity());
@@ -5874,7 +5859,7 @@ namespace gaia {
 				GAIA_ASSERT(ecSrc.pArchetype != nullptr);
 				GAIA_ASSERT(ecSrc.pChunk != nullptr);
 
-				EntityContainerCtx ctx{true, false, prefabEntity.kind()};
+				EntityContainerCtx ctx{true, false};
 				const auto instance = m_recs.entities.alloc(&ctx);
 				auto& ecDst = m_recs.entities[instance.id()];
 				auto* pDstChunk = pDstArchetype->foc_free_chunk();
@@ -5983,7 +5968,7 @@ namespace gaia {
 				auto* pSrcChunk = ecSrc.pChunk;
 				auto* pDstArchetype = node.pDstArchetype;
 				const auto prefabKey = EntityLookupKey(node.prefab);
-				EntityContainerCtx ctx{true, false, node.prefab.kind()};
+				EntityContainerCtx ctx{true, false};
 				auto& asRelations = m_entityToAsRelations[prefabKey];
 				m_entityToAsTargets.reserve(m_entityToAsTargets.size() + count);
 				asRelations.reserve(asRelations.size() + count);
@@ -7002,7 +6987,7 @@ namespace gaia {
 				if (size == 0)
 					return {nullptr, 0, ComponentRawViewFlag_Valid};
 
-				const auto row = uint32_t(ec.row * (1U - (uint32_t)component.kind()));
+				const auto row = uint32_t(ec.row);
 				return {ec.pChunk->comp_ptr(compIdx, row), size, ComponentRawViewFlag_Valid};
 			}
 
@@ -7037,7 +7022,7 @@ namespace gaia {
 				if (size == 0)
 					return {nullptr, 0, ComponentRawViewFlag_Valid};
 
-				const auto row = uint32_t(ec.row * (1U - (uint32_t)component.kind()));
+				const auto row = uint32_t(ec.row);
 				return {ec.pChunk->comp_ptr_mut(compIdx, row), size, ComponentRawViewFlag_Valid};
 			}
 
@@ -7065,8 +7050,8 @@ namespace gaia {
 				if (compIdx == ComponentIndexBad)
 					return {};
 
-				const auto row = uint32_t(ec.row * (1U - (uint32_t)component.kind()));
-				const auto capacity = pItem->entity.kind() == EntityKind::EK_Uni ? 1U : ec.pChunk->capacity();
+				const auto row = uint32_t(ec.row);
+				const auto capacity = ec.pChunk->capacity();
 				const std::span<const uint8_t> fieldSizes{pItem->soaSizes, pItem->comp.soa()};
 				const auto* pData = mem::data_view_policy_soa_erased::get(
 						ec.pChunk->comp_ptr(compIdx), pItem->comp.alig(), fieldSizes, fieldIdx, row, capacity);
@@ -7096,8 +7081,8 @@ namespace gaia {
 				if (compIdx == BadIndex)
 					return {};
 
-				const auto row = uint32_t(ec.row * (1U - (uint32_t)component.kind()));
-				const auto capacity = pItem->entity.kind() == EntityKind::EK_Uni ? 1U : ec.pChunk->capacity();
+				const auto row = uint32_t(ec.row);
+				const auto capacity = ec.pChunk->capacity();
 				const std::span<const uint8_t> fieldSizes{pItem->soaSizes, pItem->comp.soa()};
 				auto* pData = mem::data_view_policy_soa_erased::set(
 						ec.pChunk->comp_ptr_mut(compIdx), pItem->comp.alig(), fieldSizes, fieldIdx, row, capacity);
@@ -9890,8 +9875,7 @@ namespace gaia {
 			GAIA_NODISCARD static bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) {
 				if ((ec.flags & EntityContainerFlags::Load) != 0) {
 					return entityExpected.id() == ec.idx && entityExpected.gen() == ec.data.gen &&
-								 entityExpected.entity() == (bool)ec.data.ent && entityExpected.pair() == (bool)ec.data.pair &&
-								 entityExpected.kind() == (EntityKind)ec.data.kind;
+								 entityExpected.entity() == (bool)ec.data.ent && entityExpected.pair() == (bool)ec.data.pair;
 				}
 
 				if (is_req_del(ec))
@@ -9974,7 +9958,7 @@ namespace gaia {
 					return false;
 
 				return valid(
-						ec, Entity(entityId, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair, (EntityKind)ec.data.kind));
+						ec, Entity(entityId, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair));
 			}
 
 			//! Locks the chunk for structural changes.
@@ -11085,10 +11069,6 @@ namespace gaia {
 				// Even though entity movement might be present during defragmentation, we do
 				// not update the world version here because no real structural changes happen.
 				// All entities and components remain intact, they just move to a different place.
-				// NOTE 2:
-				// Entities belonging to chunks with uni components are locked to their chunk.
-				// Therefore, we won't defragment them unless their uni components contain matching
-				// values.
 
 				if (maxEntities == 0)
 					return;
@@ -11110,10 +11090,6 @@ namespace gaia {
 				while (front < back && (pSrcChunk->empty() || !pSrcChunk->is_semi()))
 					pSrcChunk = chunks[--back];
 
-				const auto& props = archetype.props();
-				const bool hasUniEnts =
-						props.cntEntities > 0 && archetype.ids_view()[props.cntEntities - 1].kind() == EntityKind::EK_Uni;
-
 				// Find the first semi-empty chunk in the back
 				while (front < back) {
 					pDstChunk = chunks[front];
@@ -11123,26 +11099,6 @@ namespace gaia {
 					const uint32_t spaceInDstChunk = pDstChunk->capacity() - pDstChunk->size();
 					const uint32_t entitiesToMoveSrc = core::get_min(entitiesInSrcChunk, maxEntities);
 					const uint32_t entitiesToMove = core::get_min(entitiesToMoveSrc, spaceInDstChunk);
-
-					// Make sure uni components have matching values
-					if (hasUniEnts) {
-						auto rec = pSrcChunk->comp_rec_view();
-						bool res = true;
-						GAIA_FOR2(props.genEntities, props.cntEntities) {
-							const auto* pSrcVal = (const void*)pSrcChunk->comp_ptr(i, 0);
-							const auto* pDstVal = (const void*)pDstChunk->comp_ptr(i, 0);
-							if (rec[i].pItem->cmp(pSrcVal, pDstVal)) {
-								res = false;
-								break;
-							}
-						}
-
-						// When there is not a match we move to the next chunk
-						if (!res) {
-							pDstChunk = chunks[++front];
-							goto next_iteration;
-						}
-					}
 
 					GAIA_FOR(entitiesToMove) {
 						const auto lastSrcEntityIdx = entitiesInSrcChunk - i - 1;
@@ -11200,7 +11156,6 @@ namespace gaia {
 						}
 					}
 
-				next_iteration:
 					// The destination chunk is full, we need to move to the next one.
 					// The idea is to fill the destination as much as possible.
 					while (front < back && pDstChunk->full())
@@ -11624,15 +11579,13 @@ namespace gaia {
 				GAIA_EACH(ids) {
 					const auto name = entity_name(world, ids[i]);
 					GAIA_LOG_W(
-							"> [%u] %.*s [%s]", i, (int)name.size(), name.empty() ? "" : name.data(),
-							EntityKindString[(uint32_t)ids[i].kind()]);
+							"> [%u] %.*s", i, (int)name.size(), name.empty() ? "" : name.data());
 				}
 
 				GAIA_LOG_W("Trying to %s:", adding ? "add" : "del");
 				const auto name = entity_name(world, entity);
 				GAIA_LOG_W(
-						"> %.*s [%s]", (int)name.size(), name.empty() ? "" : name.data(),
-						EntityKindString[(uint32_t)entity.kind()]);
+						"> %.*s", (int)name.size(), name.empty() ? "" : name.data());
 			}
 
 			//! Validates an archetype add in assertion-enabled builds.
@@ -13073,8 +13026,8 @@ namespace gaia {
 					if ((ec.flags & EntityContainerFlags::OnDelete_Error) != 0) {
 						GAIA_ASSERT2(false, "Trying to delete an entity that is forbidden from being deleted");
 						GAIA_LOG_E(
-								"Trying to delete a pair [%u.%u] %s [%s] that is forbidden from being deleted", entity.id(),
-								entity.gen(), name(entity), EntityKindString[entity.kind()]);
+								"Trying to delete a pair [%u.%u] %s that is forbidden from being deleted", entity.id(),
+								entity.gen(), name(entity));
 						return;
 					}
 
@@ -13087,8 +13040,8 @@ namespace gaia {
 							GAIA_ASSERT2(
 									false, "Trying to delete an entity that is forbidden from being deleted (target restriction)");
 							GAIA_LOG_E(
-									"Trying to delete a pair [%u.%u] %s [%s] that is forbidden from being deleted (target restriction)",
-									entity.id(), entity.gen(), name(entity), EntityKindString[entity.kind()]);
+									"Trying to delete a pair [%u.%u] %s that is forbidden from being deleted (target restriction)",
+									entity.id(), entity.gen(), name(entity));
 							return;
 						}
 					}
@@ -13156,8 +13109,8 @@ namespace gaia {
 					if ((ec.flags & EntityContainerFlags::OnDelete_Error) != 0) {
 						GAIA_ASSERT2(false, "Trying to delete an entity that is forbidden from being deleted");
 						GAIA_LOG_E(
-								"Trying to delete an entity [%u.%u] %s [%s] that is forbidden from being deleted", entity.id(),
-								entity.gen(), name(entity), EntityKindString[entity.kind()]);
+								"Trying to delete an entity [%u.%u] %s that is forbidden from being deleted", entity.id(),
+								entity.gen(), name(entity));
 						return;
 					}
 
@@ -13165,8 +13118,8 @@ namespace gaia {
 							has_nonfragmenting_relation_target_cond(entity, Pair(OnDeleteTarget, Error))) {
 						GAIA_ASSERT2(false, "Trying to delete an entity that is forbidden from being deleted (a pair's target)");
 						GAIA_LOG_E(
-								"Trying to delete an entity [%u.%u] %s [%s] that is forbidden from being deleted (a pair's target)",
-								entity.id(), entity.gen(), name(entity), EntityKindString[entity.kind()]);
+								"Trying to delete an entity [%u.%u] %s that is forbidden from being deleted (a pair's target)",
+								entity.id(), entity.gen(), name(entity));
 						return;
 					}
 
@@ -13479,7 +13432,7 @@ namespace gaia {
 				ec.data.dis = 0;
 			}
 
-			//! Moves an entity along with all its generic components from its current chunk to another one.
+			//! Moves an entity along with all its components from its current chunk to another one.
 			//! \param entity Entity to move
 			//! \param ec Container containing the entity
 			//! \param dstArchetype Destination archetype
@@ -13538,7 +13491,7 @@ namespace gaia {
 				validate_entities();
 			}
 
-			//! Moves an entity along with all its generic components from its current chunk to another archetype.
+			//! Moves an entity along with all its components from its current chunk to another archetype.
 			//! \param entity Entity to move
 			//! \param ec Entity container describing the current entity storage.
 			//! \param dstArchetype Target archetype
@@ -13556,7 +13509,7 @@ namespace gaia {
 				update_version(m_worldVersion);
 			}
 
-			//! Moves an entity along with all its generic components from its current chunk to another archetype.
+			//! Moves an entity along with all its components from its current chunk to another archetype.
 			//! \param entity Entity to move.
 			//! \param dstArchetype Target archetype.
 			//! \return Destination chunk, or nullptr when the entity already belongs to \a dstArchetype.
@@ -13672,7 +13625,7 @@ namespace gaia {
 				for (const auto& ec: m_recs.entities) {
 					if (ec.pChunk != pChunk)
 						continue;
-					const Entity entity(ec.idx, ec.data.gen, ec.data.ent != 0, false, (EntityKind)ec.data.kind);
+					const Entity entity(ec.idx, ec.data.gen, ec.data.ent != 0, false);
 					if (!valid(entity)) {
 						GAIA_ASSERT(is_req_del(ec));
 						continue;
@@ -13769,7 +13722,7 @@ namespace gaia {
 			//! \return Registered component cache item.
 			template <typename T>
 			const ComponentCacheItem& reg_core_entity(Entity id, Archetype* pArchetype) {
-				auto comp = add(*pArchetype, id.entity(), id.pair(), id.kind());
+				auto comp = add(*pArchetype, id.entity(), id.pair());
 				const auto& ci = comp_cache_mut().add<T>(id);
 				GAIA_ASSERT(ci.entity == id);
 				GAIA_ASSERT(comp == id);
@@ -13808,7 +13761,7 @@ namespace gaia {
 			//! \param size Type size and alignment.
 			//! \return Registered component cache item.
 			const ComponentCacheItem& reg_core_primitive_type(Entity id, const char* name, uint32_t nameLen, uint32_t size) {
-				auto comp = add(*m_pCompArchetype, id.entity(), id.pair(), id.kind());
+				auto comp = add(*m_pCompArchetype, id.entity(), id.pair());
 				const auto desc = primitive_type_desc(name, nameLen, size);
 				const auto& ci = comp_cache_mut().add(id, desc);
 				GAIA_ASSERT(ci.entity == id);
@@ -13841,8 +13794,8 @@ namespace gaia {
 				pChunk->update_versions();
 				archetype.try_update_free_chunk_idx();
 
-				// Call constructors for the generic components on the newly added entity if necessary
-				pChunk->call_gen_ctors(pChunk->size() - 1, 1);
+				// Call constructors for components on the newly added entity if necessary
+				pChunk->call_ctors(pChunk->size() - 1, 1);
 
 #if GAIA_ASSERT_ENABLED
 				const auto& ec = m_recs.entities[entity.id()];
@@ -13868,7 +13821,6 @@ namespace gaia {
 					ec.data.gen = entity.gen();
 					ec.data.pair = 1;
 					ec.data.ent = 1;
-					ec.data.kind = EntityKind::EK_Gen;
 
 					auto* pChunk = archetype.foc_free_chunk();
 					store_entity(ec, entity, &archetype, pChunk);
@@ -13920,10 +13872,9 @@ namespace gaia {
 			//! \param archetype Archetype the entity should inherit.
 			//! \param isEntity True if entity, false otherwise.
 			//! \param isPair True if pair, false otherwise.
-			//! \param kind Component kind.
 			//! \return New entity.
-			GAIA_NODISCARD Entity add(Archetype& archetype, bool isEntity, bool isPair, EntityKind kind) {
-				EntityContainerCtx ctx{isEntity, isPair, kind};
+			GAIA_NODISCARD Entity add(Archetype& archetype, bool isEntity, bool isPair) {
+				EntityContainerCtx ctx{isEntity, isPair};
 				const auto entity = m_recs.entities.alloc(&ctx);
 				assign_entity(entity, archetype);
 				return entity;
@@ -13936,7 +13887,7 @@ namespace gaia {
 			//! \param func void(Entity) functor executed for each added entity.
 			template <typename Func>
 			void add_entity_n(Archetype& archetype, uint32_t count, Func func) {
-				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
+				EntityContainerCtx ctx{true, false};
 #if GAIA_OBSERVERS_ENABLED
 				const auto addedIds = EntitySpan{archetype.ids_view()};
 				ObserverRegistry::DiffDispatchCtx addDiffCtx{};
@@ -13966,8 +13917,8 @@ namespace gaia {
 					// New entities were added, try updating the free chunk index
 					archetype.try_update_free_chunk_idx();
 
-					// Call constructors for the generic components on the newly added entity if necessary
-					pChunk->call_gen_ctors(originalChunkSize, toCreate);
+					// Call constructors for components on the newly added entity if necessary
+					pChunk->call_ctors(originalChunkSize, toCreate);
 
 					// Call functors
 					{
@@ -16116,7 +16067,7 @@ namespace gaia {
 		//! \return Pointer to inherited component data.
 		inline const void* world_query_inherited_arg_data_const_ptr(const World& world, Entity owner, Entity id) {
 			const auto& ec = world.fetch(owner);
-			const auto row = id.kind() == EntityKind::EK_Gen ? ec.row : 0;
+			const auto row = ec.row;
 			return ec.pChunk->comp_ptr(ec.pChunk->comp_idx(id), row);
 		}
 
@@ -16499,7 +16450,7 @@ namespace gaia {
 				}
 			}
 
-			const auto row = (uint16_t)(m_row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
+			const auto row = m_row;
 			return m_pChunk->template get<T>(row, type);
 		}
 
@@ -16520,7 +16471,7 @@ namespace gaia {
 					return world.template sparse_component_mut_value<FT>(type, m_entity);
 			}
 
-			const auto row = (uint16_t)(m_row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
+			const auto row = m_row;
 			return const_cast<Chunk*>(m_pChunk)->template sset<T>(row, type);
 		}
 

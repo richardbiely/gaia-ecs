@@ -400,7 +400,7 @@ namespace gaia {
 				//! \param slot Runtime slot whose handle is requested.
 				//! \return Internal generational slot handle.
 				GAIA_NODISCARD static Entity handle(const ObserverRuntimeSlot& slot) {
-					return Entity(slot.idx, slot.gen, false, false, EntityKind::EK_Gen);
+					return Entity(slot.idx, slot.gen, false, false);
 				}
 			};
 
@@ -737,9 +737,8 @@ namespace gaia {
 			//! \param tgt Destination target entity.
 			static void pair_endpoint_entities(Entity term, Entity& rel, Entity& tgt) {
 				GAIA_ASSERT(term.pair());
-				const auto relKind = term.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
-				rel = Entity((EntityId)term.id(), 0, false, false, relKind);
-				tgt = Entity((EntityId)term.gen(), 0, false, false, term.kind());
+				rel = Entity((EntityId)term.id(), 0, false, false);
+				tgt = Entity((EntityId)term.gen(), 0, false, false);
 			}
 
 			//! Checks whether a changed concrete term cannot identify all observers for a query term.

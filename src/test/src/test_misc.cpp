@@ -1031,7 +1031,7 @@ TEST_CASE("Component cache - runtime registration") {
 
 		constexpr uint8_t SoaSizes[] = {1, 2, 4};
 		const ecs::ComponentLookupHash customHash{0x123456789abcdef0ull};
-		const auto entityB = wld.add(ecs::EntityKind::EK_Uni);
+		const auto entityB = wld.add();
 		const auto& duplicate = add_runtime_component(
 				cc, entityB, RuntimeCompName, 64, ecs::DataStorageType::Table, 8, 3, SoaSizes, customHash);
 
@@ -1044,7 +1044,7 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(duplicate.comp.alig() == 4);
 		CHECK(duplicate.comp.soa() == 0);
 		CHECK(duplicate.hashLookup.hash == originalHash);
-		CHECK(duplicate.entity.kind() == ecs::EntityKind::EK_Gen);
+		
 	}
 
 	SUBCASE("custom hash and soa metadata are preserved") {
@@ -1054,13 +1054,13 @@ TEST_CASE("Component cache - runtime registration") {
 		constexpr const char* RuntimeCompName = "Runtime_Component_SoA";
 		constexpr uint8_t SoaSizes[] = {4, 1, 2};
 		const ecs::ComponentLookupHash customHash{0x00f00d00baadf00dull};
-		const auto entity = wld.add(ecs::EntityKind::EK_Uni);
+		const auto entity = wld.add();
 
 		const auto& item =
 				add_runtime_component(cc, entity, RuntimeCompName, 32, ecs::DataStorageType::Table, 8, 3, SoaSizes, customHash);
 
 		CHECK(item.entity == entity);
-		CHECK(item.entity.kind() == ecs::EntityKind::EK_Uni);
+		
 		CHECK(item.comp.soa() == 3);
 		CHECK(item.comp.size() == 32);
 		CHECK(item.comp.alig() == 8);
@@ -1648,28 +1648,6 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(*(const uint32_t*)wld.get_raw_field(traversedRow, runtimeComp.entity, 0).data == 333);
 	}
 
-	SUBCASE("runtime unique SoA iterator field views are rejected") {
-		TestWorld twld;
-		constexpr uint8_t SoaSizes[] = {sizeof(uint32_t), sizeof(uint8_t)};
-		auto& cc = wld.comp_cache_mut();
-		const auto componentEntity = wld.add(ecs::EntityKind::EK_Uni);
-		auto& runtimeComp = add_runtime_component(
-				cc, componentEntity, "Runtime_Unique_Component_SoA_Iter_Fields", 8, ecs::DataStorageType::Table, 4, 2,
-				SoaSizes);
-
-		const auto entityA = wld.add();
-		const auto entityB = wld.add();
-		wld.add(entityA, runtimeComp.entity);
-		wld.add(entityB, runtimeComp.entity);
-
-		auto q = wld.query().all(runtimeComp.entity);
-		q.each([&](ecs::Iter& it) {
-			CHECK(it.view_raw_field(0, 0).size() == 0);
-			CHECK(it.view_raw_field_mut(0, 0).size() == 0);
-			CHECK(it.sview_raw_field_mut(0, 0).size() == 0);
-		});
-	}
-
 	SUBCASE("runtime SoA field access rejects sparse storage and supports table pairs") {
 		TestWorld twld;
 		constexpr uint8_t SoaSizes[] = {sizeof(uint32_t)};
@@ -1743,67 +1721,7 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(typedSoa.func_swap != nullptr);
 	}
 
-	SUBCASE("runtime unique SoA fields use one physical value per chunk") {
-		TestWorld twld;
-		auto& cc = wld.comp_cache_mut();
-		constexpr uint8_t SoaSizes[] = {4, 1, 2};
-		const auto componentEntity = wld.add(ecs::EntityKind::EK_Uni);
-		const auto& runtimeComp = add_runtime_component(
-				cc, componentEntity, "Runtime_Component_Unique_SoA_Access", 32, ecs::DataStorageType::Table, 8, 3, SoaSizes);
-
-		const auto entity = wld.add();
-		wld.add(entity, runtimeComp.entity);
-		auto value32 = wld.mut_raw_field(entity, runtimeComp.entity, 0);
-		auto value8 = wld.mut_raw_field(entity, runtimeComp.entity, 1);
-		auto value16 = wld.mut_raw_field(entity, runtimeComp.entity, 2);
-		CHECK(value32.valid());
-		CHECK(value8.valid());
-		CHECK(value16.valid());
-		if (value32.valid() && value8.valid() && value16.valid()) {
-			const auto& ec = wld.fetch(entity);
-			const auto compIdx = ec.pChunk->comp_idx(runtimeComp.entity);
-			const std::span<const uint8_t> fieldSizes{SoaSizes};
-			CHECK(
-					value32.data == mem::data_view_policy_soa_erased::set(
-															ec.pChunk->comp_ptr_mut(compIdx), runtimeComp.comp.alig(), fieldSizes, 0, 0, 1));
-			CHECK(
-					value8.data == mem::data_view_policy_soa_erased::set(
-														 ec.pChunk->comp_ptr_mut(compIdx), runtimeComp.comp.alig(), fieldSizes, 1, 0, 1));
-			CHECK(
-					value16.data == mem::data_view_policy_soa_erased::set(
-															ec.pChunk->comp_ptr_mut(compIdx), runtimeComp.comp.alig(), fieldSizes, 2, 0, 1));
-
-			*(uint32_t*)value32.data = 0x12345678U;
-			*(uint8_t*)value8.data = 0x5aU;
-			*(uint16_t*)value16.data = 0x4321U;
-			CHECK(*(const uint32_t*)wld.get_raw_field(entity, runtimeComp.entity, 0).data == 0x12345678U);
-			CHECK(*(const uint8_t*)wld.get_raw_field(entity, runtimeComp.entity, 1).data == 0x5aU);
-			CHECK(*(const uint16_t*)wld.get_raw_field(entity, runtimeComp.entity, 2).data == 0x4321U);
-
-			alignas(8) uint8_t src[32]{};
-			alignas(8) uint8_t dst[32]{};
-			*(uint32_t*)mem::data_view_policy_soa_erased::set(src, 8, fieldSizes, 0, 0, 1) = 0x87654321U;
-			*(uint8_t*)mem::data_view_policy_soa_erased::set(src, 8, fieldSizes, 1, 0, 1) = 0xa5U;
-			*(uint16_t*)mem::data_view_policy_soa_erased::set(src, 8, fieldSizes, 2, 0, 1) = 0x1234U;
-			runtimeComp.ctor_copy(dst, src, 0, 0, 64, 64);
-			CHECK(*(const uint32_t*)mem::data_view_policy_soa_erased::get(dst, 8, fieldSizes, 0, 0, 1) == 0x87654321U);
-			CHECK(*(const uint8_t*)mem::data_view_policy_soa_erased::get(dst, 8, fieldSizes, 1, 0, 1) == 0xa5U);
-			CHECK(*(const uint16_t*)mem::data_view_policy_soa_erased::get(dst, 8, fieldSizes, 2, 0, 1) == 0x1234U);
-
-			alignas(8) uint8_t other[32]{};
-			*(uint32_t*)mem::data_view_policy_soa_erased::set(other, 8, fieldSizes, 0, 0, 1) = 0x0badc0deU;
-			*(uint8_t*)mem::data_view_policy_soa_erased::set(other, 8, fieldSizes, 1, 0, 1) = 0x3cU;
-			*(uint16_t*)mem::data_view_policy_soa_erased::set(other, 8, fieldSizes, 2, 0, 1) = 0xabcdU;
-			runtimeComp.swap(src, other, 0, 0, 64, 64);
-			CHECK(*(const uint32_t*)mem::data_view_policy_soa_erased::get(src, 8, fieldSizes, 0, 0, 1) == 0x0badc0deU);
-			CHECK(*(const uint8_t*)mem::data_view_policy_soa_erased::get(src, 8, fieldSizes, 1, 0, 1) == 0x3cU);
-			CHECK(*(const uint16_t*)mem::data_view_policy_soa_erased::get(src, 8, fieldSizes, 2, 0, 1) == 0xabcdU);
-			CHECK(*(const uint32_t*)mem::data_view_policy_soa_erased::get(other, 8, fieldSizes, 0, 0, 1) == 0x87654321U);
-			CHECK(*(const uint8_t*)mem::data_view_policy_soa_erased::get(other, 8, fieldSizes, 1, 0, 1) == 0xa5U);
-			CHECK(*(const uint16_t*)mem::data_view_policy_soa_erased::get(other, 8, fieldSizes, 2, 0, 1) == 0x1234U);
-		}
-	}
-
+	
 	SUBCASE("typed/runtime registration sync component record") {
 		TestWorld twld;
 
@@ -3345,17 +3263,6 @@ TEST_CASE("Erased pair access preserves compile-time target-owned payload metada
 	CHECK(wld.get<PairType>(rawSource).x == doctest::Approx(6.0f));
 	CHECK(wld.get<PairType>(rawSource).y == doctest::Approx(7.0f));
 
-	using UniquePairType = ecs::pair<ErasedPairRelationTag, ecs::uni<ErasedPairPayload>>;
-	const auto uniqueRelation = wld.add<UniquePairType::rel>().entity;
-	const auto uniqueTarget = wld.add<UniquePairType::tgt>().entity;
-	const auto uniquePair = (ecs::Entity)ecs::Pair(uniqueRelation, uniqueTarget);
-	CHECK(wld.comp_cache().find_pair_payload(uniquePair)->entity == uniqueTarget);
-	const auto uniqueSourceA = wld.add();
-	const auto uniqueSourceB = wld.add();
-	wld.add<UniquePairType>(uniqueSourceA, {8.0f, 9.0f});
-	wld.add<UniquePairType>(uniqueSourceB, {10.0f, 11.0f});
-	CHECK(wld.get<UniquePairType>(uniqueSourceA).x == doctest::Approx(10.0f));
-	CHECK(wld.get<UniquePairType>(uniqueSourceB).y == doctest::Approx(11.0f));
 }
 
 TEST_CASE("Erased pair access preserves compile-time relation-owned payload metadata") {
@@ -3447,17 +3354,6 @@ TEST_CASE("Erased pair access preserves compile-time relation-owned payload meta
 		CHECK(((const ErasedPairPayload*)raw[0].data)->x == doctest::Approx(4.0f));
 	});
 
-	using UniquePairType = ecs::pair<ecs::uni<ErasedPairPayload>, ErasedPairTargetTag>;
-	const auto uniqueRelation = wld.add<UniquePairType::rel>().entity;
-	const auto uniqueTarget = wld.add<UniquePairType::tgt>().entity;
-	const auto uniquePair = (ecs::Entity)ecs::Pair(uniqueRelation, uniqueTarget);
-	CHECK(wld.comp_cache().find_pair_payload(uniquePair)->entity == uniqueRelation);
-	const auto uniqueSourceA = wld.add();
-	const auto uniqueSourceB = wld.add();
-	wld.add<UniquePairType>(uniqueSourceA, {8.0f, 9.0f});
-	wld.add<UniquePairType>(uniqueSourceB, {10.0f, 11.0f});
-	CHECK(wld.get<UniquePairType>(uniqueSourceA).x == doctest::Approx(10.0f));
-	CHECK(wld.get<UniquePairType>(uniqueSourceB).y == doctest::Approx(11.0f));
 }
 
 TEST_CASE("Runtime pair payloads use target metadata across erased APIs") {
@@ -3634,25 +3530,6 @@ TEST_CASE("Runtime pair payloads use target metadata across erased APIs") {
 	CHECK(relationWildcardSetRows == 2);
 	CHECK(targetWildcardSetRows == 5);
 	CHECK(setObserverCalls == 6);
-
-	auto& uniqueTargetItem = add_runtime_component(
-			wld, "Runtime_Pair_Target_Unique", PayloadSize, ecs::DataStorageType::Table, alignof(float), 0, nullptr,
-			ecs::ComponentLookupHash{}, ecs::EntityKind::EK_Uni, fields, 2);
-	const auto uniqueRelation = wld.add();
-	const auto uniquePair = (ecs::Entity)ecs::Pair(uniqueRelation, uniqueTargetItem.entity);
-	const auto uniqueSourceA = wld.add();
-	const auto uniqueSourceB = wld.add();
-	float uniqueInitialA[] = {10.0f, 11.0f};
-	float uniqueInitialB[] = {12.0f, 13.0f};
-	CHECK(wld.comp_cache().find_pair_payload(uniquePair) == &uniqueTargetItem);
-	CHECK(wld.add_raw(uniqueSourceA, uniquePair, uniqueInitialA, sizeof(uniqueInitialA)));
-	CHECK(wld.add_raw(uniqueSourceB, uniquePair, uniqueInitialB, sizeof(uniqueInitialB)));
-	const auto uniqueViewA = wld.get_raw(uniqueSourceA, uniquePair);
-	const auto uniqueViewB = wld.get_raw(uniqueSourceB, uniquePair);
-	CHECK(uniqueViewA.valid());
-	CHECK(uniqueViewB.valid());
-	CHECK(read_f32(uniqueViewA.data, XOffset) == doctest::Approx(12.0f));
-	CHECK(read_f32(uniqueViewB.data, YOffset) == doctest::Approx(13.0f));
 }
 
 TEST_CASE("Runtime pair payloads use relation metadata across erased APIs") {
@@ -3867,33 +3744,6 @@ TEST_CASE("Runtime pair payloads use relation metadata across erased APIs") {
 	CHECK(wildcardRows == 2);
 	CHECK(setObserverCalls == 4);
 
-	const auto uniqueTarget = wld.add<ecs::uni<Position>>().entity;
-	const auto uniquePair = (ecs::Entity)ecs::Pair(relation.entity, uniqueTarget);
-	const auto uniqueSourceA = wld.add();
-	const auto uniqueSourceB = wld.add();
-	float uniqueInitialA[] = {30.0f, 31.0f, 32.0f};
-	float uniqueInitialB[] = {40.0f, 41.0f, 42.0f};
-	CHECK(wld.add_raw(uniqueSourceA, uniquePair, uniqueInitialA, sizeof(uniqueInitialA)));
-	CHECK(wld.add_raw(uniqueSourceB, uniquePair, uniqueInitialB, sizeof(uniqueInitialB)));
-	const auto uniqueViewA = wld.get_raw(uniqueSourceA, uniquePair);
-	const auto uniqueViewB = wld.get_raw(uniqueSourceB, uniquePair);
-	CHECK(uniqueViewA.valid());
-	CHECK(uniqueViewB.valid());
-	CHECK(read_f32(uniqueViewA.data, XOffset) == doctest::Approx(40.0f));
-	CHECK(read_f32(uniqueViewB.data, XOffset) == doctest::Approx(40.0f));
-
-	const auto finalView = wld.get_raw(source, pair);
-	CHECK(finalView.valid());
-	if (!finalView.valid())
-		return;
-	CHECK(read_f32(finalView.data, ZOffset) == doctest::Approx(8.0f));
-
-	wld.del(source, pair);
-	CHECK_FALSE(wld.has(source, pair));
-#if GAIA_ENABLE_ADD_DEL_HOOKS
-	CHECK(delHookCalls == 1);
-#endif
-	CHECK(dtorCalls >= 1);
 }
 
 TEST_CASE("Runtime pair SoA fields expose direct field views and cursors") {
@@ -4606,14 +4456,14 @@ TEST_CASE("ArchetypeGraph") {
 }
 
 TEST_CASE("EntityContainer helpers") {
-	ecs::EntityContainerCtx entityCtx{true, false, ecs::EntityKind::EK_Gen};
+	ecs::EntityContainerCtx entityCtx{true, false};
 	auto entityContainer = ecs::EntityContainer::create(7, 3, &entityCtx);
 	CHECK(entityContainer.idx == 7);
 	CHECK(entityContainer.data.gen == 3);
 	CHECK(entityContainer.data.ent == 1);
 	CHECK(entityContainer.data.pair == 0);
-	CHECK(entityContainer.data.kind == (uint32_t)ecs::EntityKind::EK_Gen);
-	CHECK(ecs::EntityContainer::handle(entityContainer) == ecs::Entity(7, 3, true, false, ecs::EntityKind::EK_Gen));
+	CHECK(entityContainer.data.reserved == 0);
+	CHECK(ecs::EntityContainer::handle(entityContainer) == ecs::Entity(7, 3, true, false));
 	CHECK(cnt::to_page_storage_id<ecs::EntityContainer>::get(entityContainer) == 7);
 
 	entityContainer.req_del();
@@ -4625,7 +4475,7 @@ TEST_CASE("EntityContainer helpers") {
 	entityRecord.row = 11;
 
 	const auto pairHandle = (ecs::Entity)ecs::Pair(ecs::ChildOf, entityHandle);
-	ecs::EntityContainerCtx pairCtx{pairHandle.entity(), pairHandle.pair(), pairHandle.kind()};
+	ecs::EntityContainerCtx pairCtx{pairHandle.entity(), pairHandle.pair()};
 	auto pairRecord = ecs::EntityContainer::create(pairHandle.id(), pairHandle.gen(), &pairCtx);
 	pairRecord.row = 22;
 	CHECK(containers.pair_record_try_add(pairHandle, GAIA_MOV(pairRecord)));

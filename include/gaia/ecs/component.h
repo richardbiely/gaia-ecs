@@ -79,14 +79,13 @@ namespace gaia {
 				using FT = typename component_type_t<Arg>::TypeFull;
 				using U = typename actual_type_t<Arg>::Type;
 
-				static constexpr bool value = entity_kind_v<Arg> == EntityKind::EK_Gen && !mem::is_soa_layout_v<U> &&
-																			auto_storage_policy_v<U> == DataStorageType::Sparse;
+				static constexpr bool value = !mem::is_soa_layout_v<U> && auto_storage_policy_v<U> == DataStorageType::Sparse;
 			};
 		} // namespace detail
 		//! \endcond
 
 		//! True when a typed component uses Gaia's compile-time sparse payload path.
-		//! Sparse storage applies only to generic AoS payloads; unique and SoA component forms use table storage.
+		//! Sparse storage applies only to AoS payloads. SoA component forms use table storage.
 		//! \tparam T Component API type.
 		template <typename T>
 		inline constexpr bool uses_ct_sparse_storage_v = detail::uses_ct_sparse_storage<T>::value;

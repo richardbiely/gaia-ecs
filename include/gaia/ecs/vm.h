@@ -801,7 +801,7 @@ namespace gaia {
 								})};
 							}
 
-							// Archetype entity is generic, try matching it with entities inheriting from e.
+							// Ordinary archetype entity, try matching it with entities inheriting from e.
 							auto archetypeIds = archetype.ids_view();
 							return {as_relations_trav_if(w, eQ, [&archetypeIds](Entity relation) {
 								// Relation does not necessary match the sorted order of components in the archetype
@@ -1325,8 +1325,8 @@ namespace gaia {
 					// cases in O(1) without rescanning all pair ids on the archetype.
 					if (!rel.needsBind && !tgt.needsBind && !sameUnboundVar) {
 						const auto matchPair = Pair(
-								rel.concrete ? Entity((EntityId)rel.matchId, 0, true, false, EntityKind::EK_Gen) : All,
-								tgt.concrete ? Entity((EntityId)tgt.matchId, 0, true, false, EntityKind::EK_Gen) : All);
+								rel.concrete ? Entity((EntityId)rel.matchId, 0, true, false) : All,
+								tgt.concrete ? Entity((EntityId)tgt.matchId, 0, true, false) : All);
 						const auto count = archetype.pair_matches(matchPair);
 						return count < limit ? count : limit;
 					}

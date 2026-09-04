@@ -391,9 +391,6 @@ namespace gaia {
 							storageType == DataStorageType::Table || storageType == DataStorageType::Sparse,
 							"Unsupported component storage type");
 					static_assert(
-							storageType != DataStorageType::Sparse || CT::Kind == EntityKind::EK_Gen,
-							"GAIA_STORAGE(Sparse) supports only generic components");
-					static_assert(
 							storageType != DataStorageType::Sparse || !std::is_empty_v<U>,
 							"GAIA_STORAGE(Sparse) requires a non-empty component payload");
 					static_assert(

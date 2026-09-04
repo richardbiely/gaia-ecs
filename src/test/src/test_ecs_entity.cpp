@@ -3,11 +3,6 @@
 // ECS
 //-----------------------------------------------------------------
 
-TEST_CASE("EntityKinds") {
-	CHECK(ecs::entity_kind_v<uint32_t> == ecs::EntityKind::EK_Gen);
-	CHECK(ecs::entity_kind_v<Position> == ecs::EntityKind::EK_Gen);
-	CHECK(ecs::entity_kind_v<ecs::uni<Position>> == ecs::EntityKind::EK_Uni);
-}
 
 GAIA_GCC_WARNING_PUSH()
 GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers")
@@ -1405,21 +1400,11 @@ TEST_CASE("Pair") {
 		using Pair1Actual = ecs::actual_type_t<Pair1>;
 		static_assert(std::is_same_v<Pair1Actual::Type, Position>);
 
-		using Pair2 = ecs::pair<Start, ecs::uni<Position>>;
-		static_assert(std::is_same_v<Pair2::rel, Start>);
-		static_assert(std::is_same_v<Pair2::tgt, ecs::uni<Position>>);
-		using Pair2Actual = ecs::actual_type_t<Pair2>;
-		static_assert(std::is_same_v<Pair2Actual::Type, Position>);
-		static_assert(std::is_same_v<Pair2Actual::TypeFull, ecs::uni<Position>>);
-
 		TestWorld twld;
 		const auto& pci = wld.add<Position>();
-		const auto& upci = wld.add<ecs::uni<Position>>();
-		using TestPair = ecs::pair<Position, ecs::uni<Position>>;
+		using TestPair = ecs::pair<Position, Acceleration>;
 		const auto& pci2 = wld.add<TestPair::rel>();
-		const auto& upci2 = wld.add<TestPair::tgt>();
 		CHECK(pci.entity == pci2.entity);
-		CHECK(upci.entity == upci2.entity);
 	}
 	{
 		TestWorld twld;
@@ -1436,11 +1421,6 @@ TEST_CASE("Pair") {
 		CHECK(p.y == 5);
 		CHECK(p.z == 5);
 
-		wld.add<ecs::pair<Start, ecs::uni<Position>>>(e, {50, 50, 50}); // 19, 14:19
-		auto spu = wld.get<ecs::pair<Start, ecs::uni<Position>>>(e);
-		CHECK(spu.x == 50);
-		CHECK(spu.y == 50);
-		CHECK(spu.z == 50);
 		CHECK(p.x == 5);
 		CHECK(p.y == 5);
 		CHECK(p.z == 5);
@@ -1452,13 +1432,9 @@ TEST_CASE("Pair") {
 		CHECK(sp.z == 100);
 
 		p = wld.get<Position>(e);
-		spu = wld.get<ecs::pair<Start, ecs::uni<Position>>>(e);
 		CHECK(p.x == 5);
 		CHECK(p.y == 5);
 		CHECK(p.z == 5);
-		CHECK(spu.x == 50);
-		CHECK(spu.y == 50);
-		CHECK(spu.z == 50);
 
 		{
 			uint32_t i = 0;

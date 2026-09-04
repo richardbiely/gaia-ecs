@@ -301,7 +301,7 @@ TEST_CASE("copy_n") {
 	}
 }
 
-TEST_CASE("Set - generic") {
+TEST_CASE("Set") {
 	TestWorld twld;
 
 	constexpr uint32_t N = 100;
@@ -492,7 +492,7 @@ TEST_CASE("Set - generic") {
 	}
 }
 
-TEST_CASE("Set - generic & unique") {
+TEST_CASE("Set") {
 	TestWorld twld;
 
 	constexpr uint32_t N = 100;
@@ -504,7 +504,6 @@ TEST_CASE("Set - generic & unique") {
 		wld.add<Rotation>(arr.back(), {});
 		wld.add<Scale>(arr.back(), {});
 		wld.add<Else>(arr.back(), {});
-		wld.add<ecs::uni<Position>>(arr.back(), {});
 	}
 
 	// Default values
@@ -522,11 +521,6 @@ TEST_CASE("Set - generic & unique") {
 
 		auto e = wld.get<Else>(ent);
 		CHECK(e.value == false);
-
-		auto p = wld.get<ecs::uni<Position>>(ent);
-		CHECK(p.x == 0.f);
-		CHECK(p.y == 0.f);
-		CHECK(p.z == 0.f);
 	}
 
 	// Modify values
@@ -545,14 +539,6 @@ TEST_CASE("Set - generic & unique") {
 			}
 		});
 
-		wld.set<ecs::uni<Position>>(arr[0]) = {111, 222, 333};
-
-		{
-			Position p = wld.get<ecs::uni<Position>>(arr[0]);
-			CHECK(p.x == 111.f);
-			CHECK(p.y == 222.f);
-			CHECK(p.z == 333.f);
-		}
 		{
 			for (const auto ent: arr) {
 				auto r = wld.get<Rotation>(ent);
@@ -569,12 +555,6 @@ TEST_CASE("Set - generic & unique") {
 				auto e = wld.get<Else>(ent);
 				CHECK(e.value == true);
 			}
-		}
-		{
-			auto p = wld.get<ecs::uni<Position>>(arr[0]);
-			CHECK(p.x == 111.f);
-			CHECK(p.y == 222.f);
-			CHECK(p.z == 333.f);
 		}
 	}
 }

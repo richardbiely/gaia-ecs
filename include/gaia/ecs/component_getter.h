@@ -41,10 +41,7 @@ namespace gaia {
 				GAIA_ASSERT(m_pChunk != nullptr);
 				verify_comp<T>();
 
-				if constexpr (actual_type_t<T>::Kind == EntityKind::EK_Gen)
-					return m_pChunk->template get<T>(m_row);
-				else
-					return m_pChunk->template get<T>();
+				return m_pChunk->template get<T>(m_row);
 			}
 
 			//! Returns the value stored in the component associated with \a type on entity.

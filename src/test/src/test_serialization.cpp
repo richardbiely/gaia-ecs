@@ -1748,9 +1748,8 @@ make_legacy_named_entity_snapshot(uint32_t oldLastCoreComponentId, uint32_t arch
 	ser::bin_stream buffer;
 	auto s = ser::make_serializer(buffer);
 
-	const auto legacyEntity =
-			ecs::Entity((ecs::EntityId)(oldLastCoreComponentId + 1), 0, true, false, ecs::EntityKind::EK_Gen);
-	ecs::EntityContainerCtx ctx{true, false, ecs::EntityKind::EK_Gen};
+	const auto legacyEntity = ecs::Entity((ecs::EntityId)(oldLastCoreComponentId + 1), 0, true, false);
+	ecs::EntityContainerCtx ctx{true, false};
 	auto ec = ecs::EntityContainer::create(legacyEntity.id(), legacyEntity.gen(), &ctx);
 	ec.row = 0;
 	ec.flags = 0;

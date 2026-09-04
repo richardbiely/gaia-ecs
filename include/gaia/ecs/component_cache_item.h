@@ -221,13 +221,6 @@ namespace gaia {
 			//! Runtime symbolic constant metadata registered for this enum/bitmask type.
 			cnt::darray<RuntimeConstantDesc> m_constants;
 
-			//! Returns the physical SoA field-array cardinality for this component.
-			//! \param capacity Capacity of the containing chunk.
-			//! \return One for unique components, otherwise \a capacity.
-			GAIA_NODISCARD uint32_t soa_capacity(uint32_t capacity) const noexcept {
-				return entity.kind() == EntityKind::EK_Uni ? 1U : capacity;
-			}
-
 			//! Moves the bytes of one type-erased SoA value between storage blocks.
 			//! \param pDst Destination SoA storage base.
 			//! \param pSrc Source SoA storage base.
@@ -238,8 +231,6 @@ namespace gaia {
 			void move_soa_element(
 					void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t capDst,
 					uint32_t capSrc) const noexcept {
-				capDst = soa_capacity(capDst);
-				capSrc = soa_capacity(capSrc);
 				const std::span<const uint8_t> fieldSizes{soaSizes, comp.soa()};
 				GAIA_FOR(comp.soa()) {
 					auto* pD = mem::data_view_policy_soa_erased::set(pDst, comp.alig(), fieldSizes, i, idxDst, capDst);
@@ -258,8 +249,6 @@ namespace gaia {
 			void swap_soa_elements(
 					void* pLeft, void* pRight, uint32_t idxLeft, uint32_t idxRight, uint32_t capLeft,
 					uint32_t capRight) const noexcept {
-				capLeft = soa_capacity(capLeft);
-				capRight = soa_capacity(capRight);
 				const std::span<const uint8_t> fieldSizes{soaSizes, comp.soa()};
 				GAIA_FOR(comp.soa()) {
 					auto* pL = mem::data_view_policy_soa_erased::set(pLeft, comp.alig(), fieldSizes, i, idxLeft, capLeft);
@@ -704,8 +693,8 @@ namespace gaia {
 				// Allocate enough memory for the name string + the null-terminating character (
 				// the compile time string returned by ComponentDesc<T>::name is not null-terminated).
 				// Different compilers will give a bit different strings, e.g.:
-				//   Clang/GCC: gaia::ecs::uni<Position>
-				//   MSVC     : gaia::ecs::uni<struct Position>
+				//   Clang/GCC: aaa::bbb::temp<Position>
+				//   MSVC     : aaa::bbb::temp<struct Position>
 				// Therefore, we first copy the compile-time string and then tweak it so it is
 				// the same on all supported compilers.
 				auto nameTmpLen = (uint32_t)ct_name.size();

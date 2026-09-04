@@ -90,7 +90,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Prefabs](#prefabs)
     * [Cleanup rules](#cleanup-rules)
     * [Hierarchies](#hierarchies)
-  * [Unique components](#unique-components)
+  * [Shared data](#shared-data)
   * [Delayed execution](#delayed-execution)
     * [Command Merging rules](#command-merging-rules)
   * [Systems](#systems)
@@ -512,7 +512,7 @@ Directly adding or removing an already-registered `DontFragment` component is sa
 >**NOTE:<br/>** 
 Component layout and storage follow the same rules for ordinary components and relationship payloads. Table storage
 supports AoS and SoA layouts. Sparse storage is intended for individually addressed payloads and supports only plain
-AoS generic components. `GAIA_STORAGE(Sparse)` and `ecs::Sparse` cannot be combined with a SoA layout.<br/>
+supports only plain AoS components. `GAIA_STORAGE(Sparse)` and `ecs::Sparse` cannot be combined with a SoA layout.<br/>
 
 >**NOTE:<br/>** 
 Runtime component storage and fragmentation traits must be set before the component has instances attached to entities. They do not override a typed component's `GAIA_STORAGE` policy.<br/>
@@ -1326,7 +1326,7 @@ q2.or_<Something>().or_<SomethingElse>();
 q2.no<Player>();
 ```
 
-All Query operations can be chained and it is also possible to invoke various filters multiple times with unique components:
+All Query operations can be chained and it is also possible to invoke various filters multiple times with distinct terms:
 
 ```cpp
 ecs::Query q = w.query();
@@ -1954,7 +1954,7 @@ Runtime-created components use erased raw byte views during iterator callbacks:
 * `view_raw(termIdx)` - read-only raw payload rows for a directly chunk-backed term
 * `view_raw_mut(termIdx)` - mutable raw payload rows with normal post-callback set side effects
 * `sview_raw_mut(termIdx)` - silent mutable raw payload rows. Pair with `modify_raw(termIdx)` when set side effects should run.
-* `view_raw_field(termIdx, fieldIdx)` - one read-only contiguous field array for a directly stored generic table SoA term or exact pair
+* `view_raw_field(termIdx, fieldIdx)` - one read-only contiguous field array for a directly stored table SoA term or exact pair
 * `view_raw_field_mut(termIdx, fieldIdx)` - mutable contiguous SoA field values with normal post-callback set side effects
 * `sview_raw_field_mut(termIdx, fieldIdx)` - silent mutable SoA field values. Pair with `modify_raw(termIdx)` when set side effects should run.
 
@@ -2954,20 +2954,33 @@ Pros and cons:
 | `Parent` | Better default for logical hierarchies, lower fragmentation, better suited to deep hierarchies | Less purely structural in query execution | Logical/editor/prefab/UI hierarchy |
 
 
-## Unique components
-Unique component is a special kind of data that exists at most once per chunk. In other words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.
+## Shared data
+Shared payload belongs on a group entity. Occupancy is a relation. That keeps one addressable owner for the data, so `GAIA_STORAGE(Sparse)` and ordinary component APIs apply to the group rather than to a chunk.
 
-If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.
-
-For instance, imagine you have a grid with fields of 100 meters squared.
-If you create your entities carefully they get organized in grid fields implicitly on the data level already without you having to use any sort of spatial map container.
+Use a built-in hierarchy when the group is a parent:
 
 ```cpp
-w.add<Position>(e1, {10,1});
-w.add<Position>(e2, {19,1});
-// Make both e1 and e2 share a common grid position of {1,0}
-w.add<ecs::uni<GridPosition>>(e1, {1, 0});
+ecs::Entity cell = w.add();
+w.add<GridPosition>(cell, {1, 0});
+
+w.add(e1, ecs::Pair(ecs::ChildOf, cell));
+w.add(e2, ecs::Pair(ecs::ChildOf, cell));
 ```
+
+`Parent` is the same idea when the grouping should stay out of archetype identity. For a partition key that is not a hierarchy, use an exclusive custom relation so each occupant has one group at a time:
+
+```cpp
+ecs::Entity inCell = w.add();
+w.add(inCell, ecs::Exclusive);
+
+ecs::Entity cell = w.add();
+w.add<GridPosition>(cell, {1, 0});
+
+w.add(e1, ecs::Pair(inCell, cell));
+w.add(e2, ecs::Pair(inCell, cell));
+```
+
+See [Hierarchies](#hierarchies) and [Exclusivity](#exclusivity).
 
 ## Delayed execution
 Sometimes you need to delay executing a part of the code for later. This can be achieved via command buffers.
@@ -4127,7 +4140,7 @@ if (cursor.field("seconds")) {
 
 `get_raw(...)` and `mut_raw(...)` access a complete AoS runtime component as bytes. They work with components in table or sparse storage. `mut_raw(...)` does not emit write notifications. Call `modify_raw(...)` afterwards when set hooks or `OnSet` observers must run. `set_raw(...)` copies the complete value and emits the notification for you.
 
-Runtime SoA components store each field separately. Use `get_raw_field(entity, component, fieldIndex)` to read one field and `mut_raw_field(...)` to edit one. Iterator callbacks can use `view_raw_field(termIdx, fieldIdx)` and `view_raw_field_mut(...)` for the current contiguous field range without resolving each entity separately. `sview_raw_field_mut(...)` stays silent until paired with `modify_raw(termIdx)`. The field index follows the field order used when the component was registered. Entity-scoped field access supports generic components and exact relationship pairs in table storage, but not sparse components. Iterator field views support directly stored generic table components and exact relationship pair terms with table SoA payloads. Call `modify_raw(...)` after editing through `mut_raw_field(...)` when write notifications are required.
+Runtime SoA components store each field separately. Use `get_raw_field(entity, component, fieldIndex)` to read one field and `mut_raw_field(...)` to edit one. Iterator callbacks can use `view_raw_field(termIdx, fieldIdx)` and `view_raw_field_mut(...)` for the current contiguous field range without resolving each entity separately. `sview_raw_field_mut(...)` stays silent until paired with `modify_raw(termIdx)`. The field index follows the field order used when the component was registered. Entity-scoped field access supports components and exact relationship pairs in table storage, but not sparse components. Iterator field views support directly stored table components and exact relationship pair terms with table SoA payloads. Call `modify_raw(...)` after editing through `mut_raw_field(...)` when write notifications are required.
 
 `ComponentCursor` selects reflected fields for both AoS and SoA components. Primitive setters such as `f32(...)` emit the component write notification automatically. Fixed arrays and adapted dynamic vectors use `count()` and `elem(index)` before reading or writing an element.
 
@@ -4215,7 +4228,7 @@ The mutable `view_raw_any_mut(component)` path emits normal write notifications 
 every iterated entity to own the component directly. A callback can track up to 32 distinct sparse components. A
 later mutable view is invalid, and `modify_raw(component)` returns false when that limit or the ownership requirement
 is not satisfied.
-Directly stored generic table runtime SoA component and exact-pair terms use `view_raw_field(termIdx, fieldIdx)` for a
+Directly stored table runtime SoA component and exact-pair terms use `view_raw_field(termIdx, fieldIdx)` for a
 contiguous read-only field array. See [Iteration](#iteration) for the supported storage and ownership contracts.
 
 ## Multithreading

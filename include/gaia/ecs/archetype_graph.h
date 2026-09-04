@@ -125,10 +125,10 @@ namespace gaia {
 						} else {
 							const auto name = entity_name(world, entity);
 							GAIA_LOG_N(
-									"    ent [%u:%u], %.*s [%s], aid:%u",
+									"    ent [%u:%u], %.*s, aid:%u",
 									//
 									entity.id(), entity.gen(), (int)name.size(), name.empty() ? "" : name.data(),
-									EntityKindString[entity.kind()], edge.second.id);
+									edge.second.id);
 						}
 					}
 				};

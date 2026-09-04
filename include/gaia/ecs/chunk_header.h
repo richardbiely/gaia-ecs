@@ -79,24 +79,18 @@ namespace gaia {
 
 			//! Index of the first enabled entity in the chunk
 			uint16_t rowFirstEnabledEntity : MAX_CHUNK_ENTITIES_BITS;
-			//! True if there's any generic component that requires custom construction
-			uint16_t hasAnyCustomGenCtor : 1;
-			//! True if there's any unique component that requires custom construction
-			uint16_t hasAnyCustomUniCtor : 1;
-			//! True if there's any generic component that requires custom destruction
-			uint16_t hasAnyCustomGenDtor : 1;
-			//! True if there's any unique component that requires custom destruction
-			uint16_t hasAnyCustomUniDtor : 1;
+			//! True if there's any component that requires custom construction
+			uint16_t hasAnyCustomCtor : 1;
+			//! True if there's any component that requires custom destruction
+			uint16_t hasAnyCustomDtor : 1;
 			//! When it hits 0 the chunk is scheduled for deletion
 			uint16_t lifespanCountdown : CHUNK_LIFESPAN_BITS;
 			//! True if deleted, false otherwise
 			uint16_t dead : 1;
 			//! Empty space for future use
-			uint16_t unused : 11;
+			uint16_t unused : 13;
 
-			//! Number of generic entities/components
-			uint8_t genEntities;
-			//! Number of components on the archetype
+			//! Number of component columns on the archetype
 			uint8_t cntEntities;
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
@@ -108,15 +102,13 @@ namespace gaia {
 			ChunkHeader(): worldVersion(s_worldVersionDummy), entityOrderVersion(0) {}
 
 			ChunkHeader(
-					const World& wld, const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt,
-					uint32_t& version):
+					const World& wld, const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint32_t& version):
 					world(&wld), cc(&compCache), index(chunkIndex), deleteQueueIndex(BadIndex), count(0), countEnabled(0),
 					capacity(cap),
 					//
-					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
-					hasAnyCustomUniDtor(0), lifespanCountdown(0), dead(0), unused(0),
+					rowFirstEnabledEntity(0), hasAnyCustomCtor(0), hasAnyCustomDtor(0), lifespanCountdown(0), dead(0), unused(0),
 					//
-					genEntities(genEntitiesCnt), cntEntities(0), worldVersion(version), entityOrderVersion(0) {
+					cntEntities(0), worldVersion(version), entityOrderVersion(0) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 			}

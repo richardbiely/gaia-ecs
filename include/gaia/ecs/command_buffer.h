@@ -104,13 +104,12 @@ namespace gaia {
 				CommandBuffer& operator=(const CommandBuffer&) = delete;
 
 				//! Requests a new entity to be created
-				//! \param kind Entity kind. Generic entity by default.
 				//! \return Entity that will be created. The id is not usable right away. It
 				//!         will be filled with proper data after commit().
-				GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
+				GAIA_NODISCARD Entity add() {
 					core::lock_scope lock(m_acc);
 
-					Entity temp = add_temp(kind);
+					Entity temp = add_temp();
 					push_op({OpType::ADD_ENTITY, 0, temp, EntityBad});
 					return temp;
 				}
@@ -121,7 +120,7 @@ namespace gaia {
 				GAIA_NODISCARD Entity copy(Entity entityFrom) {
 					core::lock_scope lock(m_acc);
 
-					Entity temp = add_temp(entityFrom.kind());
+					Entity temp = add_temp();
 					push_op({OpType::CPY_ENTITY, 0, temp, entityFrom});
 					return temp;
 				}
@@ -349,7 +348,7 @@ namespace gaia {
 					}
 
 					const auto& ec = target.pair() ? m_world.fetch(target) : m_world.m_recs.entities[target.id()];
-					const auto row = target.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+					const auto row = ec.row;
 					const auto compIdx = ec.pChunk->comp_idx(object);
 					auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 					item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
@@ -410,9 +409,9 @@ namespace gaia {
 				}
 
 				//! Create a temporary entity.
-				GAIA_NODISCARD Entity add_temp(EntityKind kind) {
+				GAIA_NODISCARD Entity add_temp() {
 					m_temp2real.push_back(EntityBad);
-					Entity tmp(m_nextTemp++, 0, true, false, kind);
+					Entity tmp(m_nextTemp++, 0, true, false);
 					// Use the unused flag to mark temporary entities
 					tmp.data.tmp = 1;
 					return tmp;
@@ -520,7 +519,7 @@ namespace gaia {
 
 							if (o.type == OpType::ADD_ENTITY) {
 								if (m_temp2real[ti] == EntityBad)
-									m_temp2real[ti] = m_world.add(o.target.kind());
+									m_temp2real[ti] = m_world.add();
 							} else if (o.type == OpType::CPY_ENTITY) {
 								if (m_temp2real[ti] == EntityBad) {
 									const Entity src = resolve(o.other);

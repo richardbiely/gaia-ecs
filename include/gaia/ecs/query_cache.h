@@ -558,11 +558,10 @@ namespace gaia {
 					if (needsExactPairSelectors)
 						add_create_query_handles(entity, handles);
 
-					// Pair ids retain the relation/target ids plus their kind bits. That is enough to
+					// Pair ids retain the relation and target ids. That is enough to
 					// rebuild wildcard pair lookup keys without touching the world record storage.
-					const auto relKind = entity.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
-					const auto rel = Entity((EntityId)entity.id(), 0, false, false, relKind);
-					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
+					const auto rel = Entity((EntityId)entity.id(), 0, false, false);
+					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false);
 					if (needsTgtWildcardSelectors)
 						add_create_query_handles(Pair(All, tgt), handles);
 					if (needsRelWildcardSelectors && !core::has(pairWildcardRelations, rel)) {

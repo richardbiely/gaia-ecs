@@ -97,10 +97,9 @@ inline ecs::ComponentDesc runtime_component_desc(
 inline ecs::ComponentCacheItem& add_runtime_component(
 		ecs::World& world, const char* name, uint32_t size, ecs::DataStorageType storageType, uint32_t alig = 1,
 		uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr, ecs::ComponentLookupHash hashLookup = {},
-		ecs::EntityKind kind = ecs::EntityKind::EK_Gen, const ecs::RuntimeFieldInit* fields = nullptr,
-		uint32_t fieldCount = 0) {
+		const ecs::RuntimeFieldInit* fields = nullptr, uint32_t fieldCount = 0) {
 	return world.add(
-			runtime_component_desc(name, size, storageType, alig, soa, pSoaSizes, hashLookup, fields, fieldCount), kind);
+			runtime_component_desc(name, size, storageType, alig, soa, pSoaSizes, hashLookup, fields, fieldCount));
 }
 
 inline ecs::ComponentCacheItem& add_runtime_component(
@@ -116,8 +115,7 @@ inline ecs::ComponentCacheItem& add_runtime_component_with_fields(
 		ecs::World& world, const char* name, uint32_t size, ecs::DataStorageType storageType, uint32_t alig,
 		const ecs::RuntimeFieldInit* fields, uint32_t fieldCount) {
 	return add_runtime_component(
-			world, name, size, storageType, alig, 0, nullptr, ecs::ComponentLookupHash{}, ecs::EntityKind::EK_Gen, fields,
-			fieldCount);
+			world, name, size, storageType, alig, 0, nullptr, ecs::ComponentLookupHash{}, fields, fieldCount);
 }
 
 inline ecs::ComponentCacheItem& add_runtime_component_with_fields(

@@ -485,7 +485,7 @@ TEST_CASE("Enable - moving the last enabled entity preserves the disabled partit
 	CHECK(query.count(ecs::Constraints::DisabledOnly) == 0);
 }
 
-TEST_CASE("Add - generic") {
+TEST_CASE("Add") {
 	{
 		TestWorld twld;
 		auto e = wld.add();
@@ -504,8 +504,6 @@ TEST_CASE("Add - generic") {
 
 		CHECK(wld.has<Position>(e));
 		CHECK(wld.has<Acceleration>(e));
-		CHECK_FALSE(wld.has<ecs::uni<Position>>(e));
-		CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e));
 
 		auto f = wld.add();
 		wld.add(e, f);
@@ -513,8 +511,6 @@ TEST_CASE("Add - generic") {
 
 		CHECK(wld.has<Position>(e));
 		CHECK(wld.has<Acceleration>(e));
-		CHECK_FALSE(wld.has<ecs::uni<Position>>(e));
-		CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e));
 	}
 
 	{
@@ -526,8 +522,6 @@ TEST_CASE("Add - generic") {
 
 		CHECK(wld.has<Position>(e));
 		CHECK(wld.has<Acceleration>(e));
-		CHECK_FALSE(wld.has<ecs::uni<Position>>(e));
-		CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e));
 
 		auto p = wld.get<Position>(e);
 		CHECK(p.x == 1.f);
@@ -545,8 +539,6 @@ TEST_CASE("Add - generic") {
 
 		CHECK(wld.has<Position>(e));
 		CHECK(wld.has<Acceleration>(e));
-		CHECK_FALSE(wld.has<ecs::uni<Position>>(e));
-		CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e));
 
 		p = wld.get<Position>(e);
 		CHECK(p.x == 1.f);
@@ -597,288 +589,7 @@ TEST_CASE("Add - generic") {
 // 	}
 // }
 
-TEST_CASE("Add - unique") {
-	{
-		TestWorld twld;
-		auto e = wld.add();
 
-		auto f = wld.add(ecs::EntityKind::EK_Uni);
-		wld.add(e, f);
-		CHECK(wld.has(e, f));
-	}
-
-	{
-		TestWorld twld;
-		auto e = wld.add();
-
-		wld.add<ecs::uni<Position>>(e);
-		wld.add<ecs::uni<Acceleration>>(e);
-
-		CHECK_FALSE(wld.has<Position>(e));
-		CHECK_FALSE(wld.has<Acceleration>(e));
-		CHECK(wld.has<ecs::uni<Position>>(e));
-		CHECK(wld.has<ecs::uni<Acceleration>>(e));
-	}
-
-	{
-		TestWorld twld;
-		auto e = wld.add();
-
-		// Add Position unique component
-		wld.add<ecs::uni<Position>>(e, {1, 2, 3});
-		CHECK(wld.has<ecs::uni<Position>>(e));
-		CHECK_FALSE(wld.has<Position>(e));
-		{
-			auto p = wld.get<ecs::uni<Position>>(e);
-			CHECK(p.x == 1.f);
-			CHECK(p.y == 2.f);
-			CHECK(p.z == 3.f);
-		}
-		{
-			auto setter = wld.acc_mut(e);
-			auto& upos = setter.mut<ecs::uni<Position>>();
-			upos = {10, 20, 30};
-
-			auto p = wld.get<ecs::uni<Position>>(e);
-			CHECK(p.x == 10.f);
-			CHECK(p.y == 20.f);
-			CHECK(p.z == 30.f);
-
-			p = setter.get<ecs::uni<Position>>();
-			CHECK(p.x == 10.f);
-			CHECK(p.y == 20.f);
-			CHECK(p.z == 30.f);
-		}
-		// Add Acceleration unique component.
-		// This moves "e" to a new archetype.
-		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
-		CHECK(wld.has<ecs::uni<Position>>(e));
-		CHECK(wld.has<ecs::uni<Acceleration>>(e));
-		CHECK_FALSE(wld.has<Position>(e));
-		CHECK_FALSE(wld.has<Acceleration>(e));
-		{
-			auto a = wld.get<ecs::uni<Acceleration>>(e);
-			CHECK(a.x == 4.f);
-			CHECK(a.y == 5.f);
-			CHECK(a.z == 6.f);
-		}
-		{
-			// Unique storage after archetype moves is unspecified, but it must stay writable.
-			auto& p = wld.acc_mut(e).mut<ecs::uni<Position>>();
-			p = {7, 8, 9};
-			const auto stored = wld.get<ecs::uni<Position>>(e);
-			CHECK(stored.x == 7.f);
-			CHECK(stored.y == 8.f);
-			CHECK(stored.z == 9.f);
-		}
-	}
-
-	{
-		TestWorld twld;
-		auto e = wld.add();
-
-		// Add Position unique component
-		wld.add<ecs::uni<Position>>(e, {1, 2, 3});
-		CHECK(wld.has<ecs::uni<Position>>(e));
-		CHECK_FALSE(wld.has<Position>(e));
-		{
-			auto p = wld.get<ecs::uni<Position>>(e);
-			CHECK(p.x == 1.f);
-			CHECK(p.y == 2.f);
-			CHECK(p.z == 3.f);
-		}
-		// Add Acceleration unique component.
-		// This moves "e" to a new archetype.
-		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
-		CHECK(wld.has<ecs::uni<Position>>(e));
-		CHECK(wld.has<ecs::uni<Acceleration>>(e));
-		CHECK_FALSE(wld.has<Position>(e));
-		CHECK_FALSE(wld.has<Acceleration>(e));
-		{
-			auto a = wld.get<ecs::uni<Acceleration>>(e);
-			CHECK(a.x == 4.f);
-			CHECK(a.y == 5.f);
-			CHECK(a.z == 6.f);
-		}
-		{
-			auto& p = wld.acc_mut(e).mut<ecs::uni<Position>>();
-			p = {7, 8, 9};
-			const auto stored = wld.get<ecs::uni<Position>>(e);
-			CHECK(stored.x == 7.f);
-			CHECK(stored.y == 8.f);
-			CHECK(stored.z == 9.f);
-		}
-
-		// Add a generic entity. Archetype changes.
-		auto f = wld.add();
-		wld.add(e, f);
-		CHECK(wld.has(e, f));
-
-		CHECK(wld.has<ecs::uni<Position>>(e));
-		CHECK(wld.has<ecs::uni<Acceleration>>(e));
-		CHECK_FALSE(wld.has<Position>(e));
-		CHECK_FALSE(wld.has<Acceleration>(e));
-		{
-			auto& a = wld.acc_mut(e).mut<ecs::uni<Acceleration>>();
-			a = {40, 50, 60};
-			const auto stored = wld.get<ecs::uni<Acceleration>>(e);
-			CHECK(stored.x == 40.f);
-			CHECK(stored.y == 50.f);
-			CHECK(stored.z == 60.f);
-		}
-		{
-			auto& p = wld.acc_mut(e).mut<ecs::uni<Position>>();
-			p = {7, 8, 9};
-			const auto stored = wld.get<ecs::uni<Position>>(e);
-			CHECK(stored.x == 7.f);
-			CHECK(stored.y == 8.f);
-			CHECK(stored.z == 9.f);
-		}
-	}
-
-	{
-		TestWorld twld;
-		auto e = wld.add();
-
-		// Add Position unique component
-		wld.add<ecs::uni<Position>>(e, {1, 2, 3});
-		CHECK(wld.has<ecs::uni<Position>>(e));
-		CHECK_FALSE(wld.has<Position>(e));
-		{
-			auto p = wld.get<ecs::uni<Position>>(e);
-			CHECK(p.x == 1.f);
-			CHECK(p.y == 2.f);
-			CHECK(p.z == 3.f);
-		}
-		// Add Acceleration unique component.
-		// This moves "e" to a new archetype.
-		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
-		CHECK(wld.has<ecs::uni<Position>>(e));
-		CHECK(wld.has<ecs::uni<Acceleration>>(e));
-		CHECK_FALSE(wld.has<Position>(e));
-		CHECK_FALSE(wld.has<Acceleration>(e));
-		{
-			auto a = wld.get<ecs::uni<Acceleration>>(e);
-			CHECK(a.x == 4.f);
-			CHECK(a.y == 5.f);
-			CHECK(a.z == 6.f);
-		}
-		// Because "e" was moved to a new archetype nobody ever set the Position value again.
-		// The bytes are unspecified here, so only verify the value after writing it explicitly below.
-
-		// Add a unique entity. Archetype changes.
-		auto f = wld.add(ecs::EntityKind::EK_Uni);
-		wld.add(e, f);
-		CHECK(wld.has(e, f));
-
-		CHECK(wld.has<ecs::uni<Position>>(e));
-		CHECK(wld.has<ecs::uni<Acceleration>>(e));
-		CHECK_FALSE(wld.has<Position>(e));
-		CHECK_FALSE(wld.has<Acceleration>(e));
-		{
-			auto& a = wld.acc_mut(e).mut<ecs::uni<Acceleration>>();
-			a = {40, 50, 60};
-			const auto stored = wld.get<ecs::uni<Acceleration>>(e);
-			CHECK(stored.x == 40.f);
-			CHECK(stored.y == 50.f);
-			CHECK(stored.z == 60.f);
-		}
-		{
-			auto& p = wld.acc_mut(e).mut<ecs::uni<Position>>();
-			p = {7, 8, 9};
-			const auto stored = wld.get<ecs::uni<Position>>(e);
-			CHECK(stored.x == 7.f);
-			CHECK(stored.y == 8.f);
-			CHECK(stored.z == 9.f);
-		}
-	}
-}
-
-TEST_CASE("Add - mixed") {
-	{
-		TestWorld twld;
-		auto e = wld.add();
-
-		auto f = wld.add(ecs::EntityKind::EK_Uni);
-		wld.add(e, f);
-		CHECK(wld.has(e, f));
-	}
-
-	{
-		TestWorld twld;
-		auto e = wld.add();
-
-		wld.add<Position>(e);
-		wld.add<ecs::uni<Position>>(e);
-
-		CHECK(wld.has<Position>(e));
-		CHECK(wld.has<ecs::uni<Position>>(e));
-	}
-
-	{
-		TestWorld twld;
-		auto e = wld.add();
-
-		// Add Position unique component
-		wld.add<Position>(e, {10, 20, 30});
-		wld.add<ecs::uni<Position>>(e, {1, 2, 3});
-		CHECK(wld.has<Position>(e));
-		CHECK(wld.has<ecs::uni<Position>>(e));
-		{
-			auto p = wld.get<Position>(e);
-			CHECK(p.x == 10.f);
-			CHECK(p.y == 20.f);
-			CHECK(p.z == 30.f);
-		}
-		{
-			auto p = wld.get<ecs::uni<Position>>(e);
-			CHECK(p.x == 1.f);
-			CHECK(p.y == 2.f);
-			CHECK(p.z == 3.f);
-		}
-		// Add Acceleration unique component.
-		// This moves "e" to a new archetype.
-		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
-		CHECK(wld.has<Position>(e));
-		CHECK(wld.has<ecs::uni<Position>>(e));
-		CHECK(wld.has<ecs::uni<Acceleration>>(e));
-		CHECK_FALSE(wld.has<Acceleration>(e));
-		{
-			auto a = wld.get<ecs::uni<Acceleration>>(e);
-			CHECK(a.x == 4.f);
-			CHECK(a.y == 5.f);
-			CHECK(a.z == 6.f);
-		}
-		{
-			// Position will remain the same
-			auto p = wld.get<Position>(e);
-			CHECK(p.x == 10.f);
-			CHECK(p.y == 20.f);
-			CHECK(p.z == 30.f);
-		}
-		{
-			// Because "e" was moved to a new archetype nobody ever set the unique Position value again.
-			// The bytes are unspecified here, so only verify the value after writing it explicitly below.
-			// auto p = wld.get<ecs::uni<Position>>(e);
-			// CHECK_FALSE(p.x == 1.f);
-			// CHECK_FALSE(p.y == 2.f);
-			// CHECK_FALSE(p.z == 3.f);
-		}
-		wld.set<ecs::uni<Position>>(e) = {100.0f, 200.0f, 300.0f};
-		{
-			auto p = wld.get<Position>(e);
-			CHECK(p.x == 10.f);
-			CHECK(p.y == 20.f);
-			CHECK(p.z == 30.f);
-		}
-		{
-			auto p = wld.get<ecs::uni<Position>>(e);
-			CHECK(p.x == 100.f);
-			CHECK(p.y == 200.f);
-			CHECK(p.z == 300.f);
-		}
-	}
-}
 
 TEST_CASE("Singleton self id lifecycle and recycled slot reuse") {
 	TestWorld twld;
@@ -915,7 +626,7 @@ TEST_CASE("Singleton self id lifecycle and recycled slot reuse") {
 	expect_exact_entities(qReplacement, {replacement});
 }
 
-TEST_CASE("Del - generic") {
+TEST_CASE("Del") {
 	{
 		TestWorld twld;
 		auto e1 = wld.add();
@@ -966,73 +677,7 @@ TEST_CASE("Del - generic") {
 	}
 }
 
-TEST_CASE("Del - unique") {
-	TestWorld twld;
-	auto e1 = wld.add();
 
-	{
-		wld.add<ecs::uni<Position>>(e1);
-		wld.add<ecs::uni<Acceleration>>(e1);
-		{
-			wld.del<ecs::uni<Position>>(e1);
-			CHECK_FALSE(wld.has<ecs::uni<Position>>(e1));
-			CHECK(wld.has<ecs::uni<Acceleration>>(e1));
-		}
-		{
-			wld.del<ecs::uni<Acceleration>>(e1);
-			CHECK_FALSE(wld.has<ecs::uni<Position>>(e1));
-			CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e1));
-		}
-	}
-
-	{
-		wld.add<ecs::uni<Acceleration>>(e1);
-		wld.add<ecs::uni<Position>>(e1);
-		{
-			wld.del<ecs::uni<Position>>(e1);
-			CHECK_FALSE(wld.has<ecs::uni<Position>>(e1));
-			CHECK(wld.has<ecs::uni<Acceleration>>(e1));
-		}
-		{
-			wld.del<ecs::uni<Acceleration>>(e1);
-			CHECK_FALSE(wld.has<ecs::uni<Position>>(e1));
-			CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e1));
-		}
-	}
-}
-
-TEST_CASE("Del - generic, unique") {
-	TestWorld twld;
-	auto e1 = wld.add();
-
-	{
-		wld.add<Position>(e1);
-		wld.add<Acceleration>(e1);
-		wld.add<ecs::uni<Position>>(e1);
-		wld.add<ecs::uni<Acceleration>>(e1);
-		{
-			wld.del<Position>(e1);
-			CHECK_FALSE(wld.has<Position>(e1));
-			CHECK(wld.has<Acceleration>(e1));
-			CHECK(wld.has<ecs::uni<Position>>(e1));
-			CHECK(wld.has<ecs::uni<Acceleration>>(e1));
-		}
-		{
-			wld.del<Acceleration>(e1);
-			CHECK_FALSE(wld.has<Position>(e1));
-			CHECK_FALSE(wld.has<Acceleration>(e1));
-			CHECK(wld.has<ecs::uni<Position>>(e1));
-			CHECK(wld.has<ecs::uni<Acceleration>>(e1));
-		}
-		{
-			wld.del<ecs::uni<Acceleration>>(e1);
-			CHECK_FALSE(wld.has<Position>(e1));
-			CHECK_FALSE(wld.has<Acceleration>(e1));
-			CHECK(wld.has<ecs::uni<Position>>(e1));
-			CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e1));
-		}
-	}
-}
 
 TEST_CASE("Del - cleanup rules") {
 	SUBCASE("default") {
@@ -1356,24 +1001,6 @@ TEST_CASE("Entity name - component") {
 		const auto e = wld.get("Position");
 		CHECK(e == pci.entity);
 	}
-	// Add unique component
-	const auto& upci = wld.add<ecs::uni<Position>>();
-	{
-		// component entities participate in the normal entity naming path
-		const auto name = wld.name(upci.entity);
-		CHECK(name == "gaia::ecs::uni<Position>");
-		CHECK(wld.symbol(upci.entity) == "gaia::ecs::uni<Position>");
-		const auto e = wld.get("gaia::ecs::uni<Position>");
-		CHECK(e == upci.entity);
-	}
-	{
-		// generic component symbol must still match
-		const auto name = wld.name(pci.entity);
-		CHECK(name == "Position");
-		CHECK(wld.symbol(pci.entity) == "Position");
-		const auto e = wld.get("Position");
-		CHECK(e == pci.entity);
-	}
 
 	// Assign an entity name to the component entity
 	wld.name(pci.entity, "xyz", 3);
@@ -1384,14 +1011,6 @@ TEST_CASE("Entity name - component") {
 		CHECK(wld.symbol(pci.entity) == "Position");
 		const auto e = wld.get("xyz");
 		CHECK(e == pci.entity);
-	}
-	{
-		// unique component symbol must still match
-		const auto name = wld.name(upci.entity);
-		CHECK(name == "gaia::ecs::uni<Position>");
-		CHECK(wld.symbol(upci.entity) == "gaia::ecs::uni<Position>");
-		const auto e = wld.get("gaia::ecs::uni<Position>");
-		CHECK(e == upci.entity);
 	}
 }
 
