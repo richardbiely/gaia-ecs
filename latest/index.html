@@ -2682,6 +2682,12 @@ System basics</h3>
 <div class="line">w.update();</div>
 </div><!-- fragment --><p> Letting systems run via <b>World::update</b> automatically is the preferred path. Gaia-ECS can resolve system order, phase boundaries, and safe parallel work for you.</p>
 <p>If an external engine loop calls <code>w.systems_run()</code> directly, call <code>w.frame_cleanup()</code> and then <code>w.frame_end()</code> once per frame. <code>frame_cleanup()</code> finalizes deferred deletion and garbage collection without running systems again. <code>frame_end()</code> flushes logs and emits the profiler frame marker.</p>
+<p>A fixed-step loop can run one phase at a time without collecting every enabled system and without adding or removing a tick component to gate work:</p>
+<div class="fragment"><div class="line">w.systems_run(phaseSim);</div>
+<div class="line">w.systems_run(phaseView);</div>
+<div class="line">w.frame_cleanup();</div>
+<div class="line">w.frame_end();</div>
+</div><!-- fragment --><p><code>World::systems_run(phase)</code> runs only systems assigned to that phase with <code>SystemBuilder::phase(phase)</code>. It does not run other phases, descendant phases, or unphased systems. Intra-phase <code>DependsOn</code> order matches that phase's slice of a full <code>systems_run()</code> pass.</p>
 <h3><a class="anchor" id="system-dependencies"></a>
 System dependencies</h3>
 <p><code>World::update()</code> uses a clear rule for system <code>DependsOn</code>:</p>

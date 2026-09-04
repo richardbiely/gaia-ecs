@@ -399,124 +399,124 @@ $(document).ready(function(){initNavTree('system_8inl_source.html',''); initResi
 <div class="line"><a id="l00475" name="l00475"></a><span class="lineno">  475</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
 <div class="line"><a id="l00476" name="l00476"></a><span class="lineno">  476</span>      }</div>
 <div class="line"><a id="l00477" name="l00477"></a><span class="lineno">  477</span> </div>
-<div class="line"><a id="l00492" name="l00492"></a><span class="lineno">  492</span>      SystemBuilder&amp; phase(Entity phaseEntity) {</div>
-<div class="line"><a id="l00493" name="l00493"></a><span class="lineno">  493</span>        validate();</div>
-<div class="line"><a id="l00494" name="l00494"></a><span class="lineno">  494</span>        GAIA_ASSERT(m_world.valid(phaseEntity));</div>
-<div class="line"><a id="l00495" name="l00495"></a><span class="lineno">  495</span>        GAIA_ASSERT(!phaseEntity.pair());</div>
-<div class="line"><a id="l00496" name="l00496"></a><span class="lineno">  496</span>        m_world.add(m_entity, {ChildOf, phaseEntity});</div>
-<div class="line"><a id="l00497" name="l00497"></a><span class="lineno">  497</span>        m_world.add(m_entity, {DependsOn, phaseEntity});</div>
-<div class="line"><a id="l00498" name="l00498"></a><span class="lineno">  498</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
-<div class="line"><a id="l00499" name="l00499"></a><span class="lineno">  499</span>      }</div>
-<div class="line"><a id="l00501" name="l00501"></a><span class="lineno">  501</span> </div>
-<div class="line"><a id="l00502" name="l00502"></a><span class="lineno">  502</span>      <span class="comment">//------------------------------------------------</span></div>
-<div class="line"><a id="l00503" name="l00503"></a><span class="lineno">  503</span> </div>
-<div class="line"><a id="l00506" name="l00506"></a><span class="lineno">  506</span> </div>
-<div class="line"><a id="l00510" name="l00510"></a><span class="lineno">  510</span>      SystemBuilder&amp; mode(QueryExecType type) {</div>
-<div class="line"><a id="l00511" name="l00511"></a><span class="lineno">  511</span>        <span class="keyword">auto</span>&amp; ctx = data();</div>
-<div class="line"><a id="l00512" name="l00512"></a><span class="lineno">  512</span>        ctx.execType = type;</div>
-<div class="line"><a id="l00513" name="l00513"></a><span class="lineno">  513</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
-<div class="line"><a id="l00514" name="l00514"></a><span class="lineno">  514</span>      }</div>
-<div class="line"><a id="l00515" name="l00515"></a><span class="lineno">  515</span> </div>
-<div class="line"><a id="l00521" name="l00521"></a><span class="lineno">  521</span> </div>
-<div class="line"><a id="l00533" name="l00533"></a><span class="lineno">  533</span>      SystemBuilder&amp; ctx(<span class="keywordtype">void</span>* pCtx) {</div>
-<div class="line"><a id="l00534" name="l00534"></a><span class="lineno">  534</span>        validate();</div>
-<div class="line"><a id="l00535" name="l00535"></a><span class="lineno">  535</span>        data().query.ctx(pCtx);</div>
-<div class="line"><a id="l00536" name="l00536"></a><span class="lineno">  536</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
-<div class="line"><a id="l00537" name="l00537"></a><span class="lineno">  537</span>      }</div>
-<div class="line"><a id="l00538" name="l00538"></a><span class="lineno">  538</span> </div>
-<div class="line"><a id="l00541" name="l00541"></a><span class="lineno">  541</span>      GAIA_NODISCARD <span class="keywordtype">void</span>* ctx()<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l00542" name="l00542"></a><span class="lineno">  542</span>        validate();</div>
-<div class="line"><a id="l00543" name="l00543"></a><span class="lineno">  543</span>        <span class="keywordflow">return</span> data().query.ctx();</div>
-<div class="line"><a id="l00544" name="l00544"></a><span class="lineno">  544</span>      }</div>
-<div class="line"><a id="l00546" name="l00546"></a><span class="lineno">  546</span> </div>
-<div class="line"><a id="l00553" name="l00553"></a><span class="lineno">  553</span>      SystemBuilder&amp; main_thread(<span class="keywordtype">bool</span> required = <span class="keyword">true</span>) {</div>
-<div class="line"><a id="l00554" name="l00554"></a><span class="lineno">  554</span>        validate();</div>
-<div class="line"><a id="l00555" name="l00555"></a><span class="lineno">  555</span>        data().query.main_thread(required);</div>
-<div class="line"><a id="l00556" name="l00556"></a><span class="lineno">  556</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
-<div class="line"><a id="l00557" name="l00557"></a><span class="lineno">  557</span>      }</div>
-<div class="line"><a id="l00559" name="l00559"></a><span class="lineno">  559</span> </div>
-<div class="line"><a id="l00567" name="l00567"></a><span class="lineno">  567</span>      SystemBuilder&amp; reads(Entity entity) {</div>
-<div class="line"><a id="l00568" name="l00568"></a><span class="lineno">  568</span>        validate();</div>
-<div class="line"><a id="l00569" name="l00569"></a><span class="lineno">  569</span>        data().query.reads(entity);</div>
-<div class="line"><a id="l00570" name="l00570"></a><span class="lineno">  570</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
-<div class="line"><a id="l00571" name="l00571"></a><span class="lineno">  571</span>      }</div>
-<div class="line"><a id="l00572" name="l00572"></a><span class="lineno">  572</span> </div>
-<div class="line"><a id="l00577" name="l00577"></a><span class="lineno">  577</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</div>
-<div class="line"><a id="l00578" name="l00578"></a><span class="lineno">  578</span>      SystemBuilder&amp; reads() {</div>
-<div class="line"><a id="l00579" name="l00579"></a><span class="lineno">  579</span>        validate();</div>
-<div class="line"><a id="l00580" name="l00580"></a><span class="lineno">  580</span>        data().query.template reads&lt;T&gt;();</div>
-<div class="line"><a id="l00581" name="l00581"></a><span class="lineno">  581</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
-<div class="line"><a id="l00582" name="l00582"></a><span class="lineno">  582</span>      }</div>
-<div class="line"><a id="l00583" name="l00583"></a><span class="lineno">  583</span> </div>
-<div class="line"><a id="l00589" name="l00589"></a><span class="lineno">  589</span>      SystemBuilder&amp; writes(Entity entity) {</div>
-<div class="line"><a id="l00590" name="l00590"></a><span class="lineno">  590</span>        validate();</div>
-<div class="line"><a id="l00591" name="l00591"></a><span class="lineno">  591</span>        data().query.writes(entity);</div>
-<div class="line"><a id="l00592" name="l00592"></a><span class="lineno">  592</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
-<div class="line"><a id="l00593" name="l00593"></a><span class="lineno">  593</span>      }</div>
-<div class="line"><a id="l00594" name="l00594"></a><span class="lineno">  594</span> </div>
-<div class="line"><a id="l00599" name="l00599"></a><span class="lineno">  599</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</div>
-<div class="line"><a id="l00600" name="l00600"></a><span class="lineno">  600</span>      SystemBuilder&amp; writes() {</div>
-<div class="line"><a id="l00601" name="l00601"></a><span class="lineno">  601</span>        validate();</div>
-<div class="line"><a id="l00602" name="l00602"></a><span class="lineno">  602</span>        data().query.template writes&lt;T&gt;();</div>
-<div class="line"><a id="l00603" name="l00603"></a><span class="lineno">  603</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
-<div class="line"><a id="l00604" name="l00604"></a><span class="lineno">  604</span>      }</div>
-<div class="line"><a id="l00606" name="l00606"></a><span class="lineno">  606</span> </div>
-<div class="line"><a id="l00612" name="l00612"></a><span class="lineno">  612</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func, std::enable_if_t&lt;detail::is_query_iter_callback_v&lt;Func&gt;, <span class="keywordtype">int</span>&gt; = 0&gt;</div>
-<div class="line"><a id="l00613" name="l00613"></a><span class="lineno">  613</span>      SystemBuilder&amp; on_each(Func func) {</div>
-<div class="line"><a id="l00614" name="l00614"></a><span class="lineno">  614</span>        validate();</div>
-<div class="line"><a id="l00615" name="l00615"></a><span class="lineno">  615</span> </div>
-<div class="line"><a id="l00616" name="l00616"></a><span class="lineno">  616</span>        <span class="keyword">auto</span>&amp; runtime = runtime_data();</div>
-<div class="line"><a id="l00617" name="l00617"></a><span class="lineno">  617</span>        runtime.on_each_func = [func](Query&amp; query, QueryExecType execType, SystemRuntimeData::RunMode mode) <span class="keyword">mutable</span> {</div>
-<div class="line"><a id="l00618" name="l00618"></a><span class="lineno">  618</span>          <span class="keywordflow">if</span> (mode == SystemRuntimeData::RunMode::DeferredJob)</div>
-<div class="line"><a id="l00619" name="l00619"></a><span class="lineno">  619</span>            <span class="keywordflow">return</span> query.job(func, execType);</div>
-<div class="line"><a id="l00620" name="l00620"></a><span class="lineno">  620</span> </div>
-<div class="line"><a id="l00621" name="l00621"></a><span class="lineno">  621</span>          query.each_runtime_erased(</div>
-<div class="line"><a id="l00622" name="l00622"></a><span class="lineno">  622</span>              execType, <span class="keyword">static_cast&lt;</span><span class="keywordtype">void</span>*<span class="keyword">&gt;</span>(&amp;func), &amp;detail::QueryImpl::template invoke_runtime_iter&lt;Func, Iter&gt;,</div>
-<div class="line"><a id="l00623" name="l00623"></a><span class="lineno">  623</span>              Constraints::EnabledOnly);</div>
-<div class="line"><a id="l00624" name="l00624"></a><span class="lineno">  624</span>          <span class="keywordflow">return</span> SchedJob{};</div>
-<div class="line"><a id="l00625" name="l00625"></a><span class="lineno">  625</span>        };</div>
-<div class="line"><a id="l00626" name="l00626"></a><span class="lineno">  626</span> </div>
-<div class="line"><a id="l00627" name="l00627"></a><span class="lineno">  627</span>        <span class="keywordflow">return</span> (SystemBuilder&amp;)*<span class="keyword">this</span>;</div>
-<div class="line"><a id="l00628" name="l00628"></a><span class="lineno">  628</span>      }</div>
-<div class="line"><a id="l00629" name="l00629"></a><span class="lineno">  629</span> </div>
-<div class="line"><a id="l00636" name="l00636"></a><span class="lineno">  636</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func, std::enable_if_t&lt;!detail::is_query_iter_callback_v&lt;Func&gt;, <span class="keywordtype">int</span>&gt; = 0&gt;</div>
-<div class="line"><a id="l00637" name="l00637"></a><span class="lineno">  637</span>      SystemBuilder&amp; on_each(Func func);</div>
-<div class="line"><a id="l00638" name="l00638"></a><span class="lineno">  638</span> </div>
-<div class="line"><a id="l00641" name="l00641"></a><span class="lineno">  641</span>      GAIA_NODISCARD Entity entity()<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l00642" name="l00642"></a><span class="lineno">  642</span>        <span class="keywordflow">return</span> m_entity;</div>
-<div class="line"><a id="l00643" name="l00643"></a><span class="lineno">  643</span>      }</div>
-<div class="line"><a id="l00644" name="l00644"></a><span class="lineno">  644</span> </div>
-<div class="line"><a id="l00648" name="l00648"></a><span class="lineno">  648</span>      <span class="keywordtype">void</span> exec() {</div>
-<div class="line"><a id="l00649" name="l00649"></a><span class="lineno">  649</span>        <span class="keyword">auto</span>&amp; ctx = data();</div>
-<div class="line"><a id="l00650" name="l00650"></a><span class="lineno">  650</span>        ctx.exec(m_world);</div>
-<div class="line"><a id="l00651" name="l00651"></a><span class="lineno">  651</span>      }</div>
-<div class="line"><a id="l00652" name="l00652"></a><span class="lineno">  652</span> </div>
-<div class="line"><a id="l00661" name="l00661"></a><span class="lineno">  661</span>      GAIA_NODISCARD SchedJob job() {</div>
-<div class="line"><a id="l00662" name="l00662"></a><span class="lineno">  662</span>        <span class="keyword">auto</span>&amp; ctx = data();</div>
-<div class="line"><a id="l00663" name="l00663"></a><span class="lineno">  663</span>        <span class="keywordflow">return</span> ctx.job(m_world);</div>
-<div class="line"><a id="l00664" name="l00664"></a><span class="lineno">  664</span>      }</div>
-<div class="line"><a id="l00665" name="l00665"></a><span class="lineno">  665</span> </div>
-<div class="line"><a id="l00668" name="l00668"></a><span class="lineno">  668</span>      GAIA_NODISCARD mt::JobHandle job_handle() {</div>
-<div class="line"><a id="l00669" name="l00669"></a><span class="lineno">  669</span>        <span class="keyword">auto</span>&amp; ctx = data();</div>
-<div class="line"><a id="l00670" name="l00670"></a><span class="lineno">  670</span>        <span class="keywordflow">return</span> ctx.job_handle(m_world);</div>
-<div class="line"><a id="l00671" name="l00671"></a><span class="lineno">  671</span>      }</div>
-<div class="line"><a id="l00673" name="l00673"></a><span class="lineno">  673</span>    };</div>
-<div class="line"><a id="l00674" name="l00674"></a><span class="lineno">  674</span> </div>
-<div class="line"><a id="l00675" name="l00675"></a><span class="lineno">  675</span>  } <span class="comment">// namespace ecs</span></div>
-<div class="line"><a id="l00676" name="l00676"></a><span class="lineno">  676</span>} <span class="comment">// namespace gaia</span></div>
-<div class="line"><a id="l00677" name="l00677"></a><span class="lineno">  677</span> </div>
-<div class="line"><a id="l00678" name="l00678"></a><span class="lineno">  678</span><span class="preprocessor">  #include &quot;gaia/ecs/system_typed.inl&quot;</span></div>
-<div class="line"><a id="l00679" name="l00679"></a><span class="lineno">  679</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00680" name="l00680"></a><span class="lineno">  680</span><span class="keyword">namespace </span>gaia {</div>
-<div class="line"><a id="l00681" name="l00681"></a><span class="lineno">  681</span>  <span class="keyword">namespace </span>ecs {</div>
-<div class="line"><a id="l00682" name="l00682"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1System__.html">  682</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1ecs_1_1System__.html">System_</a> {};</div>
-<div class="line"><a id="l00683" name="l00683"></a><span class="lineno">  683</span>  } <span class="comment">// namespace ecs</span></div>
-<div class="line"><a id="l00684" name="l00684"></a><span class="lineno">  684</span>} <span class="comment">// namespace gaia</span></div>
-<div class="line"><a id="l00685" name="l00685"></a><span class="lineno">  685</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00493" name="l00493"></a><span class="lineno">  493</span>      SystemBuilder&amp; phase(Entity phaseEntity) {</div>
+<div class="line"><a id="l00494" name="l00494"></a><span class="lineno">  494</span>        validate();</div>
+<div class="line"><a id="l00495" name="l00495"></a><span class="lineno">  495</span>        GAIA_ASSERT(m_world.valid(phaseEntity));</div>
+<div class="line"><a id="l00496" name="l00496"></a><span class="lineno">  496</span>        GAIA_ASSERT(!phaseEntity.pair());</div>
+<div class="line"><a id="l00497" name="l00497"></a><span class="lineno">  497</span>        m_world.add(m_entity, {ChildOf, phaseEntity});</div>
+<div class="line"><a id="l00498" name="l00498"></a><span class="lineno">  498</span>        m_world.add(m_entity, {DependsOn, phaseEntity});</div>
+<div class="line"><a id="l00499" name="l00499"></a><span class="lineno">  499</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00500" name="l00500"></a><span class="lineno">  500</span>      }</div>
+<div class="line"><a id="l00502" name="l00502"></a><span class="lineno">  502</span> </div>
+<div class="line"><a id="l00503" name="l00503"></a><span class="lineno">  503</span>      <span class="comment">//------------------------------------------------</span></div>
+<div class="line"><a id="l00504" name="l00504"></a><span class="lineno">  504</span> </div>
+<div class="line"><a id="l00507" name="l00507"></a><span class="lineno">  507</span> </div>
+<div class="line"><a id="l00511" name="l00511"></a><span class="lineno">  511</span>      SystemBuilder&amp; mode(QueryExecType type) {</div>
+<div class="line"><a id="l00512" name="l00512"></a><span class="lineno">  512</span>        <span class="keyword">auto</span>&amp; ctx = data();</div>
+<div class="line"><a id="l00513" name="l00513"></a><span class="lineno">  513</span>        ctx.execType = type;</div>
+<div class="line"><a id="l00514" name="l00514"></a><span class="lineno">  514</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00515" name="l00515"></a><span class="lineno">  515</span>      }</div>
+<div class="line"><a id="l00516" name="l00516"></a><span class="lineno">  516</span> </div>
+<div class="line"><a id="l00522" name="l00522"></a><span class="lineno">  522</span> </div>
+<div class="line"><a id="l00534" name="l00534"></a><span class="lineno">  534</span>      SystemBuilder&amp; ctx(<span class="keywordtype">void</span>* pCtx) {</div>
+<div class="line"><a id="l00535" name="l00535"></a><span class="lineno">  535</span>        validate();</div>
+<div class="line"><a id="l00536" name="l00536"></a><span class="lineno">  536</span>        data().query.ctx(pCtx);</div>
+<div class="line"><a id="l00537" name="l00537"></a><span class="lineno">  537</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00538" name="l00538"></a><span class="lineno">  538</span>      }</div>
+<div class="line"><a id="l00539" name="l00539"></a><span class="lineno">  539</span> </div>
+<div class="line"><a id="l00542" name="l00542"></a><span class="lineno">  542</span>      GAIA_NODISCARD <span class="keywordtype">void</span>* ctx()<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00543" name="l00543"></a><span class="lineno">  543</span>        validate();</div>
+<div class="line"><a id="l00544" name="l00544"></a><span class="lineno">  544</span>        <span class="keywordflow">return</span> data().query.ctx();</div>
+<div class="line"><a id="l00545" name="l00545"></a><span class="lineno">  545</span>      }</div>
+<div class="line"><a id="l00547" name="l00547"></a><span class="lineno">  547</span> </div>
+<div class="line"><a id="l00554" name="l00554"></a><span class="lineno">  554</span>      SystemBuilder&amp; main_thread(<span class="keywordtype">bool</span> required = <span class="keyword">true</span>) {</div>
+<div class="line"><a id="l00555" name="l00555"></a><span class="lineno">  555</span>        validate();</div>
+<div class="line"><a id="l00556" name="l00556"></a><span class="lineno">  556</span>        data().query.main_thread(required);</div>
+<div class="line"><a id="l00557" name="l00557"></a><span class="lineno">  557</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00558" name="l00558"></a><span class="lineno">  558</span>      }</div>
+<div class="line"><a id="l00560" name="l00560"></a><span class="lineno">  560</span> </div>
+<div class="line"><a id="l00568" name="l00568"></a><span class="lineno">  568</span>      SystemBuilder&amp; reads(Entity entity) {</div>
+<div class="line"><a id="l00569" name="l00569"></a><span class="lineno">  569</span>        validate();</div>
+<div class="line"><a id="l00570" name="l00570"></a><span class="lineno">  570</span>        data().query.reads(entity);</div>
+<div class="line"><a id="l00571" name="l00571"></a><span class="lineno">  571</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00572" name="l00572"></a><span class="lineno">  572</span>      }</div>
+<div class="line"><a id="l00573" name="l00573"></a><span class="lineno">  573</span> </div>
+<div class="line"><a id="l00578" name="l00578"></a><span class="lineno">  578</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</div>
+<div class="line"><a id="l00579" name="l00579"></a><span class="lineno">  579</span>      SystemBuilder&amp; reads() {</div>
+<div class="line"><a id="l00580" name="l00580"></a><span class="lineno">  580</span>        validate();</div>
+<div class="line"><a id="l00581" name="l00581"></a><span class="lineno">  581</span>        data().query.template reads&lt;T&gt;();</div>
+<div class="line"><a id="l00582" name="l00582"></a><span class="lineno">  582</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00583" name="l00583"></a><span class="lineno">  583</span>      }</div>
+<div class="line"><a id="l00584" name="l00584"></a><span class="lineno">  584</span> </div>
+<div class="line"><a id="l00590" name="l00590"></a><span class="lineno">  590</span>      SystemBuilder&amp; writes(Entity entity) {</div>
+<div class="line"><a id="l00591" name="l00591"></a><span class="lineno">  591</span>        validate();</div>
+<div class="line"><a id="l00592" name="l00592"></a><span class="lineno">  592</span>        data().query.writes(entity);</div>
+<div class="line"><a id="l00593" name="l00593"></a><span class="lineno">  593</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00594" name="l00594"></a><span class="lineno">  594</span>      }</div>
+<div class="line"><a id="l00595" name="l00595"></a><span class="lineno">  595</span> </div>
+<div class="line"><a id="l00600" name="l00600"></a><span class="lineno">  600</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</div>
+<div class="line"><a id="l00601" name="l00601"></a><span class="lineno">  601</span>      SystemBuilder&amp; writes() {</div>
+<div class="line"><a id="l00602" name="l00602"></a><span class="lineno">  602</span>        validate();</div>
+<div class="line"><a id="l00603" name="l00603"></a><span class="lineno">  603</span>        data().query.template writes&lt;T&gt;();</div>
+<div class="line"><a id="l00604" name="l00604"></a><span class="lineno">  604</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00605" name="l00605"></a><span class="lineno">  605</span>      }</div>
+<div class="line"><a id="l00607" name="l00607"></a><span class="lineno">  607</span> </div>
+<div class="line"><a id="l00613" name="l00613"></a><span class="lineno">  613</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func, std::enable_if_t&lt;detail::is_query_iter_callback_v&lt;Func&gt;, <span class="keywordtype">int</span>&gt; = 0&gt;</div>
+<div class="line"><a id="l00614" name="l00614"></a><span class="lineno">  614</span>      SystemBuilder&amp; on_each(Func func) {</div>
+<div class="line"><a id="l00615" name="l00615"></a><span class="lineno">  615</span>        validate();</div>
+<div class="line"><a id="l00616" name="l00616"></a><span class="lineno">  616</span> </div>
+<div class="line"><a id="l00617" name="l00617"></a><span class="lineno">  617</span>        <span class="keyword">auto</span>&amp; runtime = runtime_data();</div>
+<div class="line"><a id="l00618" name="l00618"></a><span class="lineno">  618</span>        runtime.on_each_func = [func](Query&amp; query, QueryExecType execType, SystemRuntimeData::RunMode mode) <span class="keyword">mutable</span> {</div>
+<div class="line"><a id="l00619" name="l00619"></a><span class="lineno">  619</span>          <span class="keywordflow">if</span> (mode == SystemRuntimeData::RunMode::DeferredJob)</div>
+<div class="line"><a id="l00620" name="l00620"></a><span class="lineno">  620</span>            <span class="keywordflow">return</span> query.job(func, execType);</div>
+<div class="line"><a id="l00621" name="l00621"></a><span class="lineno">  621</span> </div>
+<div class="line"><a id="l00622" name="l00622"></a><span class="lineno">  622</span>          query.each_runtime_erased(</div>
+<div class="line"><a id="l00623" name="l00623"></a><span class="lineno">  623</span>              execType, <span class="keyword">static_cast&lt;</span><span class="keywordtype">void</span>*<span class="keyword">&gt;</span>(&amp;func), &amp;detail::QueryImpl::template invoke_runtime_iter&lt;Func, Iter&gt;,</div>
+<div class="line"><a id="l00624" name="l00624"></a><span class="lineno">  624</span>              Constraints::EnabledOnly);</div>
+<div class="line"><a id="l00625" name="l00625"></a><span class="lineno">  625</span>          <span class="keywordflow">return</span> SchedJob{};</div>
+<div class="line"><a id="l00626" name="l00626"></a><span class="lineno">  626</span>        };</div>
+<div class="line"><a id="l00627" name="l00627"></a><span class="lineno">  627</span> </div>
+<div class="line"><a id="l00628" name="l00628"></a><span class="lineno">  628</span>        <span class="keywordflow">return</span> (SystemBuilder&amp;)*<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00629" name="l00629"></a><span class="lineno">  629</span>      }</div>
+<div class="line"><a id="l00630" name="l00630"></a><span class="lineno">  630</span> </div>
+<div class="line"><a id="l00637" name="l00637"></a><span class="lineno">  637</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func, std::enable_if_t&lt;!detail::is_query_iter_callback_v&lt;Func&gt;, <span class="keywordtype">int</span>&gt; = 0&gt;</div>
+<div class="line"><a id="l00638" name="l00638"></a><span class="lineno">  638</span>      SystemBuilder&amp; on_each(Func func);</div>
+<div class="line"><a id="l00639" name="l00639"></a><span class="lineno">  639</span> </div>
+<div class="line"><a id="l00642" name="l00642"></a><span class="lineno">  642</span>      GAIA_NODISCARD Entity entity()<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00643" name="l00643"></a><span class="lineno">  643</span>        <span class="keywordflow">return</span> m_entity;</div>
+<div class="line"><a id="l00644" name="l00644"></a><span class="lineno">  644</span>      }</div>
+<div class="line"><a id="l00645" name="l00645"></a><span class="lineno">  645</span> </div>
+<div class="line"><a id="l00649" name="l00649"></a><span class="lineno">  649</span>      <span class="keywordtype">void</span> exec() {</div>
+<div class="line"><a id="l00650" name="l00650"></a><span class="lineno">  650</span>        <span class="keyword">auto</span>&amp; ctx = data();</div>
+<div class="line"><a id="l00651" name="l00651"></a><span class="lineno">  651</span>        ctx.exec(m_world);</div>
+<div class="line"><a id="l00652" name="l00652"></a><span class="lineno">  652</span>      }</div>
+<div class="line"><a id="l00653" name="l00653"></a><span class="lineno">  653</span> </div>
+<div class="line"><a id="l00662" name="l00662"></a><span class="lineno">  662</span>      GAIA_NODISCARD SchedJob job() {</div>
+<div class="line"><a id="l00663" name="l00663"></a><span class="lineno">  663</span>        <span class="keyword">auto</span>&amp; ctx = data();</div>
+<div class="line"><a id="l00664" name="l00664"></a><span class="lineno">  664</span>        <span class="keywordflow">return</span> ctx.job(m_world);</div>
+<div class="line"><a id="l00665" name="l00665"></a><span class="lineno">  665</span>      }</div>
+<div class="line"><a id="l00666" name="l00666"></a><span class="lineno">  666</span> </div>
+<div class="line"><a id="l00669" name="l00669"></a><span class="lineno">  669</span>      GAIA_NODISCARD mt::JobHandle job_handle() {</div>
+<div class="line"><a id="l00670" name="l00670"></a><span class="lineno">  670</span>        <span class="keyword">auto</span>&amp; ctx = data();</div>
+<div class="line"><a id="l00671" name="l00671"></a><span class="lineno">  671</span>        <span class="keywordflow">return</span> ctx.job_handle(m_world);</div>
+<div class="line"><a id="l00672" name="l00672"></a><span class="lineno">  672</span>      }</div>
+<div class="line"><a id="l00674" name="l00674"></a><span class="lineno">  674</span>    };</div>
+<div class="line"><a id="l00675" name="l00675"></a><span class="lineno">  675</span> </div>
+<div class="line"><a id="l00676" name="l00676"></a><span class="lineno">  676</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l00677" name="l00677"></a><span class="lineno">  677</span>} <span class="comment">// namespace gaia</span></div>
+<div class="line"><a id="l00678" name="l00678"></a><span class="lineno">  678</span> </div>
+<div class="line"><a id="l00679" name="l00679"></a><span class="lineno">  679</span><span class="preprocessor">  #include &quot;gaia/ecs/system_typed.inl&quot;</span></div>
+<div class="line"><a id="l00680" name="l00680"></a><span class="lineno">  680</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00681" name="l00681"></a><span class="lineno">  681</span><span class="keyword">namespace </span>gaia {</div>
+<div class="line"><a id="l00682" name="l00682"></a><span class="lineno">  682</span>  <span class="keyword">namespace </span>ecs {</div>
+<div class="line"><a id="l00683" name="l00683"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1System__.html">  683</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1ecs_1_1System__.html">System_</a> {};</div>
+<div class="line"><a id="l00684" name="l00684"></a><span class="lineno">  684</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l00685" name="l00685"></a><span class="lineno">  685</span>} <span class="comment">// namespace gaia</span></div>
+<div class="line"><a id="l00686" name="l00686"></a><span class="lineno">  686</span><span class="preprocessor">#endif</span></div>
 <div class="ttc" id="aclassgaia_1_1mt_1_1ThreadPool_html_a8915adfb194f3a0af9b89d1a7d82ddfc"><div class="ttname"><a href="classgaia_1_1mt_1_1ThreadPool.html#a8915adfb194f3a0af9b89d1a7d82ddfc">gaia::mt::ThreadPool::get</a></div><div class="ttdeci">static ThreadPool &amp; get()</div><div class="ttdoc">Returns the process-wide thread-pool instance.</div><div class="ttdef"><b>Definition</b> threadpool.h:161</div></div>
 <div class="ttc" id="aser__ct_8h_html_a38848ea2003a76e33f2b4e56d355a7fa"><div class="ttname"><a href="ser__ct_8h.html#a38848ea2003a76e33f2b4e56d355a7fa">gaia::ser::load</a></div><div class="ttdeci">void load(Reader &amp;reader, T &amp;data)</div><div class="ttdoc">Read data using Reader at compile-time.</div><div class="ttdef"><b>Definition</b> ser_ct.h:112</div></div>
 <div class="ttc" id="aser__ct_8h_html_afea4e9db5adcb2f65534c527ff9ac204"><div class="ttname"><a href="ser__ct_8h.html#afea4e9db5adcb2f65534c527ff9ac204">gaia::ser::save</a></div><div class="ttdeci">void save(Writer &amp;writer, const T &amp;data)</div><div class="ttdoc">Write data using Writer at compile-time.</div><div class="ttdef"><b>Definition</b> ser_ct.h:101</div></div>
-<div class="ttc" id="astructgaia_1_1ecs_1_1System___html"><div class="ttname"><a href="structgaia_1_1ecs_1_1System__.html">gaia::ecs::System_</a></div><div class="ttdef"><b>Definition</b> system.inl:682</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1System___html"><div class="ttname"><a href="structgaia_1_1ecs_1_1System__.html">gaia::ecs::System_</a></div><div class="ttdef"><b>Definition</b> system.inl:683</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
