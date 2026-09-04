@@ -7,10 +7,11 @@ var searchData=
   ['relation_4',['relation',['../structgaia_1_1ecs_1_1detail_1_1PrefabChildEdge.html#abcc58adf641aca28f8adbf09cc573cf5',1,'gaia::ecs::detail::PrefabChildEdge::relation'],['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html#abcd8e30131de740f8360baca84c35eb8',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState::relation']]],
   ['relationcnt_5',['relationCnt',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#ab4cf5f49f599fc7df0cd2df5fbde3312',1,'gaia::ecs::QueryCtx::Data::Dependencies']]],
   ['relations_6',['relations',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#a844f7a6ae0c963aa1b5b5378c353ba53',1,'gaia::ecs::QueryCtx::Data::Dependencies']]],
-  ['reset_7',['reset',['../structgaia_1_1ser_1_1serializer__ctx.html#adda4a6014abbdc3df89206658dc62d2a',1,'gaia::ser::serializer_ctx']]],
-  ['resize_8',['resize',['../structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html#af367fdbd2003d1ab90d55405210b7477',1,'gaia::ecs::RuntimeSequenceAdapter']]],
-  ['revision_9',['revision',['../structgaia_1_1ecs_1_1QueryArchetypeCacheCursor.html#ac19677c38e7be36477b91f90782294bc',1,'gaia::ecs::QueryArchetypeCacheCursor']]],
-  ['rowfrom_10',['rowFrom',['../structgaia_1_1ecs_1_1DirectChunkEntry.html#aae7d3fc9979375a7803717c4f04f3f45',1,'gaia::ecs::DirectChunkEntry']]],
-  ['rowto_11',['rowTo',['../structgaia_1_1ecs_1_1DirectChunkEntry.html#afb6d94dcbf1bb90de5fe09482a8b680b',1,'gaia::ecs::DirectChunkEntry']]],
-  ['runtimetype_12',['runtimeType',['../structgaia_1_1ecs_1_1ComponentDesc.html#a422dce500ea662f5521dcd363a748bc7',1,'gaia::ecs::ComponentDesc']]]
+  ['reserved_7',['reserved',['../structgaia_1_1ecs_1_1Entity_1_1InternalData.html#a235ac2119bca7aedaf8381551f18cc55',1,'gaia::ecs::Entity::InternalData']]],
+  ['reset_8',['reset',['../structgaia_1_1ser_1_1serializer__ctx.html#adda4a6014abbdc3df89206658dc62d2a',1,'gaia::ser::serializer_ctx']]],
+  ['resize_9',['resize',['../structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html#af367fdbd2003d1ab90d55405210b7477',1,'gaia::ecs::RuntimeSequenceAdapter']]],
+  ['revision_10',['revision',['../structgaia_1_1ecs_1_1QueryArchetypeCacheCursor.html#ac19677c38e7be36477b91f90782294bc',1,'gaia::ecs::QueryArchetypeCacheCursor']]],
+  ['rowfrom_11',['rowFrom',['../structgaia_1_1ecs_1_1DirectChunkEntry.html#aae7d3fc9979375a7803717c4f04f3f45',1,'gaia::ecs::DirectChunkEntry']]],
+  ['rowto_12',['rowTo',['../structgaia_1_1ecs_1_1DirectChunkEntry.html#afb6d94dcbf1bb90de5fe09482a8b680b',1,'gaia::ecs::DirectChunkEntry']]],
+  ['runtimetype_13',['runtimeType',['../structgaia_1_1ecs_1_1ComponentDesc.html#a422dce500ea662f5521dcd363a748bc7',1,'gaia::ecs::ComponentDesc']]]
 ];

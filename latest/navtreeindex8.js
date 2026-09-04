@@ -1,5 +1,9 @@
 var NAVTREEINDEX8 =
 {
+"index.html#entity-dependencies":[2,3,3],
+"index.html#entity-inheritance":[2,3,6],
+"index.html#entity-lifespan":[2,1,14],
+"index.html#entity-merging":[2,5,0,0],
 "index.html#enum-and-bitmask-metadata":[2,9,7],
 "index.html#examples":[5,0],
 "index.html#exclusivity":[2,3,5],
@@ -57,6 +61,7 @@ var NAVTREEINDEX8 =
 "index.html#selecting-a-storage-mode":[2,1,4,0],
 "index.html#serialization":[2,8],
 "index.html#set-or-get-component-value":[2,1,10],
+"index.html#shared-data":[2,4],
 "index.html#simple-query":[2,2,1],
 "index.html#single-header":[4,0,2],
 "index.html#sorting":[2,2,14],
@@ -73,7 +78,6 @@ var NAVTREEINDEX8 =
 "index.html#traversal-order":[2,2,3],
 "index.html#typed-runtime-schemas":[2,9,2],
 "index.html#uncached-query":[2,2,8],
-"index.html#unique-components":[2,4],
 "index.html#usage":[2],
 "index.html#weakentity":[2,1,14,1],
 "index.html#world-serialization":[2,8,2],
@@ -245,9 +249,5 @@ var NAVTREEINDEX8 =
 "structgaia_1_1cnt_1_1fwd__llist.html#ae3fe164435e34b405e25c78d61a786c1":[9,0,0,0,12,12],
 "structgaia_1_1cnt_1_1fwd__llist.html#aebaf28e6f321f22ea4b81c95c49cb258":[9,0,0,0,12,6],
 "structgaia_1_1cnt_1_1fwd__llist.html#aee033689256f6ddf2dcfb831d35760d5":[9,0,0,0,12,7],
-"structgaia_1_1cnt_1_1fwd__llist.html#aff0555f68a1d076a1f15abada91a850e":[9,0,0,0,12,4],
-"structgaia_1_1cnt_1_1fwd__llist__base.html":[9,0,0,0,13],
-"structgaia_1_1cnt_1_1fwd__llist__base.html#a2f48a015f7f70c479a2252ead05c48e2":[9,0,0,0,13,0],
-"structgaia_1_1cnt_1_1fwd__llist__base.html#a6cbb565b0dc96c5dc001482e7c48d5ec":[9,0,0,0,13,1],
-"structgaia_1_1cnt_1_1fwd__llist__base.html#a6e874954837719f9eaa7404f9f60f67e":[9,0,0,0,13,2]
+"structgaia_1_1cnt_1_1fwd__llist.html#aff0555f68a1d076a1f15abada91a850e":[9,0,0,0,12,4]
 };

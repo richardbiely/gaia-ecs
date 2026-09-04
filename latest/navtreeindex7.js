@@ -1,5 +1,9 @@
 var NAVTREEINDEX7 =
 {
+"classgaia_1_1ser_1_1bin__stream.html#a6fc6e01b624ea4ffb531b47ffa347c67":[9,0,0,6,1,8],
+"classgaia_1_1ser_1_1bin__stream.html#a7670a0b470457883ba84f1501c8d0716":[9,0,0,6,1,4],
+"classgaia_1_1ser_1_1bin__stream.html#a7d711c63ffa10942b8325674dfbf1c1a":[9,0,0,6,1,5],
+"classgaia_1_1ser_1_1bin__stream.html#a863f00a526daecbda0eae1e129175c19":[9,0,0,6,1,6],
 "classgaia_1_1ser_1_1bin__stream.html#acc51650dd23112772d07c726bd908764":[9,0,0,6,1,0],
 "classgaia_1_1ser_1_1bin__stream.html#af42d7d153fe68af4cff735ac13e32c9a":[9,0,0,6,1,7],
 "classgaia_1_1ser_1_1bin__stream.html#af589af2f54ac08740669b2f1ab3f7a1d":[9,0,0,6,1,1],
@@ -120,8 +124,8 @@ var NAVTREEINDEX7 =
 "functions_enum.html":[9,3,4],
 "functions_eval.html":[9,3,5],
 "functions_f.html":[9,3,0,5],
-"functions_func.html":[9,3,1,0],
 "functions_func.html":[9,3,1],
+"functions_func.html":[9,3,1,0],
 "functions_func_b.html":[9,3,1,1],
 "functions_func_c.html":[9,3,1,2],
 "functions_func_d.html":[9,3,1,3],
@@ -245,9 +249,5 @@ var NAVTREEINDEX7 =
 "index.html#documentation":[5,4],
 "index.html#dynamic-vectors":[2,9,6],
 "index.html#ecs":[1,0],
-"index.html#entity-cleanup":[2,1,12],
-"index.html#entity-dependencies":[2,3,3],
-"index.html#entity-inheritance":[2,3,6],
-"index.html#entity-lifespan":[2,1,14],
-"index.html#entity-merging":[2,5,0,0]
+"index.html#entity-cleanup":[2,1,12]
 };

@@ -802,9 +802,9 @@ $(document).ready(function(){initNavTree('component__cache_8h_source.html',''); 
 <div class="line"><a id="l00819" name="l00819"></a><span class="lineno">  819</span>        <span class="keyword">auto</span> logDesc = [](<span class="keyword">const</span> ComponentCacheItem&amp; item) {</div>
 <div class="line"><a id="l00820" name="l00820"></a><span class="lineno">  820</span>          <span class="keyword">const</span> <span class="keyword">auto</span> symbol = item.symbol_name();</div>
 <div class="line"><a id="l00821" name="l00821"></a><span class="lineno">  821</span>          GAIA_LOG_N(</div>
-<div class="line"><a id="l00822" name="l00822"></a><span class="lineno">  822</span>              <span class="stringliteral">&quot;    hash:%016&quot;</span> PRIx64 <span class="stringliteral">&quot;, size:%3u B, align:%3u B, [%u:%u] %.*s [%s]&quot;</span>, item.hashLookup.hash,</div>
+<div class="line"><a id="l00822" name="l00822"></a><span class="lineno">  822</span>              <span class="stringliteral">&quot;    hash:%016&quot;</span> PRIx64 <span class="stringliteral">&quot;, size:%3u B, align:%3u B, [%u:%u] %.*s&quot;</span>, item.hashLookup.hash,</div>
 <div class="line"><a id="l00823" name="l00823"></a><span class="lineno">  823</span>              item.comp.size(), item.comp.alig(), item.entity.id(), item.entity.gen(), (<span class="keywordtype">int</span>)symbol.size(),</div>
-<div class="line"><a id="l00824" name="l00824"></a><span class="lineno">  824</span>              symbol.data(), EntityKindString[item.entity.kind()]);</div>
+<div class="line"><a id="l00824" name="l00824"></a><span class="lineno">  824</span>              symbol.data());</div>
 <div class="line"><a id="l00825" name="l00825"></a><span class="lineno">  825</span>        };</div>
 <div class="line"><a id="l00826" name="l00826"></a><span class="lineno">  826</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; [entityId, pItem]: m_compByEntityId) {</div>
 <div class="line"><a id="l00827" name="l00827"></a><span class="lineno">  827</span>          (void)entityId;</div>

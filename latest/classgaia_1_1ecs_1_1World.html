@@ -165,6 +165,12 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</t
 <tr class="memitem:a05dc2ba218a8155a3090e809641b18e8" id="r_a05dc2ba218a8155a3090e809641b18e8"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const EntityContainer &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a05dc2ba218a8155a3090e809641b18e8">fetch</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a05dc2ba218a8155a3090e809641b18e8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the internal record for <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a05dc2ba218a8155a3090e809641b18e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1fced15c918fb482960ce9f3551107bc" id="r_a1fced15c918fb482960ce9f3551107bc"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const EntityContainer *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a1fced15c918fb482960ce9f3551107bc">try_live_record</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
+<tr class="memdesc:a1fced15c918fb482960ce9f3551107bc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a record that is present and not delete-requested. This is the one-lookup replacement for <code><a class="el" href="classgaia_1_1ecs_1_1World.html#a7f38da2b090f678111ea544b54c5f9a8" title="Checks if entity is valid.">valid()</a></code> followed by <code><a class="el" href="classgaia_1_1ecs_1_1World.html#a5425de9078c310dc6cd992aa4303be54" title="Returns the internal record for entity.">fetch()</a></code>.  <br /></td></tr>
+<tr class="separator:a1fced15c918fb482960ce9f3551107bc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac3dcb148e980035fdeed4e2a97663f8a" id="r_ac3dcb148e980035fdeed4e2a97663f8a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD EntityContainer *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ac3dcb148e980035fdeed4e2a97663f8a">try_live_record</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:ac3dcb148e980035fdeed4e2a97663f8a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a record that is present and not delete-requested.  <br /></td></tr>
+<tr class="separator:ac3dcb148e980035fdeed4e2a97663f8a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afe3d7f40383ba37593820ff0a37593b3" id="r_afe3d7f40383ba37593820ff0a37593b3"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#afe3d7f40383ba37593820ff0a37593b3">entity_deletion_active</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:afe3d7f40383ba37593820ff0a37593b3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>entity</em> is already being processed by the deletion pipeline.  <br /></td></tr>
 <tr class="separator:afe3d7f40383ba37593820ff0a37593b3"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -199,10 +205,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</t
 <tr class="memdesc:a02e169ac8ac74540ed74e0c6c071aec0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when depth-ordered iteration may safely prune disabled subtrees at archetype level. Only fragmenting hierarchy relations qualify because all rows in the archetype then share the same direct parent and therefore the same ancestor chain.  <br /></td></tr>
 <tr class="separator:a02e169ac8ac74540ed74e0c6c071aec0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acb4637f3c7afe94417a3b654613e674e" id="r_acb4637f3c7afe94417a3b654613e674e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#acb4637f3c7afe94417a3b654613e674e">component_uses_sparse_storage</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
-<tr class="memdesc:acb4637f3c7afe94417a3b654613e674e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>component</em> stores instance data in sparse storage instead of archetype chunks. This is the storage path used for sparse plain generic AoS components and exact pair AoS payloads.  <br /></td></tr>
+<tr class="memdesc:acb4637f3c7afe94417a3b654613e674e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>component</em> stores instance data in sparse storage instead of archetype chunks. This is the storage path used for sparse plain AoS components and exact pair AoS payloads.  <br /></td></tr>
 <tr class="separator:acb4637f3c7afe94417a3b654613e674e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af7380ffb311aa77115171a2435e804b3" id="r_af7380ffb311aa77115171a2435e804b3"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#af7380ffb311aa77115171a2435e804b3">component_is_non_fragmenting</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
-<tr class="memdesc:af7380ffb311aa77115171a2435e804b3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>component</em> is non-fragmenting. Non-fragmenting components do not participate in archetype identity.  <br /></td></tr>
+<tr class="memdesc:af7380ffb311aa77115171a2435e804b3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>component</em> is non-fragmenting. Non-fragmenting component ids do not participate in archetype identity. Exclusive+DontFragment is a relation trait, not empty-tag membership.  <br /></td></tr>
 <tr class="separator:af7380ffb311aa77115171a2435e804b3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a573a59fab8e7c4e7ed9f23d275ac63c9" id="r_a573a59fab8e7c4e7ed9f23d275ac63c9"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD SparseStorageMode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a573a59fab8e7c4e7ed9f23d275ac63c9">sparse_storage_mode</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
 <tr class="memdesc:a573a59fab8e7c4e7ed9f23d275ac63c9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse storage mode used by a component.  <br /></td></tr>
@@ -226,14 +232,14 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</t
 <tr class="memdesc:a40a8cd2a1d17aca1d603eeca337c8e74"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finalizes a newly registered component entity after the cache record has been created. This synchronizes the core <code><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a></code> value stored on the component entity, registers the default symbol through the normal naming path, and optionally latches the <code>Sparse</code> trait.  <br /></td></tr>
 <tr class="separator:a40a8cd2a1d17aca1d603eeca337c8e74"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa1b43fe3cceb52592d06d0cd22f45aed" id="r_aa1b43fe3cceb52592d06d0cd22f45aed"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aa1b43fe3cceb52592d06d0cd22f45aed">set_component_dont_fragment</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, EntityContainer &amp;ec)</td></tr>
-<tr class="memdesc:aa1b43fe3cceb52592d06d0cd22f45aed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latches DontFragment on a component entity record. This first moves the payload out of chunks, then removes the id from archetype identity.  <br /></td></tr>
+<tr class="memdesc:aa1b43fe3cceb52592d06d0cd22f45aed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latches DontFragment on a component entity record. Payload-bearing components are moved to sparse storage first. Empty tags only latch membership.  <br /></td></tr>
 <tr class="separator:aa1b43fe3cceb52592d06d0cd22f45aed"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a19ae85a92bf78dcf23c711ed26f59a9f" id="r_a19ae85a92bf78dcf23c711ed26f59a9f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a19ae85a92bf78dcf23c711ed26f59a9f">set_component_sparse_storage</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
-<tr class="memdesc:a19ae85a92bf78dcf23c711ed26f59a9f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latches Sparse storage on a component entity before any instances exist. This moves the payload out of chunks while keeping the id in archetype identity. Only plain generic AoS components are supported.  <br /></td></tr>
+<tr class="memdesc:a19ae85a92bf78dcf23c711ed26f59a9f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latches Sparse storage on a component entity before any instances exist. This moves the payload out of chunks while keeping the id in archetype identity. Only plain AoS components are supported.  <br /></td></tr>
 <tr class="separator:a19ae85a92bf78dcf23c711ed26f59a9f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9ad825ab4d86476bed484ceb4a4a2fab" id="r_a9ad825ab4d86476bed484ceb4a4a2fab"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a9ad825ab4d86476bed484ceb4a4a2fab">can_add_component_storage_trait</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
-<tr class="memdesc:a9ad825ab4d86476bed484ceb4a4a2fab"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether a runtime storage trait can be attached to <em>component</em>. Compile-time component storage is authoritative. Runtime component descriptors remain mutable.  <br /></td></tr>
-<tr class="separator:a9ad825ab4d86476bed484ceb4a4a2fab"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a467884a1621873f0be6b7e1aee736122" id="r_a467884a1621873f0be6b7e1aee736122"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a467884a1621873f0be6b7e1aee736122">can_add_component_storage_trait</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> trait) const</td></tr>
+<tr class="memdesc:a467884a1621873f0be6b7e1aee736122"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether a runtime storage trait can be attached to <em>component</em>. Compile-time component payload storage is authoritative. Runtime component descriptors remain mutable. Empty typed tags can still latch <code>DontFragment</code> before any instances exist.  <br /></td></tr>
+<tr class="separator:a467884a1621873f0be6b7e1aee736122"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a790fdcd853fbaf7dcb6cc037acda20c9" id="r_a790fdcd853fbaf7dcb6cc037acda20c9"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a790fdcd853fbaf7dcb6cc037acda20c9"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a790fdcd853fbaf7dcb6cc037acda20c9">register_component_id</a> ()</td></tr>
 <tr class="memdesc:a790fdcd853fbaf7dcb6cc037acda20c9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Registers the component or exact pair represented by compile-time type <em>T</em>.  <br /></td></tr>
@@ -386,12 +392,12 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memitem:a1eb712f15faca919a88c382ec5aef445" id="r_a1eb712f15faca919a88c382ec5aef445"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1World_1_1EntityBuilder.html">EntityBuilder</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a1eb712f15faca919a88c382ec5aef445">build</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a1eb712f15faca919a88c382ec5aef445"><td class="mdescLeft">&#160;</td><td class="mdescRight">Starts a bulk add/remove operation on <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a1eb712f15faca919a88c382ec5aef445"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8e6ec95684084c20c5bb3361f74292cd" id="r_a8e6ec95684084c20c5bb3361f74292cd"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a8e6ec95684084c20c5bb3361f74292cd">add</a> (EntityKind kind=EntityKind::EK_Gen)</td></tr>
-<tr class="memdesc:a8e6ec95684084c20c5bb3361f74292cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new empty entity.  <br /></td></tr>
-<tr class="separator:a8e6ec95684084c20c5bb3361f74292cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a201dae9cd84f9e571db0e076c4177613" id="r_a201dae9cd84f9e571db0e076c4177613"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a201dae9cd84f9e571db0e076c4177613">prefab</a> (EntityKind kind=EntityKind::EK_Gen)</td></tr>
-<tr class="memdesc:a201dae9cd84f9e571db0e076c4177613"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new prefab entity.  <br /></td></tr>
-<tr class="separator:a201dae9cd84f9e571db0e076c4177613"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab8bd53290dcfc173d1f860f87f449985" id="r_ab8bd53290dcfc173d1f860f87f449985"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ab8bd53290dcfc173d1f860f87f449985">add</a> ()</td></tr>
+<tr class="memdesc:ab8bd53290dcfc173d1f860f87f449985"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new empty entity.  <br /></td></tr>
+<tr class="separator:ab8bd53290dcfc173d1f860f87f449985"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac105af1c368721a5a83ebd5365f7bf3f" id="r_ac105af1c368721a5a83ebd5365f7bf3f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ac105af1c368721a5a83ebd5365f7bf3f">prefab</a> ()</td></tr>
+<tr class="memdesc:ac105af1c368721a5a83ebd5365f7bf3f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new prefab entity.  <br /></td></tr>
+<tr class="separator:ac105af1c368721a5a83ebd5365f7bf3f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a973bc36f673e61902359555c758a50ee" id="r_a973bc36f673e61902359555c758a50ee"><td class="memTemplParams" colspan="2">template&lt;typename Func  = TFunc_Void_With_Entity&gt; </td></tr>
 <tr class="memitem:a973bc36f673e61902359555c758a50ee"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a973bc36f673e61902359555c758a50ee">add_n</a> (uint32_t count, Func func=func_void_with_entity)</td></tr>
 <tr class="memdesc:a973bc36f673e61902359555c758a50ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates <em>count</em> new empty entities.  <br /></td></tr>
@@ -412,9 +418,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memitem:a57ed785ea944b3eb6896ff36782da42f"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD const ComponentCacheItem &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a57ed785ea944b3eb6896ff36782da42f">add</a> (const <a class="el" href="structgaia_1_1ecs_1_1RuntimeTypeDesc.html">RuntimeTypeDesc</a> &amp;runtimeType)</td></tr>
 <tr class="memdesc:a57ed785ea944b3eb6896ff36782da42f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Registers a compile-time component with explicit runtime type metadata. Metadata is applied only during first registration. Existing component metadata remains immutable. Runtime metadata does not change typed storage, lifecycle callbacks, or the component symbol.  <br /></td></tr>
 <tr class="separator:a57ed785ea944b3eb6896ff36782da42f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa3ca566ba0ec0108871bd831d88d7081" id="r_aa3ca566ba0ec0108871bd831d88d7081"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD ComponentCacheItem &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aa3ca566ba0ec0108871bd831d88d7081">add</a> (const <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ComponentDesc</a> &amp;desc, EntityKind kind=EntityKind::EK_Gen)</td></tr>
-<tr class="memdesc:aa3ca566ba0ec0108871bd831d88d7081"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new runtime component from a plain component descriptor if not found already.  <br /></td></tr>
-<tr class="separator:aa3ca566ba0ec0108871bd831d88d7081"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab06b490d26d94ac0bf0510ddb681f2f1" id="r_ab06b490d26d94ac0bf0510ddb681f2f1"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD ComponentCacheItem &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ab06b490d26d94ac0bf0510ddb681f2f1">add</a> (const <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ComponentDesc</a> &amp;desc)</td></tr>
+<tr class="memdesc:ab06b490d26d94ac0bf0510ddb681f2f1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new runtime component from a plain component descriptor if not found already.  <br /></td></tr>
+<tr class="separator:ab06b490d26d94ac0bf0510ddb681f2f1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a40506c3fce6bd1ae3d902d556f679e75" id="r_a40506c3fce6bd1ae3d902d556f679e75"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a40506c3fce6bd1ae3d902d556f679e75">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
 <tr class="memdesc:a40506c3fce6bd1ae3d902d556f679e75"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches entity <em>object</em> to entity <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a40506c3fce6bd1ae3d902d556f679e75"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -998,7 +1004,7 @@ Static Public Member Functions</h2></td></tr>
 <tr class="separator:ac6c1b4da9a3bdcc7e299b82d27ad646c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad7ea32faaa6320b799383c71c3e6312f" id="r_ad7ea32faaa6320b799383c71c3e6312f"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:ad7ea32faaa6320b799383c71c3e6312f"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad7ea32faaa6320b799383c71c3e6312f">supports_sparse_component_storage</a> ()</td></tr>
-<tr class="memdesc:ad7ea32faaa6320b799383c71c3e6312f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sparse storage supports plain generic components and exact relationship pairs. Unique components and SoA layouts stay on the normal archetype path.  <br /></td></tr>
+<tr class="memdesc:ad7ea32faaa6320b799383c71c3e6312f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sparse storage supports plain components and exact relationship pairs. SoA layouts stay on the normal archetype path.  <br /></td></tr>
 <tr class="separator:ad7ea32faaa6320b799383c71c3e6312f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8ca9aa6e6fa7f3bac31923ff20c2c89a" id="r_a8ca9aa6e6fa7f3bac31923ff20c2c89a"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a8ca9aa6e6fa7f3bac31923ff20c2c89a"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a8ca9aa6e6fa7f3bac31923ff20c2c89a">uses_ct_sparse_storage</a> ()</td></tr>
@@ -1228,8 +1234,36 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 
 </div>
 </div>
+<a id="ab8bd53290dcfc173d1f860f87f449985" name="ab8bd53290dcfc173d1f860f87f449985"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab8bd53290dcfc173d1f860f87f449985">&#9670;&#160;</a></span>add() <span class="overload">[1/12]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> gaia::ecs::World::add </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a new empty entity. </p>
+<dl class="section return"><dt>Returns</dt><dd>New entity. </dd></dl>
+
+</div>
+</div>
 <a id="a3ecd256e20fc18e2a07bd190c706f3a7" name="a3ecd256e20fc18e2a07bd190c706f3a7"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3ecd256e20fc18e2a07bd190c706f3a7">&#9670;&#160;</a></span>add() <span class="overload">[1/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a3ecd256e20fc18e2a07bd190c706f3a7">&#9670;&#160;</a></span>add() <span class="overload">[2/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1264,8 +1298,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="aa3ca566ba0ec0108871bd831d88d7081" name="aa3ca566ba0ec0108871bd831d88d7081"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa3ca566ba0ec0108871bd831d88d7081">&#9670;&#160;</a></span>add() <span class="overload">[2/12]</span></h2>
+<a id="ab06b490d26d94ac0bf0510ddb681f2f1" name="ab06b490d26d94ac0bf0510ddb681f2f1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab06b490d26d94ac0bf0510ddb681f2f1">&#9670;&#160;</a></span>add() <span class="overload">[3/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1277,18 +1311,8 @@ template&lt;typename T &gt; </div>
           <td class="memname">GAIA_NODISCARD ComponentCacheItem &amp; gaia::ecs::World::add </td>
           <td>(</td>
           <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ComponentDesc</a> &amp;&#160;</td>
-          <td class="paramname"><em>desc</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
+          <td class="paramname"><em>desc</em></td><td>)</td>
           <td></td>
-          <td class="paramtype">EntityKind&#160;</td>
-          <td class="paramname"><em>kind</em> = <code>EntityKind::EK_Gen</code>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
         </tr>
       </table>
   </td>
@@ -1302,7 +1326,6 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">desc</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> registration descriptor. </td></tr>
-    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> kind assigned to the new component entity. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1311,7 +1334,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a57ed785ea944b3eb6896ff36782da42f" name="a57ed785ea944b3eb6896ff36782da42f"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a57ed785ea944b3eb6896ff36782da42f">&#9670;&#160;</a></span>add() <span class="overload">[3/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a57ed785ea944b3eb6896ff36782da42f">&#9670;&#160;</a></span>add() <span class="overload">[4/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1354,7 +1377,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a53f667ddfe6c1f3ec42cdb398b6024fc" name="a53f667ddfe6c1f3ec42cdb398b6024fc"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a53f667ddfe6c1f3ec42cdb398b6024fc">&#9670;&#160;</a></span>add() <span class="overload">[4/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a53f667ddfe6c1f3ec42cdb398b6024fc">&#9670;&#160;</a></span>add() <span class="overload">[5/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1399,7 +1422,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a40506c3fce6bd1ae3d902d556f679e75" name="a40506c3fce6bd1ae3d902d556f679e75"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a40506c3fce6bd1ae3d902d556f679e75">&#9670;&#160;</a></span>add() <span class="overload">[5/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a40506c3fce6bd1ae3d902d556f679e75">&#9670;&#160;</a></span>add() <span class="overload">[6/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1445,7 +1468,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a730bd1293329308354b59967bc08a19a" name="a730bd1293329308354b59967bc08a19a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a730bd1293329308354b59967bc08a19a">&#9670;&#160;</a></span>add() <span class="overload">[6/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a730bd1293329308354b59967bc08a19a">&#9670;&#160;</a></span>add() <span class="overload">[7/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1504,7 +1527,7 @@ It is expected <em>object</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a950a809f79f42dde23d9b82f7059a825" name="a950a809f79f42dde23d9b82f7059a825"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a950a809f79f42dde23d9b82f7059a825">&#9670;&#160;</a></span>add() <span class="overload">[7/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a950a809f79f42dde23d9b82f7059a825">&#9670;&#160;</a></span>add() <span class="overload">[8/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1545,12 +1568,14 @@ It is expected <em>object</em> is valid. Undefined behavior otherwise. </dd></dl
   </table>
   </dd>
 </dl>
-<dl class="section warning"><dt>Warning</dt><dd>It is expected both <em>entity</em> and the entities forming the relationship are valid. Undefined behavior otherwise. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected both <em>entity</em> and the entities forming the relationship are valid. Undefined behavior otherwise. </dd>
+<dd>
+Pair endpoints must be ordinary entities. </dd></dl>
 
 </div>
 </div>
 <a id="a4cc525cae8ef955e749e3e9e7796ec3d" name="a4cc525cae8ef955e749e3e9e7796ec3d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4cc525cae8ef955e749e3e9e7796ec3d">&#9670;&#160;</a></span>add() <span class="overload">[8/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a4cc525cae8ef955e749e3e9e7796ec3d">&#9670;&#160;</a></span>add() <span class="overload">[9/12]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1602,41 +1627,6 @@ template&lt;typename T , typename U  = typename actual_type_t&lt;T&gt;::Type&gt;
 <dl class="section warning"><dt>Warning</dt><dd>It is expected the component is not present on <em>entity</em> yet. Undefined behavior otherwise. </dd>
 <dd>
 It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl>
-
-</div>
-</div>
-<a id="a8e6ec95684084c20c5bb3361f74292cd" name="a8e6ec95684084c20c5bb3361f74292cd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a8e6ec95684084c20c5bb3361f74292cd">&#9670;&#160;</a></span>add() <span class="overload">[9/12]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> gaia::ecs::World::add </td>
-          <td>(</td>
-          <td class="paramtype">EntityKind&#160;</td>
-          <td class="paramname"><em>kind</em> = <code>EntityKind::EK_Gen</code></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Creates a new empty entity. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> kind. Generic entity by default. </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>New entity. </dd></dl>
 
 </div>
 </div>
@@ -1727,7 +1717,9 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
   </table>
   </dd>
 </dl>
-<dl class="section warning"><dt>Warning</dt><dd>It is expected <em>entity</em> and the entities forming <em>pair</em> are valid. Undefined behavior otherwise. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected <em>entity</em> and the entities forming <em>pair</em> are valid. Undefined behavior otherwise. </dd>
+<dd>
+Pair endpoints must be ordinary entities. </dd></dl>
 
 </div>
 </div>
@@ -2563,8 +2555,8 @@ template&lt;typename Func &gt; </div>
 
 </div>
 </div>
-<a id="a9ad825ab4d86476bed484ceb4a4a2fab" name="a9ad825ab4d86476bed484ceb4a4a2fab"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a9ad825ab4d86476bed484ceb4a4a2fab">&#9670;&#160;</a></span>can_add_component_storage_trait()</h2>
+<a id="a467884a1621873f0be6b7e1aee736122" name="a467884a1621873f0be6b7e1aee736122"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a467884a1621873f0be6b7e1aee736122">&#9670;&#160;</a></span>can_add_component_storage_trait()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2576,8 +2568,18 @@ template&lt;typename Func &gt; </div>
           <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::can_add_component_storage_trait </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>component</em></td><td>)</td>
-          <td> const</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>trait</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
         </tr>
       </table>
   </td>
@@ -2587,14 +2589,15 @@ template&lt;typename Func &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Returns whether a runtime storage trait can be attached to <em>component</em>. Compile-time component storage is authoritative. Runtime component descriptors remain mutable. </p>
+<p>Returns whether a runtime storage trait can be attached to <em>component</em>. Compile-time component payload storage is authoritative. Runtime component descriptors remain mutable. Empty typed tags can still latch <code>DontFragment</code> before any instances exist. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity. </td></tr>
+    <tr><td class="paramname">trait</td><td><code>Sparse</code> or <code>DontFragment</code>. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>True for runtime components or typed sparse components. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>True when <em>trait</em> can be attached. </dd></dl>
 
 </div>
 </div>
@@ -2994,7 +2997,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </table>
 </div><div class="memdoc">
 
-<p>Returns whether <em>component</em> is non-fragmenting. Non-fragmenting components do not participate in archetype identity. </p>
+<p>Returns whether <em>component</em> is non-fragmenting. Non-fragmenting component ids do not participate in archetype identity. Exclusive+DontFragment is a relation trait, not empty-tag membership. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity to inspect. </td></tr>
@@ -3029,7 +3032,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </table>
 </div><div class="memdoc">
 
-<p>Returns whether <em>component</em> stores instance data in sparse storage instead of archetype chunks. This is the storage path used for sparse plain generic AoS components and exact pair AoS payloads. </p>
+<p>Returns whether <em>component</em> stores instance data in sparse storage instead of archetype chunks. This is the storage path used for sparse plain AoS components and exact pair AoS payloads. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or exact pair id to inspect. </td></tr>
@@ -3235,7 +3238,7 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
   </table>
   </dd>
 </dl>
-<dl class="section warning"><dt>Warning</dt><dd>It is expected <em>entity</em> is valid generic entity. Undefined behavior otherwise. </dd>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd>
 <dd>
 If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component used to describe the entity name.">EntityDesc</a> is present on <em>entity</em>, it is not copied because names are expected to be unique. Instead, the copied entity will be a part of an archetype without <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component used to describe the entity name.">EntityDesc</a> and any calls to World::name(copiedEntity) will return an empty view. </dd></dl>
 
@@ -6345,7 +6348,7 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>True if entity is located in entityBase. False otherwise. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>True if entity inherits from entityBase. False otherwise. </dd></dl>
 
 </div>
 </div>
@@ -8154,8 +8157,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="a201dae9cd84f9e571db0e076c4177613" name="a201dae9cd84f9e571db0e076c4177613"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a201dae9cd84f9e571db0e076c4177613">&#9670;&#160;</a></span>prefab()</h2>
+<a id="ac105af1c368721a5a83ebd5365f7bf3f" name="ac105af1c368721a5a83ebd5365f7bf3f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac105af1c368721a5a83ebd5365f7bf3f">&#9670;&#160;</a></span>prefab()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -8166,8 +8169,7 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> gaia::ecs::World::prefab </td>
           <td>(</td>
-          <td class="paramtype">EntityKind&#160;</td>
-          <td class="paramname"><em>kind</em> = <code>EntityKind::EK_Gen</code></td><td>)</td>
+          <td class="paramname"></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -8179,12 +8181,6 @@ template&lt;typename T &gt; </div>
 </div><div class="memdoc">
 
 <p>Creates a new prefab entity. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> kind. Generic entity by default. </td></tr>
-  </table>
-  </dd>
-</dl>
 <dl class="section return"><dt>Returns</dt><dd>New prefab entity. </dd></dl>
 
 </div>
@@ -9447,7 +9443,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </table>
 </div><div class="memdoc">
 
-<p>Latches DontFragment on a component entity record. This first moves the payload out of chunks, then removes the id from archetype identity. </p>
+<p>Latches DontFragment on a component entity record. Payload-bearing components are moved to sparse storage first. Empty tags only latch membership. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity. </td></tr>
@@ -9482,7 +9478,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </table>
 </div><div class="memdoc">
 
-<p>Latches Sparse storage on a component entity before any instances exist. This moves the payload out of chunks while keeping the id in archetype identity. Only plain generic AoS components are supported. </p>
+<p>Latches Sparse storage on a component entity before any instances exist. This moves the payload out of chunks while keeping the id in archetype identity. Only plain AoS components are supported. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity. </td></tr>
@@ -10752,7 +10748,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Sparse storage supports plain generic components and exact relationship pairs. Unique components and SoA layouts stay on the normal archetype path. </p>
+<p>Sparse storage supports plain components and exact relationship pairs. SoA layouts stay on the normal archetype path. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type to inspect. </td></tr>
@@ -11379,6 +11375,76 @@ template&lt;typename Func &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Live entity for <code>id</code>, or EntityBad when the id is stale or absent. </dd></dl>
+
+</div>
+</div>
+<a id="ac3dcb148e980035fdeed4e2a97663f8a" name="ac3dcb148e980035fdeed4e2a97663f8a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac3dcb148e980035fdeed4e2a97663f8a">&#9670;&#160;</a></span>try_live_record() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD EntityContainer * gaia::ecs::World::try_live_record </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a record that is present and not delete-requested. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable record pointer when the id is live. Nullptr otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a1fced15c918fb482960ce9f3551107bc" name="a1fced15c918fb482960ce9f3551107bc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1fced15c918fb482960ce9f3551107bc">&#9670;&#160;</a></span>try_live_record() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const EntityContainer * gaia::ecs::World::try_live_record </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a record that is present and not delete-requested. This is the one-lookup replacement for <code><a class="el" href="classgaia_1_1ecs_1_1World.html#a7f38da2b090f678111ea544b54c5f9a8" title="Checks if entity is valid.">valid()</a></code> followed by <code><a class="el" href="classgaia_1_1ecs_1_1World.html#a5425de9078c310dc6cd992aa4303be54" title="Returns the internal record for entity.">fetch()</a></code>. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Record pointer when the id is live. Nullptr otherwise. </dd></dl>
 
 </div>
 </div>

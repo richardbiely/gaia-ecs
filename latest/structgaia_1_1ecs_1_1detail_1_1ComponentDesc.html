@@ -153,7 +153,7 @@ Static Public Member Functions</h2></td></tr>
 <tr class="memdesc:ab04f2c89f27fd6f47c0cb948c5fe661a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Populates SoA element sizes for SoA payloads.  <br /></td></tr>
 <tr class="separator:ab04f2c89f27fd6f47c0cb948c5fe661a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad78f1987c21ae1409e610546d25cde0d" id="r_ad78f1987c21ae1409e610546d25cde0d"><td class="memItemLeft" align="right" valign="top">static constexpr DataStorageType&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ad78f1987c21ae1409e610546d25cde0d">storage_type</a> ()</td></tr>
-<tr class="memdesc:ad78f1987c21ae1409e610546d25cde0d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the compile-time storage mode requested for the component payload.  <br /></td></tr>
+<tr class="memdesc:ad78f1987c21ae1409e610546d25cde0d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the compile-time storage mode requested for the component payload. <code>GAIA_STORAGE(DontFragment)</code> maps to table storage for empty tags and sparse storage for AoS payloads.  <br /></td></tr>
 <tr class="separator:ad78f1987c21ae1409e610546d25cde0d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a564628951c87a87a9f504fc3b9aae34c" id="r_a564628951c87a87a9f504fc3b9aae34c"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a564628951c87a87a9f504fc3b9aae34c">func_ctor</a> ()</td></tr>
 <tr class="memdesc:a564628951c87a87a9f504fc3b9aae34c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the optional constructor callback for typed AoS payloads.  <br /></td></tr>
@@ -729,7 +729,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Returns the compile-time storage mode requested for the component payload. </p>
+<p>Returns the compile-time storage mode requested for the component payload. <code>GAIA_STORAGE(DontFragment)</code> maps to table storage for empty tags and sparse storage for AoS payloads. </p>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> storage mode. </dd></dl>
 
 </div>

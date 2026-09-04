@@ -190,7 +190,7 @@ Table of Contents</h1>
 <li><a class="el" href="index.html#hierarchies">Hierarchies</a></li>
 </ul>
 </li>
-<li><a class="el" href="index.html#unique-components">Unique components</a></li>
+<li><a class="el" href="index.html#shared-data">Shared data</a></li>
 <li><a class="el" href="index.html#delayed-execution">Delayed execution</a><ul>
 <li><a class="el" href="index.html#command-merging-rules">Command Merging rules</a></li>
 </ul>
@@ -520,24 +520,32 @@ Selecting a storage mode</h4>
 <div class="line">w.add&lt;Cooldown&gt;(e);</div>
 <div class="line"><span class="keyword">auto</span> cooldownValue = w.set&lt;Cooldown&gt;(e);</div>
 <div class="line">cooldownValue.value = 1.5f;</div>
-</div><!-- fragment --><p><code>GAIA_STORAGE(Table)</code> is the default and usually does not need to be written. A typed component's declared policy is authoritative: adding <code>ecs::Sparse</code> or <code>ecs::DontFragment</code> to a typed table component does not change its storage. Runtime component descriptors can still select their storage mode before instances are attached.</p>
+</div><!-- fragment --><p><code>GAIA_STORAGE(Table)</code> is the default and usually does not need to be written. A typed component's declared payload storage is authoritative for data-bearing structs: adding <code>ecs::Sparse</code> or <code>ecs::DontFragment</code> to a typed table payload such as <code>Position</code> does not change its storage. Empty tags are the exception. They can latch <code>ecs::DontFragment</code> after registration and before any instances exist. Runtime component descriptors can still select their storage mode before instances are attached.</p>
 <h4><a class="anchor" id="non-fragmenting-membership"></a>
 Non-fragmenting membership</h4>
-<p><code>ecs::DontFragment</code> controls archetype membership, not payload storage. It keeps the component id outside the entity's archetype, so adding or removing the component does not move the entity between archetypes. Typed non-fragmenting components must declare <code>GAIA_STORAGE(Sparse)</code> because table payloads require an archetype column.</p>
-<div class="fragment"><div class="line"><span class="keyword">struct </span>Cooldown {</div>
-<div class="line">  GAIA_STORAGE(Sparse);</div>
+<p><code>ecs::DontFragment</code> controls archetype membership, not payload storage. It keeps the component id outside the entity's archetype, so adding or removing the component does not move the entity between archetypes.</p>
+<p>Empty tags do not need <code>Sparse</code>. Declare <code>GAIA_STORAGE(DontFragment)</code>, or call <code>world.add(componentEntity, ecs::DontFragment)</code> immediately after registration and before any instances exist. Data-bearing AoS structs that should stay outside archetype identity declare <code>GAIA_STORAGE(DontFragment)</code> (sparse payload plus non-fragmenting membership) or <code>GAIA_STORAGE(Sparse)</code> plus a runtime <code>DontFragment</code> latch. Table payloads still require an archetype column, so a typed table data component cannot become non-fragmenting at runtime.</p>
+<div class="fragment"><div class="line"><span class="keyword">struct </span>Pending {</div>
+<div class="line">  GAIA_STORAGE(DontFragment);</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">struct </span>Cooldown {</div>
+<div class="line">  GAIA_STORAGE(DontFragment);</div>
 <div class="line">  <span class="keywordtype">float</span> value = 0.0f;</div>
 <div class="line">};</div>
 <div class="line"> </div>
 <div class="line">ecs::World w;</div>
-<div class="line"><span class="keyword">const</span> <span class="keyword">auto</span>&amp; cooldown = w.add&lt;Cooldown&gt;();</div>
-<div class="line"><span class="comment">// Keep Cooldown membership outside archetype identity.</span></div>
-<div class="line">w.add(cooldown.entity, ecs::DontFragment);</div>
-<div class="line"> </div>
 <div class="line"><span class="keyword">auto</span> e = w.add();</div>
+<div class="line">w.add&lt;Pending&gt;(e);</div>
 <div class="line">w.add&lt;Cooldown&gt;(e);</div>
 <div class="line"><span class="keyword">auto</span> cooldownValue = w.set&lt;Cooldown&gt;(e);</div>
 <div class="line">cooldownValue.value = 1.5f;</div>
+</div><!-- fragment --><p>An empty tag without a compile-time declaration can still latch before instances exist:</p>
+<div class="fragment"><div class="line"><span class="keyword">struct </span>Pending {};</div>
+<div class="line"> </div>
+<div class="line">ecs::World w;</div>
+<div class="line"><span class="keyword">const</span> <span class="keyword">auto</span>&amp; pending = w.add&lt;Pending&gt;();</div>
+<div class="line">w.add(pending.entity, ecs::DontFragment);</div>
 </div><!-- fragment --><p>The resulting configurations are:</p>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -547,21 +555,30 @@ Non-fragmenting membership</h4>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>GAIA_STORAGE(Sparse)</code>   </td><td class="markdownTableBodyNone"><code>Sparse</code>   </td><td class="markdownTableBodyNone">In archetype   </td><td class="markdownTableBodyNone">Yes    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>GAIA_STORAGE(Sparse)</code> + <code>DontFragment</code>   </td><td class="markdownTableBodyNone"><code>Sparse</code>   </td><td class="markdownTableBodyNone">Outside archetype   </td><td class="markdownTableBodyNone">No   </td></tr>
+<td class="markdownTableBodyNone"><code>GAIA_STORAGE(Sparse)</code> + <code>DontFragment</code>   </td><td class="markdownTableBodyNone"><code>Sparse</code>   </td><td class="markdownTableBodyNone">Outside archetype   </td><td class="markdownTableBodyNone">No    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>GAIA_STORAGE(DontFragment)</code> empty tag   </td><td class="markdownTableBodyNone"><code>Table</code> (size 0)   </td><td class="markdownTableBodyNone">Outside archetype   </td><td class="markdownTableBodyNone">No    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">empty tag + runtime <code>DontFragment</code> before instances   </td><td class="markdownTableBodyNone"><code>Table</code> (size 0)   </td><td class="markdownTableBodyNone">Outside archetype   </td><td class="markdownTableBodyNone">No    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>GAIA_STORAGE(DontFragment)</code> AoS payload   </td><td class="markdownTableBodyNone"><code>Sparse</code>   </td><td class="markdownTableBodyNone">Outside archetype   </td><td class="markdownTableBodyNone">No   </td></tr>
 </table>
 <p>Data-bearing relationships use the same payload/membership split. When the payload type of an exact <code>(relation, target)</code> pair uses sparse storage, Gaia keeps one separate sparse payload store for that exact pair. The pair id still participates in the entity's archetype identity. This preserves normal relationship query matching without putting the payload in a chunk column. For an <code>Exclusive</code> relation marked <code>DontFragment</code>, both pair membership and its sparse payload stay outside the archetype, so changing the target does not move the source entity.</p>
+<p>Empty <code>Exclusive</code>+<code>DontFragment</code> ids such as <code>Parent</code> and <code>OnInstantiate</code> remain relation traits. They do not take the empty-tag membership path.</p>
 <p>Rule of thumb:</p><ul>
 <li>Keep hot, common, frequently iterated data in table storage.</li>
 <li>Use <code>Sparse</code> when the payload needs a stable address, but the component should still participate in archetype identity.</li>
-<li>Use <code>GAIA_STORAGE(Sparse)</code> with <code>DontFragment</code> for frequently toggled typed optional state such as cooldowns, temporary status effects, markers, or runtime tool state.</li>
+<li>Use <code>GAIA_STORAGE(DontFragment)</code> for empty optional markers and for typed optional AoS state such as cooldowns, temporary status effects, or runtime tool state.</li>
+<li>Queries that filter on a <code>DontFragment</code> empty tag use entity-seed matching, same as other non-fragmenting ids. Adding the tag is cheap because the archetype does not change. Iterating or counting those tags is slower than iterating an archetype-resident empty tag. <code>changed()</code> on an empty <code>DontFragment</code> tag uses the same chunk-granular entity-order signal as other non-fragmenting ids.</li>
+<li><code>GAIA_STORAGE(Sparse)</code> plus a runtime <code>DontFragment</code> latch is equivalent for data-bearing AoS payloads.</li>
 <li>Avoid sparse storage for components such as <code>Position</code> or <code>Velocity</code> that benefit from sequential table access, unless profiling justifies it.</li>
 </ul>
 <p>Directly adding or removing an already-registered <code>DontFragment</code> component is safe during serial query iteration because the entity does not move to another archetype. If the active query filters on that component, later rows are matched against the current world state rather than a snapshot taken before iteration.</p>
 <p>&gt;<b>NOTE:<br  />
-</b> Component layout and storage follow the same rules for ordinary components and relationship payloads. Table storage supports AoS and SoA layouts. Sparse storage is intended for individually addressed payloads and supports only plain AoS generic components. <code>GAIA_STORAGE(Sparse)</code> and <code>ecs::Sparse</code> cannot be combined with a SoA layout.<br  />
+</b> Component layout and storage follow the same rules for ordinary components and relationship payloads. Table storage supports AoS and SoA layouts. Sparse storage is intended for individually addressed payloads and supports only plain AoS components. <code>GAIA_STORAGE(Sparse)</code>, <code>GAIA_STORAGE(DontFragment)</code>, and <code>ecs::Sparse</code> cannot be combined with a SoA layout.<br  />
 </p>
 <p>&gt;<b>NOTE:<br  />
-</b> Runtime component storage and fragmentation traits must be set before the component has instances attached to entities. They do not override a typed component's <code>GAIA_STORAGE</code> policy.<br  />
+</b> Runtime component storage and fragmentation traits must be set before the component has instances attached to entities. They do not override a typed data component's <code>GAIA_STORAGE</code> policy. Empty tags may still latch <code>ecs::DontFragment</code> before instances exist.<br  />
 </p>
 <p>&gt;<b>NOTE:<br  />
 </b> Once a component is marked <code>ecs::Sparse</code> or <code>ecs::DontFragment</code>, it stays that way. Both entities carry the <a class="el" href="index.html#entity-dependencies">ecs::Requires trait</a>.<br  />
@@ -1185,7 +1202,7 @@ Simple query</h3>
 <div class="line">q2.or_&lt;Something&gt;().or_&lt;SomethingElse&gt;();</div>
 <div class="line"><span class="comment">// ... and no Player component... (no access done for no())</span></div>
 <div class="line">q2.no&lt;Player&gt;();</div>
-</div><!-- fragment --><p>All Query operations can be chained and it is also possible to invoke various filters multiple times with unique components:</p>
+</div><!-- fragment --><p>All Query operations can be chained and it is also possible to invoke various filters multiple times with distinct terms:</p>
 <div class="fragment"><div class="line">ecs::Query q = w.query();</div>
 <div class="line">  <span class="comment">// Take into account everything with Position (mutable access)...</span></div>
 <div class="line">  .all&lt;Position&amp;&gt;()</div>
@@ -1726,7 +1743,7 @@ Iterating over components not present in the query is not supported and results 
 <li><code>view_raw(termIdx)</code> - read-only raw payload rows for a directly chunk-backed term</li>
 <li><code>view_raw_mut(termIdx)</code> - mutable raw payload rows with normal post-callback set side effects</li>
 <li><code>sview_raw_mut(termIdx)</code> - silent mutable raw payload rows. Pair with <code>modify_raw(termIdx)</code> when set side effects should run.</li>
-<li><code>view_raw_field(termIdx, fieldIdx)</code> - one read-only contiguous field array for a directly stored generic table SoA term or exact pair</li>
+<li><code>view_raw_field(termIdx, fieldIdx)</code> - one read-only contiguous field array for a directly stored table SoA term or exact pair</li>
 <li><code>view_raw_field_mut(termIdx, fieldIdx)</code> - mutable contiguous SoA field values with normal post-callback set side effects</li>
 <li><code>sview_raw_field_mut(termIdx, fieldIdx)</code> - silent mutable SoA field values. Pair with <code>modify_raw(termIdx)</code> when set side effects should run.</li>
 </ul>
@@ -2083,7 +2100,7 @@ Relationships</h2>
 <h3><a class="anchor" id="relationship-basics"></a>
 Relationship basics</h3>
 <p>Entity relationship is a feature that allows users to model simple relations, hierarchies or graphs in an ergonomic, easy and safe way. Each relationship is expressed as following: "source, (relation, target)". All three elements of a relationship are entities. We call the "(relation, target)" part a relationship pair.</p>
-<p>Relationship pair is a special kind of entity where the id of the "relation" entity becomes the pair's id and the "target" entity's id becomes the pairs generation. The pair is created by calling <code>ecs::Pair(relation, target</code>) with two valid entities as its arguments.</p>
+<p>Relationship pair is a special kind of entity where the id of the "relation" entity becomes the pair's id and the "target" entity's id becomes the pairs generation. The pair is created by calling <code>ecs::Pair(relation, target</code>) with two valid entities as its arguments. Only each endpoint's <code>id()</code> is stored, so both endpoints must be ordinary entities. Nested pairs are rejected when the relationship is attached.</p>
 <p>Adding a relationship to any entity is as simple as adding any other entity.</p>
 <div class="fragment"><div class="line">ecs::World w;</div>
 <div class="line">ecs::Entity rabbit = w.add();</div>
@@ -2258,7 +2275,7 @@ Exclusivity</h3>
 <div class="line">isSwitched = w.has(wallSwitch, ecs::Pair{toggled, on}); <span class="comment">// false</span></div>
 </div><!-- fragment --><h3><a class="anchor" id="entity-inheritance"></a>
 Entity inheritance</h3>
-<p>Entities can inherit from other entities by using the (Is, target) relationship. This is a powerful feature that helps you identify an entire group of entities using a single entity.</p>
+<p>Entities can inherit from other entities by using the (Is, target) relationship. This is a powerful feature that helps you identify an entire group of entities using a single entity. Pair records do not participate in inheritance.</p>
 <div class="fragment"><div class="line">ecs::World w;</div>
 <div class="line">ecs::Entity animal = w.add();</div>
 <div class="line">ecs::Entity rabbit = w.add();</div>
@@ -2371,6 +2388,13 @@ Prefabs</h3>
 </ul>
 <p>To find the instance entity that came from a prefab child, keep the spawned root and call <code>find_prefab_instance(rootInstance, prefabChild)</code>. Passing the root prefab returns the root instance. Passing a nested child prefab walks the instance's <code>Parent</code> and <code>ChildOf</code> subtree and returns the matching descendant. Missing prefab children return <code>EntityBad</code>.</p>
 <p>For bulk spawns, the <code>instantiate_n(...)</code> callback reports the spawned root instances. Call <code>find_prefab_instance(rootInstance, prefabChild)</code> for each root you keep. The lookup follows <code>Parent</code> and <code>ChildOf</code> descendants and matches the direct <code>Pair(ecs::Is, prefabChild)</code> edge created by instantiation, so it does not depend on copied names. If you need custom filtering or ordering, traverse with the relation-explicit <code>sources(...)</code> or <code>sources_bfs(...)</code> helpers directly.</p>
+<p>Locked queries and systems cannot call <code>World::instantiate</code> or <code>instantiate_n</code> because those are structural mutations. Queue the same spawn through a command buffer:</p>
+<div class="fragment"><div class="line">q.each([&amp;](ecs::Iter&amp; it) {</div>
+<div class="line">  ecs::CommandBufferST&amp; cb = it.cmd_buffer_st();</div>
+<div class="line">  <span class="keyword">auto</span> instance = cb.instantiate(prefab);</div>
+<div class="line">  cb.set&lt;Position&gt;(instance, {1, 2, 3});</div>
+<div class="line">});</div>
+</div><!-- fragment --><p><code>CommandBufferST</code> and <code>CommandBufferMT</code> expose <code>instantiate</code> and <code>instantiate_n</code> with the same Prefab, <code>Is</code>, name, OnInstantiate, and recursive child rules as the World API. <code>instantiate</code> returns a temporary entity handle, like <code>add</code> and <code>copy</code>. Per-instance writes are recorded against that handle. <code>instantiate_n</code> invokes its callback immediately while recording, with those temporary handles. <code>CopyIter</code> callbacks stay World-only. Prefab children are not exposed as temporaries; after commit, look them up with <code>find_prefab_instance(rootInstance, prefabChild)</code>.</p>
 <p>Instantiation keeps the prefab relationship but intentionally strips prefab-only identity details from the new entity:</p><ul>
 <li><code>ecs::Prefab</code> is not copied to the instance</li>
 <li><code>EntityDesc</code> is not copied, so prefab names stay unique</li>
@@ -2511,20 +2535,30 @@ Hierarchies</h3>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>Parent</code>   </td><td class="markdownTableBodyNone">Better default for logical hierarchies, lower fragmentation, better suited to deep hierarchies   </td><td class="markdownTableBodyNone">Less purely structural in query execution   </td><td class="markdownTableBodyNone">Logical/editor/prefab/UI hierarchy   </td></tr>
 </table>
-<h2><a class="anchor" id="unique-components"></a>
-Unique components</h2>
-<p>Unique component is a special kind of data that exists at most once per chunk. In other words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.</p>
-<p>If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.</p>
-<p>For instance, imagine you have a grid with fields of 100 meters squared. If you create your entities carefully they get organized in grid fields implicitly on the data level already without you having to use any sort of spatial map container.</p>
-<div class="fragment"><div class="line">w.add&lt;Position&gt;(e1, {10,1});</div>
-<div class="line">w.add&lt;Position&gt;(e2, {19,1});</div>
-<div class="line"><span class="comment">// Make both e1 and e2 share a common grid position of {1,0}</span></div>
-<div class="line">w.add&lt;ecs::uni&lt;GridPosition&gt;&gt;(e1, {1, 0});</div>
-</div><!-- fragment --><h2><a class="anchor" id="delayed-execution"></a>
+<h2><a class="anchor" id="shared-data"></a>
+Shared data</h2>
+<p>Shared payload belongs on a group entity. Occupancy is a relation. That keeps one addressable owner for the data, so <code>GAIA_STORAGE(Sparse)</code> and ordinary component APIs apply to the group rather than to a chunk.</p>
+<p>Use a built-in hierarchy when the group is a parent:</p>
+<div class="fragment"><div class="line">ecs::Entity cell = w.add();</div>
+<div class="line">w.add&lt;GridPosition&gt;(cell, {1, 0});</div>
+<div class="line"> </div>
+<div class="line">w.add(e1, ecs::Pair(ecs::ChildOf, cell));</div>
+<div class="line">w.add(e2, ecs::Pair(ecs::ChildOf, cell));</div>
+</div><!-- fragment --><p><code>Parent</code> is the same idea when the grouping should stay out of archetype identity. For a partition key that is not a hierarchy, use an exclusive custom relation so each occupant has one group at a time:</p>
+<div class="fragment"><div class="line">ecs::Entity inCell = w.add();</div>
+<div class="line">w.add(inCell, ecs::Exclusive);</div>
+<div class="line"> </div>
+<div class="line">ecs::Entity cell = w.add();</div>
+<div class="line">w.add&lt;GridPosition&gt;(cell, {1, 0});</div>
+<div class="line"> </div>
+<div class="line">w.add(e1, ecs::Pair(inCell, cell));</div>
+<div class="line">w.add(e2, ecs::Pair(inCell, cell));</div>
+</div><!-- fragment --><p>See <a class="el" href="index.html#hierarchies">Hierarchies</a> and <a class="el" href="index.html#exclusivity">Exclusivity</a>.</p>
+<h2><a class="anchor" id="delayed-execution"></a>
 Delayed execution</h2>
 <p>Sometimes you need to delay executing a part of the code for later. This can be achieved via command buffers.</p>
 <p>Command buffer is a container used to record commands in the order in which they were requested at a later point in time.</p>
-<p>Typically you use them when there is a need to perform structural changes (adding or removing an entity or component) while iterating queries.</p>
+<p>Typically you use them when there is a need to perform structural changes (adding or removing an entity or component, copying an entity, or instantiating a prefab) while iterating queries.</p>
 <p>Performing an unprotected structural change is undefined behavior and most likely crashes the program. However, using a command buffer you can collect all requests first and commit them when it is safe later.</p>
 <p>You can use either a command buffer provided by the iterator or one you created. There are two kinds of the command buffer - <code>ecs::CommandBufferST</code> that is not thread-safe and should only be used by one thread, and <code>ecs::CommandBufferMT</code> that is safe to access from multiple threads at once.</p>
 <p>The command buffer provided by the iterator is committed in a safe manner when the world is not locked for structural changes, and is a recommended way for queuing commands.</p>
@@ -2545,6 +2579,7 @@ Delayed execution</h2>
 <div class="line">  }</div>
 <div class="line">});</div>
 <div class="line"><span class="comment">// Once the world is ready, usually where iterations are finished, the changes are committed automatically.</span></div>
+<div class="line"><span class="comment">// This includes entity-seeded queries, not only chunk iteration.</span></div>
 </div><!-- fragment --><p>With custom command buffer you need to manage things yourself. However, if might come handy in situations where things are fully under your control.</p>
 <div class="fragment"><div class="line">ecs::World w;</div>
 <div class="line">...</div>
@@ -2576,8 +2611,10 @@ Entity Merging</h4>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>copy(src)</code> + <code>del(copy)</code>   </td><td class="markdownTableBodyNone">No effect — copy canceled    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>add(e)</code> + component ops + <code>del(e)</code>   </td><td class="markdownTableBodyNone">No effect — full chain canceled    </td></tr>
+<td class="markdownTableBodyNone"><code>instantiate(prefab)</code> + <code>del(instance)</code>   </td><td class="markdownTableBodyNone">No effect — instance never spawned    </td></tr>
 <tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>add(e)</code> + component ops + <code>del(e)</code>   </td><td class="markdownTableBodyNone">No effect — full chain canceled    </td></tr>
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><code>del(e)</code> on an existing entity   </td><td class="markdownTableBodyNone">Entity removed normally   </td></tr>
 </table>
 <h4><a class="anchor" id="component-merging"></a>
@@ -2743,7 +2780,7 @@ System jobs</h3>
 </div><!-- fragment --><p><code>SchedJob::wait()</code> does not submit work. Submit explicitly before waiting.</p>
 <h3><a class="anchor" id="system-callbacks-and-command-buffers"></a>
 System callbacks and command buffers</h3>
-<p>System callbacks can queue structural changes with <code>Iter::cmd_buffer_st()</code>. This includes adding or removing already-registered components on the entities matched by the current query. Gaia-ECS commits that command buffer after the system query finishes and the world is unlocked.</p>
+<p>System callbacks can queue structural changes with <code>Iter::cmd_buffer_st()</code>. This includes adding or removing already-registered components on the entities matched by the current query, and instantiating prefabs. Gaia-ECS commits that command buffer after the system query finishes and the world is unlocked.</p>
 <p>A later system in the same <code>World::update()</code> or <code>systems_run()</code> call can see those changes if it runs after the producer. This works across phase boundaries too. A phase boundary is a scheduler barrier, so commands from the earlier phase are committed before the later phase runs.</p>
 <div class="fragment"><div class="line"><span class="keyword">struct </span>NeedsAgent {};</div>
 <div class="line"><span class="keyword">struct </span>TransportAgent {};</div>
@@ -3445,7 +3482,7 @@ Raw access and cursors</h3>
 <div class="line">  }</div>
 <div class="line">}</div>
 </div><!-- fragment --><p><code>get_raw(...)</code> and <code>mut_raw(...)</code> access a complete AoS runtime component as bytes. They work with components in table or sparse storage. <code>mut_raw(...)</code> does not emit write notifications. Call <code>modify_raw(...)</code> afterwards when set hooks or <code>OnSet</code> observers must run. <code>set_raw(...)</code> copies the complete value and emits the notification for you.</p>
-<p>Runtime SoA components store each field separately. Use <code>get_raw_field(entity, component, fieldIndex)</code> to read one field and <code>mut_raw_field(...)</code> to edit one. Iterator callbacks can use <code>view_raw_field(termIdx, fieldIdx)</code> and <code>view_raw_field_mut(...)</code> for the current contiguous field range without resolving each entity separately. <code>sview_raw_field_mut(...)</code> stays silent until paired with <code>modify_raw(termIdx)</code>. The field index follows the field order used when the component was registered. Entity-scoped field access supports generic components and exact relationship pairs in table storage, but not sparse components. Iterator field views support directly stored generic table components and exact relationship pair terms with table SoA payloads. Call <code>modify_raw(...)</code> after editing through <code>mut_raw_field(...)</code> when write notifications are required.</p>
+<p>Runtime SoA components store each field separately. Use <code>get_raw_field(entity, component, fieldIndex)</code> to read one field and <code>mut_raw_field(...)</code> to edit one. Iterator callbacks can use <code>view_raw_field(termIdx, fieldIdx)</code> and <code>view_raw_field_mut(...)</code> for the current contiguous field range without resolving each entity separately. <code>sview_raw_field_mut(...)</code> stays silent until paired with <code>modify_raw(termIdx)</code>. The field index follows the field order used when the component was registered. Entity-scoped field access supports components and exact relationship pairs in table storage, but not sparse components. Iterator field views support directly stored table components and exact relationship pair terms with table SoA payloads. Call <code>modify_raw(...)</code> after editing through <code>mut_raw_field(...)</code> when write notifications are required.</p>
 <p><code>ComponentCursor</code> selects reflected fields for both AoS and SoA components. Primitive setters such as <code>f32(...)</code> emit the component write notification automatically. Fixed arrays and adapted dynamic vectors use <code>count()</code> and <code>elem(index)</code> before reading or writing an element.</p>
 <p>The entity-scoped forms are <code>acc(entity).get_raw_field(...)</code> and <code>acc_mut(entity).mut_raw_field(...)</code>.</p>
 <h3><a class="anchor" id="data-on-runtime-relationships"></a>
@@ -3502,7 +3539,7 @@ Querying runtime components</h3>
 <div class="line">    <span class="comment">// raw.data points at the component bytes for this entity.</span></div>
 <div class="line">  }</div>
 <div class="line">});</div>
-</div><!-- fragment --><p>Iterator callbacks can use <code>view_raw(termIdx)</code> for directly chunk-backed AoS payloads. Use <code>view_raw_any(component)</code> when sparse or inherited runtime payloads must be resolved separately for each entity. Each indexed access performs a world lookup, and the returned entity-resolved view is valid only during the callback. The mutable <code>view_raw_any_mut(component)</code> path emits normal write notifications after the callback. <code>sview_raw_any_mut(component)</code> stays silent until <code>modify_raw(component)</code> returns true. Both mutable paths require every iterated entity to own the component directly. A callback can track up to 32 distinct sparse components. A later mutable view is invalid, and <code>modify_raw(component)</code> returns false when that limit or the ownership requirement is not satisfied. Directly stored generic table runtime SoA component and exact-pair terms use <code>view_raw_field(termIdx, fieldIdx)</code> for a contiguous read-only field array. See <a class="el" href="index.html#iteration">Iteration</a> for the supported storage and ownership contracts.</p>
+</div><!-- fragment --><p>Iterator callbacks can use <code>view_raw(termIdx)</code> for directly chunk-backed AoS payloads. Use <code>view_raw_any(component)</code> when sparse or inherited runtime payloads must be resolved separately for each entity. Each indexed access performs a world lookup, and the returned entity-resolved view is valid only during the callback. The mutable <code>view_raw_any_mut(component)</code> path emits normal write notifications after the callback. <code>sview_raw_any_mut(component)</code> stays silent until <code>modify_raw(component)</code> returns true. Both mutable paths require every iterated entity to own the component directly. A callback can track up to 32 distinct sparse components. A later mutable view is invalid, and <code>modify_raw(component)</code> returns false when that limit or the ownership requirement is not satisfied. Directly stored table runtime SoA component and exact-pair terms use <code>view_raw_field(termIdx, fieldIdx)</code> for a contiguous read-only field array. See <a class="el" href="index.html#iteration">Iteration</a> for the supported storage and ownership contracts.</p>
 <h2><a class="anchor" id="multithreading"></a>
 Multithreading</h2>
 <h3><a class="anchor" id="worlds-threads-and-allocation-arenas"></a>
@@ -3706,7 +3743,7 @@ Threads</h3>
 <h3><a class="anchor" id="scheduler-adapters"></a>
 Scheduler adapters</h3>
 <p>If you already have your own task scheduler or are integrating Gaia-ECS into a larger engine, ECS parallel execution can be routed through a custom scheduler instead of the built-in Gaia thread pool.</p>
-<p>Scheduler task descriptors carry <code>SchedFlags</code>. When <code>SchedFlags::Background</code> is present, the adapter should route the task to a scheduler lane that is allowed to outlive the current frame. The default Gaia-ECS scheduler maps this flag to <code>ThreadPool::sched_background</code>; external adapters need to preserve it for both <code>SchedTaskDesc</code> and <code>SchedParDesc</code> so background work does not silently fall back to a frame-bound queue.</p>
+<p>Scheduler task descriptors carry <code>SchedFlags</code>. When <code>SchedFlags::Background</code> is present, the adapter should route the task to a scheduler lane that is allowed to outlive the current frame. The default Gaia-ECS scheduler maps this flag to <code>ThreadPool::sched_background</code>. External adapters need to preserve it for both <code>SchedTaskDesc</code> and <code>SchedParDesc</code> so background work does not silently fall back to a frame-bound queue.</p>
 <div class="fragment"><div class="line"><span class="keyword">struct </span>MySchedCtx {</div>
 <div class="line">  MyEngine::Scheduler* scheduler;</div>
 <div class="line">};</div>
@@ -3769,25 +3806,25 @@ Scheduler adapters</h3>
 <div class="line"> </div>
 <div class="line">ecs::World w;</div>
 <div class="line">w.set_sched(sched);</div>
-</div><!-- fragment --><p>After installing the scheduler, ECS paths that use <code>QueryExecType::Parallel</code>, <code>QueryExecType::ParallelPerf</code>, or <code>QueryExecType::ParallelEff</code> route their multithreaded workload through it:</p>
+</div><!-- fragment --><p>After installing the scheduler via <code>World::set_sched</code>, ECS paths that use <code>QueryExecType::Parallel</code>, <code>QueryExecType::ParallelPerf</code>, or <code>QueryExecType::ParallelEff</code> route their multithreaded workload through it:</p>
 <div class="fragment"><div class="line">ecs::Query q = w.query().all&lt;Position&gt;();</div>
 <div class="line">q.each([](<span class="keyword">const</span> Position&amp;) {</div>
-<div class="line">  <span class="comment">// ...</span></div>
+<div class="line">  <span class="comment">// ... runs through your custom scheduler</span></div>
 <div class="line">}, ecs::QueryExecType::Parallel);</div>
 <div class="line"> </div>
 <div class="line">w.system().all&lt;Velocity&gt;().mode(ecs::QueryExecType::Parallel).on_each([](Velocity&amp;) {</div>
-<div class="line">  <span class="comment">// ...</span></div>
+<div class="line">  <span class="comment">// ... runs through your custom scheduler</span></div>
 <div class="line">});</div>
 </div><!-- fragment --><p>Queries and systems can also be added as scheduler-owned work without submitting immediately. This is useful when an engine wants to wire dependencies in its own job graph and wait once at the end of a phase:</p>
 <div class="fragment"><div class="line">ecs::Query moveQuery = w.query().all&lt;Position&gt;().all&lt;Velocity&gt;();</div>
 <div class="line">ecs::Query boundsQuery = w.query().all&lt;Position&gt;();</div>
 <div class="line"> </div>
 <div class="line"><span class="keyword">auto</span> moveJob = moveQuery.job([](ecs::Iter&amp; it) {</div>
-<div class="line">  <span class="comment">// ...</span></div>
+<div class="line">  <span class="comment">// ... some work</span></div>
 <div class="line">}, ecs::QueryExecType::Parallel);</div>
 <div class="line"> </div>
 <div class="line"><span class="keyword">auto</span> boundsJob = boundsQuery.job([](ecs::Iter&amp; it) {</div>
-<div class="line">  <span class="comment">// ...</span></div>
+<div class="line">  <span class="comment">// ... some work</span></div>
 <div class="line">}, ecs::QueryExecType::Parallel);</div>
 <div class="line"> </div>
 <div class="line">boundsJob.dep(moveJob);</div>

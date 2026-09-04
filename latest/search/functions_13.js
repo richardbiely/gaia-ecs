@@ -24,11 +24,12 @@ var searchData=
   ['trav_5fself_5fdown_21',['trav_self_down',['../structgaia_1_1ecs_1_1QueryTermOptions.html#a3fba15d6ff975275c4b44931a7c7aa98',1,'gaia::ecs::QueryTermOptions']]],
   ['trav_5fself_5fparent_22',['trav_self_parent',['../structgaia_1_1ecs_1_1QueryTermOptions.html#a02057c27a90752ebbaeee2424c3c7473',1,'gaia::ecs::QueryTermOptions']]],
   ['trav_5fup_23',['trav_up',['../structgaia_1_1ecs_1_1QueryTermOptions.html#afb5f0a7c2b097f19bef3f91a3862c553',1,'gaia::ecs::QueryTermOptions']]],
-  ['try_5fget_24',['try_get',['../structgaia_1_1cnt_1_1paged__ilist.html#add8b6feeab766b47d816b6b52800414d',1,'gaia::cnt::paged_ilist::try_get()'],['../classgaia_1_1ecs_1_1World.html#afeff330baf6d4e6d46bd9a1a9a0f04ed',1,'gaia::ecs::World::try_get()'],['../structgaia_1_1cnt_1_1paged__ilist.html#a19c3f464fd206b54a3d4f3a90d06ddcf',1,'gaia::cnt::paged_ilist::try_get()']]],
+  ['try_5fget_24',['try_get',['../classgaia_1_1ecs_1_1World.html#afeff330baf6d4e6d46bd9a1a9a0f04ed',1,'gaia::ecs::World::try_get()'],['../structgaia_1_1cnt_1_1paged__ilist.html#add8b6feeab766b47d816b6b52800414d',1,'gaia::cnt::paged_ilist::try_get(size_type index) const noexcept'],['../structgaia_1_1cnt_1_1paged__ilist.html#a19c3f464fd206b54a3d4f3a90d06ddcf',1,'gaia::cnt::paged_ilist::try_get(size_type index) noexcept']]],
   ['try_5findices_5fmapping_5fview_25',['try_indices_mapping_view',['../classgaia_1_1ecs_1_1QueryInfo.html#a4e59c3aa36b574dd5e0816064524770f',1,'gaia::ecs::QueryInfo']]],
   ['try_5finherited_5fdata_5fview_26',['try_inherited_data_view',['../classgaia_1_1ecs_1_1QueryInfo.html#af6fde1c2623424314ecab27e4ee11dbc',1,'gaia::ecs::QueryInfo']]],
-  ['try_5flock_27',['try_lock',['../classgaia_1_1mt_1_1SpinLock.html#aff764ccb19eba13d96f61ed9d9143f04',1,'gaia::mt::SpinLock']]],
-  ['try_5fupdate_5ffree_5fchunk_5fidx_28',['try_update_free_chunk_idx',['../classgaia_1_1ecs_1_1Archetype.html#ac90c91f695fb7fdc57c7ce20c235d21f',1,'gaia::ecs::Archetype::try_update_free_chunk_idx()'],['../classgaia_1_1ecs_1_1Archetype.html#ad8cbf8752f1fc3a96757489e4c87d116',1,'gaia::ecs::Archetype::try_update_free_chunk_idx(Chunk &amp;chunkThatRemovedEntity)']]],
-  ['type_29',['type',['../structgaia_1_1ecs_1_1ComponentCursor.html#a80e4ec29561c51006d94633126378b3f',1,'gaia::ecs::ComponentCursor']]],
-  ['type_5fkind_30',['type_kind',['../structgaia_1_1ecs_1_1ComponentCursor.html#a09e1ca6d2458fac980ce05139fa9a5dd',1,'gaia::ecs::ComponentCursor']]]
+  ['try_5flive_5frecord_27',['try_live_record',['../classgaia_1_1ecs_1_1World.html#a1fced15c918fb482960ce9f3551107bc',1,'gaia::ecs::World::try_live_record(Entity entity) const'],['../classgaia_1_1ecs_1_1World.html#ac3dcb148e980035fdeed4e2a97663f8a',1,'gaia::ecs::World::try_live_record(Entity entity)']]],
+  ['try_5flock_28',['try_lock',['../classgaia_1_1mt_1_1SpinLock.html#aff764ccb19eba13d96f61ed9d9143f04',1,'gaia::mt::SpinLock']]],
+  ['try_5fupdate_5ffree_5fchunk_5fidx_29',['try_update_free_chunk_idx',['../classgaia_1_1ecs_1_1Archetype.html#ac90c91f695fb7fdc57c7ce20c235d21f',1,'gaia::ecs::Archetype::try_update_free_chunk_idx()'],['../classgaia_1_1ecs_1_1Archetype.html#ad8cbf8752f1fc3a96757489e4c87d116',1,'gaia::ecs::Archetype::try_update_free_chunk_idx(Chunk &amp;chunkThatRemovedEntity)']]],
+  ['type_30',['type',['../structgaia_1_1ecs_1_1ComponentCursor.html#a80e4ec29561c51006d94633126378b3f',1,'gaia::ecs::ComponentCursor']]],
+  ['type_5fkind_31',['type_kind',['../structgaia_1_1ecs_1_1ComponentCursor.html#a09e1ca6d2458fac980ce05139fa9a5dd',1,'gaia::ecs::ComponentCursor']]]
 ];

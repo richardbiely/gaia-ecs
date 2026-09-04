@@ -1,5 +1,7 @@
 var NAVTREEINDEX13 =
 {
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#a47dcee55a6ee5ef558f55764b6cd6c85":[9,0,0,2,0,7,7,1],
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#a6af22bf18cc45b785063a33dd59198fc":[9,0,0,2,0,7,7,4],
 "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#ad3c7089725dd94ad3a43a19b0374bf50":[9,0,0,2,0,7,7,0],
 "structgaia_1_1ecs_1_1detail_1_1SystemCollectCtx.html":[9,0,0,2,0,8],
 "structgaia_1_1ecs_1_1detail_1_1SystemCollectCtx.html#a59161e3c0e32f8183560d29588aab45b":[9,0,0,2,0,8,0],
@@ -50,11 +52,6 @@ var NAVTREEINDEX13 =
 "structgaia_1_1ecs_1_1is__pair.html#af9eb048f9cabc4eab895c669a13fbad0":[9,0,0,2,50,0],
 "structgaia_1_1ecs_1_1query__sort__cond.html":[9,0,0,2,61],
 "structgaia_1_1ecs_1_1query__sort__cond.html#ac5ffa32e4c21029c813a5fd964c29181":[9,0,0,2,61,0],
-"structgaia_1_1ecs_1_1uni.html":[9,0,0,2,96],
-"structgaia_1_1ecs_1_1uni.html#a18cd27359df31afa1adc1b2c7838e165":[9,0,0,2,96,3],
-"structgaia_1_1ecs_1_1uni.html#a19c9b950d518197ef4f024c31615d830":[9,0,0,2,96,2],
-"structgaia_1_1ecs_1_1uni.html#a4c8dc9dbb07214b66c2f97302268d891":[9,0,0,2,96,0],
-"structgaia_1_1ecs_1_1uni.html#a4d1b2e5fe5966aa27e54a02860877a51":[9,0,0,2,96,1],
 "structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html":[9,0,0,2,1,0],
 "structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html#a1848b731fca05f5b64647a5e7d554c12":[9,0,0,2,1,0,3],
 "structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html#a2b8a26a910d778a89aa16c147c259feb":[9,0,0,2,1,0,4],
@@ -249,5 +246,8 @@ var NAVTREEINDEX13 =
 "structgaia_1_1mem_1_1data__view__policy__soa__set.html":[9,0,0,3,29],
 "structgaia_1_1mem_1_1data__view__policy__soa__set.html#a0b3b599b689a67690e20ce319ece8ec5":[9,0,0,3,29,10],
 "structgaia_1_1mem_1_1data__view__policy__soa__set.html#a30587f317f5111b1f716dfff1f6d8ad2":[9,0,0,3,29,3],
-"structgaia_1_1mem_1_1data__view__policy__soa__set.html#a745e78ba1c3f1214c3d421d74b93e8aa":[9,0,0,3,29,5]
+"structgaia_1_1mem_1_1data__view__policy__soa__set.html#a745e78ba1c3f1214c3d421d74b93e8aa":[9,0,0,3,29,5],
+"structgaia_1_1mem_1_1data__view__policy__soa__set.html#a9f8be2570ccce653f9c65aef216a0a4e":[9,0,0,3,29,2],
+"structgaia_1_1mem_1_1data__view__policy__soa__set.html#aa11f6b86826572ffdb29722d8f657558":[9,0,0,3,29,12],
+"structgaia_1_1mem_1_1data__view__policy__soa__set.html#aacd6bfa52d68d20d9d04856b6f85d5cd":[9,0,0,3,29,9]
 };

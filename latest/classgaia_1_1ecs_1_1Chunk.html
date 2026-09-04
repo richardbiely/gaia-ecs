@@ -286,9 +286,9 @@ template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a86b5f4873ef794bfcd92a557292f82fc" id="r_a86b5f4873ef794bfcd92a557292f82fc"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a86b5f4873ef794bfcd92a557292f82fc">call_ctor</a> (uint32_t entIdx, uint32_t compIdx, const ComponentCacheItem &amp;item)</td></tr>
 <tr class="memdesc:a86b5f4873ef794bfcd92a557292f82fc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invokes the registered constructor for one component instance.  <br /></td></tr>
 <tr class="separator:a86b5f4873ef794bfcd92a557292f82fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6e0848c5af410ff248a02d395af037b0" id="r_a6e0848c5af410ff248a02d395af037b0"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a6e0848c5af410ff248a02d395af037b0">call_gen_ctors</a> (uint32_t entIdx, uint32_t entCnt)</td></tr>
-<tr class="memdesc:a6e0848c5af410ff248a02d395af037b0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invokes registered constructors for all generic columns at a row range.  <br /></td></tr>
-<tr class="separator:a6e0848c5af410ff248a02d395af037b0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a12e8ce73c6574439b2b40f2b9f302ebe" id="r_a12e8ce73c6574439b2b40f2b9f302ebe"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a12e8ce73c6574439b2b40f2b9f302ebe">call_ctors</a> (uint32_t entIdx, uint32_t entCnt)</td></tr>
+<tr class="memdesc:a12e8ce73c6574439b2b40f2b9f302ebe"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invokes registered constructors for component columns at a row range.  <br /></td></tr>
+<tr class="separator:a12e8ce73c6574439b2b40f2b9f302ebe"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a43184a81574ff53e9cc36d34bb1249c5" id="r_a43184a81574ff53e9cc36d34bb1249c5"><td class="memItemLeft" align="right" valign="top"><a id="a43184a81574ff53e9cc36d34bb1249c5" name="a43184a81574ff53e9cc36d34bb1249c5"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>call_all_dtors</b> ()</td></tr>
 <tr class="memdesc:a43184a81574ff53e9cc36d34bb1249c5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invokes registered destructors for all custom component instances before release. <br /></td></tr>
@@ -302,56 +302,40 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>call_all_dtors</b> ()
 <tr class="separator:a6465049d61e6d9ce45cebb24321d493e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a29c6c1dd77476a92a7dd71a40d7bcafc" id="r_a29c6c1dd77476a92a7dd71a40d7bcafc"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a29c6c1dd77476a92a7dd71a40d7bcafc"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a29c6c1dd77476a92a7dd71a40d7bcafc">set</a> (uint16_t row)</td></tr>
-<tr class="memdesc:a29c6c1dd77476a92a7dd71a40d7bcafc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of the unique component <em>T</em> on <em>row</em> in the chunk.  <br /></td></tr>
+<tr class="memdesc:a29c6c1dd77476a92a7dd71a40d7bcafc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of component <em>T</em> on <em>row</em> in the chunk.  <br /></td></tr>
 <tr class="separator:a29c6c1dd77476a92a7dd71a40d7bcafc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a107f4e14badc8d77b7a2d5487978e710" id="r_a107f4e14badc8d77b7a2d5487978e710"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a107f4e14badc8d77b7a2d5487978e710"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a107f4e14badc8d77b7a2d5487978e710">set_idx</a> (uint16_t row, uint32_t compIdx)</td></tr>
-<tr class="memdesc:a107f4e14badc8d77b7a2d5487978e710"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of a generic component using a pre-resolved component column.  <br /></td></tr>
+<tr class="memdesc:a107f4e14badc8d77b7a2d5487978e710"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of a component using a pre-resolved component column.  <br /></td></tr>
 <tr class="separator:a107f4e14badc8d77b7a2d5487978e710"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7acfeea16f54f3d6770e4011bea2ac6c" id="r_a7acfeea16f54f3d6770e4011bea2ac6c"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a7acfeea16f54f3d6770e4011bea2ac6c"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a7acfeea16f54f3d6770e4011bea2ac6c">set_idx</a> (uint32_t compIdx)</td></tr>
-<tr class="memdesc:a7acfeea16f54f3d6770e4011bea2ac6c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of a unique component using a pre-resolved component column.  <br /></td></tr>
-<tr class="separator:a7acfeea16f54f3d6770e4011bea2ac6c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac30e34d13107fcff90a7dc375f1e8824" id="r_ac30e34d13107fcff90a7dc375f1e8824"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:ac30e34d13107fcff90a7dc375f1e8824"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#ac30e34d13107fcff90a7dc375f1e8824">set</a> (uint16_t row, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> type)</td></tr>
-<tr class="memdesc:ac30e34d13107fcff90a7dc375f1e8824"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of a generic entity <em>type</em> at the position <em>row</em> in the chunk.  <br /></td></tr>
+<tr class="memdesc:ac30e34d13107fcff90a7dc375f1e8824"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of component <em>type</em> at the position <em>row</em> in the chunk.  <br /></td></tr>
 <tr class="separator:ac30e34d13107fcff90a7dc375f1e8824"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afddf7378607499c96842952458c2ec14" id="r_afddf7378607499c96842952458c2ec14"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:afddf7378607499c96842952458c2ec14"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#afddf7378607499c96842952458c2ec14">sset</a> (uint16_t row)</td></tr>
-<tr class="memdesc:afddf7378607499c96842952458c2ec14"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of the unique component <em>T</em> on <em>row</em> in the chunk.  <br /></td></tr>
+<tr class="memdesc:afddf7378607499c96842952458c2ec14"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of component <em>T</em> on <em>row</em> in the chunk.  <br /></td></tr>
 <tr class="separator:afddf7378607499c96842952458c2ec14"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4673de494785e8523de0033922ec39eb" id="r_a4673de494785e8523de0033922ec39eb"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a4673de494785e8523de0033922ec39eb"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a4673de494785e8523de0033922ec39eb">sset_idx</a> (uint16_t row, uint32_t compIdx)</td></tr>
-<tr class="memdesc:a4673de494785e8523de0033922ec39eb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of a generic component using a pre-resolved component column.  <br /></td></tr>
+<tr class="memdesc:a4673de494785e8523de0033922ec39eb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of a component using a pre-resolved component column.  <br /></td></tr>
 <tr class="separator:a4673de494785e8523de0033922ec39eb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9e71a5ef93db19404efb8153d8c92453" id="r_a9e71a5ef93db19404efb8153d8c92453"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a9e71a5ef93db19404efb8153d8c92453"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a9e71a5ef93db19404efb8153d8c92453">sset_idx</a> (uint32_t compIdx)</td></tr>
-<tr class="memdesc:a9e71a5ef93db19404efb8153d8c92453"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of a unique component using a pre-resolved component column.  <br /></td></tr>
-<tr class="separator:a9e71a5ef93db19404efb8153d8c92453"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a16035fbff0191bdbc14e039edbb62da6" id="r_a16035fbff0191bdbc14e039edbb62da6"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a16035fbff0191bdbc14e039edbb62da6"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a16035fbff0191bdbc14e039edbb62da6">sset</a> (uint16_t row, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> type)</td></tr>
-<tr class="memdesc:a16035fbff0191bdbc14e039edbb62da6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of a generic entity <em>type</em> at the position <em>row</em> in the chunk.  <br /></td></tr>
+<tr class="memdesc:a16035fbff0191bdbc14e039edbb62da6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of component <em>type</em> at the position <em>row</em> in the chunk.  <br /></td></tr>
 <tr class="separator:a16035fbff0191bdbc14e039edbb62da6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6701e3589092c7d9323d8b72fe76248a" id="r_a6701e3589092c7d9323d8b72fe76248a"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a6701e3589092c7d9323d8b72fe76248a"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a6701e3589092c7d9323d8b72fe76248a">get</a> (uint16_t row) const</td></tr>
-<tr class="memdesc:a6701e3589092c7d9323d8b72fe76248a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in the generic component <em>T</em> on <em>row</em> in the chunk.  <br /></td></tr>
+<tr class="memdesc:a6701e3589092c7d9323d8b72fe76248a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in component <em>T</em> on <em>row</em> in the chunk.  <br /></td></tr>
 <tr class="separator:a6701e3589092c7d9323d8b72fe76248a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae57b6be0b107266f4e6fa8075d189ef1" id="r_ae57b6be0b107266f4e6fa8075d189ef1"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:ae57b6be0b107266f4e6fa8075d189ef1"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#ae57b6be0b107266f4e6fa8075d189ef1">get_idx</a> (uint16_t row, uint32_t compIdx) const</td></tr>
-<tr class="memdesc:ae57b6be0b107266f4e6fa8075d189ef1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in the generic component <em>T</em> using a pre-resolved component column.  <br /></td></tr>
+<tr class="memdesc:ae57b6be0b107266f4e6fa8075d189ef1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in component <em>T</em> using a pre-resolved component column.  <br /></td></tr>
 <tr class="separator:ae57b6be0b107266f4e6fa8075d189ef1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae707ea2b51ebd7174bf1fe2dcf06be67" id="r_ae707ea2b51ebd7174bf1fe2dcf06be67"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:ae707ea2b51ebd7174bf1fe2dcf06be67"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#ae707ea2b51ebd7174bf1fe2dcf06be67">get</a> (uint16_t row, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> type) const</td></tr>
-<tr class="memdesc:ae707ea2b51ebd7174bf1fe2dcf06be67"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in the generic component <em>type</em> on <em>row</em> in the chunk.  <br /></td></tr>
+<tr class="memdesc:ae707ea2b51ebd7174bf1fe2dcf06be67"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in component <em>type</em> on <em>row</em> in the chunk.  <br /></td></tr>
 <tr class="separator:ae707ea2b51ebd7174bf1fe2dcf06be67"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a91c34fb83bac1160c54eae6afc756f13" id="r_a91c34fb83bac1160c54eae6afc756f13"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a91c34fb83bac1160c54eae6afc756f13"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a91c34fb83bac1160c54eae6afc756f13">get</a> () const</td></tr>
-<tr class="memdesc:a91c34fb83bac1160c54eae6afc756f13"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in the unique component <em>T</em>.  <br /></td></tr>
-<tr class="separator:a91c34fb83bac1160c54eae6afc756f13"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0ae0326d76e00c854a7fb24c9fbd2ac9" id="r_a0ae0326d76e00c854a7fb24c9fbd2ac9"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a0ae0326d76e00c854a7fb24c9fbd2ac9"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a0ae0326d76e00c854a7fb24c9fbd2ac9">get_idx</a> (uint32_t compIdx) const</td></tr>
-<tr class="memdesc:a0ae0326d76e00c854a7fb24c9fbd2ac9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in the unique component <em>T</em> using a pre-resolved component column.  <br /></td></tr>
-<tr class="separator:a0ae0326d76e00c854a7fb24c9fbd2ac9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1efc7581b0f248107bf350e4e57c8730" id="r_a1efc7581b0f248107bf350e4e57c8730"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a1efc7581b0f248107bf350e4e57c8730"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a1efc7581b0f248107bf350e4e57c8730">comp_entity</a> () const</td></tr>
 <tr class="memdesc:a1efc7581b0f248107bf350e4e57c8730"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity for the chunk archetype contents.  <br /></td></tr>
@@ -431,9 +415,6 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>revive</b> ()</td></t
 <tr class="memitem:a07bdcfaadf6035a43fae85934213b4aa" id="r_a07bdcfaadf6035a43fae85934213b4aa"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a07bdcfaadf6035a43fae85934213b4aa">capacity</a> () const</td></tr>
 <tr class="memdesc:a07bdcfaadf6035a43fae85934213b4aa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of entities in the chunk.  <br /></td></tr>
 <tr class="separator:a07bdcfaadf6035a43fae85934213b4aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae627b141be5b94356724db6afa467f07" id="r_ae627b141be5b94356724db6afa467f07"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#ae627b141be5b94356724db6afa467f07">size_generic</a> () const</td></tr>
-<tr class="memdesc:ae627b141be5b94356724db6afa467f07"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the total number of generic entities/components in the chunk.  <br /></td></tr>
-<tr class="separator:ae627b141be5b94356724db6afa467f07"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaa7734edea9ce62028af6f11fe47353e" id="r_aaa7734edea9ce62028af6f11fe47353e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#aaa7734edea9ce62028af6f11fe47353e">changed</a> (uint32_t requiredVersion) const</td></tr>
 <tr class="memdesc:aaa7734edea9ce62028af6f11fe47353e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true if the provided version is newer than the one stored internally. Use when checking if there was a movement in data in the world. E.g. if an entity was added, removed or moved in its archetype.  <br /></td></tr>
 <tr class="separator:aaa7734edea9ce62028af6f11fe47353e"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -477,9 +458,9 @@ Static Public Member Functions</h2></td></tr>
 <tr class="memitem:a6ff56672354d694dfb3718d469539a1a" id="r_a6ff56672354d694dfb3718d469539a1a"><td class="memItemLeft" align="right" valign="top">static uintptr_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a6ff56672354d694dfb3718d469539a1a">chunk_data_area_offset</a> ()</td></tr>
 <tr class="memdesc:a6ff56672354d694dfb3718d469539a1a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the relative offset of m_data in <a class="el" href="classgaia_1_1ecs_1_1Chunk.html" title="Fixed-capacity archetype storage unit holding entities and their component columns.">Chunk</a>.  <br /></td></tr>
 <tr class="separator:a6ff56672354d694dfb3718d469539a1a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aec1c3f97c0a87f40bd008c1fff8cc195" id="r_aec1c3f97c0a87f40bd008c1fff8cc195"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#aec1c3f97c0a87f40bd008c1fff8cc195">create</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;wld, const ComponentCache &amp;cc, uint32_t chunkIndex, uint16_t <a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a07bdcfaadf6035a43fae85934213b4aa">capacity</a>, uint8_t cntEntities, uint8_t genEntities, uint16_t dataBytes, uint32_t &amp;worldVersion, const ChunkDataOffsets &amp;offsets, const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *ids, const ComponentCacheItem *const *pItems, const ChunkDataOffset *compOffs)</td></tr>
-<tr class="memdesc:aec1c3f97c0a87f40bd008c1fff8cc195"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates memory for a new chunk.  <br /></td></tr>
-<tr class="separator:aec1c3f97c0a87f40bd008c1fff8cc195"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af6890d5de4340b60940d0da511ab842b" id="r_af6890d5de4340b60940d0da511ab842b"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#af6890d5de4340b60940d0da511ab842b">create</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;wld, const ComponentCache &amp;cc, uint32_t chunkIndex, uint16_t <a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a07bdcfaadf6035a43fae85934213b4aa">capacity</a>, uint8_t cntEntities, uint16_t dataBytes, uint32_t &amp;worldVersion, const ChunkDataOffsets &amp;offsets, const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *ids, const ComponentCacheItem *const *pItems, const ChunkDataOffset *compOffs)</td></tr>
+<tr class="memdesc:af6890d5de4340b60940d0da511ab842b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates memory for a new chunk.  <br /></td></tr>
+<tr class="separator:af6890d5de4340b60940d0da511ab842b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0c46d205e0e753300858d1962760983f" id="r_a0c46d205e0e753300858d1962760983f"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a0c46d205e0e753300858d1962760983f">free</a> (<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk)</td></tr>
 <tr class="memdesc:a0c46d205e0e753300858d1962760983f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Releases all memory allocated by <em>pChunk</em>.  <br /></td></tr>
 <tr class="separator:a0c46d205e0e753300858d1962760983f"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -592,8 +573,8 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a6e0848c5af410ff248a02d395af037b0" name="a6e0848c5af410ff248a02d395af037b0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6e0848c5af410ff248a02d395af037b0">&#9670;&#160;</a></span>call_gen_ctors()</h2>
+<a id="a12e8ce73c6574439b2b40f2b9f302ebe" name="a12e8ce73c6574439b2b40f2b9f302ebe"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a12e8ce73c6574439b2b40f2b9f302ebe">&#9670;&#160;</a></span>call_ctors()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -602,7 +583,7 @@ Static Public Member Functions</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void gaia::ecs::Chunk::call_gen_ctors </td>
+          <td class="memname">void gaia::ecs::Chunk::call_ctors </td>
           <td>(</td>
           <td class="paramtype">uint32_t&#160;</td>
           <td class="paramname"><em>entIdx</em>, </td>
@@ -626,7 +607,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p>Invokes registered constructors for all generic columns at a row range. </p>
+<p>Invokes registered constructors for component columns at a row range. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entIdx</td><td>First entity row to construct. </td></tr>
@@ -1479,8 +1460,8 @@ template&lt;bool WorldVersionUpdateWanted&gt; </div>
 
 </div>
 </div>
-<a id="aec1c3f97c0a87f40bd008c1fff8cc195" name="aec1c3f97c0a87f40bd008c1fff8cc195"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aec1c3f97c0a87f40bd008c1fff8cc195">&#9670;&#160;</a></span>create()</h2>
+<a id="af6890d5de4340b60940d0da511ab842b" name="af6890d5de4340b60940d0da511ab842b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af6890d5de4340b60940d0da511ab842b">&#9670;&#160;</a></span>create()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1517,12 +1498,6 @@ template&lt;bool WorldVersionUpdateWanted&gt; </div>
           <td></td>
           <td class="paramtype">uint8_t&#160;</td>
           <td class="paramname"><em>cntEntities</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">uint8_t&#160;</td>
-          <td class="paramname"><em>genEntities</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -1972,45 +1947,8 @@ template&lt;bool WorldVersionUpdateWanted&gt; </div>
 
 </div>
 </div>
-<a id="a91c34fb83bac1160c54eae6afc756f13" name="a91c34fb83bac1160c54eae6afc756f13"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a91c34fb83bac1160c54eae6afc756f13">&#9670;&#160;</a></span>get() <span class="overload">[1/3]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename T &gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::Chunk::get </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns the value stored in the unique component <em>T</em>. </p>
-<dl class="tparams"><dt>Template Parameters</dt><dd>
-  <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section warning"><dt>Warning</dt><dd>It is expected the unique component <em>T</em> is present. Undefined behavior otherwise. </dd></dl>
-<dl class="section return"><dt>Returns</dt><dd>Value stored in the component. </dd></dl>
-
-</div>
-</div>
 <a id="a6701e3589092c7d9323d8b72fe76248a" name="a6701e3589092c7d9323d8b72fe76248a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6701e3589092c7d9323d8b72fe76248a">&#9670;&#160;</a></span>get() <span class="overload">[2/3]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a6701e3589092c7d9323d8b72fe76248a">&#9670;&#160;</a></span>get() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2035,7 +1973,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Returns the value stored in the generic component <em>T</em> on <em>row</em> in the chunk. </p>
+<p>Returns the value stored in component <em>T</em> on <em>row</em> in the chunk. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair </td></tr>
@@ -2056,7 +1994,7 @@ It is expected the component <em>T</em> is present. Undefined behavior otherwise
 </div>
 </div>
 <a id="ae707ea2b51ebd7174bf1fe2dcf06be67" name="ae707ea2b51ebd7174bf1fe2dcf06be67"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae707ea2b51ebd7174bf1fe2dcf06be67">&#9670;&#160;</a></span>get() <span class="overload">[3/3]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ae707ea2b51ebd7174bf1fe2dcf06be67">&#9670;&#160;</a></span>get() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2091,7 +2029,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Returns the value stored in the generic component <em>type</em> on <em>row</em> in the chunk. </p>
+<p>Returns the value stored in component <em>type</em> on <em>row</em> in the chunk. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair </td></tr>
@@ -2111,7 +2049,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="ae57b6be0b107266f4e6fa8075d189ef1" name="ae57b6be0b107266f4e6fa8075d189ef1"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae57b6be0b107266f4e6fa8075d189ef1">&#9670;&#160;</a></span>get_idx() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ae57b6be0b107266f4e6fa8075d189ef1">&#9670;&#160;</a></span>get_idx()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2146,7 +2084,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Returns the value stored in the generic component <em>T</em> using a pre-resolved component column. </p>
+<p>Returns the value stored in component <em>T</em> using a pre-resolved component column. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair </td></tr>
@@ -2156,49 +2094,6 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">row</td><td>Row of entity in the chunk </td></tr>
-    <tr><td class="paramname">compIdx</td><td>Pre-resolved component column index </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>Value stored in the component. </dd></dl>
-
-</div>
-</div>
-<a id="a0ae0326d76e00c854a7fb24c9fbd2ac9" name="a0ae0326d76e00c854a7fb24c9fbd2ac9"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a0ae0326d76e00c854a7fb24c9fbd2ac9">&#9670;&#160;</a></span>get_idx() <span class="overload">[2/2]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename T &gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::Chunk::get_idx </td>
-          <td>(</td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>compIdx</em></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns the value stored in the unique component <em>T</em> using a pre-resolved component column. </p>
-<dl class="tparams"><dt>Template Parameters</dt><dd>
-  <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
     <tr><td class="paramname">compIdx</td><td>Pre-resolved component column index </td></tr>
   </table>
   </dd>
@@ -2769,7 +2664,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Sets the value of the unique component <em>T</em> on <em>row</em> in the chunk. </p>
+<p>Sets the value of component <em>T</em> on <em>row</em> in the chunk. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair </td></tr>
@@ -2823,7 +2718,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Sets the value of a generic entity <em>type</em> at the position <em>row</em> in the chunk. </p>
+<p>Sets the value of component <em>type</em> at the position <em>row</em> in the chunk. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">row</td><td>Row of entity in the chunk </td></tr>
@@ -2837,7 +2732,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a107f4e14badc8d77b7a2d5487978e710" name="a107f4e14badc8d77b7a2d5487978e710"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a107f4e14badc8d77b7a2d5487978e710">&#9670;&#160;</a></span>set_idx() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a107f4e14badc8d77b7a2d5487978e710">&#9670;&#160;</a></span>set_idx()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2872,7 +2767,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Sets the value of a generic component using a pre-resolved component column. </p>
+<p>Sets the value of a component using a pre-resolved component column. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair </td></tr>
@@ -2882,49 +2777,6 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">row</td><td>Row of entity in the chunk </td></tr>
-    <tr><td class="paramname">compIdx</td><td>Pre-resolved component column index </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>Mutable reference to the component value. </dd></dl>
-
-</div>
-</div>
-<a id="a7acfeea16f54f3d6770e4011bea2ac6c" name="a7acfeea16f54f3d6770e4011bea2ac6c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a7acfeea16f54f3d6770e4011bea2ac6c">&#9670;&#160;</a></span>set_idx() <span class="overload">[2/2]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename T &gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">decltype(auto) gaia::ecs::Chunk::set_idx </td>
-          <td>(</td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>compIdx</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Sets the value of a unique component using a pre-resolved component column. </p>
-<dl class="tparams"><dt>Template Parameters</dt><dd>
-  <table class="tparams">
-    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
     <tr><td class="paramname">compIdx</td><td>Pre-resolved component column index </td></tr>
   </table>
   </dd>
@@ -3017,34 +2869,6 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="ae627b141be5b94356724db6afa467f07" name="ae627b141be5b94356724db6afa467f07"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae627b141be5b94356724db6afa467f07">&#9670;&#160;</a></span>size_generic()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD uint8_t gaia::ecs::Chunk::size_generic </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns the total number of generic entities/components in the chunk. </p>
-<dl class="section return"><dt>Returns</dt><dd>Number of generic entity or component columns. </dd></dl>
-
-</div>
-</div>
 <a id="afddf7378607499c96842952458c2ec14" name="afddf7378607499c96842952458c2ec14"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#afddf7378607499c96842952458c2ec14">&#9670;&#160;</a></span>sset() <span class="overload">[1/2]</span></h2>
 
@@ -3071,7 +2895,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Sets the value of the unique component <em>T</em> on <em>row</em> in the chunk. </p>
+<p>Sets the value of component <em>T</em> on <em>row</em> in the chunk. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair </td></tr>
@@ -3127,7 +2951,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Sets the value of a generic entity <em>type</em> at the position <em>row</em> in the chunk. </p>
+<p>Sets the value of component <em>type</em> at the position <em>row</em> in the chunk. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> or pair </td></tr>
@@ -3149,7 +2973,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a4673de494785e8523de0033922ec39eb" name="a4673de494785e8523de0033922ec39eb"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4673de494785e8523de0033922ec39eb">&#9670;&#160;</a></span>sset_idx() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a4673de494785e8523de0033922ec39eb">&#9670;&#160;</a></span>sset_idx()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -3184,39 +3008,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Sets the value of a generic component using a pre-resolved component column. </p>
-<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> version is not updated so Query filters will not be able to catch this change. </dd></dl>
-<dl class="section return"><dt>Returns</dt><dd>Mutable reference to the component value. </dd></dl>
-
-</div>
-</div>
-<a id="a9e71a5ef93db19404efb8153d8c92453" name="a9e71a5ef93db19404efb8153d8c92453"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a9e71a5ef93db19404efb8153d8c92453">&#9670;&#160;</a></span>sset_idx() <span class="overload">[2/2]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename T &gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">decltype(auto) gaia::ecs::Chunk::sset_idx </td>
-          <td>(</td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>compIdx</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Sets the value of a unique component using a pre-resolved component column. </p>
+<p>Sets the value of a component using a pre-resolved component column. </p>
 <dl class="section warning"><dt>Warning</dt><dd><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> version is not updated so Query filters will not be able to catch this change. </dd></dl>
 <dl class="section return"><dt>Returns</dt><dd>Mutable reference to the component value. </dd></dl>
 

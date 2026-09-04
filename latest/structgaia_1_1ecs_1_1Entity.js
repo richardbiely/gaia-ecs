@@ -7,7 +7,6 @@ var structgaia_1_1ecs_1_1Entity =
     [ "entity", "structgaia_1_1ecs_1_1Entity.html#aee3b81ec316abf8f8e549d929604e39e", null ],
     [ "gen", "structgaia_1_1ecs_1_1Entity.html#a0c17cbcab5ecb6067fb5d37ea13b66a0", null ],
     [ "id", "structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546", null ],
-    [ "kind", "structgaia_1_1ecs_1_1Entity.html#a8d6666d61c12c4adf7b035f7420b89de", null ],
     [ "load", "structgaia_1_1ecs_1_1Entity.html#a009183dea1af1ee1c16d4e3f3a3873ba", null ],
     [ "pair", "structgaia_1_1ecs_1_1Entity.html#a81c22c361f2b5e63dfae4f629c3f7cbd", null ],
     [ "save", "structgaia_1_1ecs_1_1Entity.html#a313aaaa9eb05c2bbfb27e6f1c4af0e70", null ],
