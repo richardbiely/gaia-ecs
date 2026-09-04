@@ -2786,6 +2786,18 @@ To find the instance entity that came from a prefab child, keep the spawned root
 
 For bulk spawns, the `instantiate_n(...)` callback reports the spawned root instances. Call `find_prefab_instance(rootInstance, prefabChild)` for each root you keep. The lookup follows `Parent` and `ChildOf` descendants and matches the direct `Pair(ecs::Is, prefabChild)` edge created by instantiation, so it does not depend on copied names. If you need custom filtering or ordering, traverse with the relation-explicit `sources(...)` or `sources_bfs(...)` helpers directly.
 
+Locked queries and systems cannot call `World::instantiate` or `instantiate_n` because those are structural mutations. Queue the same spawn through a command buffer:
+
+```cpp
+q.each([&](ecs::Iter& it) {
+  ecs::CommandBufferST& cb = it.cmd_buffer_st();
+  auto instance = cb.instantiate(prefab);
+  cb.set<Position>(instance, {1, 2, 3});
+});
+```
+
+`CommandBufferST` and `CommandBufferMT` expose `instantiate` and `instantiate_n` with the same Prefab, `Is`, name, OnInstantiate, and recursive child rules as the World API. `instantiate` returns a temporary entity handle, like `add` and `copy`. Per-instance writes are recorded against that handle. `instantiate_n` invokes its callback immediately while recording, with those temporary handles. `CopyIter` callbacks stay World-only. Prefab children are not exposed as temporaries; after commit, look them up with `find_prefab_instance(rootInstance, prefabChild)`.
+
 Instantiation keeps the prefab relationship but intentionally strips prefab-only identity details from the new entity:
 * `ecs::Prefab` is not copied to the instance
 * `EntityDesc` is not copied, so prefab names stay unique
@@ -3007,7 +3019,7 @@ Sometimes you need to delay executing a part of the code for later. This can be 
 
 Command buffer is a container used to record commands in the order in which they were requested at a later point in time.
 
-Typically you use them when there is a need to perform structural changes (adding or removing an entity or component) while iterating queries.
+Typically you use them when there is a need to perform structural changes (adding or removing an entity or component, copying an entity, or instantiating a prefab) while iterating queries.
 
 Performing an unprotected structural change is undefined behavior and most likely crashes the program. However, using a command buffer you can collect all requests first and commit them when it is safe later.
 
@@ -3071,6 +3083,7 @@ Before applying any operations to the world, the command buffer performs operati
 |-----------|---------|
 | `add(e)` + `del(e)` | No effect — entity never created |
 | `copy(src)` + `del(copy)` | No effect — copy canceled |
+| `instantiate(prefab)` + `del(instance)` | No effect — instance never spawned |
 | `add(e)` + component ops + `del(e)` | No effect — full chain canceled |
 | `del(e)` on an existing entity | Entity removed normally |
 
@@ -3280,7 +3293,7 @@ moveJob.del();
 `SchedJob::wait()` does not submit work. Submit explicitly before waiting.
 
 ### System callbacks and command buffers
-System callbacks can queue structural changes with `Iter::cmd_buffer_st()`. This includes adding or removing already-registered components on the entities matched by the current query. Gaia-ECS commits that command buffer after the system query finishes and the world is unlocked.
+System callbacks can queue structural changes with `Iter::cmd_buffer_st()`. This includes adding or removing already-registered components on the entities matched by the current query, and instantiating prefabs. Gaia-ECS commits that command buffer after the system query finishes and the world is unlocked.
 
 A later system in the same `World::update()` or `systems_run()` call can see those changes if it runs after the producer. This works across phase boundaries too. A phase boundary is a scheduler barrier, so commands from the earlier phase are committed before the later phase runs.
 

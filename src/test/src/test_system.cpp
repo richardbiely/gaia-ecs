@@ -123,6 +123,47 @@ TEST_CASE("System - iterator command buffer is visible to later system") {
 	CHECK(wld.has<SystemDeferredResult>(e));
 }
 
+TEST_CASE("System - iterator command buffer instantiate is visible to later system") {
+	struct CmdBufPrefabTick {};
+
+	TestWorld twld;
+	(void)wld.add<CmdBufPrefabTick>();
+
+	const auto prefab = wld.prefab();
+	wld.add<Position>(prefab, {4, 5, 6});
+	const auto tick = wld.add();
+	wld.add<CmdBufPrefabTick>(tick);
+
+	uint32_t producerHits = 0;
+	uint32_t consumerHits = 0;
+
+	auto producer = wld.system().all<CmdBufPrefabTick>().on_each([&](ecs::Iter& it) {
+		auto& cb = it.cmd_buffer_st();
+		GAIA_EACH(it) {
+			const auto tmp = cb.instantiate(prefab);
+			cb.set<Position>(tmp, {9, 8, 7});
+			++producerHits;
+		}
+	});
+
+	auto consumer = wld.system().all<Position>().is(prefab).on_each([&](ecs::Iter& it) {
+		auto pv = it.view<Position>();
+		GAIA_EACH(it) {
+			CHECK(pv[i].x == 9.0f);
+			CHECK(pv[i].y == 8.0f);
+			CHECK(pv[i].z == 7.0f);
+			++consumerHits;
+		}
+	});
+
+	wld.add(producer.entity(), {ecs::DependsOn, consumer.entity()});
+	wld.systems_run();
+
+	CHECK(producerHits == 1);
+	CHECK(consumerHits == 1);
+	CHECK(wld.query().is(prefab).count() == 1);
+}
+
 TEST_CASE("System - direct Is seeds exclude an instance deleted by an earlier system") {
 	struct DeletePrefabInstance {};
 	struct InspectPrefabInstances {};

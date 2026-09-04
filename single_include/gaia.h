@@ -89097,15 +89097,19 @@ namespace gaia {
 		namespace detail {
 			//! Buffer for deferred execution of some operations on entities.
 			//!
-			//! Adding and removing components and entities inside World::each or can result
+			//! Adding, removing, copying, or instantiating entities inside World::each can result
 			//! in changes of archetypes or chunk structure. This would lead to an undefined behavior.
 			//! Therefore, such operations have to be executed after the loop is done.
+			//! \tparam AccessContext Access guard. AccessContextST for single-threaded recording,
+			//!                       AccessContextMT when multiple threads record into the same buffer.
 			template <typename AccessContext>
 			class CommandBuffer final {
+				//! \cond INTERNAL
 				enum class OpType : uint8_t {
 					NONE = 0,
 					ADD_ENTITY,
 					CPY_ENTITY,
+					INSTANTIATE_ENTITY,
 					DEL_ENTITY,
 					ADD_COMPONENT,
 					ADD_COMPONENT_DATA,
@@ -89114,39 +89118,44 @@ namespace gaia {
 				};
 
 				struct Op {
-					//! Operation type
+					//! Operation type.
 					OpType type;
-					//! Payload offset if any
+					//! Payload offset if any.
 					uint32_t off;
-					//! Entity being modified (may be temp before commit)
+					//! Entity being modified (may be temp before commit).
 					Entity target;
-					//! For ADD_COMPONENT/SET_COMPONENT/DEL_COMPONENT (other entity) or CPY_ENTITY source
+					//! For ADD_COMPONENT/SET_COMPONENT/DEL_COMPONENT (other entity), CPY_ENTITY source,
+					//! or INSTANTIATE_ENTITY prefab.
 					Entity other;
 					//! Pair target kept separately so temporary pair endpoints survive until commit.
+					//! For INSTANTIATE_ENTITY this is the optional parent instance, or EntityBad.
 					Entity pairTarget = EntityBad;
 					//! Original insertion order, used to keep equal-key operations deterministic after sorting.
 					uint32_t order = 0;
 				};
 
-				//! Parent world
+				//! Parent world.
 				ecs::World& m_world;
-				//! Buffer with op codes
+				//! Buffer with op codes.
 				cnt::darray_ext<Op, 128> m_ops;
-				//! Array to hold temporary->real entity mapping [0..next_temp)
+				//! Array to hold temporary->real entity mapping [0..next_temp).
 				cnt::darray_ext<Entity, 128> m_temp2real;
-				//! Bit layout for each temporary entity (a few bits per temporary entity in m_temp2real)
+				//! Bit layout for each temporary entity (a few bits per temporary entity in m_temp2real).
 				cnt::dbitset<mem::DefaultAllocatorAdaptor> m_tmpFlags;
-				//! Id of the next temporary entity to create
+				//! Id of the next temporary entity to create.
 				uint32_t m_nextTemp = 0;
-				//! True if op sorting is necessary
+				//! True if op sorting is necessary.
 				bool m_needsSort = false;
 
-				//! Buffer holding component data
+				//! Buffer holding component data.
 				ser::bin_stream m_data;
-				//! Accessor object
+				//! Accessor object.
 				AccessContext m_acc;
+				//! \endcond
 
 			public:
+				//! Creates a command buffer bound to \a world.
+				//! \param world World that receives the recorded operations on commit.
 				explicit CommandBuffer(World& world): m_world(world) {}
 				~CommandBuffer() = default;
 
@@ -89155,7 +89164,7 @@ namespace gaia {
 				CommandBuffer& operator=(CommandBuffer&&) = delete;
 				CommandBuffer& operator=(const CommandBuffer&) = delete;
 
-				//! Requests a new entity to be created
+				//! Requests a new entity to be created.
 				//! \return Entity that will be created. The id is not usable right away. It
 				//!         will be filled with proper data after commit().
 				GAIA_NODISCARD Entity add() {
@@ -89166,15 +89175,97 @@ namespace gaia {
 					return temp;
 				}
 
-				//! Requests a new entity to be created by cloning an already existing entity
+				//! Requests a new entity to be created by cloning an already existing entity.
+				//! \param entityFrom Entity to clone. Temporary entities from this buffer are resolved on commit.
 				//! \return Entity that will be created. The id is not usable right away. It
-				//!         will be filled with proper data after commit()
+				//!         will be filled with proper data after commit().
 				GAIA_NODISCARD Entity copy(Entity entityFrom) {
 					core::lock_scope lock(m_acc);
 
 					Entity temp = add_temp();
 					push_op({OpType::CPY_ENTITY, 0, temp, entityFrom});
 					return temp;
+				}
+
+				//! Requests a prefab to be instantiated as a normal entity.
+				//! Commit replays through World::instantiate, including Prefab removal, the direct
+				//! Pair(Is, prefab) edge, skipped names, OnInstantiate policies, and recursive prefab children.
+				//! Non-prefab sources fall back to copy.
+				//! \param prefabEntity Prefab entity to instantiate.
+				//! \return Temporary entity filled with the spawned root instance after commit().
+				//! \warning The returned entity is not usable until commit(). Prefab children are not
+				//!          exposed as temporaries; look them up with World::find_prefab_instance after commit.
+				GAIA_NODISCARD Entity instantiate(Entity prefabEntity) {
+					return instantiate(prefabEntity, EntityBad);
+				}
+
+				//! Requests a prefab to be instantiated as a normal entity parented under \a parentInstance.
+				//! Commit replays through World::instantiate. Pair(Parent, parentInstance) is attached to the
+				//! spawned root. Non-prefab sources fall back to a parented copy.
+				//! \param prefabEntity Prefab entity to instantiate.
+				//! \param parentInstance Entity receiving the spawned root through Parent, or EntityBad for an
+				//!                      unparented root.
+				//! \return Temporary entity filled with the spawned root instance after commit().
+				//! \warning The returned entity is not usable until commit(). Prefab children are not
+				//!          exposed as temporaries; look them up with World::find_prefab_instance after commit.
+				GAIA_NODISCARD Entity instantiate(Entity prefabEntity, Entity parentInstance) {
+					GAIA_ASSERT(!prefabEntity.pair());
+					core::lock_scope lock(m_acc);
+
+					Entity temp = add_temp();
+					push_op({OpType::INSTANTIATE_ENTITY, 0, temp, prefabEntity, parentInstance});
+					return temp;
+				}
+
+				//! Requests \a count prefab instantiations.
+				//! Commit groups matching records and replays them through World::instantiate_n.
+				//! \param prefabEntity Prefab entity to instantiate.
+				//! \param count Number of root instances to spawn. Zero is a no-op.
+				void instantiate_n(Entity prefabEntity, uint32_t count) {
+					instantiate_n(prefabEntity, EntityBad, count, []([[maybe_unused]] Entity) {});
+				}
+
+				//! Requests \a count prefab instantiations parented under \a parentInstance.
+				//! \param prefabEntity Prefab entity to instantiate.
+				//! \param parentInstance Entity receiving each spawned root through Parent.
+				//! \param count Number of root instances to spawn. Zero is a no-op.
+				void instantiate_n(Entity prefabEntity, Entity parentInstance, uint32_t count) {
+					instantiate_n(prefabEntity, parentInstance, count, []([[maybe_unused]] Entity) {});
+				}
+
+				//! Requests \a count prefab instantiations and records per-instance commands.
+				//! The callback runs immediately while recording and receives temporary entity handles,
+				//! matching add and copy. CopyIter callbacks are World-only.
+				//! \tparam Func Callback type. Must be invocable as void(Entity).
+				//! \param prefabEntity Prefab entity to instantiate.
+				//! \param count Number of root instances to spawn. Zero is a no-op.
+				//! \param func Functor invoked with each temporary root handle while recording.
+				template <typename Func>
+				void instantiate_n(Entity prefabEntity, uint32_t count, Func func) {
+					instantiate_n(prefabEntity, EntityBad, count, func);
+				}
+
+				//! Requests \a count prefab instantiations parented under \a parentInstance and records
+				//! per-instance commands.
+				//! The callback runs immediately while recording and receives temporary entity handles,
+				//! matching add and copy. CopyIter callbacks are World-only.
+				//! \tparam Func Callback type. Must be invocable as void(Entity).
+				//! \param prefabEntity Prefab entity to instantiate.
+				//! \param parentInstance Entity receiving each spawned root through Parent, or EntityBad.
+				//! \param count Number of root instances to spawn. Zero is a no-op.
+				//! \param func Functor invoked with each temporary root handle while recording.
+				template <typename Func>
+				void instantiate_n(Entity prefabEntity, Entity parentInstance, uint32_t count, Func func) {
+					static_assert(
+							std::is_invocable_v<Func, Entity>,
+							"Command-buffer instantiate_n callbacks receive temporary Entity handles");
+					if (count == 0U)
+						return;
+
+					GAIA_FOR(count) {
+						const Entity temp = instantiate(prefabEntity, parentInstance);
+						func(temp);
+					}
 				}
 
 				//! Requests a component \a T to be added to \a entity.
@@ -89194,8 +89285,8 @@ namespace gaia {
 				}
 
 				//! Requests an entity \a other to be added to entity \a entity.
-				//! \param entity Destination entity
-				//! \param other Entity to add to \a entity
+				//! \param entity Destination entity.
+				//! \param other Entity to add to \a entity.
 				void add(Entity entity, Entity other) {
 					core::lock_scope lock(m_acc);
 
@@ -89217,9 +89308,9 @@ namespace gaia {
 				}
 
 				//! Requests a component \a T to be added to entity. Also sets its value.
-				//! \tparam T Component type
-				//! \param entity Destination entity
-				//! \param value Component value
+				//! \tparam T Component type.
+				//! \param entity Destination entity.
+				//! \param value Component value.
 				//! \warning Component \a T should be registered in the world before calling this function while
 				//!          the world is locked for iteration. Registering a new component type is a structural change.
 				//!          If used in concurrent environment, race conditions may occur otherwise.
@@ -89238,9 +89329,9 @@ namespace gaia {
 				}
 
 				//! Requests component data to be set to given values for a given entity.
-				//! \tparam T Component type
-				//! \param entity Destination entity
-				//! \param value Component value
+				//! \tparam T Component type.
+				//! \param entity Destination entity.
+				//! \param value Component value.
 				//! \warning Component \a T must be registered in the world before calling this function.
 				//!          Calling set without a previous add of the component doesn't make sense.
 				template <typename T>
@@ -89258,7 +89349,7 @@ namespace gaia {
 				}
 
 				//! Requests an existing \a entity to be removed.
-				//! \param entity Entity to remove
+				//! \param entity Entity to remove.
 				void del(Entity entity) {
 					core::lock_scope lock(m_acc);
 
@@ -89266,8 +89357,8 @@ namespace gaia {
 				}
 
 				//! Requests removal of component \a T from \a entity.
-				//! \tparam T Component type
-				//! \param entity Source entity
+				//! \tparam T Component type.
+				//! \param entity Source entity.
 				//! \warning Component \a T must be registered in the world before calling this function.
 				//!          Calling del without a previous add of the component doesn't make sense.
 				template <typename T>
@@ -89282,8 +89373,8 @@ namespace gaia {
 				}
 
 				//! Requests removal of entity \a object from entity \a entity.
-				//! \param entity Source entity
-				//! \param object Entity to remove
+				//! \param entity Source entity.
+				//! \param object Entity to remove.
 				void del(Entity entity, Entity object) {
 					core::lock_scope lock(m_acc);
 
@@ -89305,17 +89396,24 @@ namespace gaia {
 				}
 
 			private:
+				//! \cond INTERNAL
 				//! Returns true if the op modifies a relationship between entities (e.g. adds or removes a component).
+				//! \param t Operation type.
+				//! \return True when \a t is a component add, set, or delete.
 				GAIA_NODISCARD bool is_rel(OpType t) const {
 					return (uint32_t)t >= (uint32_t)OpType::ADD_COMPONENT;
 				}
 
-				//! Returns true if an entity is a temporary one
+				//! Returns true if an entity is a temporary one.
+				//! \param e Entity to test.
+				//! \return True when \a e was allocated by this command buffer.
 				GAIA_NODISCARD bool is_tmp(Entity e) const {
 					return e.data.tmp != 0;
 				}
 
-				//! Maps a temporary entity to a real one, or returns the real one immediately
+				//! Maps a temporary entity to a real one, or returns the real one immediately.
+				//! \param e Entity to resolve.
+				//! \return Real entity, or EntityBad when a temporary cannot be mapped.
 				GAIA_NODISCARD Entity resolve(Entity e) const {
 					if (!is_tmp(e))
 						return e;
@@ -89340,6 +89438,59 @@ namespace gaia {
 						return EntityBad;
 
 					return (Entity)Pair(relation, target);
+				}
+
+				//! Allocates real entities for one instantiate record and any later matching records.
+				//! Matching means the same prefab and parent keys. Results are replayed through
+				//! World::instantiate / instantiate_n so Prefab, Is, and child-hierarchy rules stay identical.
+				//! \param firstIdx Index of the first INSTANTIATE_ENTITY operation to allocate.
+				void allocate_instantiate_group(uint32_t firstIdx) {
+					const Op& first = m_ops[firstIdx];
+					const Entity prefab = resolve(first.other);
+					if (prefab == EntityBad)
+						return;
+
+					Entity parent = EntityBad;
+					if (first.pairTarget != EntityBad) {
+						parent = resolve(first.pairTarget);
+						if (parent == EntityBad)
+							return;
+					}
+
+					cnt::darray_ext<uint32_t, 16> tempIds;
+					for (uint32_t j = firstIdx; j < m_ops.size(); ++j) {
+						const Op& op = m_ops[j];
+						if (op.type != OpType::INSTANTIATE_ENTITY || op.other != first.other || op.pairTarget != first.pairTarget)
+							continue;
+						if (!is_tmp(op.target))
+							continue;
+
+						const uint32_t ti = op.target.id();
+						if (ti >= m_temp2real.size() || m_temp2real[ti] != EntityBad || is_canceled_temp(ti))
+							continue;
+
+						tempIds.push_back(ti);
+					}
+
+					if (tempIds.empty())
+						return;
+
+					if (tempIds.size() == 1) {
+						m_temp2real[tempIds[0]] =
+								parent == EntityBad ? m_world.instantiate(prefab) : m_world.instantiate(prefab, parent);
+						return;
+					}
+
+					uint32_t mapped = 0;
+					auto mapRoot = [&](Entity instance) {
+						GAIA_ASSERT(mapped < tempIds.size());
+						m_temp2real[tempIds[mapped++]] = instance;
+					};
+					if (parent == EntityBad)
+						m_world.instantiate_n(prefab, tempIds.size(), mapRoot);
+					else
+						m_world.instantiate_n(prefab, parent, tempIds.size(), mapRoot);
+					GAIA_ASSERT(mapped == tempIds.size());
 				}
 
 				//! Replays a component or relationship pair addition.
@@ -89446,8 +89597,10 @@ namespace gaia {
 #endif
 				}
 
-				//! Returns true if a temporary entity was created and then destroyed within the same command buffer (
-				//! meaning all its operations cancel out and it should be completely ignored during commit).
+				//! Returns true if a temporary entity was created and then destroyed within the same command buffer,
+				//! meaning all its operations cancel out and it should be completely ignored during commit.
+				//! \param idx Temporary entity index.
+				//! \return True when the temporary can be discarded.
 				GAIA_NODISCARD bool is_canceled_temp(uint32_t idx) const {
 					const uint32_t base = idx * 3;
 					if (base + 2 >= m_tmpFlags.size())
@@ -89461,6 +89614,7 @@ namespace gaia {
 				}
 
 				//! Create a temporary entity.
+				//! \return Temporary entity handle valid until commit.
 				GAIA_NODISCARD Entity add_temp() {
 					m_temp2real.push_back(EntityBad);
 					Entity tmp(m_nextTemp++, 0, true, false);
@@ -89504,7 +89658,7 @@ namespace gaia {
 					m_ops.push_back(GAIA_MOV(op));
 				}
 
-				//! Clears the internal buffers and effectively resets the object to its default state
+				//! Clears the internal buffers and effectively resets the object to its default state.
 				void clear() {
 					m_ops.clear();
 					m_temp2real.clear();
@@ -89514,9 +89668,12 @@ namespace gaia {
 
 					m_needsSort = false;
 				}
+				//! \endcond
 
 			public:
 				//! Commits all queued changes.
+				//! Entity create, copy, and instantiate records are allocated first, then component
+				//! operations are merged and replayed, then entity deletions are applied.
 				void commit() {
 					core::lock_scope lock(m_acc);
 
@@ -89535,7 +89692,7 @@ namespace gaia {
 						// bit 2 -> used as a relation source / dependency (appeared as other in component ops)
 						m_tmpFlags.resize(m_nextTemp * 3);
 
-						// Pre-map surviving temps for ADD/CPY (avoid allocating canceled temps)
+						// Pre-map surviving temps for ADD/CPY/INSTANTIATE (avoid allocating canceled temps)
 						if (m_temp2real.size() < m_nextTemp) {
 							const auto from = m_temp2real.size();
 							m_temp2real.resize(m_nextTemp);
@@ -89561,23 +89718,23 @@ namespace gaia {
 						}
 
 						// Allocate real entities for the surviving temporaries
-						for (const Op& o: m_ops) {
+						for (uint32_t i = 0; i < m_ops.size(); ++i) {
+							const Op& o = m_ops[i];
 							if (!is_tmp(o.target))
 								continue;
 
 							const uint32_t ti = o.target.id();
-							if (is_canceled_temp(ti))
+							if (is_canceled_temp(ti) || m_temp2real[ti] != EntityBad)
 								continue;
 
 							if (o.type == OpType::ADD_ENTITY) {
-								if (m_temp2real[ti] == EntityBad)
-									m_temp2real[ti] = m_world.add();
+								m_temp2real[ti] = m_world.add();
 							} else if (o.type == OpType::CPY_ENTITY) {
-								if (m_temp2real[ti] == EntityBad) {
-									const Entity src = resolve(o.other);
-									if (src != EntityBad)
-										m_temp2real[ti] = m_world.copy(src);
-								}
+								const Entity src = resolve(o.other);
+								if (src != EntityBad)
+									m_temp2real[ti] = m_world.copy(src);
+							} else if (o.type == OpType::INSTANTIATE_ENTITY) {
+								allocate_instantiate_group(i);
 							}
 						}
 					}
@@ -89753,25 +89910,41 @@ namespace gaia {
 			};
 		} // namespace detail
 
+		//! Single-threaded command buffer.
 		using CommandBufferST = detail::CommandBuffer<AccessContextST>;
+		//! Multi-threaded command buffer serialized by a spin lock.
 		using CommandBufferMT = detail::CommandBuffer<AccessContextMT>;
 
+		//! Creates a heap-allocated single-threaded command buffer.
+		//! \param world World that receives the recorded operations on commit.
+		//! \return Pointer to the new command buffer. Destroy it with cmd_buffer_destroy.
 		inline CommandBufferST* cmd_buffer_st_create(World& world) {
 			return new CommandBufferST(world);
 		}
+		//! Destroys a heap-allocated single-threaded command buffer.
+		//! \param cmdBuffer Command buffer previously returned by cmd_buffer_st_create.
 		inline void cmd_buffer_destroy(CommandBufferST& cmdBuffer) {
 			delete &cmdBuffer;
 		}
+		//! Commits a single-threaded command buffer.
+		//! \param cmdBuffer Command buffer to replay into the world.
 		inline void cmd_buffer_commit(CommandBufferST& cmdBuffer) {
 			cmdBuffer.commit();
 		}
 
+		//! Creates a heap-allocated multi-threaded command buffer.
+		//! \param world World that receives the recorded operations on commit.
+		//! \return Pointer to the new command buffer. Destroy it with cmd_buffer_destroy.
 		inline CommandBufferMT* cmd_buffer_mt_create(World& world) {
 			return new CommandBufferMT(world);
 		}
+		//! Destroys a heap-allocated multi-threaded command buffer.
+		//! \param cmdBuffer Command buffer previously returned by cmd_buffer_mt_create.
 		inline void cmd_buffer_destroy(CommandBufferMT& cmdBuffer) {
 			delete &cmdBuffer;
 		}
+		//! Commits a multi-threaded command buffer.
+		//! \param cmdBuffer Command buffer to replay into the world.
 		inline void cmd_buffer_commit(CommandBufferMT& cmdBuffer) {
 			cmdBuffer.commit();
 		}

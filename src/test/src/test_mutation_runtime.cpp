@@ -2511,6 +2511,330 @@ TEST_CASE("CommandBuffer") {
 	}
 }
 
+TEST_CASE("CommandBuffer - instantiate prefab") {
+	SUBCASE("Drops Prefab, adds Is, copies data, and skips the prefab name") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto animal = wld.add();
+		const auto prefab = wld.prefab();
+		wld.as(prefab, animal);
+		wld.name(prefab, "prefab_animal");
+		wld.add<Position>(prefab, {7, 0, 0});
+
+		(void)cb.instantiate(prefab);
+		CHECK(wld.query().is(prefab).count() == 0);
+
+		cb.commit();
+
+		auto q = wld.query().is(prefab);
+		CHECK(q.count() == 1);
+
+		ecs::Entity instance = ecs::EntityBad;
+		q.each([&](ecs::Entity e) {
+			instance = e;
+		});
+		CHECK(instance != ecs::EntityBad);
+		CHECK_FALSE(wld.has_direct(instance, ecs::Prefab));
+		CHECK(wld.has_direct(instance, ecs::Pair(ecs::Is, prefab)));
+		CHECK_FALSE(wld.has_direct(instance, ecs::Pair(ecs::Is, animal)));
+		CHECK(wld.has(instance, ecs::Pair(ecs::Is, animal)));
+		CHECK(wld.get<Position>(instance).x == 7.0f);
+		CHECK(wld.name(instance).empty());
+		CHECK(wld.name(prefab) == "prefab_animal");
+	}
+
+	SUBCASE("Per-instance writes override copied prefab data") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto prefab = wld.prefab();
+		wld.add<Position>(prefab, {1, 2, 3});
+
+		const auto tmp = cb.instantiate(prefab);
+		cb.set<Position>(tmp, {9, 8, 7});
+		cb.commit();
+
+		auto q = wld.query().is(prefab);
+		CHECK(q.count() == 1);
+		q.each([&](ecs::Entity e) {
+			CHECK(wld.get<Position>(e).x == 9.0f);
+			CHECK(wld.get<Position>(e).y == 8.0f);
+			CHECK(wld.get<Position>(e).z == 7.0f);
+		});
+	}
+
+	SUBCASE("Instantiate plus delete cancels the spawn") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto prefab = wld.prefab();
+		wld.add<Position>(prefab, {1, 2, 3});
+
+		const auto tmp = cb.instantiate(prefab);
+		cb.del(tmp);
+		cb.commit();
+
+		CHECK(wld.query().is(prefab).count() == 0);
+		CHECK(wld.query().all<Position>().count() == 0);
+	}
+
+	SUBCASE("instantiate_n records per-instance writes") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto prefab = wld.prefab();
+		wld.add<Position>(prefab, {1, 2, 3});
+
+		uint32_t i = 0;
+		cb.instantiate_n(prefab, 3, [&](ecs::Entity e) {
+			cb.set<Position>(e, {(float)i, 0, 0});
+			++i;
+		});
+		cb.commit();
+
+		auto q = wld.query().all<Position>().is(prefab);
+		CHECK(q.count() == 3);
+
+		bool seen[3]{};
+		q.each([&](const Position& p) {
+			CHECK(p.x >= 0.0f);
+			CHECK(p.x <= 2.0f);
+			seen[(uint32_t)p.x] = true;
+		});
+		CHECK(seen[0]);
+		CHECK(seen[1]);
+		CHECK(seen[2]);
+	}
+
+	SUBCASE("instantiate_n with zero count does nothing") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto prefab = wld.prefab();
+		wld.add<Position>(prefab, {1, 2, 3});
+
+		cb.instantiate_n(prefab, 0);
+		cb.instantiate_n(prefab, wld.add(), 0);
+		cb.commit();
+
+		CHECK(wld.query().is(prefab).count() == 0);
+	}
+
+	SUBCASE("Parented instantiate attaches Parent to the spawned root") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto scene = wld.add();
+		const auto prefab = wld.prefab();
+		wld.add<Position>(prefab, {1, 0, 0});
+
+		cb.instantiate_n(prefab, scene, 2);
+		cb.commit();
+
+		auto q = wld.query().is(prefab);
+		CHECK(q.count() == 2);
+		q.each([&](ecs::Entity e) {
+			CHECK(wld.has(e, ecs::Pair(ecs::Parent, scene)));
+		});
+	}
+
+	SUBCASE("Parented instantiate accepts a temporary parent") {
+		struct CmdBufSceneTag {};
+
+		TestWorld twld;
+		(void)wld.add<CmdBufSceneTag>();
+		ecs::CommandBufferST cb(wld);
+
+		const auto prefab = wld.prefab();
+		wld.add<Position>(prefab, {1, 0, 0});
+
+		const auto sceneTmp = cb.add();
+		cb.add<CmdBufSceneTag>(sceneTmp);
+		(void)cb.instantiate(prefab, sceneTmp);
+		cb.commit();
+
+		ecs::Entity scene = ecs::EntityBad;
+		wld.query().all<CmdBufSceneTag>().each([&](ecs::Entity e) {
+			scene = e;
+		});
+		CHECK(scene != ecs::EntityBad);
+
+		auto q = wld.query().is(prefab);
+		CHECK(q.count() == 1);
+		q.each([&](ecs::Entity e) {
+			CHECK(wld.has(e, ecs::Pair(ecs::Parent, scene)));
+		});
+	}
+
+	SUBCASE("Recurses Parent-owned prefab children") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto rootPrefab = wld.prefab();
+		const auto childPrefab = wld.prefab();
+		wld.parent(childPrefab, rootPrefab);
+		wld.add<Position>(rootPrefab, {1, 0, 0});
+		wld.add<Position>(childPrefab, {2, 0, 0});
+
+		(void)cb.instantiate(rootPrefab);
+		cb.commit();
+
+		ecs::Entity rootInstance = ecs::EntityBad;
+		wld.query().is(rootPrefab).each([&](ecs::Entity e) {
+			rootInstance = e;
+		});
+		CHECK(rootInstance != ecs::EntityBad);
+
+		const auto childInstance = wld.find_prefab_instance(rootInstance, childPrefab);
+		CHECK(childInstance != ecs::EntityBad);
+		CHECK_FALSE(wld.has_direct(rootInstance, ecs::Prefab));
+		CHECK_FALSE(wld.has_direct(childInstance, ecs::Prefab));
+		CHECK(wld.has_direct(childInstance, ecs::Pair(ecs::Is, childPrefab)));
+		CHECK(wld.has(childInstance, ecs::Pair(ecs::Parent, rootInstance)));
+		CHECK(wld.get<Position>(childInstance).x == 2.0f);
+	}
+
+	SUBCASE("Recurses ChildOf-owned prefab children") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto rootPrefab = wld.prefab();
+		const auto childPrefab = wld.prefab();
+		wld.child(childPrefab, rootPrefab);
+		wld.add<Position>(rootPrefab, {1, 0, 0});
+		wld.add<Position>(childPrefab, {2, 0, 0});
+
+		(void)cb.instantiate(rootPrefab);
+		cb.commit();
+
+		ecs::Entity rootInstance = ecs::EntityBad;
+		wld.query().is(rootPrefab).each([&](ecs::Entity e) {
+			rootInstance = e;
+		});
+		const auto childInstance = wld.find_prefab_instance(rootInstance, childPrefab);
+		CHECK(childInstance != ecs::EntityBad);
+		CHECK(wld.has(childInstance, ecs::Pair(ecs::ChildOf, rootInstance)));
+		CHECK(wld.get<Position>(childInstance).x == 2.0f);
+	}
+
+	SUBCASE("Non-prefab source falls back to copy") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto animal = wld.add();
+		wld.name(animal, "animal");
+		wld.add<Position>(animal, {4, 5, 6});
+
+		(void)cb.instantiate(animal);
+		cb.commit();
+
+		auto q = wld.query().all<Position>();
+		CHECK(q.count() == 2);
+
+		uint32_t copies = 0;
+		q.each([&](ecs::Entity e) {
+			if (e == animal)
+				return;
+			++copies;
+			CHECK_FALSE(wld.has_direct(e, ecs::Prefab));
+			CHECK_FALSE(wld.has_direct(e, ecs::Pair(ecs::Is, animal)));
+			CHECK(wld.name(e).empty());
+			CHECK(wld.get<Position>(e).x == 4.0f);
+		});
+		CHECK(copies == 1);
+	}
+
+	SUBCASE("Respects DontInherit policy") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto prefab = wld.prefab();
+		const auto position = wld.add<Position>().entity;
+		wld.add<Position>(prefab, {7, 0, 0});
+		wld.add<Scale>(prefab, {3, 0, 0});
+		wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::DontInherit));
+
+		(void)cb.instantiate(prefab);
+		cb.commit();
+
+		ecs::Entity instance = ecs::EntityBad;
+		wld.query().is(prefab).each([&](ecs::Entity e) {
+			instance = e;
+		});
+		CHECK_FALSE(wld.has<Position>(instance));
+		CHECK(wld.has<Scale>(instance));
+		CHECK(wld.get<Scale>(instance).x == 3.0f);
+	}
+
+	SUBCASE("Locked query iteration queues instantiate until unlock") {
+		struct CmdBufPrefabSpawner {};
+
+		TestWorld twld;
+		(void)wld.add<CmdBufPrefabSpawner>();
+
+		const auto prefab = wld.prefab();
+		wld.add<Position>(prefab, {1, 2, 3});
+		const auto spawner = wld.add();
+		wld.add<CmdBufPrefabSpawner>(spawner);
+
+		uint32_t queued = 0;
+		wld.query().all<CmdBufPrefabSpawner>().each([&](ecs::Iter& it) {
+			auto& cb = it.cmd_buffer_st();
+			GAIA_EACH(it) {
+				const auto tmp = cb.instantiate(prefab);
+				cb.set<Position>(tmp, {9, 0, 0});
+				++queued;
+			}
+		});
+
+		CHECK(queued == 1);
+		auto q = wld.query().is(prefab);
+		CHECK(q.count() == 1);
+		q.each([&](ecs::Entity e) {
+			CHECK(wld.get<Position>(e).x == 9.0f);
+		});
+	}
+
+	SUBCASE("CommandBufferMT instantiate uses the same Prefab and Is rules") {
+		TestWorld twld;
+		ecs::CommandBufferMT cb(wld);
+
+		const auto prefab = wld.prefab();
+		wld.add<Position>(prefab, {1, 2, 3});
+
+		cb.instantiate_n(prefab, 2);
+		cb.commit();
+
+		CHECK(wld.query().is(prefab).count() == 2);
+		wld.query().is(prefab).each([&](ecs::Entity e) {
+			CHECK_FALSE(wld.has_direct(e, ecs::Prefab));
+			CHECK(wld.has_direct(e, ecs::Pair(ecs::Is, prefab)));
+			CHECK(wld.get<Position>(e).x == 1.0f);
+		});
+	}
+
+	SUBCASE("Copies sparse prefab payload") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto prefab = wld.prefab();
+		wld.add<PositionSparse>(prefab, {1.0f, 2.0f, 3.0f});
+
+		(void)cb.instantiate(prefab);
+		cb.commit();
+
+		ecs::Entity instance = ecs::EntityBad;
+		wld.query().is(prefab).each([&](ecs::Entity e) {
+			instance = e;
+		});
+		CHECK(wld.has<PositionSparse>(instance));
+		CHECK(wld.get<PositionSparse>(instance).x == 1.0f);
+		CHECK(wld.get<PositionSparse>(instance).y == 2.0f);
+		CHECK(wld.get<PositionSparse>(instance).z == 3.0f);
+	}
+}
+
 TEST_CASE("Query Filter - no systems") {
 	TestWorld twld;
 	ecs::Query q = wld.query().all<Position>().changed<Position>();
