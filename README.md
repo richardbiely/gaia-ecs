@@ -3013,6 +3013,7 @@ q.each([&](ecs::Iter& it) {
   }
 });
 // Once the world is ready, usually where iterations are finished, the changes are committed automatically.
+// This includes entity-seeded queries, not only chunk iteration.
 ```
 
 With custom command buffer you need to manage things yourself. However, if might come handy in situations where things are fully under your control.

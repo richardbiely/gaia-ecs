@@ -60373,6 +60373,18 @@ namespace gaia {
 					}
 				}
 
+				//! Commits the world's iterator command buffers after unlocked serial query execution.
+				//! Nested calls while a structural-change lock is held no-op here.
+				//! \see each(Func)
+				//! \see commit_cmd_buffer_st(World&)
+				//! \see commit_cmd_buffer_mt(World&)
+				void finish_unlocked_each() {
+					auto* pWorld = m_storage.world();
+					commit_cmd_buffer_st(*pWorld);
+					commit_cmd_buffer_mt(*pWorld);
+					m_changedWorldVersion = *m_worldVersion;
+				}
+
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
 				//! \tparam Func Callback type invocable with `Iter&`.
 				//! \param queryInfo Prepared query cache and execution metadata.
@@ -60409,10 +60421,9 @@ namespace gaia {
 								continue;
 							exec_entity(entity);
 						}
-						return;
-					}
-
-					if (!plan.preferOrSeed) {
+					} else if (plan.preferOrSeed) {
+						for_each_direct_or_union(world, queryInfo, constraints, exec_entity);
+					} else {
 						const auto* pSeedTerm = find_direct_all_seed_term(queryInfo, plan);
 						if (pSeedTerm != nullptr && can_use_direct_seed_run_cache(world, queryInfo, *pSeedTerm)) {
 							DirectEntitySeedInfo seedInfo{};
@@ -60421,19 +60432,15 @@ namespace gaia {
 							seedInfo.seededFromAll = true;
 							each_chunk_runs_iter(
 									queryInfo, cached_direct_seed_runs(queryInfo, *pSeedTerm, seedInfo, constraints), constraints, func);
-							return;
+						} else {
+							(void)for_each_direct_all_seed(world, queryInfo, plan, constraints, [&](Entity entity) {
+								exec_entity(entity);
+								return true;
+							});
 						}
 					}
 
-					if (plan.preferOrSeed) {
-						for_each_direct_or_union(world, queryInfo, constraints, exec_entity);
-						return;
-					}
-
-					(void)for_each_direct_all_seed(world, queryInfo, plan, constraints, [&](Entity entity) {
-						exec_entity(entity);
-						return true;
-					});
+					finish_unlocked_each();
 				}
 
 				//! \endcond
@@ -63472,7 +63479,7 @@ namespace gaia {
 					}
 				}
 
-				m_changedWorldVersion = *m_worldVersion;
+				finish_unlocked_each();
 			}
 
 			//! Runs the prepared direct typed row path for simple cached queries.
@@ -63998,6 +64005,7 @@ namespace gaia {
 							for (const auto entity: entities)
 								exec_entity(entity);
 						}
+						finish_unlocked_each();
 						return;
 					}
 				}
@@ -64031,6 +64039,7 @@ namespace gaia {
 				};
 
 				walk_entities(exec_entity);
+				finish_unlocked_each();
 			}
 
 			template <typename Func, std::enable_if_t<!detail::is_query_walk_core_callback_v<Func>, int>>

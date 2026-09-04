@@ -494,6 +494,68 @@ TEST_CASE("Sparse DontFragment component can change directly during serial query
 	CHECK(posB.z == doctest::Approx(6.0f));
 }
 
+TEST_CASE("Entity-seed each commits iterator command buffers") {
+	SparseTestWorld twld;
+
+	const auto& compItem = wld.add<PositionSparse>();
+	wld.add(compItem.entity, ecs::DontFragment);
+	wld.add<Scale>();
+
+	const auto eKeep = wld.add();
+	const auto eDrop = wld.add();
+	const auto eAdd = wld.add();
+	wld.add<PositionSparse>(eKeep, {1.0f, 2.0f, 3.0f});
+	wld.add<PositionSparse>(eDrop, {4.0f, 5.0f, 6.0f});
+	wld.add<PositionSparse>(eAdd, {7.0f, 8.0f, 9.0f});
+
+	auto q = wld.query().all<PositionSparse>();
+	CHECK(q.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::EntitySeed);
+
+	q.each([&](ecs::Iter& it) {
+		const auto entities = it.view<ecs::Entity>();
+		auto& cb = it.cmd_buffer_st();
+		GAIA_EACH(it) {
+			const auto entity = entities[i];
+			if (entity == eDrop)
+				cb.del<PositionSparse>(entity);
+			else if (entity == eAdd)
+				cb.add<Scale>(entity, {1.0f, 2.0f, 3.0f});
+		}
+	});
+
+	CHECK(wld.has<PositionSparse>(eKeep));
+	CHECK_FALSE(wld.has<PositionSparse>(eDrop));
+	CHECK(wld.has<PositionSparse>(eAdd));
+	CHECK(wld.has<Scale>(eAdd));
+	CHECK_FALSE(wld.has<Scale>(eKeep));
+	CHECK_FALSE(wld.has<Scale>(eDrop));
+
+	uint32_t n = 0;
+	wld.query().all<PositionSparse>().each([&](ecs::Entity) {
+		++n;
+	});
+	CHECK(n == 2);
+
+	const auto eSet = wld.add();
+	wld.add<PositionSparse>(eSet, {1.0f, 2.0f, 3.0f});
+
+	auto qWrite = wld.query().all<PositionSparse&>();
+	CHECK(qWrite.test_iter_plan().mode == ecs::detail::QueryImpl::QueryPlanMode::EntitySeed);
+	qWrite.each([&](ecs::Iter& it) {
+		const auto entities = it.view<ecs::Entity>();
+		auto& cb = it.cmd_buffer_st();
+		GAIA_EACH(it) {
+			if (entities[i] == eSet)
+				cb.set<PositionSparse>(entities[i], {10.0f, 11.0f, 12.0f});
+		}
+	});
+
+	const auto& pos = wld.get<PositionSparse>(eSet);
+	CHECK(pos.x == doctest::Approx(10.0f));
+	CHECK(pos.y == doctest::Approx(11.0f));
+	CHECK(pos.z == doctest::Approx(12.0f));
+}
+
 TEST_CASE("Compile-time sparse component uses sparse storage and still fragments") {
 	SparseTestWorld twld;
 

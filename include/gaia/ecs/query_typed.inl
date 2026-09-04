@@ -1082,7 +1082,7 @@ namespace gaia {
 					}
 				}
 
-				m_changedWorldVersion = *m_worldVersion;
+				finish_unlocked_each();
 			}
 
 			//! Runs the prepared direct typed row path for simple cached queries.
@@ -1608,6 +1608,7 @@ namespace gaia {
 							for (const auto entity: entities)
 								exec_entity(entity);
 						}
+						finish_unlocked_each();
 						return;
 					}
 				}
@@ -1641,6 +1642,7 @@ namespace gaia {
 				};
 
 				walk_entities(exec_entity);
+				finish_unlocked_each();
 			}
 
 			template <typename Func, std::enable_if_t<!detail::is_query_walk_core_callback_v<Func>, int>>
