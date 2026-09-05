@@ -2417,6 +2417,8 @@ Each relationship is expressed as following: "source, (relation, target)". All t
 
 Relationship pair is a special kind of entity where the id of the "relation" entity becomes the pair's id and the "target" entity's id becomes the pairs generation. The pair is created by calling `ecs::Pair(relation, target`) with two valid entities as its arguments. Only each endpoint's `id()` is stored, so both endpoints must be ordinary entities. Nested pairs are rejected when the relationship is attached.
 
+Because a pair is itself an entity, components can live on the pair record, not only on its endpoints. Query callbacks yield `Entity`, so `enable`, `enabled`, `get_chunk`, `add_n`, `modify`, `get`, and accessors treat an Entity-typed exact pair as that pair rather than the relation endpoint.
+
 Adding a relationship to any entity is as simple as adding any other entity.
 
 ```cpp

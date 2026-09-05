@@ -4387,6 +4387,74 @@ TEST_CASE("Exact pair records - Entity-typed pair sources receive relationships"
 	CHECK(wld.get<Position>(pair).z == doctest::Approx(6.0f));
 }
 
+TEST_CASE("Exact pair records - Entity-typed enable, modify, and add_n") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(source, pair);
+	wld.add<Position>(pair, {1.0f, 2.0f, 3.0f});
+
+	const ecs::Entity pairEntity = pair;
+
+	uint32_t row = BadIndex;
+	auto* pChunk = wld.get_chunk(pairEntity, row);
+	CHECK(pChunk != nullptr);
+	CHECK(pChunk == wld.get_chunk(pair));
+	CHECK(pChunk->entity_view()[row] == pairEntity);
+	CHECK(wld.enabled(pairEntity));
+	CHECK(wld.enabled(relation));
+	CHECK(wld.query().all<Position>().count() == 1);
+
+	wld.enable(pairEntity, false);
+	CHECK_FALSE(wld.enabled(pairEntity));
+	CHECK_FALSE(wld.enabled(pair));
+	CHECK(wld.enabled(relation));
+	CHECK(wld.query().all<Position>().count() == 0);
+
+	wld.enable(pairEntity, true);
+	CHECK(wld.enabled(pairEntity));
+	CHECK(wld.enabled(relation));
+	CHECK(wld.query().all<Position>().count() == 1);
+
+#if GAIA_OBSERVERS_ENABLED && GAIA_ENABLE_HOOKS
+	uint32_t onSetHits = 0;
+	wld.observer()
+			.event(ecs::ObserverEvent::OnSet)
+			.all<Position>()
+			.on_each([&](ecs::Entity entity, const Position&) {
+				CHECK(entity == pairEntity);
+				++onSetHits;
+			});
+#endif
+	wld.modify<Position, false>(pairEntity);
+	CHECK_FALSE(wld.has<Position>(relation));
+#if GAIA_OBSERVERS_ENABLED && GAIA_ENABLE_HOOKS
+	CHECK(onSetHits == 0);
+	wld.modify<Position, true>(pairEntity);
+	CHECK(onSetHits == 1);
+#endif
+	CHECK(wld.get<Position>(pairEntity).x == doctest::Approx(1.0f));
+
+	const auto position = wld.get<Position>();
+	wld.modify<Position, false>(pairEntity, position);
+#if GAIA_OBSERVERS_ENABLED && GAIA_ENABLE_HOOKS
+	CHECK(onSetHits == 1);
+	wld.modify<Position, true>(pairEntity, position);
+	CHECK(onSetHits == 2);
+#endif
+
+	uint32_t created = 0;
+	wld.add_n(pairEntity, 3, [&](ecs::Entity entity) {
+		CHECK(wld.has<Position>(entity));
+		CHECK_FALSE(entity.pair());
+		++created;
+	});
+	CHECK(created == 3);
+}
+
 TEST_CASE("Exact pair records - archetype-based creation") {
 	TestWorld twld;
 

@@ -4322,13 +4322,13 @@ namespace gaia {
 			}
 
 			//! Creates \a count of entities of the same archetype as \a entity.
-			//! \param entity Source entity whose archetype is reused.
+			//! \param entity Source entity or exact pair record whose archetype is reused.
 			//! \param count Number of entities to create.
 			//! \param func Functor invoked for each new entity.
 			//! \note Similar to copy_n(), but component payload is left uninitialized or default-initialized.
 			template <typename Func = TFunc_Void_With_Entity>
 			void add_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
-				auto& ec = m_recs.entities[entity.id()];
+				auto& ec = cont(entity);
 
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 				GAIA_ASSERT(ec.pChunk != nullptr);
@@ -6782,7 +6782,7 @@ namespace gaia {
 			//! set hooks and `OnSet` observers.
 			//! \tparam T Component type
 			//! \tparam TriggerSetEffects Triggers set side effects if true
-			//! \param entity Entity whose component version is updated.
+			//! \param entity Entity or exact pair record whose component version is updated.
 			template <
 					typename T
 #if GAIA_ENABLE_HOOKS
@@ -6812,7 +6812,7 @@ namespace gaia {
 					}
 				}
 
-				auto& ec = m_recs.entities[entity.id()];
+				auto& ec = cont(entity);
 				modify_table_inter<
 						T
 #if GAIA_ENABLE_HOOKS
@@ -6866,7 +6866,7 @@ namespace gaia {
 			//! set hooks and `OnSet` observers.
 			//! \tparam T Component type
 			//! \tparam TriggerSetEffects Triggers set side effects if true
-			//! \param entity Entity whose component version is updated.
+			//! \param entity Entity or exact pair record whose component version is updated.
 			//! \param object Component entity associated with \p T.
 			template <
 					typename T
@@ -6898,7 +6898,7 @@ namespace gaia {
 					}
 				}
 
-				auto& ec = m_recs.entities[entity.id()];
+				auto& ec = cont(entity);
 				modify_table_inter<TriggerSetEffects>(object, ec);
 			}
 
@@ -9564,13 +9564,13 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Enables or disables an entire entity.
-			//! \param entity Entity
+			//! \param entity Entity or exact pair record
 			//! \param enable Enable or disable the entity
 			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			void enable(Entity entity, bool enable) {
 				GAIA_ASSERT(valid(entity));
 
-				auto& ec = m_recs.entities[entity.id()];
+				auto& ec = cont(entity);
 				auto& archetype = *ec.pArchetype;
 				auto* pChunk = ec.pChunk;
 				const bool wasEnabled = !ec.data.dis;
@@ -9625,14 +9625,13 @@ namespace gaia {
 			}
 
 			//! Checks if an entity is enabled.
-			//! \param entity Entity
+			//! \param entity Entity or exact pair record
 			//! \return True it the entity is enabled. False otherwise.
 			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD bool enabled(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& ec = m_recs.entities[entity.id()];
-				return enabled(ec);
+				return enabled(cont(entity));
 			}
 
 			//! Checks whether an exact pair record is enabled.
@@ -9696,12 +9695,10 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Returns a chunk containing the \a entity.
-			//! \param entity Entity
+			//! \param entity Entity or exact pair record
 			//! \return Chunk or nullptr if not found.
 			GAIA_NODISCARD Chunk* get_chunk(Entity entity) const {
-				GAIA_ASSERT(entity.id() < m_recs.entities.size());
-				const auto& ec = m_recs.entities[entity.id()];
-				return ec.pChunk;
+				return cont(entity).pChunk;
 			}
 
 			//! Returns the chunk containing an exact pair record.
@@ -9713,12 +9710,11 @@ namespace gaia {
 
 			//! Returns a chunk containing the \a entity.
 			//! Index of the entity is stored in \a row
-			//! \param entity Entity
+			//! \param entity Entity or exact pair record
 			//! \param[out] row Row of \a entity within chunk
 			//! \return Chunk or nullptr if not found
 			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& row) const {
-				GAIA_ASSERT(entity.id() < m_recs.entities.size());
-				const auto& ec = m_recs.entities[entity.id()];
+				const auto& ec = cont(entity);
 				row = ec.row;
 				return ec.pChunk;
 			}
