@@ -73,6 +73,7 @@ var NAVTREE =
           [ "Query cache behavior", "index.html#query-cache-behavior", null ]
         ] ],
         [ "Iteration", "index.html#iteration", null ],
+        [ "Iterate ids", "index.html#iterate-ids", null ],
         [ "Constraints", "index.html#constraints", null ],
         [ "Change detection", "index.html#change-detection", null ],
         [ "Grouping", "index.html#grouping", null ],
@@ -189,15 +190,15 @@ var NAVTREEINDEX =
 "classgaia_1_1cnt_1_1sringbuffer.html#a13a89af925686a71e88f802e6505fdd1",
 "classgaia_1_1ecs_1_1Chunk.html#a8d3153395a06da2a4cf6c85a509b45f0",
 "classgaia_1_1ecs_1_1World.html#a1defe7c266ece1fe15b90a88b4efe2c2",
-"classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a21eda0e9e51655a1da910516f77a704a",
-"classgaia_1_1mt_1_1ThreadPool.html#ae63a44ccc90166361df38f7912d9ed24",
-"index.html#dependencies",
-"structgaia_1_1cnt_1_1fwd__llist.html#ac3a5aac817294950eaba7514f42845ab",
-"structgaia_1_1cnt_1_1to__sparse__id.html",
-"structgaia_1_1ecs_1_1DirectChunkEntry.html#a6251f2b0a78c86d2f1bfb9ab0949273e",
-"structgaia_1_1ecs_1_1QueryInput.html#ad2f9ea308423c92fe16e8b2541723e08",
-"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryCacheRange.html#a7cea24509803d671f381b057b19adbf6",
-"structgaia_1_1mem_1_1data__view__policy__soa__set.html#a30587f317f5111b1f716dfff1f6d8ad2"
+"classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a0da44c0483d55125d72982734d0875df",
+"classgaia_1_1mt_1_1ThreadPool.html#ad6b39ffc5339d878f52938789fc5df7b",
+"index.html#data-processing",
+"structgaia_1_1cnt_1_1fwd__llist.html#a88ab7e7585c44d86e3c11789a74fa7ef",
+"structgaia_1_1cnt_1_1sringbuffer__iterator.html#aea23347e282435a22cff7ed2a73ffd6b",
+"structgaia_1_1ecs_1_1DirectChunkEntry.html#a5e780711297cbe3ebd0899b84ed18880",
+"structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html#a5c8a084286187fb4576a2c1e610a678f",
+"structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html#ad1821db2a75b925a99183959401587b6",
+"structgaia_1_1mem_1_1data__view__policy__soa__get.html#a3d4f66c11c0e2e03442ff585ad8fec93"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

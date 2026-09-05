@@ -833,23 +833,128 @@ $(document).ready(function(){initNavTree('id_8h_source.html',''); initResizable(
 <div class="line"><a id="l00792" name="l00792"></a><span class="lineno">  792</span>      <span class="keywordflow">return</span> is_variable(pair.first()) || is_variable(pair.second());</div>
 <div class="line"><a id="l00793" name="l00793"></a><span class="lineno">  793</span>    }</div>
 <div class="line"><a id="l00794" name="l00794"></a><span class="lineno">  794</span> </div>
-<div class="line"><a id="l00795" name="l00795"></a><span class="lineno">  795</span>  } <span class="comment">// namespace ecs</span></div>
-<div class="line"><a id="l00796" name="l00796"></a><span class="lineno">  796</span> </div>
-<div class="line"><a id="l00797" name="l00797"></a><span class="lineno">  797</span>  <span class="keyword">namespace </span>cnt {</div>
-<div class="line"><a id="l00799" name="l00799"></a><span class="lineno">  799</span>    <span class="keyword">template</span> &lt;&gt;</div>
-<div class="foldopen" id="foldopen00800" data-start="{" data-end="};">
-<div class="line"><a id="l00800" name="l00800"></a><span class="lineno"><a class="line" href="structgaia_1_1cnt_1_1to__sparse__id_3_01ecs_1_1Entity_01_4.html">  800</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1cnt_1_1to__sparse__id.html">to_sparse_id</a>&lt;ecs::Entity&gt; {</div>
-<div class="foldopen" id="foldopen00804" data-start="{" data-end="}">
-<div class="line"><a id="l00804" name="l00804"></a><span class="lineno"><a class="line" href="structgaia_1_1cnt_1_1to__sparse__id_3_01ecs_1_1Entity_01_4.html#a598f9ad2f11a3b1f1d9b1e1c2c62d41d">  804</a></span>      <span class="keyword">static</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">sparse_id</a> <a class="code hl_function" href="structgaia_1_1cnt_1_1to__sparse__id_3_01ecs_1_1Entity_01_4.html#a598f9ad2f11a3b1f1d9b1e1c2c62d41d">get</a>(<span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">ecs::Entity</a>&amp; item) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00805" name="l00805"></a><span class="lineno">  805</span>        <span class="comment">// Cut off the flags</span></div>
-<div class="line"><a id="l00806" name="l00806"></a><span class="lineno">  806</span>        <span class="keywordflow">return</span> item.id();</div>
-<div class="line"><a id="l00807" name="l00807"></a><span class="lineno">  807</span>      }</div>
+<div class="line"><a id="l00795" name="l00795"></a><span class="lineno">  795</span>    <span class="comment">//----------------------------------------------------------------------</span></div>
+<div class="line"><a id="l00796" name="l00796"></a><span class="lineno">  796</span>    <span class="comment">// Entity id enumeration</span></div>
+<div class="line"><a id="l00797" name="l00797"></a><span class="lineno">  797</span>    <span class="comment">//----------------------------------------------------------------------</span></div>
+<div class="line"><a id="l00798" name="l00798"></a><span class="lineno">  798</span> </div>
+<div class="line"><a id="l00800" name="l00800"></a><span class="lineno">  800</span>    <span class="keyword">enum class</span> EntityIdStorage : uint8_t {</div>
+<div class="line"><a id="l00802" name="l00802"></a><span class="lineno">  802</span>      None = 0x00,</div>
+<div class="line"><a id="l00804" name="l00804"></a><span class="lineno">  804</span>      Archetype = 0x01,</div>
+<div class="line"><a id="l00806" name="l00806"></a><span class="lineno">  806</span>      DontFragment = 0x02,</div>
+<div class="line"><a id="l00808" name="l00808"></a><span class="lineno">  808</span>      Relation = 0x04,</div>
+<div class="line"><a id="l00810" name="l00810"></a><span class="lineno">  810</span>      All = 0x07</div>
+<div class="line"><a id="l00811" name="l00811"></a><span class="lineno">  811</span>    };</div>
+<div class="line"><a id="l00812" name="l00812"></a><span class="lineno">  812</span> </div>
+<div class="line"><a id="l00817" name="l00817"></a><span class="lineno">  817</span>    GAIA_NODISCARD <span class="keyword">constexpr</span> EntityIdStorage operator|(EntityIdStorage lhs, EntityIdStorage rhs) {</div>
+<div class="line"><a id="l00818" name="l00818"></a><span class="lineno">  818</span>      <span class="keywordflow">return</span> (EntityIdStorage)((uint8_t)lhs | (uint8_t)rhs);</div>
+<div class="line"><a id="l00819" name="l00819"></a><span class="lineno">  819</span>    }</div>
+<div class="line"><a id="l00820" name="l00820"></a><span class="lineno">  820</span> </div>
+<div class="line"><a id="l00825" name="l00825"></a><span class="lineno">  825</span>    GAIA_NODISCARD <span class="keyword">constexpr</span> <span class="keywordtype">bool</span> entity_id_storage_has(EntityIdStorage value, EntityIdStorage bit) {</div>
+<div class="line"><a id="l00826" name="l00826"></a><span class="lineno">  826</span>      <span class="keywordflow">return</span> (((uint8_t)value) &amp; ((uint8_t)bit)) != 0;</div>
+<div class="line"><a id="l00827" name="l00827"></a><span class="lineno">  827</span>    }</div>
+<div class="line"><a id="l00828" name="l00828"></a><span class="lineno">  828</span> </div>
+<div class="line"><a id="l00830" name="l00830"></a><span class="lineno">  830</span>    <span class="keyword">enum class</span> EntityIdKind : uint8_t {</div>
+<div class="line"><a id="l00832" name="l00832"></a><span class="lineno">  832</span>      None = 0x00,</div>
+<div class="line"><a id="l00834" name="l00834"></a><span class="lineno">  834</span>      Component = 0x01,</div>
+<div class="line"><a id="l00836" name="l00836"></a><span class="lineno">  836</span>      Pair = 0x02,</div>
+<div class="line"><a id="l00838" name="l00838"></a><span class="lineno">  838</span>      All = 0x03</div>
+<div class="line"><a id="l00839" name="l00839"></a><span class="lineno">  839</span>    };</div>
+<div class="line"><a id="l00840" name="l00840"></a><span class="lineno">  840</span> </div>
+<div class="line"><a id="l00845" name="l00845"></a><span class="lineno">  845</span>    GAIA_NODISCARD <span class="keyword">constexpr</span> EntityIdKind operator|(EntityIdKind lhs, EntityIdKind rhs) {</div>
+<div class="line"><a id="l00846" name="l00846"></a><span class="lineno">  846</span>      <span class="keywordflow">return</span> (EntityIdKind)((uint8_t)lhs | (uint8_t)rhs);</div>
+<div class="line"><a id="l00847" name="l00847"></a><span class="lineno">  847</span>    }</div>
+<div class="line"><a id="l00848" name="l00848"></a><span class="lineno">  848</span> </div>
+<div class="line"><a id="l00853" name="l00853"></a><span class="lineno">  853</span>    GAIA_NODISCARD <span class="keyword">constexpr</span> <span class="keywordtype">bool</span> entity_id_kind_has(EntityIdKind value, EntityIdKind bit) {</div>
+<div class="line"><a id="l00854" name="l00854"></a><span class="lineno">  854</span>      <span class="keywordflow">return</span> (((uint8_t)value) &amp; ((uint8_t)bit)) != 0;</div>
+<div class="line"><a id="l00855" name="l00855"></a><span class="lineno">  855</span>    }</div>
+<div class="line"><a id="l00856" name="l00856"></a><span class="lineno">  856</span> </div>
+<div class="line"><a id="l00859" name="l00859"></a><span class="lineno">  859</span>    <span class="keyword">enum class</span> QueryMatchKind : uint8_t {</div>
+<div class="line"><a id="l00861" name="l00861"></a><span class="lineno">  861</span>      Semantic,</div>
+<div class="line"><a id="l00863" name="l00863"></a><span class="lineno">  863</span>      In,</div>
+<div class="line"><a id="l00865" name="l00865"></a><span class="lineno">  865</span>      Direct</div>
+<div class="line"><a id="l00866" name="l00866"></a><span class="lineno">  866</span>    };</div>
+<div class="line"><a id="l00867" name="l00867"></a><span class="lineno">  867</span> </div>
+<div class="foldopen" id="foldopen00875" data-start="{" data-end="};">
+<div class="line"><a id="l00875" name="l00875"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1EntityIdOptions.html">  875</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityIdOptions.html">EntityIdOptions</a> {</div>
+<div class="foldopen" id="foldopen00878" data-start="{" data-end="}">
+<div class="line"><a id="l00878" name="l00878"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1EntityIdOptions.html#a5d43301c9cafccf290db9bdb36fcb519">  878</a></span>      <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityIdOptions.html">EntityIdOptions</a>&amp; <a class="code hl_function" href="structgaia_1_1ecs_1_1EntityIdOptions.html#a5d43301c9cafccf290db9bdb36fcb519">archetype</a>() {</div>
+<div class="line"><a id="l00879" name="l00879"></a><span class="lineno">  879</span>        storage = select_storage(storage, EntityIdStorage::Archetype);</div>
+<div class="line"><a id="l00880" name="l00880"></a><span class="lineno">  880</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00881" name="l00881"></a><span class="lineno">  881</span>      }</div>
 </div>
-<div class="line"><a id="l00808" name="l00808"></a><span class="lineno">  808</span>    };</div>
+<div class="line"><a id="l00882" name="l00882"></a><span class="lineno">  882</span> </div>
+<div class="foldopen" id="foldopen00885" data-start="{" data-end="}">
+<div class="line"><a id="l00885" name="l00885"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1EntityIdOptions.html#aad930b2125329798e12a926504d369e3">  885</a></span>      <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityIdOptions.html">EntityIdOptions</a>&amp; <a class="code hl_function" href="structgaia_1_1ecs_1_1EntityIdOptions.html#aad930b2125329798e12a926504d369e3">dont_fragment</a>() {</div>
+<div class="line"><a id="l00886" name="l00886"></a><span class="lineno">  886</span>        storage = select_storage(storage, EntityIdStorage::DontFragment);</div>
+<div class="line"><a id="l00887" name="l00887"></a><span class="lineno">  887</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00888" name="l00888"></a><span class="lineno">  888</span>      }</div>
 </div>
-<div class="line"><a id="l00809" name="l00809"></a><span class="lineno">  809</span>  } <span class="comment">// namespace cnt</span></div>
-<div class="line"><a id="l00810" name="l00810"></a><span class="lineno">  810</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:27</div></div>
+<div class="line"><a id="l00889" name="l00889"></a><span class="lineno">  889</span> </div>
+<div class="foldopen" id="foldopen00892" data-start="{" data-end="}">
+<div class="line"><a id="l00892" name="l00892"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1EntityIdOptions.html#ab906a8b0f1ccd32b4ca0f23138ea56de">  892</a></span>      <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityIdOptions.html">EntityIdOptions</a>&amp; <a class="code hl_function" href="structgaia_1_1ecs_1_1EntityIdOptions.html#ab906a8b0f1ccd32b4ca0f23138ea56de">relation</a>() {</div>
+<div class="line"><a id="l00893" name="l00893"></a><span class="lineno">  893</span>        storage = select_storage(storage, EntityIdStorage::Relation);</div>
+<div class="line"><a id="l00894" name="l00894"></a><span class="lineno">  894</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00895" name="l00895"></a><span class="lineno">  895</span>      }</div>
+</div>
+<div class="line"><a id="l00896" name="l00896"></a><span class="lineno">  896</span> </div>
+<div class="foldopen" id="foldopen00899" data-start="{" data-end="}">
+<div class="line"><a id="l00899" name="l00899"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1EntityIdOptions.html#a77ec94659836400b15620398cadda0fb">  899</a></span>      <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityIdOptions.html">EntityIdOptions</a>&amp; <a class="code hl_function" href="structgaia_1_1ecs_1_1EntityIdOptions.html#a77ec94659836400b15620398cadda0fb">components</a>() {</div>
+<div class="line"><a id="l00900" name="l00900"></a><span class="lineno">  900</span>        kind = select_kind(kind, EntityIdKind::Component);</div>
+<div class="line"><a id="l00901" name="l00901"></a><span class="lineno">  901</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00902" name="l00902"></a><span class="lineno">  902</span>      }</div>
+</div>
+<div class="line"><a id="l00903" name="l00903"></a><span class="lineno">  903</span> </div>
+<div class="foldopen" id="foldopen00906" data-start="{" data-end="}">
+<div class="line"><a id="l00906" name="l00906"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1EntityIdOptions.html#a1a565a54ea204500707cf3853ff09241">  906</a></span>      <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityIdOptions.html">EntityIdOptions</a>&amp; <a class="code hl_function" href="structgaia_1_1ecs_1_1EntityIdOptions.html#a1a565a54ea204500707cf3853ff09241">pairs</a>() {</div>
+<div class="line"><a id="l00907" name="l00907"></a><span class="lineno">  907</span>        kind = select_kind(kind, EntityIdKind::Pair);</div>
+<div class="line"><a id="l00908" name="l00908"></a><span class="lineno">  908</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00909" name="l00909"></a><span class="lineno">  909</span>      }</div>
+</div>
+<div class="line"><a id="l00910" name="l00910"></a><span class="lineno">  910</span> </div>
+<div class="foldopen" id="foldopen00913" data-start="{" data-end="}">
+<div class="line"><a id="l00913" name="l00913"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1EntityIdOptions.html#a9e586b59bcf578ded21449ae08496457">  913</a></span>      <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityIdOptions.html">EntityIdOptions</a>&amp; <a class="code hl_function" href="structgaia_1_1ecs_1_1EntityIdOptions.html#a9e586b59bcf578ded21449ae08496457">direct</a>() {</div>
+<div class="line"><a id="l00914" name="l00914"></a><span class="lineno">  914</span>        matchKind = QueryMatchKind::Direct;</div>
+<div class="line"><a id="l00915" name="l00915"></a><span class="lineno">  915</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00916" name="l00916"></a><span class="lineno">  916</span>      }</div>
+</div>
+<div class="line"><a id="l00917" name="l00917"></a><span class="lineno">  917</span> </div>
+<div class="foldopen" id="foldopen00923" data-start="{" data-end="}">
+<div class="line"><a id="l00923" name="l00923"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1EntityIdOptions.html#a095618650902151d83c375e6d5578185">  923</a></span>      <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityIdOptions.html">EntityIdOptions</a>&amp; <a class="code hl_function" href="structgaia_1_1ecs_1_1EntityIdOptions.html#a095618650902151d83c375e6d5578185">in</a>() {</div>
+<div class="line"><a id="l00924" name="l00924"></a><span class="lineno">  924</span>        matchKind = QueryMatchKind::In;</div>
+<div class="line"><a id="l00925" name="l00925"></a><span class="lineno">  925</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00926" name="l00926"></a><span class="lineno">  926</span>      }</div>
+</div>
+<div class="line"><a id="l00927" name="l00927"></a><span class="lineno">  927</span> </div>
+<div class="line"><a id="l00928" name="l00928"></a><span class="lineno">  928</span>    <span class="keyword">private</span>:</div>
+<div class="line"><a id="l00929" name="l00929"></a><span class="lineno">  929</span>      <span class="keyword">friend</span> <span class="keyword">class </span><a class="code hl_class" href="classgaia_1_1ecs_1_1World.html">World</a>;</div>
+<div class="line"><a id="l00930" name="l00930"></a><span class="lineno">  930</span> </div>
+<div class="line"><a id="l00931" name="l00931"></a><span class="lineno">  931</span>      EntityIdStorage storage = EntityIdStorage::All;</div>
+<div class="line"><a id="l00932" name="l00932"></a><span class="lineno">  932</span>      EntityIdKind kind = EntityIdKind::All;</div>
+<div class="line"><a id="l00933" name="l00933"></a><span class="lineno">  933</span>      QueryMatchKind matchKind = QueryMatchKind::Direct;</div>
+<div class="line"><a id="l00934" name="l00934"></a><span class="lineno">  934</span> </div>
+<div class="line"><a id="l00939" name="l00939"></a><span class="lineno">  939</span>      GAIA_NODISCARD <span class="keyword">static</span> <span class="keyword">constexpr</span> EntityIdStorage select_storage(EntityIdStorage current, EntityIdStorage bit) {</div>
+<div class="line"><a id="l00940" name="l00940"></a><span class="lineno">  940</span>        <span class="keywordflow">return</span> current == EntityIdStorage::All ? bit : (current | bit);</div>
+<div class="line"><a id="l00941" name="l00941"></a><span class="lineno">  941</span>      }</div>
+<div class="line"><a id="l00942" name="l00942"></a><span class="lineno">  942</span> </div>
+<div class="line"><a id="l00947" name="l00947"></a><span class="lineno">  947</span>      GAIA_NODISCARD <span class="keyword">static</span> <span class="keyword">constexpr</span> EntityIdKind select_kind(EntityIdKind current, EntityIdKind bit) {</div>
+<div class="line"><a id="l00948" name="l00948"></a><span class="lineno">  948</span>        <span class="keywordflow">return</span> current == EntityIdKind::All ? bit : (current | bit);</div>
+<div class="line"><a id="l00949" name="l00949"></a><span class="lineno">  949</span>      }</div>
+<div class="line"><a id="l00950" name="l00950"></a><span class="lineno">  950</span>    };</div>
+</div>
+<div class="line"><a id="l00951" name="l00951"></a><span class="lineno">  951</span> </div>
+<div class="line"><a id="l00952" name="l00952"></a><span class="lineno">  952</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l00953" name="l00953"></a><span class="lineno">  953</span> </div>
+<div class="line"><a id="l00954" name="l00954"></a><span class="lineno">  954</span>  <span class="keyword">namespace </span>cnt {</div>
+<div class="line"><a id="l00956" name="l00956"></a><span class="lineno">  956</span>    <span class="keyword">template</span> &lt;&gt;</div>
+<div class="line"><a id="l00957" name="l00957"></a><span class="lineno">  957</span>    <span class="keyword">struct </span>to_sparse_id&lt;ecs::Entity&gt; {</div>
+<div class="line"><a id="l00961" name="l00961"></a><span class="lineno">  961</span>      <span class="keyword">static</span> sparse_id get(<span class="keyword">const</span> ecs::Entity&amp; item) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00962" name="l00962"></a><span class="lineno">  962</span>        <span class="comment">// Cut off the flags</span></div>
+<div class="line"><a id="l00963" name="l00963"></a><span class="lineno">  963</span>        <span class="keywordflow">return</span> item.id();</div>
+<div class="line"><a id="l00964" name="l00964"></a><span class="lineno">  964</span>      }</div>
+<div class="line"><a id="l00965" name="l00965"></a><span class="lineno">  965</span>    };</div>
+<div class="line"><a id="l00966" name="l00966"></a><span class="lineno">  966</span>  } <span class="comment">// namespace cnt</span></div>
+<div class="line"><a id="l00967" name="l00967"></a><span class="lineno">  967</span>} <span class="comment">// namespace gaia</span></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1World_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html">gaia::ecs::World</a></div><div class="ttdoc">Owns entities, components, archetypes, queries, observers, and systems.</div><div class="ttdef"><b>Definition</b> world.h:80</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4_html_a37519cf2052f2d20d275c97ba891e310"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html#a37519cf2052f2d20d275c97ba891e310">gaia::ecs::pair&lt; Entity, Entity &gt;::first</a></div><div class="ttdeci">Entity first() const noexcept</div><div class="ttdoc">First entity of the pair.</div><div class="ttdef"><b>Definition</b> id.h:563</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4_html_a722d674249dd99548144b8938d0513e5"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html#a722d674249dd99548144b8938d0513e5">gaia::ecs::pair&lt; Entity, Entity &gt;::second</a></div><div class="ttdeci">Entity second() const noexcept</div><div class="ttdoc">Second entity of the pair.</div><div class="ttdef"><b>Definition</b> id.h:569</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair.html">gaia::ecs::pair</a></div><div class="ttdoc">Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it...</div><div class="ttdef"><b>Definition</b> id.h:197</div></div>
@@ -862,8 +967,6 @@ $(document).ready(function(){initNavTree('id_8h_source.html',''); initResizable(
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_html_af2d44f82fb0407dcd7e68adf964a625f"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair.html#af2d44f82fb0407dcd7e68adf964a625f">gaia::ecs::pair::tgt_type</a></div><div class="ttdeci">typename tgt_comp_type::Type tgt_type</div><div class="ttdoc">Raw target type.</div><div class="ttdef"><b>Definition</b> id.h:209</div></div>
 <div class="ttc" id="aser__ct_8h_html_a38848ea2003a76e33f2b4e56d355a7fa"><div class="ttname"><a href="ser__ct_8h.html#a38848ea2003a76e33f2b4e56d355a7fa">gaia::ser::load</a></div><div class="ttdeci">void load(Reader &amp;reader, T &amp;data)</div><div class="ttdoc">Read data using Reader at compile-time.</div><div class="ttdef"><b>Definition</b> ser_ct.h:112</div></div>
 <div class="ttc" id="aser__ct_8h_html_afea4e9db5adcb2f65534c527ff9ac204"><div class="ttname"><a href="ser__ct_8h.html#afea4e9db5adcb2f65534c527ff9ac204">gaia::ser::save</a></div><div class="ttdeci">void save(Writer &amp;writer, const T &amp;data)</div><div class="ttdoc">Write data using Writer at compile-time.</div><div class="ttdef"><b>Definition</b> ser_ct.h:101</div></div>
-<div class="ttc" id="astructgaia_1_1cnt_1_1to__sparse__id_3_01ecs_1_1Entity_01_4_html_a598f9ad2f11a3b1f1d9b1e1c2c62d41d"><div class="ttname"><a href="structgaia_1_1cnt_1_1to__sparse__id_3_01ecs_1_1Entity_01_4.html#a598f9ad2f11a3b1f1d9b1e1c2c62d41d">gaia::cnt::to_sparse_id&lt; ecs::Entity &gt;::get</a></div><div class="ttdeci">static sparse_id get(const ecs::Entity &amp;item) noexcept</div><div class="ttdoc">Returns the entity index as a sparse id.</div><div class="ttdef"><b>Definition</b> id.h:804</div></div>
-<div class="ttc" id="astructgaia_1_1cnt_1_1to__sparse__id_html"><div class="ttname"><a href="structgaia_1_1cnt_1_1to__sparse__id.html">gaia::cnt::to_sparse_id</a></div><div class="ttdoc">Converts an item to the sparse identifier used by sparse_storage.</div><div class="ttdef"><b>Definition</b> sparse_storage.h:49</div></div>
 <div class="ttc" id="astructgaia_1_1core_1_1direct__hash__key_html"><div class="ttname"><a href="structgaia_1_1core_1_1direct__hash__key.html">gaia::core::direct_hash_key&lt; uint64_t &gt;</a></div></div>
 <div class="ttc" id="astructgaia_1_1core_1_1direct__hash__key_html_a404446aae1a63289acfcbe4f6b3110c5"><div class="ttname"><a href="structgaia_1_1core_1_1direct__hash__key.html#a404446aae1a63289acfcbe4f6b3110c5">gaia::core::direct_hash_key::hash</a></div><div class="ttdeci">T hash</div><div class="ttdoc">Precomputed hash value.</div><div class="ttdef"><b>Definition</b> hashing_policy.h:51</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1Acyclic___html"><div class="ttname"><a href="structgaia_1_1ecs_1_1Acyclic__.html">gaia::ecs::Acyclic_</a></div><div class="ttdef"><b>Definition</b> id.h:627</div></div>
@@ -894,6 +997,14 @@ $(document).ready(function(){initNavTree('id_8h_source.html',''); initResizable(
 <div class="ttc" id="astructgaia_1_1ecs_1_1DontFragment___html"><div class="ttname"><a href="structgaia_1_1ecs_1_1DontFragment__.html">gaia::ecs::DontFragment_</a></div><div class="ttdef"><b>Definition</b> id.h:625</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1DontInherit___html"><div class="ttname"><a href="structgaia_1_1ecs_1_1DontInherit__.html">gaia::ecs::DontInherit_</a></div><div class="ttdef"><b>Definition</b> id.h:636</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1EntityDesc_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityDesc.html">gaia::ecs::EntityDesc</a></div><div class="ttdoc">Component used to describe the entity name.</div><div class="ttdef"><b>Definition</b> id.h:528</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1EntityIdOptions_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityIdOptions.html">gaia::ecs::EntityIdOptions</a></div><div class="ttdoc">Options for World::ids / World::ids_if. Defaults visit the complete direct type: every storage source...</div><div class="ttdef"><b>Definition</b> id.h:875</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1EntityIdOptions_html_a095618650902151d83c375e6d5578185"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityIdOptions.html#a095618650902151d83c375e6d5578185">gaia::ecs::EntityIdOptions::in</a></div><div class="ttdeci">EntityIdOptions &amp; in()</div><div class="ttdoc">Allows direct and inherited matches. After the direct type, appends OnInstantiate(Inherit) ids from I...</div><div class="ttdef"><b>Definition</b> id.h:923</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1EntityIdOptions_html_a1a565a54ea204500707cf3853ff09241"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityIdOptions.html#a1a565a54ea204500707cf3853ff09241">gaia::ecs::EntityIdOptions::pairs</a></div><div class="ttdeci">EntityIdOptions &amp; pairs()</div><div class="ttdoc">Selects relationship pair ids.</div><div class="ttdef"><b>Definition</b> id.h:906</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1EntityIdOptions_html_a5d43301c9cafccf290db9bdb36fcb519"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityIdOptions.html#a5d43301c9cafccf290db9bdb36fcb519">gaia::ecs::EntityIdOptions::archetype</a></div><div class="ttdeci">EntityIdOptions &amp; archetype()</div><div class="ttdoc">Selects archetype-resident ids.</div><div class="ttdef"><b>Definition</b> id.h:878</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1EntityIdOptions_html_a77ec94659836400b15620398cadda0fb"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityIdOptions.html#a77ec94659836400b15620398cadda0fb">gaia::ecs::EntityIdOptions::components</a></div><div class="ttdeci">EntityIdOptions &amp; components()</div><div class="ttdoc">Selects non-pair ids.</div><div class="ttdef"><b>Definition</b> id.h:899</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1EntityIdOptions_html_a9e586b59bcf578ded21449ae08496457"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityIdOptions.html#a9e586b59bcf578ded21449ae08496457">gaia::ecs::EntityIdOptions::direct</a></div><div class="ttdeci">EntityIdOptions &amp; direct()</div><div class="ttdoc">Restricts visitation to ids stored on the entity.</div><div class="ttdef"><b>Definition</b> id.h:913</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1EntityIdOptions_html_aad930b2125329798e12a926504d369e3"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityIdOptions.html#aad930b2125329798e12a926504d369e3">gaia::ecs::EntityIdOptions::dont_fragment</a></div><div class="ttdeci">EntityIdOptions &amp; dont_fragment()</div><div class="ttdoc">Selects DontFragment component membership.</div><div class="ttdef"><b>Definition</b> id.h:885</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1EntityIdOptions_html_ab906a8b0f1ccd32b4ca0f23138ea56de"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityIdOptions.html#ab906a8b0f1ccd32b4ca0f23138ea56de">gaia::ecs::EntityIdOptions::relation</a></div><div class="ttdeci">EntityIdOptions &amp; relation()</div><div class="ttdoc">Selects exclusive non-fragmenting pairs.</div><div class="ttdef"><b>Definition</b> id.h:892</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1EntityLookupKey_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityLookupKey.html">gaia::ecs::EntityLookupKey</a></div><div class="ttdoc">Hashmap lookup structure used for Entity.</div><div class="ttdef"><b>Definition</b> id.h:474</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1EntityLookupKey_html_a5dce644690d5b3d6ba3731a05b43d666"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityLookupKey.html#a5dce644690d5b3d6ba3731a05b43d666">gaia::ecs::EntityLookupKey::hash</a></div><div class="ttdeci">size_t hash() const</div><div class="ttdoc">Hash of the entity value.</div><div class="ttdef"><b>Definition</b> id.h:509</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1Entity_1_1InternalData_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1Entity_1_1InternalData.html">gaia::ecs::Entity::InternalData</a></div><div class="ttdoc">Bit-packed storage layout of an entity identifier.</div><div class="ttdef"><b>Definition</b> id.h:236</div></div>

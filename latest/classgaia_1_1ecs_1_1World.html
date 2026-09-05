@@ -701,6 +701,14 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memitem:adaf76b25e670b052f12caae61296cf31"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#adaf76b25e670b052f12caae61296cf31">has</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:adaf76b25e670b052f12caae61296cf31"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks if <em>entity</em> contains the component <em>T</em>.  <br /></td></tr>
 <tr class="separator:adaf76b25e670b052f12caae61296cf31"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a952a47c7db61e52b19fc97bdcaaf228a" id="r_a952a47c7db61e52b19fc97bdcaaf228a"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
+<tr class="memitem:a952a47c7db61e52b19fc97bdcaaf228a"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a952a47c7db61e52b19fc97bdcaaf228a">ids</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, Func &amp;&amp;func, <a class="el" href="structgaia_1_1ecs_1_1EntityIdOptions.html">EntityIdOptions</a> options={}) const</td></tr>
+<tr class="memdesc:a952a47c7db61e52b19fc97bdcaaf228a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invokes <em>func</em> for each id assigned to <em>entity</em>. By default this is the complete direct type: archetype-resident ids, DontFragment components, and exclusive non-fragmenting pairs such as <code>Parent</code>. <code><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a14807b43d347ee9e36c9b3b362b5e5af" title="Span over the component and entity identifiers defining the archetype shape.">Archetype::ids_view()</a></code> is only the archetype-resident subset of that list. Pass <code><a class="el" href="structgaia_1_1ecs_1_1EntityIdOptions.html" title="Options for World::ids / World::ids_if. Defaults visit the complete direct type: every storage source...">EntityIdOptions</a></code> to select storage or kind, or <code>.<a class="el" href="classgaia_1_1ecs_1_1World.html#aafcdf196229a3061d6c73a0c3f084d5b" title="Checks if entity is located in entityBase. This is almost the same as &quot;is&quot; with the exception that fa...">in()</a></code> for inherited ids. Scans matching non-fragmenting stores in addition to the archetype id list. Not a per-frame hot path.  <br /></td></tr>
+<tr class="separator:a952a47c7db61e52b19fc97bdcaaf228a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a57f49b9f6f535ebab302e3b55ca46932" id="r_a57f49b9f6f535ebab302e3b55ca46932"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
+<tr class="memitem:a57f49b9f6f535ebab302e3b55ca46932"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a57f49b9f6f535ebab302e3b55ca46932">ids_if</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, Func &amp;&amp;func, <a class="el" href="structgaia_1_1ecs_1_1EntityIdOptions.html">EntityIdOptions</a> options={}) const</td></tr>
+<tr class="memdesc:a57f49b9f6f535ebab302e3b55ca46932"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invokes <em>func</em> for each id assigned to <em>entity</em> until <em>func</em> returns false. Membership and visit order match <code><a class="el" href="classgaia_1_1ecs_1_1World.html#a952a47c7db61e52b19fc97bdcaaf228a" title="Invokes func for each id assigned to entity. By default this is the complete direct type: archetype-r...">ids()</a></code>.  <br /></td></tr>
+<tr class="separator:a57f49b9f6f535ebab302e3b55ca46932"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a718e9d4f33c080d04b575c18fed3085e" id="r_a718e9d4f33c080d04b575c18fed3085e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a718e9d4f33c080d04b575c18fed3085e">name</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const char *name, uint32_t len=0)</td></tr>
 <tr class="memdesc:a718e9d4f33c080d04b575c18fed3085e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Assigns a <em>name</em> to <em>entity</em>. Ignored if used with pair. The string is copied and kept internally.  <br /></td></tr>
 <tr class="separator:a718e9d4f33c080d04b575c18fed3085e"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -810,12 +818,12 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memitem:adc67e3a608877bb3288510bb189897a3" id="r_adc67e3a608877bb3288510bb189897a3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#adc67e3a608877bb3288510bb189897a3">collect_direct_term_entities_direct</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> term, <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; &amp;out) const</td></tr>
 <tr class="memdesc:adc67e3a608877bb3288510bb189897a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Appends entities directly matching <em>term</em> to <em>out</em> without semantic <code>Is</code> expansion.  <br /></td></tr>
 <tr class="separator:adc67e3a608877bb3288510bb189897a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa285ddf0f0fbaeab6e23ecc1ba9e7739" id="r_aa285ddf0f0fbaeab6e23ecc1ba9e7739"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aa285ddf0f0fbaeab6e23ecc1ba9e7739">for_each_direct_term_entity</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> term, void *ctx, bool(*func)(void *, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)) const</td></tr>
-<tr class="memdesc:aa285ddf0f0fbaeab6e23ecc1ba9e7739"><td class="mdescLeft">&#160;</td><td class="mdescRight">Visits entities directly matching <em>term</em>, including semantic <code>Is</code> expansion.  <br /></td></tr>
-<tr class="separator:aa285ddf0f0fbaeab6e23ecc1ba9e7739"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a51bc8e9e0d329a33183f7e5c24737ba5" id="r_a51bc8e9e0d329a33183f7e5c24737ba5"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a51bc8e9e0d329a33183f7e5c24737ba5">for_each_direct_term_entity_direct</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> term, void *ctx, bool(*func)(void *, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)) const</td></tr>
-<tr class="memdesc:a51bc8e9e0d329a33183f7e5c24737ba5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Visits entities directly matching <em>term</em> without semantic <code>Is</code> expansion.  <br /></td></tr>
-<tr class="separator:a51bc8e9e0d329a33183f7e5c24737ba5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afde0cbd44e19f356e53853ae8eabca73" id="r_afde0cbd44e19f356e53853ae8eabca73"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#afde0cbd44e19f356e53853ae8eabca73">each_direct_term_entity</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> term, void *ctx, bool(*func)(void *, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)) const</td></tr>
+<tr class="memdesc:afde0cbd44e19f356e53853ae8eabca73"><td class="mdescLeft">&#160;</td><td class="mdescRight">Visits entities directly matching <em>term</em>, including semantic <code>Is</code> expansion.  <br /></td></tr>
+<tr class="separator:afde0cbd44e19f356e53853ae8eabca73"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad6db8bf7ccb7d8a92b25a7faf26dc4bb" id="r_ad6db8bf7ccb7d8a92b25a7faf26dc4bb"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad6db8bf7ccb7d8a92b25a7faf26dc4bb">each_direct_term_entity_direct</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> term, void *ctx, bool(*func)(void *, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)) const</td></tr>
+<tr class="memdesc:ad6db8bf7ccb7d8a92b25a7faf26dc4bb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Visits entities directly matching <em>term</em> without semantic <code>Is</code> expansion.  <br /></td></tr>
+<tr class="separator:ad6db8bf7ccb7d8a92b25a7faf26dc4bb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0726759a4b91f70c79e19aab3c1d15ce" id="r_a0726759a4b91f70c79e19aab3c1d15ce"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
 <tr class="memitem:a0726759a4b91f70c79e19aab3c1d15ce"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a0726759a4b91f70c79e19aab3c1d15ce">sources_bfs</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> rootTarget, Func func) const</td></tr>
 <tr class="memdesc:a0726759a4b91f70c79e19aab3c1d15ce"><td class="mdescLeft">&#160;</td><td class="mdescRight">Traverses relationship sources in breadth-first order. Starting at <em>rootTarget</em>, this visits all direct sources first and then deeper levels.  <br /></td></tr>
@@ -4004,6 +4012,112 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 </div>
 </div>
+<a id="afde0cbd44e19f356e53853ae8eabca73" name="afde0cbd44e19f356e53853ae8eabca73"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afde0cbd44e19f356e53853ae8eabca73">&#9670;&#160;</a></span>each_direct_term_entity()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::each_direct_term_entity </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>term</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>ctx</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool(*)(void *, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)&#160;</td>
+          <td class="paramname"><em>func</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Visits entities directly matching <em>term</em>, including semantic <code>Is</code> expansion. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">term</td><td>Query term </td></tr>
+    <tr><td class="paramname">ctx</td><td>User context passed to <em>func</em> </td></tr>
+    <tr><td class="paramname">func</td><td>bool(void*, Entity) callback executed for each matching entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>False when <em>func</em> requested early stop. True otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="ad6db8bf7ccb7d8a92b25a7faf26dc4bb" name="ad6db8bf7ccb7d8a92b25a7faf26dc4bb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad6db8bf7ccb7d8a92b25a7faf26dc4bb">&#9670;&#160;</a></span>each_direct_term_entity_direct()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::each_direct_term_entity_direct </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>term</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>ctx</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool(*)(void *, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)&#160;</td>
+          <td class="paramname"><em>func</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Visits entities directly matching <em>term</em> without semantic <code>Is</code> expansion. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">term</td><td>Query term </td></tr>
+    <tr><td class="paramname">ctx</td><td>User context passed to <em>func</em> </td></tr>
+    <tr><td class="paramname">func</td><td>bool(void*, Entity) callback executed for each matching entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>False when <em>func</em> requested early stop. True otherwise. </dd></dl>
+
+</div>
+</div>
 <a id="a2652099674355b6bf069ee785041f273" name="a2652099674355b6bf069ee785041f273"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a2652099674355b6bf069ee785041f273">&#9670;&#160;</a></span>enable() <span class="overload">[1/2]</span></h2>
 
@@ -4682,112 +4796,6 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
   </table>
   </dd>
 </dl>
-
-</div>
-</div>
-<a id="aa285ddf0f0fbaeab6e23ecc1ba9e7739" name="aa285ddf0f0fbaeab6e23ecc1ba9e7739"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa285ddf0f0fbaeab6e23ecc1ba9e7739">&#9670;&#160;</a></span>for_each_direct_term_entity()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::for_each_direct_term_entity </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>term</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">void *&#160;</td>
-          <td class="paramname"><em>ctx</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">bool(*)(void *, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)&#160;</td>
-          <td class="paramname"><em>func</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Visits entities directly matching <em>term</em>, including semantic <code>Is</code> expansion. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">term</td><td>Query term </td></tr>
-    <tr><td class="paramname">ctx</td><td>User context passed to <em>func</em> </td></tr>
-    <tr><td class="paramname">func</td><td>bool(void*, Entity) callback executed for each matching entity. </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>False when <em>func</em> requested early stop. True otherwise. </dd></dl>
-
-</div>
-</div>
-<a id="a51bc8e9e0d329a33183f7e5c24737ba5" name="a51bc8e9e0d329a33183f7e5c24737ba5"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a51bc8e9e0d329a33183f7e5c24737ba5">&#9670;&#160;</a></span>for_each_direct_term_entity_direct()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::for_each_direct_term_entity_direct </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>term</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">void *&#160;</td>
-          <td class="paramname"><em>ctx</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">bool(*)(void *, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)&#160;</td>
-          <td class="paramname"><em>func</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Visits entities directly matching <em>term</em> without semantic <code>Is</code> expansion. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">term</td><td>Query term </td></tr>
-    <tr><td class="paramname">ctx</td><td>User context passed to <em>func</em> </td></tr>
-    <tr><td class="paramname">func</td><td>bool(void*, Entity) callback executed for each matching entity. </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>False when <em>func</em> requested early stop. True otherwise. </dd></dl>
 
 </div>
 </div>
@@ -5927,6 +5935,116 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>True when at least one cached sorted query reads a component of <em>entity</em>. </dd></dl>
+
+</div>
+</div>
+<a id="a952a47c7db61e52b19fc97bdcaaf228a" name="a952a47c7db61e52b19fc97bdcaaf228a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a952a47c7db61e52b19fc97bdcaaf228a">&#9670;&#160;</a></span>ids()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Func &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::ids </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">Func &amp;&amp;&#160;</td>
+          <td class="paramname"><em>func</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1EntityIdOptions.html">EntityIdOptions</a>&#160;</td>
+          <td class="paramname"><em>options</em> = <code>{}</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Invokes <em>func</em> for each id assigned to <em>entity</em>. By default this is the complete direct type: archetype-resident ids, DontFragment components, and exclusive non-fragmenting pairs such as <code>Parent</code>. <code><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a14807b43d347ee9e36c9b3b362b5e5af" title="Span over the component and entity identifiers defining the archetype shape.">Archetype::ids_view()</a></code> is only the archetype-resident subset of that list. Pass <code><a class="el" href="structgaia_1_1ecs_1_1EntityIdOptions.html" title="Options for World::ids / World::ids_if. Defaults visit the complete direct type: every storage source...">EntityIdOptions</a></code> to select storage or kind, or <code>.<a class="el" href="classgaia_1_1ecs_1_1World.html#aafcdf196229a3061d6c73a0c3f084d5b" title="Checks if entity is located in entityBase. This is almost the same as &quot;is&quot; with the exception that fa...">in()</a></code> for inherited ids. Scans matching non-fragmenting stores in addition to the archetype id list. Not a per-frame hot path. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record to inspect. </td></tr>
+    <tr><td class="paramname">func</td><td>Callable <code>void(Entity)</code> invoked for each selected id. </td></tr>
+    <tr><td class="paramname">options</td><td>Storage, kind, and match filters. Defaults visit the complete direct type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a57f49b9f6f535ebab302e3b55ca46932" name="a57f49b9f6f535ebab302e3b55ca46932"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a57f49b9f6f535ebab302e3b55ca46932">&#9670;&#160;</a></span>ids_if()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Func &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::ids_if </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">Func &amp;&amp;&#160;</td>
+          <td class="paramname"><em>func</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1EntityIdOptions.html">EntityIdOptions</a>&#160;</td>
+          <td class="paramname"><em>options</em> = <code>{}</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Invokes <em>func</em> for each id assigned to <em>entity</em> until <em>func</em> returns false. Membership and visit order match <code><a class="el" href="classgaia_1_1ecs_1_1World.html#a952a47c7db61e52b19fc97bdcaaf228a" title="Invokes func for each id assigned to entity. By default this is the complete direct type: archetype-r...">ids()</a></code>. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record to inspect. </td></tr>
+    <tr><td class="paramname">func</td><td>Callable <code>bool(Entity)</code>. Return false to stop. </td></tr>
+    <tr><td class="paramname">options</td><td>Storage, kind, and match filters. Defaults visit the complete direct type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl>
 
 </div>
 </div>

@@ -39,8 +39,7 @@ var annotated_dup =
         [ "sringbuffer", "classgaia_1_1cnt_1_1sringbuffer.html", "classgaia_1_1cnt_1_1sringbuffer" ],
         [ "sringbuffer_iterator", "structgaia_1_1cnt_1_1sringbuffer__iterator.html", "structgaia_1_1cnt_1_1sringbuffer__iterator" ],
         [ "to_page_storage_id", "structgaia_1_1cnt_1_1to__page__storage__id.html", "structgaia_1_1cnt_1_1to__page__storage__id" ],
-        [ "to_sparse_id", "structgaia_1_1cnt_1_1to__sparse__id.html", "structgaia_1_1cnt_1_1to__sparse__id" ],
-        [ "to_sparse_id< ecs::Entity >", "structgaia_1_1cnt_1_1to__sparse__id_3_01ecs_1_1Entity_01_4.html", "structgaia_1_1cnt_1_1to__sparse__id_3_01ecs_1_1Entity_01_4" ]
+        [ "to_sparse_id", "structgaia_1_1cnt_1_1to__sparse__id.html", "structgaia_1_1cnt_1_1to__sparse__id" ]
       ] ],
       [ "core", null, [
         [ "bidirectional_iterator_tag", "structgaia_1_1core_1_1bidirectional__iterator__tag.html", null ],
@@ -141,6 +140,7 @@ var annotated_dup =
         [ "DontInherit_", "structgaia_1_1ecs_1_1DontInherit__.html", null ],
         [ "Entity", "structgaia_1_1ecs_1_1Entity.html", "structgaia_1_1ecs_1_1Entity" ],
         [ "EntityDesc", "structgaia_1_1ecs_1_1EntityDesc.html", "structgaia_1_1ecs_1_1EntityDesc" ],
+        [ "EntityIdOptions", "structgaia_1_1ecs_1_1EntityIdOptions.html", "structgaia_1_1ecs_1_1EntityIdOptions" ],
         [ "EntityLookupKey", "structgaia_1_1ecs_1_1EntityLookupKey.html", "structgaia_1_1ecs_1_1EntityLookupKey" ],
         [ "Error_", "structgaia_1_1ecs_1_1Error__.html", null ],
         [ "Exclusive_", "structgaia_1_1ecs_1_1Exclusive__.html", null ],

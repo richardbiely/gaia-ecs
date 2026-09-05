@@ -178,6 +178,7 @@ var hierarchy =
     [ "gaia::ecs::Entity", "structgaia_1_1ecs_1_1Entity.html", null ],
     [ "gaia::ecs::World::EntityBuilder", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html", null ],
     [ "gaia::ecs::EntityDesc", "structgaia_1_1ecs_1_1EntityDesc.html", null ],
+    [ "gaia::ecs::EntityIdOptions", "structgaia_1_1ecs_1_1EntityIdOptions.html", null ],
     [ "gaia::ecs::EntityLookupKey", "structgaia_1_1ecs_1_1EntityLookupKey.html", null ],
     [ "gaia::core::equal_to< T >", "structgaia_1_1core_1_1equal__to.html", null ],
     [ "gaia::ecs::Error_", "structgaia_1_1ecs_1_1Error__.html", null ],
@@ -373,7 +374,6 @@ var hierarchy =
     [ "gaia::mt::ThreadPool", "classgaia_1_1mt_1_1ThreadPool.html", null ],
     [ "gaia::cnt::to_page_storage_id< T >", "structgaia_1_1cnt_1_1to__page__storage__id.html", null ],
     [ "gaia::cnt::to_sparse_id< T >", "structgaia_1_1cnt_1_1to__sparse__id.html", null ],
-    [ "gaia::cnt::to_sparse_id< ecs::Entity >", "structgaia_1_1cnt_1_1to__sparse__id_3_01ecs_1_1Entity_01_4.html", null ],
     [ "gaia::ecs::Traversable_", "structgaia_1_1ecs_1_1Traversable__.html", null ],
     [ "gaia::ecs::QueryInfo::QueryState::DynamicCacheState::TraversedSourcePayload", "structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1TraversedSourcePayload.html", null ],
     [ "std::true_type", null, [
