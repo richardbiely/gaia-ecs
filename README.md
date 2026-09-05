@@ -3791,7 +3791,7 @@ const bool parsed = worldOut.load_json(json, diagnostics);
 
 Semantic JSON loading is best-effort: components should already be registered, and unknown or unsupported content is skipped and reported through `JsonDiagnostics`.
 
-Binary snapshot loading stores `Component` ids using the component entity id path. This applies to `World::save` / `World::load` and to `load_json` when it consumes the embedded `"binary"` payload. Non-core components must already be registered in the target world with the same symbols, ids, and storage layout. A mismatch makes `load()` return false and leaves the target world unchanged. `World::load` remaps loaded ids when the target world has a different core-component layout, including component ids stored in `Component` values.
+Binary `World::save` / `World::load` (and the `"binary"` payload inside JSON) is an exact copy of a saved world. Register the same user components, in the same order, with the same names and the same storage, then call `load()`. If you added, removed, renamed, reordered, or resized a component, `load()` returns false and does not change the target world. That check exists so two components of the same size cannot silently swap their data. Gaia's built-in components can still differ: extra built-in ids in this build are remapped, including ids stored in `Component` values. To load data after your component list has changed, use semantic JSON. It skips unknown or unsupported content and reports it through `JsonDiagnostics`.
 
 ```cpp
 ecs::World world0;

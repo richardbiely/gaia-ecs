@@ -10790,8 +10790,9 @@ namespace gaia {
 			//!       1) member function: "void load(bin_stream& s)"
 			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, bin_stream& s,
 			//!       YourType& data)"
-			//! \note Register the same non-core components in the same order and with the same storage layouts in the
-			//!       target world. Current snapshots validate this requirement before changing the target world.
+			//! \note Register the same user components in the target world, in the same order, with the same
+			//!       names and storage. If that does not match, load() returns false and leaves the target world
+			//!       unchanged. Gaia's built-in component ids are remapped.
 			//! \param inputSerializer Serializer to read from, or an invalid handle to use the world's bound serializer.
 			//! \return True when the snapshot version is supported and all world data loads successfully. False otherwise.
 			bool load(ser::serializer inputSerializer = {}) {
