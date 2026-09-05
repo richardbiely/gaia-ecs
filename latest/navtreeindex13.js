@@ -1,5 +1,10 @@
 var NAVTREEINDEX13 =
 {
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryCacheRange.html#a7cea24509803d671f381b057b19adbf6":[9,0,0,2,0,7,6,3],
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryCacheRange.html#a9d3f35f8c07af322bd098b903bdc21bd":[9,0,0,2,0,7,6,1],
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html":[9,0,0,2,0,7,7],
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#a2976ea6584b043eb47eda2016707f09d":[9,0,0,2,0,7,7,2],
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#a3f80b57a83c1923c9f6062f9d7a6a953":[9,0,0,2,0,7,7,3],
 "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#a47dcee55a6ee5ef558f55764b6cd6c85":[9,0,0,2,0,7,7,1],
 "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#a6af22bf18cc45b785063a33dd59198fc":[9,0,0,2,0,7,7,4],
 "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#ad3c7089725dd94ad3a43a19b0374bf50":[9,0,0,2,0,7,7,0],
@@ -244,10 +249,5 @@ var NAVTREEINDEX13 =
 "structgaia_1_1mem_1_1data__view__policy__soa__get_1_1data__view__policy__idx__info.html":[9,0,0,3,28,0],
 "structgaia_1_1mem_1_1data__view__policy__soa__get_1_1data__view__policy__idx__info.html#adff0a9ae50cb040facc5f0a4c146b56f":[9,0,0,3,28,0,0],
 "structgaia_1_1mem_1_1data__view__policy__soa__set.html":[9,0,0,3,29],
-"structgaia_1_1mem_1_1data__view__policy__soa__set.html#a0b3b599b689a67690e20ce319ece8ec5":[9,0,0,3,29,10],
-"structgaia_1_1mem_1_1data__view__policy__soa__set.html#a30587f317f5111b1f716dfff1f6d8ad2":[9,0,0,3,29,3],
-"structgaia_1_1mem_1_1data__view__policy__soa__set.html#a745e78ba1c3f1214c3d421d74b93e8aa":[9,0,0,3,29,5],
-"structgaia_1_1mem_1_1data__view__policy__soa__set.html#a9f8be2570ccce653f9c65aef216a0a4e":[9,0,0,3,29,2],
-"structgaia_1_1mem_1_1data__view__policy__soa__set.html#aa11f6b86826572ffdb29722d8f657558":[9,0,0,3,29,12],
-"structgaia_1_1mem_1_1data__view__policy__soa__set.html#aacd6bfa52d68d20d9d04856b6f85d5cd":[9,0,0,3,29,9]
+"structgaia_1_1mem_1_1data__view__policy__soa__set.html#a0b3b599b689a67690e20ce319ece8ec5":[9,0,0,3,29,10]
 };

@@ -569,7 +569,7 @@ Non-fragmenting membership</h4>
 <li>Keep hot, common, frequently iterated data in table storage.</li>
 <li>Use <code>Sparse</code> when the payload needs a stable address, but the component should still participate in archetype identity.</li>
 <li>Use <code>GAIA_STORAGE(DontFragment)</code> for empty optional markers and for typed optional AoS state such as cooldowns, temporary status effects, or runtime tool state.</li>
-<li>Queries that filter on a <code>DontFragment</code> empty tag use entity-seed matching, same as other non-fragmenting ids. Adding the tag is cheap because the archetype does not change. Iterating or counting those tags is slower than iterating an archetype-resident empty tag. <code>changed()</code> on an empty <code>DontFragment</code> tag uses the same chunk-granular entity-order signal as other non-fragmenting ids.</li>
+<li>Queries whose required terms include a <code>DontFragment</code> id use entity-seed matching, same as other non-fragmenting ids. Queries that only exclude a <code>DontFragment</code> id still walk the table neighbor and apply per-entity filters. Adding the tag is cheap because the archetype does not change. Iterating or counting those tags is slower than iterating an archetype-resident empty tag. <code>count()</code>, <code>arr()</code>, typed <code>each()</code>, and <code>Iter&amp; each()</code> all use the same filters, so <code>it.size()</code> and chunk views cover only matching rows. <code>changed()</code> on an empty <code>DontFragment</code> tag uses the same chunk-granular entity-order signal as other non-fragmenting ids.</li>
 <li><code>GAIA_STORAGE(Sparse)</code> plus a runtime <code>DontFragment</code> latch is equivalent for data-bearing AoS payloads.</li>
 <li>Avoid sparse storage for components such as <code>Position</code> or <code>Velocity</code> that benefit from sequential table access, unless profiling justifies it.</li>
 </ul>
@@ -956,7 +956,8 @@ Copy entity</h3>
 <div class="line"><span class="comment">// Value of Position on &quot;e2&quot; will be {0, 100, 0}.</span></div>
 <div class="line"><span class="comment">// Value of Velocity on &quot;e2&quot; will be {0, 0, 1}.</span></div>
 <div class="line">ecs::Entity e2 = w.copy(e);</div>
-</div><!-- fragment --> <h3><a class="anchor" id="entity-cleanup"></a>
+</div><!-- fragment --><p><code>copy</code>, <code>copy_n</code>, <code>copy_ext</code>, and <code>copy_ext_n</code> clone into new ordinary entities. An exact pair record can be the source. The destination receives the pair's components, sparse payloads, and non-fragmenting relation pairs, but not the pair identity.</p>
+<h3><a class="anchor" id="entity-cleanup"></a>
 Entity cleanup</h3>
 <p>Anything attached to an entity can be easily removed using <code>World::clear</code>. This is useful when you need to quickly reset your entity and still want to keep your Entity's id (deleting the entity would mean that as some point it could be recycled and its id could be used by some newly created entity).</p>
 <div class="fragment"><div class="line">ecs::Entity e = w.add();</div>
@@ -986,7 +987,9 @@ Batched creation</h3>
 <div class="line">w.add(e, velocity, Velocity{0, 0, 1});</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Create 1000 more entities like &quot;e&quot;.</span></div>
-<div class="line"><span class="comment">// Their component values are not initialized to any particular value.</span></div>
+<div class="line"><span class="comment">// Table component values are not copied. Non-fragmenting ids (DontFragment tags,</span></div>
+<div class="line"><span class="comment">// DontFragment payloads, and relation pairs such as ChildOf) are copied.</span></div>
+<div class="line"><span class="comment">// Fragmenting sparse ids receive a default payload. Names are not copied.</span></div>
 <div class="line">w.add_n(e, 1000);</div>
 <div class="line">w.add_n(e, 1000, [](Entity newEntity) {</div>
 <div class="line">  <span class="comment">// Do something with the new entity</span></div>
@@ -1824,7 +1827,7 @@ Iterating over components not present in the query is not supported and results 
 <div class="line">  ....</div>
 <div class="line">}, ecs::Constraints::AcceptAll);</div>
 </div><!-- fragment --><p>&gt;<b>NOTE:</b><br  />
-The functor accepting an iterator can be called any number of times per one <code>Query::each</code>. Currently, the functor is invoked once per archetype chunk that matches the query. In the future, this can change. Therefore, it is best to make no assumptions about it and simply expect that the functor might be triggered multiple times per call to <code>each</code>.</p>
+The functor accepting an iterator can be called any number of times per one <code>Query::each</code>. A matching chunk is the common case, but <code>DontFragment</code> / sparse entity-filter terms can split one chunk into several contiguous windows when membership is mixed. Therefore, it is best to make no assumptions about it and simply expect that the functor might be triggered multiple times per call to <code>each</code>.</p>
 <h3><a class="anchor" id="constraints"></a>
 Constraints</h3>
 <p>By default, Gaia queries operate on enabled entities only. <code>Constraints</code> let you switch that row-selection behavior without changing archetypes:</p>
@@ -2101,6 +2104,7 @@ Relationships</h2>
 Relationship basics</h3>
 <p>Entity relationship is a feature that allows users to model simple relations, hierarchies or graphs in an ergonomic, easy and safe way. Each relationship is expressed as following: "source, (relation, target)". All three elements of a relationship are entities. We call the "(relation, target)" part a relationship pair.</p>
 <p>Relationship pair is a special kind of entity where the id of the "relation" entity becomes the pair's id and the "target" entity's id becomes the pairs generation. The pair is created by calling <code>ecs::Pair(relation, target</code>) with two valid entities as its arguments. Only each endpoint's <code>id()</code> is stored, so both endpoints must be ordinary entities. Nested pairs are rejected when the relationship is attached.</p>
+<p>Because a pair is itself an entity, components can live on the pair record, not only on its endpoints. Query callbacks yield <code>Entity</code>, so <code>enable</code>, <code>enabled</code>, <code>get_chunk</code>, <code>add_n</code>, <code>copy</code>, <code>instantiate</code>, <code>modify</code>, <code>get</code>, and accessors treat an Entity-typed exact pair as that pair rather than the relation endpoint. <code>copy</code>, <code>add_n</code>, and <code>instantiate</code> of a pair record still create ordinary entities. See <a class="el" href="index.html#copy-entity">Copy entity</a>, <a class="el" href="index.html#batched-creation">Batched creation</a>, and <a class="el" href="index.html#prefabs">Prefabs</a>.</p>
 <p>Adding a relationship to any entity is as simple as adding any other entity.</p>
 <div class="fragment"><div class="line">ecs::World w;</div>
 <div class="line">ecs::Entity rabbit = w.add();</div>
@@ -2402,7 +2406,7 @@ Prefabs</h3>
 <li>parented overloads attach <code>Pair(ecs::Parent, parent)</code> to each new root instance</li>
 <li>prefab children attached through <code>ecs::Parent</code> or <code>ecs::ChildOf</code> are instantiated recursively under each new root instance with the same hierarchy relation</li>
 </ul>
-<p>If the source entity is not tagged with <code>ecs::Prefab</code>, <code>instantiate(...)</code> falls back to <code>copy(...)</code> and <code>instantiate_n(...)</code> falls back to <code>copy_n(...)</code>. The parented overloads still attach the requested <code>ecs::Parent</code> relationship in that fallback path.</p>
+<p>If the source entity is not tagged with <code>ecs::Prefab</code>, <code>instantiate(...)</code> falls back to <code>copy(...)</code> and <code>instantiate_n(...)</code> falls back to <code>copy_n(...)</code>. The parented overloads still attach the requested <code>ecs::Parent</code> relationship in that fallback path. Exact pair records are valid sources. A Prefab-tagged pair record still drops <code>ecs::Prefab</code> and copies data, but it does not receive <code>Pair(ecs::Is, pair)</code> because nested pairs are not representable.</p>
 <p>Only children that are themselves tagged with <code>ecs::Prefab</code> are instantiated recursively. Plain <code>Parent</code> children under a prefab are ignored.</p>
 <p>Inherited-id behavior for <code>Is</code>-based relationships is configured on the id itself with <code>Pair(ecs::OnInstantiate, policy)</code>. Prefab instantiation uses the same policy:</p>
 <div class="fragment"><div class="line">ecs::Entity position = w.add&lt;Position&gt;().entity;</div>
@@ -2598,6 +2602,7 @@ Delayed execution</h2>
 </b> There is one situation to be wary about with command buffers. Function <code>add</code> accepting a component as template argument needs to make sure that the component is registered in the component cache. If it is not, it will be inserted. Registering a component is a structural change, so it is not safe while the world is locked for query or system iteration. As a result, when used from multiple threads, both CommandBufferST and CommandBufferMT are also subject to race conditions. To avoid both cases, make sure that component T has been registered in the world already. If you already added the component to some entity before, everything is fine. If you did not, call this before you run your system or query: </p><div class="fragment"><div class="line"><span class="comment">// Register the component YourComponent in the world</span></div>
 <div class="line">world.add&lt;YourComponent&gt;();</div>
 </div><!-- fragment --><p> &gt;Technically, template versions of functions <code>set</code> and <code>del</code> experience a similar issue. However, calling neither <code>set</code> nor <code>del</code> makes sense without a previous call to <code>add</code>. Such attempts are undefined behaviors (and reported by triggering an assertion).</p>
+<p>Relationship payloads use the same add/set data ops as components. <code>cb.add(entity, pair, value)</code> and <code>cb.set(entity, pair, value)</code> queue a write on the owner for that exact pair, matching <code>World::add(entity, pair, value)</code>. Structural <code>cb.add(entity, pair)</code> still attaches the pair without a payload. <code>cb.add&lt;T&gt;(pair, value)</code> writes component <code>T</code> on the pair record itself.</p>
 <h3><a class="anchor" id="command-merging-rules"></a>
 Command Merging rules</h3>
 <p>Before applying any operations to the world, the command buffer performs operation merging and cancellation to remove redundant or meaningless actions.</p>
@@ -3165,7 +3170,7 @@ World serialization</h3>
 </div><!-- fragment --><p><code>parsed</code> reports JSON shape/parse success. Semantic warnings/errors are carried in <code>diagnostics</code>.</p>
 <p><code>load_json</code> first consumes the embedded <code>"binary"</code> snapshot payload when present. If <code>"binary"</code> is omitted, it falls back to semantic JSON loading from <code>"archetypes"</code> / <code>"entities"</code> / <code>"components"</code> data.</p>
 <p>Semantic JSON loading is best-effort: components should already be registered, and unknown or unsupported content is skipped and reported through <code>JsonDiagnostics</code>.</p>
-<p>Binary snapshot loading stores <code>Component</code> ids using the component entity id path. This applies to <code>World::save</code> / <code>World::load</code> and to <code>load_json</code> when it consumes the embedded <code>"binary"</code> payload. For those binary snapshot paths, <code>World::load</code> remaps loaded ids when the target world has a different core-component layout, including component ids stored in <code>Component</code> values, and component registration order does not need to match exactly between the saving and loading worlds.</p>
+<p>Binary <code>World::save</code> / <code>World::load</code> (and the <code>"binary"</code> payload inside JSON) is an exact copy of a saved world. Register the same user components, in the same order, with the same names and the same storage, then call <code>load()</code>. If you added, removed, renamed, reordered, or resized a component, <code>load()</code> returns false and does not change the target world. That check exists so two components of the same size cannot silently swap their data. Gaia's built-in components can still differ: extra built-in ids in this build are remapped, including ids stored in <code>Component</code> values. To load data after your component list has changed, use semantic JSON. It skips unknown or unsupported content and reports it through <code>JsonDiagnostics</code>.</p>
 <div class="fragment"><div class="line">ecs::World world0;</div>
 <div class="line"><span class="comment">// Register components</span></div>
 <div class="line">(void)world0.add&lt;Position&gt;();</div>
@@ -3530,6 +3535,7 @@ Data on runtime relationships</h3>
 <div class="line">  }</div>
 <div class="line">}</div>
 </div><!-- fragment --><p>The relation defines the stored data. The target identifies which relationship the value belongs to.</p>
+<p>Compile-time relationship payloads use the same ownership: <code>World::add(entity, pair, value)</code> attaches the pair on the owner and writes its payload. Command buffers queue that owner-side write with <code>cb.add(entity, pair, value)</code> and <code>cb.set(entity, pair, value)</code>. <code>cb.add&lt;T&gt;(pair, value)</code> writes component <code>T</code> on the pair record itself, not on the owner.</p>
 <p>Queries can match one exact relationship or every target of the same relation:</p>
 <div class="fragment"><div class="line"><span class="keyword">auto</span> affinityForBob = w.query().all(affinityToBob);</div>
 <div class="line"><span class="keyword">auto</span> affinityForAnyone = w.query().all(ecs::Pair(affinity.entity, ecs::All));</div>

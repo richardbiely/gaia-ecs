@@ -404,11 +404,11 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="separator:a973bc36f673e61902359555c758a50ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae58666166cac05d54064463aa9ee7289" id="r_ae58666166cac05d54064463aa9ee7289"><td class="memTemplParams" colspan="2">template&lt;typename Func  = TFunc_Void_With_Entity&gt; </td></tr>
 <tr class="memitem:ae58666166cac05d54064463aa9ee7289"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae58666166cac05d54064463aa9ee7289">add_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, uint32_t count, Func func=func_void_with_entity)</td></tr>
-<tr class="memdesc:ae58666166cac05d54064463aa9ee7289"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates <em>count</em> of entities of the same archetype as <em>entity</em>.  <br /></td></tr>
+<tr class="memdesc:ae58666166cac05d54064463aa9ee7289"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates <em>count</em> ordinary entities with the same type as <em>entity</em>. Table component payloads are left uninitialized or default-initialized. Non-fragmenting ids are copied onto each destination: DontFragment tags, DontFragment sparse payloads, and non-fragmenting relation pairs. Fragmenting sparse ids receive a default payload so membership matches the source type. <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component used to describe the entity name.">EntityDesc</a> is omitted so names stay unique. Exact pair records are a valid source. Destinations are always ordinary entities.  <br /></td></tr>
 <tr class="separator:ae58666166cac05d54064463aa9ee7289"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6de81e38107b18ee93a19b15cf0b54ef" id="r_a6de81e38107b18ee93a19b15cf0b54ef"><td class="memTemplParams" colspan="2">template&lt;typename Func  = TFunc_Void_With_Entity&gt; </td></tr>
 <tr class="memitem:a6de81e38107b18ee93a19b15cf0b54ef"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6de81e38107b18ee93a19b15cf0b54ef">add_n</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, uint32_t count, Func func=func_void_with_entity)</td></tr>
-<tr class="memdesc:a6de81e38107b18ee93a19b15cf0b54ef"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates <em>count</em> of entities of the same archetype as an exact pair record.  <br /></td></tr>
+<tr class="memdesc:a6de81e38107b18ee93a19b15cf0b54ef"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates <em>count</em> ordinary entities with the same type as an exact pair record. Table component payloads are left uninitialized or default-initialized. Non-fragmenting ids and default fragmenting sparse membership are applied as in add_n(Entity).  <br /></td></tr>
 <tr class="separator:a6de81e38107b18ee93a19b15cf0b54ef"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3ecd256e20fc18e2a07bd190c706f3a7" id="r_a3ecd256e20fc18e2a07bd190c706f3a7"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a3ecd256e20fc18e2a07bd190c706f3a7"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD const ComponentCacheItem &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a3ecd256e20fc18e2a07bd190c706f3a7">add</a> ()</td></tr>
@@ -442,6 +442,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memitem:a730bd1293329308354b59967bc08a19a"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a730bd1293329308354b59967bc08a19a">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object, T &amp;&amp;value)</td></tr>
 <tr class="memdesc:a730bd1293329308354b59967bc08a19a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches <em>object</em> to <em>entity</em>. Also sets its value.  <br /></td></tr>
 <tr class="separator:a730bd1293329308354b59967bc08a19a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a822a17dfbb8c6b151220c226cc1a406d" id="r_a822a17dfbb8c6b151220c226cc1a406d"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a822a17dfbb8c6b151220c226cc1a406d"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a822a17dfbb8c6b151220c226cc1a406d">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> <a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>, T &amp;&amp;value)</td></tr>
+<tr class="memdesc:a822a17dfbb8c6b151220c226cc1a406d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches a relationship pair to <em>entity</em> and initializes its payload.  <br /></td></tr>
+<tr class="separator:a822a17dfbb8c6b151220c226cc1a406d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4cc525cae8ef955e749e3e9e7796ec3d" id="r_a4cc525cae8ef955e749e3e9e7796ec3d"><td class="memTemplParams" colspan="2">template&lt;typename T , typename U  = typename actual_type_t&lt;T&gt;::Type&gt; </td></tr>
 <tr class="memitem:a4cc525cae8ef955e749e3e9e7796ec3d"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4cc525cae8ef955e749e3e9e7796ec3d">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, U &amp;&amp;value)</td></tr>
 <tr class="memdesc:a4cc525cae8ef955e749e3e9e7796ec3d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches a new component <em>T</em> to <em>entity</em>. Also sets its value.  <br /></td></tr>
@@ -468,21 +472,21 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memdesc:a3cf286552485bcbf9bbdc49b7ce4713b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes any component or entity attached to <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a3cf286552485bcbf9bbdc49b7ce4713b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a87c296ea168b0ce48377f6b9972f6046" id="r_a87c296ea168b0ce48377f6b9972f6046"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a87c296ea168b0ce48377f6b9972f6046">copy</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> srcEntity)</td></tr>
-<tr class="memdesc:a87c296ea168b0ce48377f6b9972f6046"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new entity by cloning an already existing one. Does not trigger observers.  <br /></td></tr>
+<tr class="memdesc:a87c296ea168b0ce48377f6b9972f6046"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new ordinary entity by cloning an already existing one. Does not trigger observers. Exact pair records are cloned into a new ordinary entity. The pair identity is not duplicated.  <br /></td></tr>
 <tr class="separator:a87c296ea168b0ce48377f6b9972f6046"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab5cbe9fb47bd97c2a6462d974b18f8f0" id="r_ab5cbe9fb47bd97c2a6462d974b18f8f0"><td class="memTemplParams" colspan="2">template&lt;typename Func  = TFunc_Void_With_Entity&gt; </td></tr>
 <tr class="memitem:ab5cbe9fb47bd97c2a6462d974b18f8f0"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ab5cbe9fb47bd97c2a6462d974b18f8f0">copy_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, uint32_t count, Func func=func_void_with_entity)</td></tr>
-<tr class="memdesc:ab5cbe9fb47bd97c2a6462d974b18f8f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates <em>count</em> new entities by cloning an already existing one.  <br /></td></tr>
+<tr class="memdesc:ab5cbe9fb47bd97c2a6462d974b18f8f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates <em>count</em> new ordinary entities by cloning an already existing one. Exact pair records are cloned into ordinary entities. The pair identity is not duplicated.  <br /></td></tr>
 <tr class="separator:ab5cbe9fb47bd97c2a6462d974b18f8f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ade94b4eb23ba6988d7963ff8e1cba689" id="r_ade94b4eb23ba6988d7963ff8e1cba689"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689">instantiate</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity)</td></tr>
-<tr class="memdesc:ade94b4eb23ba6988d7963ff8e1cba689"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates a prefab as a normal entity. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead. Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation.  <br /></td></tr>
+<tr class="memdesc:ade94b4eb23ba6988d7963ff8e1cba689"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates a prefab as a normal entity. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead. Exact pair records are a valid source. Nested pairs are not representable, so a Prefab-tagged pair record does not receive Pair(Is, prefab). Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation.  <br /></td></tr>
 <tr class="separator:ade94b4eb23ba6988d7963ff8e1cba689"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6b87231415d6397b171bb1c0093f8af7" id="r_a6b87231415d6397b171bb1c0093f8af7"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6b87231415d6397b171bb1c0093f8af7">instantiate</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance)</td></tr>
-<tr class="memdesc:a6b87231415d6397b171bb1c0093f8af7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates a prefab as a normal entity parented under <code>parentInstance</code>. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead, and attaches Pair(Parent, parentInstance) to the new root instance. Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation.  <br /></td></tr>
+<tr class="memdesc:a6b87231415d6397b171bb1c0093f8af7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates a prefab as a normal entity parented under <code>parentInstance</code>. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead, and attaches Pair(Parent, parentInstance) to the new root instance. Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation. Exact pair records are a valid source. Nested pairs are not representable, so a Prefab-tagged pair record does not receive Pair(Is, prefab).  <br /></td></tr>
 <tr class="separator:a6b87231415d6397b171bb1c0093f8af7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaa988e2f9dc10937ae00ca17d6e1f7e6" id="r_aaa988e2f9dc10937ae00ca17d6e1f7e6"><td class="memTemplParams" colspan="2">template&lt;typename Func  = TFunc_Void_With_Entity&gt; </td></tr>
 <tr class="memitem:aaa988e2f9dc10937ae00ca17d6e1f7e6"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aaa988e2f9dc10937ae00ca17d6e1f7e6">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, uint32_t count, Func func=func_void_with_entity)</td></tr>
-<tr class="memdesc:aaa988e2f9dc10937ae00ca17d6e1f7e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates <em>count</em> copies of a prefab as normal root entities. Each instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead. Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.  <br /></td></tr>
+<tr class="memdesc:aaa988e2f9dc10937ae00ca17d6e1f7e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates <em>count</em> copies of a prefab as normal root entities. Each instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead. Exact pair records are a valid source. Nested pairs are not representable, so a Prefab-tagged pair record does not receive Pair(Is, prefab). Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.  <br /></td></tr>
 <tr class="separator:aaa988e2f9dc10937ae00ca17d6e1f7e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a811a1c25152660c9611580b268d2ada8" id="r_a811a1c25152660c9611580b268d2ada8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a811a1c25152660c9611580b268d2ada8">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance, uint32_t count)</td></tr>
 <tr class="memdesc:a811a1c25152660c9611580b268d2ada8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates <em>count</em> copies of a prefab as normal root entities parented under <em>parentInstance</em>. Each spawned root instance receives a direct Pair(Parent, parentInstance) relationship. Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.  <br /></td></tr>
@@ -1235,7 +1239,7 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 </div>
 </div>
 <a id="ab8bd53290dcfc173d1f860f87f449985" name="ab8bd53290dcfc173d1f860f87f449985"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ab8bd53290dcfc173d1f860f87f449985">&#9670;&#160;</a></span>add() <span class="overload">[1/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ab8bd53290dcfc173d1f860f87f449985">&#9670;&#160;</a></span>add() <span class="overload">[1/13]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1263,7 +1267,7 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 </div>
 </div>
 <a id="a3ecd256e20fc18e2a07bd190c706f3a7" name="a3ecd256e20fc18e2a07bd190c706f3a7"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3ecd256e20fc18e2a07bd190c706f3a7">&#9670;&#160;</a></span>add() <span class="overload">[2/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a3ecd256e20fc18e2a07bd190c706f3a7">&#9670;&#160;</a></span>add() <span class="overload">[2/13]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1299,7 +1303,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="ab06b490d26d94ac0bf0510ddb681f2f1" name="ab06b490d26d94ac0bf0510ddb681f2f1"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ab06b490d26d94ac0bf0510ddb681f2f1">&#9670;&#160;</a></span>add() <span class="overload">[3/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ab06b490d26d94ac0bf0510ddb681f2f1">&#9670;&#160;</a></span>add() <span class="overload">[3/13]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1334,7 +1338,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a57ed785ea944b3eb6896ff36782da42f" name="a57ed785ea944b3eb6896ff36782da42f"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a57ed785ea944b3eb6896ff36782da42f">&#9670;&#160;</a></span>add() <span class="overload">[4/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a57ed785ea944b3eb6896ff36782da42f">&#9670;&#160;</a></span>add() <span class="overload">[4/13]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1377,7 +1381,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a53f667ddfe6c1f3ec42cdb398b6024fc" name="a53f667ddfe6c1f3ec42cdb398b6024fc"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a53f667ddfe6c1f3ec42cdb398b6024fc">&#9670;&#160;</a></span>add() <span class="overload">[5/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a53f667ddfe6c1f3ec42cdb398b6024fc">&#9670;&#160;</a></span>add() <span class="overload">[5/13]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1422,7 +1426,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a40506c3fce6bd1ae3d902d556f679e75" name="a40506c3fce6bd1ae3d902d556f679e75"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a40506c3fce6bd1ae3d902d556f679e75">&#9670;&#160;</a></span>add() <span class="overload">[6/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a40506c3fce6bd1ae3d902d556f679e75">&#9670;&#160;</a></span>add() <span class="overload">[6/13]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1468,7 +1472,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a730bd1293329308354b59967bc08a19a" name="a730bd1293329308354b59967bc08a19a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a730bd1293329308354b59967bc08a19a">&#9670;&#160;</a></span>add() <span class="overload">[7/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a730bd1293329308354b59967bc08a19a">&#9670;&#160;</a></span>add() <span class="overload">[7/13]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1527,7 +1531,7 @@ It is expected <em>object</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a950a809f79f42dde23d9b82f7059a825" name="a950a809f79f42dde23d9b82f7059a825"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a950a809f79f42dde23d9b82f7059a825">&#9670;&#160;</a></span>add() <span class="overload">[8/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a950a809f79f42dde23d9b82f7059a825">&#9670;&#160;</a></span>add() <span class="overload">[8/13]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1574,8 +1578,73 @@ Pair endpoints must be ordinary entities. </dd></dl>
 
 </div>
 </div>
+<a id="a822a17dfbb8c6b151220c226cc1a406d" name="a822a17dfbb8c6b151220c226cc1a406d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a822a17dfbb8c6b151220c226cc1a406d">&#9670;&#160;</a></span>add() <span class="overload">[9/13]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::add </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>&#160;</td>
+          <td class="paramname"><em>pair</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">T &amp;&amp;&#160;</td>
+          <td class="paramname"><em>value</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Attaches a relationship pair to <em>entity</em> and initializes its payload. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Payload type stored on <em>pair</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Source entity or exact pair record. </td></tr>
+    <tr><td class="paramname">pair</td><td>Relationship pair to attach. </td></tr>
+    <tr><td class="paramname">value</td><td>Initial payload value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd>It is expected the pair is not present on <em>entity</em> yet. Undefined behavior otherwise. </dd>
+<dd>
+It is expected <em>entity</em> and the entities forming <em>pair</em> are valid. Undefined behavior otherwise. </dd>
+<dd>
+Pair endpoints must be ordinary entities. </dd></dl>
+
+</div>
+</div>
 <a id="a4cc525cae8ef955e749e3e9e7796ec3d" name="a4cc525cae8ef955e749e3e9e7796ec3d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4cc525cae8ef955e749e3e9e7796ec3d">&#9670;&#160;</a></span>add() <span class="overload">[9/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a4cc525cae8ef955e749e3e9e7796ec3d">&#9670;&#160;</a></span>add() <span class="overload">[10/13]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1631,7 +1700,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a92d33352cb7e9ce63595a76c347447a3" name="a92d33352cb7e9ce63595a76c347447a3"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a92d33352cb7e9ce63595a76c347447a3">&#9670;&#160;</a></span>add() <span class="overload">[10/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a92d33352cb7e9ce63595a76c347447a3">&#9670;&#160;</a></span>add() <span class="overload">[11/13]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1676,7 +1745,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a2b83d263475248b2c5a9c133fd76beeb" name="a2b83d263475248b2c5a9c133fd76beeb"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a2b83d263475248b2c5a9c133fd76beeb">&#9670;&#160;</a></span>add() <span class="overload">[11/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a2b83d263475248b2c5a9c133fd76beeb">&#9670;&#160;</a></span>add() <span class="overload">[12/13]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1724,7 +1793,7 @@ Pair endpoints must be ordinary entities. </dd></dl>
 </div>
 </div>
 <a id="a2af3a9c54e3448f947f00f7251bd2db2" name="a2af3a9c54e3448f947f00f7251bd2db2"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a2af3a9c54e3448f947f00f7251bd2db2">&#9670;&#160;</a></span>add() <span class="overload">[12/12]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a2af3a9c54e3448f947f00f7251bd2db2">&#9670;&#160;</a></span>add() <span class="overload">[13/13]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1822,16 +1891,16 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Creates <em>count</em> of entities of the same archetype as <em>entity</em>. </p>
+<p>Creates <em>count</em> ordinary entities with the same type as <em>entity</em>. Table component payloads are left uninitialized or default-initialized. Non-fragmenting ids are copied onto each destination: DontFragment tags, DontFragment sparse payloads, and non-fragmenting relation pairs. Fragmenting sparse ids receive a default payload so membership matches the source type. <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component used to describe the entity name.">EntityDesc</a> is omitted so names stay unique. Exact pair records are a valid source. Destinations are always ordinary entities. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td>Source entity whose archetype is reused. </td></tr>
+    <tr><td class="paramname">entity</td><td>Source entity or exact pair record whose type is reused. </td></tr>
     <tr><td class="paramname">count</td><td>Number of entities to create. </td></tr>
     <tr><td class="paramname">func</td><td>Functor invoked for each new entity. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section note"><dt>Note</dt><dd>Similar to <a class="el" href="classgaia_1_1ecs_1_1World.html#ab5cbe9fb47bd97c2a6462d974b18f8f0" title="Creates count new entities by cloning an already existing one.">copy_n()</a>, but component payload is left uninitialized or default-initialized. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Similar to <a class="el" href="classgaia_1_1ecs_1_1World.html#ab5cbe9fb47bd97c2a6462d974b18f8f0" title="Creates count new ordinary entities by cloning an already existing one. Exact pair records are cloned...">copy_n()</a>, but table component payloads are not copied. </dd></dl>
 
 </div>
 </div>
@@ -1877,16 +1946,16 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Creates <em>count</em> of entities of the same archetype as an exact pair record. </p>
+<p>Creates <em>count</em> ordinary entities with the same type as an exact pair record. Table component payloads are left uninitialized or default-initialized. Non-fragmenting ids and default fragmenting sparse membership are applied as in add_n(Entity). </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td>Source pair record whose archetype is reused. </td></tr>
+    <tr><td class="paramname">entity</td><td>Source pair record whose type is reused. </td></tr>
     <tr><td class="paramname">count</td><td>Number of entities to create. </td></tr>
     <tr><td class="paramname">func</td><td>Functor invoked for each new entity. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section note"><dt>Note</dt><dd>Similar to <a class="el" href="classgaia_1_1ecs_1_1World.html#ab5cbe9fb47bd97c2a6462d974b18f8f0" title="Creates count new entities by cloning an already existing one.">copy_n()</a>, but component payload is left uninitialized or default-initialized. </dd></dl>
+<dl class="section see"><dt>See also</dt><dd>add_n(Entity, uint32_t) </dd></dl>
 
 </div>
 </div>
@@ -3173,14 +3242,14 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </table>
 </div><div class="memdoc">
 
-<p>Creates a new entity by cloning an already existing one. Does not trigger observers. </p>
+<p>Creates a new ordinary entity by cloning an already existing one. Does not trigger observers. Exact pair records are cloned into a new ordinary entity. The pair identity is not duplicated. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">srcEntity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to clone </td></tr>
+    <tr><td class="paramname">srcEntity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record to clone </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>New entity </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>New ordinary entity </dd></dl>
 <dl class="section warning"><dt>Warning</dt><dd>It is expected <em>srcEntity</em> is valid. Undefined behavior otherwise. </dd>
 <dd>
 If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component used to describe the entity name.">EntityDesc</a> is present on <em>srcEntity</em>, it is not copied because names are expected to be unique. Instead, the copied entity will be a part of an archetype without <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component used to describe the entity name.">EntityDesc</a> and any calls to World::name(copiedEntity) will return an empty view. </dd></dl>
@@ -3229,10 +3298,10 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Creates <em>count</em> new entities by cloning an already existing one. </p>
+<p>Creates <em>count</em> new ordinary entities by cloning an already existing one. Exact pair records are cloned into ordinary entities. The pair identity is not duplicated. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> to clone </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record to clone </td></tr>
     <tr><td class="paramname">count</td><td>Number of clones to make </td></tr>
     <tr><td class="paramname">func</td><td>Functor executed every time a copy is created. It can be either void(ecs::Entity) or void(ecs::CopyIter&amp;). </td></tr>
   </table>
@@ -3972,7 +4041,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Enables or disables an entire entity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record </td></tr>
     <tr><td class="paramname">enable</td><td>Enable or disable the entity </td></tr>
   </table>
   </dd>
@@ -4089,7 +4158,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 <p>Checks if an entity is enabled. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record </td></tr>
   </table>
   </dd>
 </dl>
@@ -5138,7 +5207,7 @@ template&lt;typename T &gt; </div>
 <p>Returns a chunk containing the <em>entity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record </td></tr>
   </table>
   </dd>
 </dl>
@@ -5183,7 +5252,7 @@ template&lt;typename T &gt; </div>
 <p>Returns a chunk containing the <em>entity</em>. Index of the entity is stored in <em>row</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramdir"></td><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> </td></tr>
+    <tr><td class="paramdir"></td><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record </td></tr>
     <tr><td class="paramdir">[out]</td><td class="paramname">row</td><td>Row of <em>entity</em> within chunk </td></tr>
   </table>
   </dd>
@@ -5931,10 +6000,10 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 </table>
 </div><div class="memdoc">
 
-<p>Instantiates a prefab as a normal entity. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead. Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation. </p>
+<p>Instantiates a prefab as a normal entity. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead. Exact pair records are a valid source. Nested pairs are not representable, so a Prefab-tagged pair record does not receive Pair(Is, prefab). Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">prefabEntity</td><td>Prefab entity to instantiate. </td></tr>
+    <tr><td class="paramname">prefabEntity</td><td>Prefab entity or exact pair record to instantiate. </td></tr>
   </table>
   </dd>
 </dl>
@@ -5976,10 +6045,10 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 </table>
 </div><div class="memdoc">
 
-<p>Instantiates a prefab as a normal entity parented under <code>parentInstance</code>. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead, and attaches Pair(Parent, parentInstance) to the new root instance. Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation. </p>
+<p>Instantiates a prefab as a normal entity parented under <code>parentInstance</code>. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead, and attaches Pair(Parent, parentInstance) to the new root instance. Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation. Exact pair records are a valid source. Nested pairs are not representable, so a Prefab-tagged pair record does not receive Pair(Is, prefab). </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">prefabEntity</td><td>Prefab entity to instantiate. </td></tr>
+    <tr><td class="paramname">prefabEntity</td><td>Prefab entity or exact pair record to instantiate. </td></tr>
     <tr><td class="paramname">parentInstance</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> receiving the spawned root through Parent. </td></tr>
   </table>
   </dd>
@@ -6149,7 +6218,7 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Instantiates <em>count</em> copies of a prefab as normal root entities. Each instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead. Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation. </p>
+<p>Instantiates <em>count</em> copies of a prefab as normal root entities. Each instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead. Exact pair records are a valid source. Nested pairs are not representable, so a Prefab-tagged pair record does not receive Pair(Is, prefab). Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">Func</td><td>Callback type. It can be either void(ecs::Entity) or void(ecs::CopyIter&amp;). </td></tr>
@@ -6158,7 +6227,7 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">prefabEntity</td><td>Prefab entity to clone </td></tr>
+    <tr><td class="paramname">prefabEntity</td><td>Prefab entity or exact pair record to clone </td></tr>
     <tr><td class="paramname">count</td><td>Number of clones to make </td></tr>
     <tr><td class="paramname">func</td><td>Functor executed for spawned root instances. It can be either void(ecs::Entity) or void(ecs::CopyIter&amp;). </td></tr>
   </table>
@@ -6575,7 +6644,7 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 
 <p>Loads a world state from a buffer. The buffer is sought to 0 before any loading happens. NOTE: In order for custom version of load to be used for a given component, it needs to have either of the following functions defined: 1) member function: "void load(bin_stream&amp; s)" 2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, bin_stream&amp; s,
       YourType&amp; data)". </p>
-<dl class="section note"><dt>Note</dt><dd>Register the same non-core components in the same order and with the same storage layouts in the target world. Current snapshots validate this requirement before changing the target world. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Register the same user components in the target world, in the same order, with the same names and storage. If that does not match, <a class="el" href="classgaia_1_1ecs_1_1World.html#ac1a17b23aa7be61e240fd9d68186c8a4" title="Loads a world state from a buffer. The buffer is sought to 0 before any loading happens....">load()</a> returns false and leaves the target world unchanged. Gaia's built-in component ids are remapped. </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">inputSerializer</td><td>Serializer to read from, or an invalid handle to use the world's bound serializer. </td></tr>
@@ -6749,7 +6818,7 @@ template&lt;typename T &gt; </div>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> whose component version is updated. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record whose component version is updated. </td></tr>
   </table>
   </dd>
 </dl>
@@ -6802,7 +6871,7 @@ template&lt;typename T &gt; </div>
 </dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> whose component version is updated. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record whose component version is updated. </td></tr>
     <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity associated with <code>T</code>. </td></tr>
   </table>
   </dd>

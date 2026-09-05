@@ -143,10 +143,10 @@ Public Member Functions</h2></td></tr>
 <tr class="memdesc:ac7e10dcac2560c331d13f92fdbfe0821"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a new entity to be created by cloning an already existing entity.  <br /></td></tr>
 <tr class="separator:ac7e10dcac2560c331d13f92fdbfe0821"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a97877dec21eeef53607ec2a145ddc875" id="r_a97877dec21eeef53607ec2a145ddc875"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a97877dec21eeef53607ec2a145ddc875">instantiate</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity)</td></tr>
-<tr class="memdesc:a97877dec21eeef53607ec2a145ddc875"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a prefab to be instantiated as a normal entity. Commit replays through <a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689" title="Instantiates a prefab as a normal entity. The instance copies the prefab&#39;s direct data,...">World::instantiate</a>, including Prefab removal, the direct Pair(Is, prefab) edge, skipped names, OnInstantiate policies, and recursive prefab children. Non-prefab sources fall back to copy.  <br /></td></tr>
+<tr class="memdesc:a97877dec21eeef53607ec2a145ddc875"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a prefab to be instantiated as a normal entity. Commit replays through <a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689" title="Instantiates a prefab as a normal entity. The instance copies the prefab&#39;s direct data,...">World::instantiate</a>, including Prefab removal, the direct Pair(Is, prefab) edge, skipped names, OnInstantiate policies, and recursive prefab children. Non-prefab sources fall back to copy. Exact pair records are a valid source.  <br /></td></tr>
 <tr class="separator:a97877dec21eeef53607ec2a145ddc875"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a21eda0e9e51655a1da910516f77a704a" id="r_a21eda0e9e51655a1da910516f77a704a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a21eda0e9e51655a1da910516f77a704a">instantiate</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance)</td></tr>
-<tr class="memdesc:a21eda0e9e51655a1da910516f77a704a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a prefab to be instantiated as a normal entity parented under <em>parentInstance</em>. Commit replays through <a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689" title="Instantiates a prefab as a normal entity. The instance copies the prefab&#39;s direct data,...">World::instantiate</a>. Pair(Parent, parentInstance) is attached to the spawned root. Non-prefab sources fall back to a parented copy.  <br /></td></tr>
+<tr class="memdesc:a21eda0e9e51655a1da910516f77a704a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a prefab to be instantiated as a normal entity parented under <em>parentInstance</em>. Commit replays through <a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689" title="Instantiates a prefab as a normal entity. The instance copies the prefab&#39;s direct data,...">World::instantiate</a>. Pair(Parent, parentInstance) is attached to the spawned root. Non-prefab sources fall back to a parented copy. Exact pair records are a valid source.  <br /></td></tr>
 <tr class="separator:a21eda0e9e51655a1da910516f77a704a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a32a657332bb5f4d1bc7b2cb1dbadeac1" id="r_a32a657332bb5f4d1bc7b2cb1dbadeac1"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a32a657332bb5f4d1bc7b2cb1dbadeac1">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, uint32_t count)</td></tr>
 <tr class="memdesc:a32a657332bb5f4d1bc7b2cb1dbadeac1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests <em>count</em> prefab instantiations. Commit groups matching records and replays them through <a class="el" href="classgaia_1_1ecs_1_1World.html#aaa988e2f9dc10937ae00ca17d6e1f7e6" title="Instantiates count copies of a prefab as normal root entities. Each instance copies the prefab&#39;s dire...">World::instantiate_n</a>.  <br /></td></tr>
@@ -172,6 +172,14 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a6dd8ec4aae2d21ce5354bd82cea0d99f" id="r_a6dd8ec4aae2d21ce5354bd82cea0d99f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a6dd8ec4aae2d21ce5354bd82cea0d99f">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>)</td></tr>
 <tr class="memdesc:a6dd8ec4aae2d21ce5354bd82cea0d99f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a relationship pair to be added to entity <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a6dd8ec4aae2d21ce5354bd82cea0d99f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7ca1cb87cfb074f706870f5fbfe45970" id="r_a7ca1cb87cfb074f706870f5fbfe45970"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a7ca1cb87cfb074f706870f5fbfe45970"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7ca1cb87cfb074f706870f5fbfe45970">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object, T &amp;&amp;value)</td></tr>
+<tr class="memdesc:a7ca1cb87cfb074f706870f5fbfe45970"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a component identified by <em>object</em> to be added to <em>entity</em>. Also sets its value.  <br /></td></tr>
+<tr class="separator:a7ca1cb87cfb074f706870f5fbfe45970"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0f79ad6b9a5b7f89b9beee7ab10c8a33" id="r_a0f79ad6b9a5b7f89b9beee7ab10c8a33"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a0f79ad6b9a5b7f89b9beee7ab10c8a33"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a0f79ad6b9a5b7f89b9beee7ab10c8a33">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>, T &amp;&amp;value)</td></tr>
+<tr class="memdesc:a0f79ad6b9a5b7f89b9beee7ab10c8a33"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a relationship pair to be added to <em>entity</em>. Also sets its payload.  <br /></td></tr>
+<tr class="separator:a0f79ad6b9a5b7f89b9beee7ab10c8a33"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaad838857370b6ff135d71c38ff3e5a3" id="r_aaad838857370b6ff135d71c38ff3e5a3"><td class="memTemplParams" colspan="2">template&lt;typename T , std::enable_if_t&lt;!<a class="el" href="structgaia_1_1ecs_1_1is__pair.html">is_pair</a>&lt; std::remove_cv_t&lt; std::remove_reference_t&lt; T &gt; &gt; &gt;::value, int &gt;  = 0&gt; </td></tr>
 <tr class="memitem:aaad838857370b6ff135d71c38ff3e5a3"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#aaad838857370b6ff135d71c38ff3e5a3">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, T &amp;&amp;value)</td></tr>
 <tr class="memdesc:aaad838857370b6ff135d71c38ff3e5a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a component <em>T</em> to be added to entity. Also sets its value.  <br /></td></tr>
@@ -180,6 +188,14 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ad3553ec0e683738e595fa0894bd3be50"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ad3553ec0e683738e595fa0894bd3be50">set</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, T &amp;&amp;value)</td></tr>
 <tr class="memdesc:ad3553ec0e683738e595fa0894bd3be50"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests component data to be set to given values for a given entity.  <br /></td></tr>
 <tr class="separator:ad3553ec0e683738e595fa0894bd3be50"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a87b4db76bf3917e1d6d4123961d9b681" id="r_a87b4db76bf3917e1d6d4123961d9b681"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a87b4db76bf3917e1d6d4123961d9b681"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a87b4db76bf3917e1d6d4123961d9b681">set</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object, T &amp;&amp;value)</td></tr>
+<tr class="memdesc:a87b4db76bf3917e1d6d4123961d9b681"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests component data identified by <em>object</em> to be set on <em>entity</em>.  <br /></td></tr>
+<tr class="separator:a87b4db76bf3917e1d6d4123961d9b681"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa6a306459396ecc9bd190293ad3e57b1" id="r_aa6a306459396ecc9bd190293ad3e57b1"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:aa6a306459396ecc9bd190293ad3e57b1"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#aa6a306459396ecc9bd190293ad3e57b1">set</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>, T &amp;&amp;value)</td></tr>
+<tr class="memdesc:aa6a306459396ecc9bd190293ad3e57b1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests relationship payload identified by <em>pair</em> to be set on <em>entity</em>.  <br /></td></tr>
+<tr class="separator:aa6a306459396ecc9bd190293ad3e57b1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3e59265a3b6b69a8ae40311bd75bfbcf" id="r_a3e59265a3b6b69a8ae40311bd75bfbcf"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a3e59265a3b6b69a8ae40311bd75bfbcf">del</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a3e59265a3b6b69a8ae40311bd75bfbcf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests an existing <em>entity</em> to be removed.  <br /></td></tr>
 <tr class="separator:a3e59265a3b6b69a8ae40311bd75bfbcf"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -246,7 +262,7 @@ template&lt;typename AccessContext &gt; </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
 <a id="ad7082c1724ca36b180d0f659fc12fb17" name="ad7082c1724ca36b180d0f659fc12fb17"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad7082c1724ca36b180d0f659fc12fb17">&#9670;&#160;</a></span>add() <span class="overload">[1/5]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ad7082c1724ca36b180d0f659fc12fb17">&#9670;&#160;</a></span>add() <span class="overload">[1/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -276,7 +292,7 @@ template&lt;typename AccessContext &gt; </div>
 </div>
 </div>
 <a id="a03af1860a176d3fb9c7619c0d5d337c0" name="a03af1860a176d3fb9c7619c0d5d337c0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a03af1860a176d3fb9c7619c0d5d337c0">&#9670;&#160;</a></span>add() <span class="overload">[2/5]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a03af1860a176d3fb9c7619c0d5d337c0">&#9670;&#160;</a></span>add() <span class="overload">[2/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -321,7 +337,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a6dd8ec4aae2d21ce5354bd82cea0d99f" name="a6dd8ec4aae2d21ce5354bd82cea0d99f"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6dd8ec4aae2d21ce5354bd82cea0d99f">&#9670;&#160;</a></span>add() <span class="overload">[3/5]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a6dd8ec4aae2d21ce5354bd82cea0d99f">&#9670;&#160;</a></span>add() <span class="overload">[3/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -367,8 +383,134 @@ template&lt;typename AccessContext &gt; </div>
 
 </div>
 </div>
+<a id="a0f79ad6b9a5b7f89b9beee7ab10c8a33" name="a0f79ad6b9a5b7f89b9beee7ab10c8a33"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0f79ad6b9a5b7f89b9beee7ab10c8a33">&#9670;&#160;</a></span>add() <span class="overload">[4/7]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename AccessContext &gt; </div>
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::add </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;&#160;</td>
+          <td class="paramname"><em>pair</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">T &amp;&amp;&#160;</td>
+          <td class="paramname"><em>value</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Requests a relationship pair to be added to <em>entity</em>. Also sets its payload. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Payload type stored on <em>pair</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Destination entity or exact pair record. </td></tr>
+    <tr><td class="paramname">pair</td><td>Relationship pair to attach. </td></tr>
+    <tr><td class="paramname">value</td><td>Payload value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> <em>T</em> should be registered in the world before calling this function while the world is locked for iteration. Registering a new component type is a structural change. If used in concurrent environment, race conditions may occur otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a7ca1cb87cfb074f706870f5fbfe45970" name="a7ca1cb87cfb074f706870f5fbfe45970"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7ca1cb87cfb074f706870f5fbfe45970">&#9670;&#160;</a></span>add() <span class="overload">[5/7]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename AccessContext &gt; </div>
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::add </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>object</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">T &amp;&amp;&#160;</td>
+          <td class="paramname"><em>value</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Requests a component identified by <em>object</em> to be added to <em>entity</em>. Also sets its value. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Payload type stored on <em>object</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Destination entity or exact pair record. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity or exact relationship pair. </td></tr>
+    <tr><td class="paramname">value</td><td>Payload value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> <em>T</em> should be registered in the world before calling this function while the world is locked for iteration. Registering a new component type is a structural change. If used in concurrent environment, race conditions may occur otherwise. </dd></dl>
+
+</div>
+</div>
 <a id="a01a59c16ea0a57aef920b2549bea46a4" name="a01a59c16ea0a57aef920b2549bea46a4"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a01a59c16ea0a57aef920b2549bea46a4">&#9670;&#160;</a></span>add() <span class="overload">[4/5]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a01a59c16ea0a57aef920b2549bea46a4">&#9670;&#160;</a></span>add() <span class="overload">[6/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -415,7 +557,7 @@ template&lt;typename AccessContext &gt; </div>
 </div>
 </div>
 <a id="aaad838857370b6ff135d71c38ff3e5a3" name="aaad838857370b6ff135d71c38ff3e5a3"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aaad838857370b6ff135d71c38ff3e5a3">&#9670;&#160;</a></span>add() <span class="overload">[5/5]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#aaad838857370b6ff135d71c38ff3e5a3">&#9670;&#160;</a></span>add() <span class="overload">[7/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -708,10 +850,10 @@ template&lt;typename AccessContext &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Requests a prefab to be instantiated as a normal entity. Commit replays through <a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689" title="Instantiates a prefab as a normal entity. The instance copies the prefab&#39;s direct data,...">World::instantiate</a>, including Prefab removal, the direct Pair(Is, prefab) edge, skipped names, OnInstantiate policies, and recursive prefab children. Non-prefab sources fall back to copy. </p>
+<p>Requests a prefab to be instantiated as a normal entity. Commit replays through <a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689" title="Instantiates a prefab as a normal entity. The instance copies the prefab&#39;s direct data,...">World::instantiate</a>, including Prefab removal, the direct Pair(Is, prefab) edge, skipped names, OnInstantiate policies, and recursive prefab children. Non-prefab sources fall back to copy. Exact pair records are a valid source. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">prefabEntity</td><td>Prefab entity to instantiate. </td></tr>
+    <tr><td class="paramname">prefabEntity</td><td>Prefab entity or exact pair record to instantiate. </td></tr>
   </table>
   </dd>
 </dl>
@@ -756,10 +898,10 @@ template&lt;typename AccessContext &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Requests a prefab to be instantiated as a normal entity parented under <em>parentInstance</em>. Commit replays through <a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689" title="Instantiates a prefab as a normal entity. The instance copies the prefab&#39;s direct data,...">World::instantiate</a>. Pair(Parent, parentInstance) is attached to the spawned root. Non-prefab sources fall back to a parented copy. </p>
+<p>Requests a prefab to be instantiated as a normal entity parented under <em>parentInstance</em>. Commit replays through <a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689" title="Instantiates a prefab as a normal entity. The instance copies the prefab&#39;s direct data,...">World::instantiate</a>. Pair(Parent, parentInstance) is attached to the spawned root. Non-prefab sources fall back to a parented copy. Exact pair records are a valid source. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">prefabEntity</td><td>Prefab entity to instantiate. </td></tr>
+    <tr><td class="paramname">prefabEntity</td><td>Prefab entity or exact pair record to instantiate. </td></tr>
     <tr><td class="paramname">parentInstance</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> receiving the spawned root through Parent, or EntityBad for an unparented root. </td></tr>
   </table>
   </dd>
@@ -1001,8 +1143,134 @@ template&lt;typename Func &gt; </div>
 
 </div>
 </div>
+<a id="aa6a306459396ecc9bd190293ad3e57b1" name="aa6a306459396ecc9bd190293ad3e57b1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa6a306459396ecc9bd190293ad3e57b1">&#9670;&#160;</a></span>set() <span class="overload">[1/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename AccessContext &gt; </div>
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::set </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;&#160;</td>
+          <td class="paramname"><em>pair</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">T &amp;&amp;&#160;</td>
+          <td class="paramname"><em>value</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Requests relationship payload identified by <em>pair</em> to be set on <em>entity</em>. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Payload type stored on <em>pair</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Destination entity or exact pair record. </td></tr>
+    <tr><td class="paramname">pair</td><td>Relationship pair whose payload is written. </td></tr>
+    <tr><td class="paramname">value</td><td>Payload value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> <em>T</em> must be registered in the world before calling this function. Calling set without a previous add of the component doesn't make sense. </dd></dl>
+
+</div>
+</div>
+<a id="a87b4db76bf3917e1d6d4123961d9b681" name="a87b4db76bf3917e1d6d4123961d9b681"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a87b4db76bf3917e1d6d4123961d9b681">&#9670;&#160;</a></span>set() <span class="overload">[2/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename AccessContext &gt; </div>
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::set </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>object</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">T &amp;&amp;&#160;</td>
+          <td class="paramname"><em>value</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Requests component data identified by <em>object</em> to be set on <em>entity</em>. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Payload type stored on <em>object</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Destination entity or exact pair record. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity or exact relationship pair. </td></tr>
+    <tr><td class="paramname">value</td><td>Payload value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> <em>T</em> must be registered in the world before calling this function. Calling set without a previous add of the component doesn't make sense. </dd></dl>
+
+</div>
+</div>
 <a id="ad3553ec0e683738e595fa0894bd3be50" name="ad3553ec0e683738e595fa0894bd3be50"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad3553ec0e683738e595fa0894bd3be50">&#9670;&#160;</a></span>set()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ad3553ec0e683738e595fa0894bd3be50">&#9670;&#160;</a></span>set() <span class="overload">[3/3]</span></h2>
 
 <div class="memitem">
 <div class="memproto">

@@ -1,5 +1,10 @@
 var NAVTREEINDEX8 =
 {
+"index.html#dependencies":[3,1],
+"index.html#documentation":[5,4],
+"index.html#dynamic-vectors":[2,9,6],
+"index.html#ecs":[1,0],
+"index.html#entity-cleanup":[2,1,12],
 "index.html#entity-dependencies":[2,3,3],
 "index.html#entity-inheritance":[2,3,6],
 "index.html#entity-lifespan":[2,1,14],
@@ -244,10 +249,5 @@ var NAVTREEINDEX8 =
 "structgaia_1_1cnt_1_1fwd__llist.html#a84fd6b82018a7bddf002fcb77d47956e":[9,0,0,0,12,8],
 "structgaia_1_1cnt_1_1fwd__llist.html#a88ab7e7585c44d86e3c11789a74fa7ef":[9,0,0,0,12,1],
 "structgaia_1_1cnt_1_1fwd__llist.html#a969c7e4c514639a2ab7b755505864e60":[9,0,0,0,12,3],
-"structgaia_1_1cnt_1_1fwd__llist.html#abdcde53987648e3889f2176908c373e9":[9,0,0,0,12,11],
-"structgaia_1_1cnt_1_1fwd__llist.html#ac3a5aac817294950eaba7514f42845ab":[9,0,0,0,12,0],
-"structgaia_1_1cnt_1_1fwd__llist.html#ae3fe164435e34b405e25c78d61a786c1":[9,0,0,0,12,12],
-"structgaia_1_1cnt_1_1fwd__llist.html#aebaf28e6f321f22ea4b81c95c49cb258":[9,0,0,0,12,6],
-"structgaia_1_1cnt_1_1fwd__llist.html#aee033689256f6ddf2dcfb831d35760d5":[9,0,0,0,12,7],
-"structgaia_1_1cnt_1_1fwd__llist.html#aff0555f68a1d076a1f15abada91a850e":[9,0,0,0,12,4]
+"structgaia_1_1cnt_1_1fwd__llist.html#abdcde53987648e3889f2176908c373e9":[9,0,0,0,12,11]
 };

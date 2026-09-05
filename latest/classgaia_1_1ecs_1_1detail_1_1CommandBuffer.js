@@ -4,6 +4,8 @@ var classgaia_1_1ecs_1_1detail_1_1CommandBuffer =
     [ "add", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ad7082c1724ca36b180d0f659fc12fb17", null ],
     [ "add", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a03af1860a176d3fb9c7619c0d5d337c0", null ],
     [ "add", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a6dd8ec4aae2d21ce5354bd82cea0d99f", null ],
+    [ "add", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a0f79ad6b9a5b7f89b9beee7ab10c8a33", null ],
+    [ "add", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7ca1cb87cfb074f706870f5fbfe45970", null ],
     [ "add", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a01a59c16ea0a57aef920b2549bea46a4", null ],
     [ "add", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#aaad838857370b6ff135d71c38ff3e5a3", null ],
     [ "commit", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7031a0a1fc0707d1e0c9249c0af3dd24", null ],
@@ -18,5 +20,7 @@ var classgaia_1_1ecs_1_1detail_1_1CommandBuffer =
     [ "instantiate_n", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a0da44c0483d55125d72982734d0875df", null ],
     [ "instantiate_n", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a32a657332bb5f4d1bc7b2cb1dbadeac1", null ],
     [ "instantiate_n", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a8520514262f5dc67e7c89fcbfee8fbdb", null ],
+    [ "set", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#aa6a306459396ecc9bd190293ad3e57b1", null ],
+    [ "set", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a87b4db76bf3917e1d6d4123961d9b681", null ],
     [ "set", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ad3553ec0e683738e595fa0894bd3be50", null ]
 ];

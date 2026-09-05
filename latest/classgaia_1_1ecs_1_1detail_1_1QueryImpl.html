@@ -427,7 +427,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>destroy</b> ()</td></
 <tr class="separator:a2d88fc8023ce3388ede3788316d33306"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9172840a29b328cd834eea73309527f4" id="r_a9172840a29b328cd834eea73309527f4"><td class="memTemplParams" colspan="2">template&lt;typename Func , std::enable_if_t&lt; detail::is_query_iter_callback_v&lt; Func &gt;, int &gt;  = 0&gt; </td></tr>
 <tr class="memitem:a9172840a29b328cd834eea73309527f4"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9172840a29b328cd834eea73309527f4">each</a> (Func func)</td></tr>
-<tr class="memdesc:a9172840a29b328cd834eea73309527f4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterates query matches using the default execution mode.  <br /></td></tr>
+<tr class="memdesc:a9172840a29b328cd834eea73309527f4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterates query matches using the default execution mode. Each callback receives a contiguous chunk window. DontFragment / sparse entity-filter terms restrict that window to matching rows, the same set <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#abb331e63037dcb0e875d9de04613856e" title="Calculates the number of entities matching the query.">count()</a> reports. A chunk with mixed membership can therefore invoke <em>func</em> more than once.  <br /></td></tr>
 <tr class="separator:a9172840a29b328cd834eea73309527f4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9172840a29b328cd834eea73309527f4" id="r_a9172840a29b328cd834eea73309527f4"><td class="memTemplParams" colspan="2">template&lt;typename Func , std::enable_if_t&lt;!detail::is_query_iter_callback_v&lt; Func &gt;, int &gt;  = 0&gt; </td></tr>
 <tr class="memitem:a9172840a29b328cd834eea73309527f4"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9172840a29b328cd834eea73309527f4">each</a> (Func func)</td></tr>
@@ -1719,7 +1719,7 @@ template&lt;typename T &gt; </div>
 
 <p>Calculates the number of entities matching the query. </p>
 <dl class="section warning"><dt>Warning</dt><dd>Only use if you only care about the number of entities matching the query. The result is not cached and repeated calls to the function might be slow.If you already called <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a0850fa2a03c76080120e5bc655b377ec" title="Appends all components or entities matching the query to the output array.">arr()</a>, use the size provided by the array.Use <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ac4dc5228c7c25c83a4ff180f50de489d" title="Returns true or false depending on whether there are any entities matching the query.">empty()</a> instead of calling <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#abb331e63037dcb0e875d9de04613856e" title="Calculates the number of entities matching the query.">count()</a> == 0. </dd></dl>
-<dl class="section note"><dt>Note</dt><dd>For <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aca61ae31f97ef9503ff11c032601e82e" title="Marks a typed term for changed() filtering.">changed()</a> queries this is a non-consuming probe. It does not advance the query's changed-reporting state. Iteration APIs such as <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9172840a29b328cd834eea73309527f4" title="Iterates query matches using the default execution mode.">each()</a>/arr() do consume it. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>For <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aca61ae31f97ef9503ff11c032601e82e" title="Marks a typed term for changed() filtering.">changed()</a> queries this is a non-consuming probe. It does not advance the query's changed-reporting state. Iteration APIs such as <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9172840a29b328cd834eea73309527f4" title="Iterates query matches using the default execution mode. Each callback receives a contiguous chunk wi...">each()</a>/arr() do consume it. </dd></dl>
 <dl class="section return"><dt>Returns</dt><dd>The number of matching entities </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
@@ -1977,7 +1977,7 @@ template&lt;typename Func , std::enable_if_t&lt; detail::is_query_iter_callback_
 </table>
 </div><div class="memdoc">
 
-<p>Iterates query matches using the default execution mode. </p>
+<p>Iterates query matches using the default execution mode. Each callback receives a contiguous chunk window. DontFragment / sparse entity-filter terms restrict that window to matching rows, the same set <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#abb331e63037dcb0e875d9de04613856e" title="Calculates the number of entities matching the query.">count()</a> reports. A chunk with mixed membership can therefore invoke <em>func</em> more than once. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">Func</td><td>Iterator callback type invocable with <code><a class="el" href="classgaia_1_1ecs_1_1Iter.html" title="Iterator for iterating entity subsets selected by Constraints. Disabled entities always precede enabl...">Iter</a>&amp;</code>. </td></tr>
@@ -1990,7 +1990,9 @@ template&lt;typename Func , std::enable_if_t&lt; detail::is_query_iter_callback_
   </table>
   </dd>
 </dl>
-<dl class="section see"><dt>See also</dt><dd>Iter::ctx() const </dd></dl>
+<dl class="section see"><dt>See also</dt><dd>Iter::ctx() const </dd>
+<dd>
+<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#abb331e63037dcb0e875d9de04613856e" title="Calculates the number of entities matching the query.">count(Constraints)</a> </dd></dl>
 
 </div>
 </div>
@@ -2796,7 +2798,7 @@ template&lt;typename Func , std::enable_if_t&lt;!detail::is_query_walk_core_call
 
 <p>Returns true or false depending on whether there are any entities matching the query. </p>
 <dl class="section warning"><dt>Warning</dt><dd>Only use if you only care if there are any entities matching the query. The result is not cached and repeated calls to the function might be slow. If you already called <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a0850fa2a03c76080120e5bc655b377ec" title="Appends all components or entities matching the query to the output array.">arr()</a>, checking if it is empty is preferred. Use <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ac4dc5228c7c25c83a4ff180f50de489d" title="Returns true or false depending on whether there are any entities matching the query.">empty()</a> instead of calling <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#abb331e63037dcb0e875d9de04613856e" title="Calculates the number of entities matching the query.">count()</a>==0. </dd></dl>
-<dl class="section note"><dt>Note</dt><dd>For <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aca61ae31f97ef9503ff11c032601e82e" title="Marks a typed term for changed() filtering.">changed()</a> queries this is a non-consuming probe. It does not advance the query's changed-reporting state. Iteration APIs such as <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9172840a29b328cd834eea73309527f4" title="Iterates query matches using the default execution mode.">each()</a>/arr() do consume it. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>For <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aca61ae31f97ef9503ff11c032601e82e" title="Marks a typed term for changed() filtering.">changed()</a> queries this is a non-consuming probe. It does not advance the query's changed-reporting state. Iteration APIs such as <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9172840a29b328cd834eea73309527f4" title="Iterates query matches using the default execution mode. Each callback receives a contiguous chunk wi...">each()</a>/arr() do consume it. </dd></dl>
 <dl class="section return"><dt>Returns</dt><dd>True if there are any entities matching the query. False otherwise. </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
@@ -3598,7 +3600,7 @@ template&lt;typename Func &gt; </div>
 <p>Adds a query execution job without submitting it. </p>
 <p>The returned <a class="el" href="classgaia_1_1ecs_1_1SchedJob.html" title="Move-only wrapper for scheduler-owned ECS work.">SchedJob</a> is backed by the world's ECS scheduler descriptor rather than a <a class="el" href="structgaia_1_1mt_1_1JobHandle.html" title="Packed identifier for a job-pool slot, generation, and priority.">gaia::mt::JobHandle</a>, so external schedulers can provide their own token, submission, dependency, wait, and cleanup behavior. The job owns only the callback copy and scheduler token. The query and world must outlive the job. </p><dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">Func</td><td>Query callback type accepted by <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9172840a29b328cd834eea73309527f4" title="Iterates query matches using the default execution mode.">each()</a>. </td></tr>
+    <tr><td class="paramname">Func</td><td>Query callback type accepted by <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9172840a29b328cd834eea73309527f4" title="Iterates query matches using the default execution mode. Each callback receives a contiguous chunk wi...">each()</a>. </td></tr>
   </table>
   </dd>
 </dl>
