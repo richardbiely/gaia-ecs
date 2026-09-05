@@ -4573,6 +4573,19 @@ namespace gaia {
 #endif
 			}
 
+			//! Attaches a relationship pair to \a entity and initializes its payload.
+			//! \tparam T Payload type stored on \a pair.
+			//! \param entity Source entity or exact pair record.
+			//! \param pair Relationship pair to attach.
+			//! \param value Initial payload value.
+			//! \warning It is expected the pair is not present on \a entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \a entity and the entities forming \a pair are valid. Undefined behavior otherwise.
+			//! \warning Pair endpoints must be ordinary entities.
+			template <typename T>
+			void add(Entity entity, Pair pair, T&& value) {
+				add(entity, (Entity)pair, GAIA_FWD(value));
+			}
+
 			//! Attaches a new component \a T to \a entity. Also sets its value.
 			//! \tparam T Component
 			//! \param entity Entity

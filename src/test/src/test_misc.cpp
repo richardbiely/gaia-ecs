@@ -4507,6 +4507,17 @@ TEST_CASE("Exact pair records - copy produces ordinary entities") {
 	});
 	CHECK(copied == 3);
 
+	uint32_t extCopied = 0;
+	wld.copy_ext_n(pair, 2, [&](ecs::Entity entity) {
+		CHECK_FALSE(entity.pair());
+		CHECK(wld.has<Position>(entity));
+		CHECK(wld.get<Position>(entity).y == doctest::Approx(2.0f));
+		CHECK(wld.has<PositionSparse>(entity));
+		CHECK(wld.is_child(entity, parent));
+		++extCopied;
+	});
+	CHECK(extCopied == 2);
+
 #if GAIA_OBSERVERS_ENABLED
 	uint32_t addHits = 0;
 	wld.observer()
@@ -4582,6 +4593,16 @@ TEST_CASE("Exact pair records - instantiate falls back to copy") {
 	CHECK(wld.is_child(parented, parent));
 	CHECK(wld.has_direct(parented, ecs::Pair(ecs::Parent, scene)));
 
+	uint32_t parentedN = 0;
+	wld.instantiate_n(pair, scene, 2, [&](ecs::Entity entity) {
+		CHECK_FALSE(entity.pair());
+		CHECK(wld.get<Position>(entity).z == doctest::Approx(3.0f));
+		CHECK(wld.is_child(entity, parent));
+		CHECK(wld.has_direct(entity, ecs::Pair(ecs::Parent, scene)));
+		++parentedN;
+	});
+	CHECK(parentedN == 2);
+
 	uint32_t copied = 0;
 	wld.instantiate_n(pair, 2, [&](ecs::Entity entity) {
 		CHECK_FALSE(entity.pair());
@@ -4591,11 +4612,17 @@ TEST_CASE("Exact pair records - instantiate falls back to copy") {
 	});
 	CHECK(copied == 2);
 
-	const auto positionCount = wld.query().all<Position>().count();
+	const auto spawnedId = wld.size();
 	ecs::CommandBufferST cb(wld);
 	(void)cb.instantiate(pair);
 	cb.commit();
-	CHECK(wld.query().all<Position>().count() == positionCount + 1);
+	CHECK(wld.size() == spawnedId + 1);
+	const auto spawned = wld.get(spawnedId);
+	CHECK_FALSE(spawned.pair());
+	CHECK(wld.get<Position>(spawned).x == doctest::Approx(1.0f));
+	CHECK(wld.get<PositionSparse>(spawned).x == doctest::Approx(4.0f));
+	CHECK(wld.is_child(spawned, parent));
+	CHECK_FALSE(wld.has_direct(spawned, ecs::Prefab));
 }
 
 TEST_CASE("Exact pair records - instantiate prefab drops Prefab without Is") {

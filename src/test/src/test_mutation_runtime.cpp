@@ -10,6 +10,13 @@ namespace {
 		uint32_t value = 0;
 	};
 
+	struct CmdBufRelPayload {
+		float x;
+		float y;
+	};
+	struct CmdBufRelTarget {};
+	using CmdBufRelPair = ecs::pair<CmdBufRelPayload, CmdBufRelTarget>;
+
 	struct SmallFuncLargeCallable {
 		uint32_t* pValue = nullptr;
 		uint8_t payload[128]{};
@@ -2042,6 +2049,48 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.has(e, pair));
 		cb.commit();
 		CHECK_FALSE(wld.has(e, pair));
+	}
+
+	SUBCASE("Delayed relationship payload add and set") {
+		TestWorld twld;
+		(void)wld.add<CmdBufRelPair::rel>();
+		(void)wld.add<CmdBufRelPair::tgt>();
+		const auto relation = wld.add<CmdBufRelPair::rel>().entity;
+		const auto target = wld.add<CmdBufRelPair::tgt>().entity;
+		const auto pair = ecs::Pair(relation, target);
+		const auto source = wld.add();
+		const auto other = wld.add();
+
+		wld.add(source, pair, CmdBufRelPayload{1.0f, 2.0f});
+		CHECK(wld.get<CmdBufRelPair>(source).x == doctest::Approx(1.0f));
+		CHECK(wld.get<CmdBufRelPair>(source).y == doctest::Approx(2.0f));
+		CHECK_FALSE(wld.has<CmdBufRelPayload>(relation));
+
+		ecs::CommandBufferST cb(wld);
+		cb.add(other, pair, CmdBufRelPayload{3.0f, 4.0f});
+		CHECK_FALSE(wld.has(other, pair));
+		cb.commit();
+		CHECK(wld.get<CmdBufRelPair>(other).x == doctest::Approx(3.0f));
+		CHECK(wld.get<CmdBufRelPair>(other).y == doctest::Approx(4.0f));
+		CHECK_FALSE(wld.has<CmdBufRelPayload>(relation));
+
+		const ecs::Entity pairEntity = pair;
+		const auto packed = wld.add();
+		cb.add(packed, pairEntity, CmdBufRelPayload{5.0f, 6.0f});
+		cb.commit();
+		CHECK(wld.get<CmdBufRelPair>(packed).x == doctest::Approx(5.0f));
+
+		cb.set(other, pair, CmdBufRelPayload{7.0f, 8.0f});
+		cb.commit();
+		CHECK(wld.get<CmdBufRelPair>(other).x == doctest::Approx(7.0f));
+		CHECK(wld.get<CmdBufRelPair>(other).y == doctest::Approx(8.0f));
+
+		const auto reduced = wld.add();
+		cb.add(reduced, pair, CmdBufRelPayload{9.0f, 10.0f});
+		cb.set(reduced, pair, CmdBufRelPayload{11.0f, 12.0f});
+		cb.commit();
+		CHECK(wld.get<CmdBufRelPair>(reduced).x == doctest::Approx(11.0f));
+		CHECK(wld.get<CmdBufRelPair>(reduced).y == doctest::Approx(12.0f));
 	}
 
 	SUBCASE("Delayed pair addition with temporary relation and target") {

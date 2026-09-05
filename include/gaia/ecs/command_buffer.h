@@ -255,6 +255,55 @@ namespace gaia {
 					push_op({OpType::ADD_COMPONENT, 0, entity, pair.first(), pair.second()});
 				}
 
+				//! Requests a component identified by \a object to be added to \a entity. Also sets its value.
+				//! \tparam T Payload type stored on \a object.
+				//! \param entity Destination entity or exact pair record.
+				//! \param object Component entity or exact relationship pair.
+				//! \param value Payload value.
+				//! \warning Component \a T should be registered in the world before calling this function while
+				//!          the world is locked for iteration. Registering a new component type is a structural change.
+				//!          If used in concurrent environment, race conditions may occur otherwise.
+				template <typename T>
+				void add(Entity entity, Entity object, T&& value) {
+					static_assert(core::is_raw_v<T>);
+					verify_comp<T>();
+					core::lock_scope lock(m_acc);
+
+					Entity other = object;
+					Entity pairTarget = EntityBad;
+					if (object.pair()) {
+						other = m_world.get(object.id());
+						pairTarget = m_world.get(object.gen());
+					}
+
+					const auto& item = comp_cache_add<T>(m_world);
+					const auto pos = m_data.tell();
+					auto serializer = ser::make_serializer(m_data);
+					item.save(serializer, &value, 0, 1, 1);
+					push_op({OpType::ADD_COMPONENT_DATA, pos, entity, other, pairTarget});
+				}
+
+				//! Requests a relationship pair to be added to \a entity. Also sets its payload.
+				//! \tparam T Payload type stored on \a pair.
+				//! \param entity Destination entity or exact pair record.
+				//! \param pair Relationship pair to attach.
+				//! \param value Payload value.
+				//! \warning Component \a T should be registered in the world before calling this function while
+				//!          the world is locked for iteration. Registering a new component type is a structural change.
+				//!          If used in concurrent environment, race conditions may occur otherwise.
+				template <typename T>
+				void add(Entity entity, const Pair& pair, T&& value) {
+					static_assert(core::is_raw_v<T>);
+					verify_comp<T>();
+					core::lock_scope lock(m_acc);
+
+					const auto& item = comp_cache_add<T>(m_world);
+					const auto pos = m_data.tell();
+					auto serializer = ser::make_serializer(m_data);
+					item.save(serializer, &value, 0, 1, 1);
+					push_op({OpType::ADD_COMPONENT_DATA, pos, entity, pair.first(), pair.second()});
+				}
+
 				//! Requests a component \a T to be added to entity. Also sets its value.
 				//! \tparam T Component type.
 				//! \param entity Destination entity.
@@ -294,6 +343,53 @@ namespace gaia {
 					auto serializer = ser::make_serializer(m_data);
 					item.save(serializer, &value, 0, 1, 1);
 					push_op({OpType::SET_COMPONENT, pos, entity, item.entity});
+				}
+
+				//! Requests component data identified by \a object to be set on \a entity.
+				//! \tparam T Payload type stored on \a object.
+				//! \param entity Destination entity or exact pair record.
+				//! \param object Component entity or exact relationship pair.
+				//! \param value Payload value.
+				//! \warning Component \a T must be registered in the world before calling this function.
+				//!          Calling set without a previous add of the component doesn't make sense.
+				template <typename T>
+				void set(Entity entity, Entity object, T&& value) {
+					static_assert(core::is_raw_v<T>);
+					verify_comp<T>();
+					core::lock_scope lock(m_acc);
+
+					Entity other = object;
+					Entity pairTarget = EntityBad;
+					if (object.pair()) {
+						other = m_world.get(object.id());
+						pairTarget = m_world.get(object.gen());
+					}
+
+					const auto& item = comp_cache(m_world).template get<T>();
+					const auto pos = m_data.tell();
+					auto serializer = ser::make_serializer(m_data);
+					item.save(serializer, &value, 0, 1, 1);
+					push_op({OpType::SET_COMPONENT, pos, entity, other, pairTarget});
+				}
+
+				//! Requests relationship payload identified by \a pair to be set on \a entity.
+				//! \tparam T Payload type stored on \a pair.
+				//! \param entity Destination entity or exact pair record.
+				//! \param pair Relationship pair whose payload is written.
+				//! \param value Payload value.
+				//! \warning Component \a T must be registered in the world before calling this function.
+				//!          Calling set without a previous add of the component doesn't make sense.
+				template <typename T>
+				void set(Entity entity, const Pair& pair, T&& value) {
+					static_assert(core::is_raw_v<T>);
+					verify_comp<T>();
+					core::lock_scope lock(m_acc);
+
+					const auto& item = comp_cache(m_world).template get<T>();
+					const auto pos = m_data.tell();
+					auto serializer = ser::make_serializer(m_data);
+					item.save(serializer, &value, 0, 1, 1);
+					push_op({OpType::SET_COMPONENT, pos, entity, pair.first(), pair.second()});
 				}
 
 				//! Requests an existing \a entity to be removed.

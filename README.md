@@ -3084,6 +3084,8 @@ world.add<YourComponent>();
 ```
 >Technically, template versions of functions `set` and `del` experience a similar issue. However, calling neither `set` nor `del` makes sense without a previous call to `add`. Such attempts are undefined behaviors (and reported by triggering an assertion).
 
+Relationship payloads use the same add/set data ops as components. `cb.add(entity, pair, value)` and `cb.set(entity, pair, value)` queue a write on the owner for that exact pair, matching `World::add(entity, pair, value)`. Structural `cb.add(entity, pair)` still attaches the pair without a payload. `cb.add<T>(pair, value)` writes component `T` on the pair record itself.
+
 ### Command Merging rules
 Before applying any operations to the world, the command buffer performs operation merging and cancellation to remove redundant or meaningless actions.
 
@@ -3789,7 +3791,7 @@ const bool parsed = worldOut.load_json(json, diagnostics);
 
 Semantic JSON loading is best-effort: components should already be registered, and unknown or unsupported content is skipped and reported through `JsonDiagnostics`.
 
-Binary snapshot loading stores `Component` ids using the component entity id path. This applies to `World::save` / `World::load` and to `load_json` when it consumes the embedded `"binary"` payload. For those binary snapshot paths, `World::load` remaps loaded ids when the target world has a different core-component layout, including component ids stored in `Component` values, and component registration order does not need to match exactly between the saving and loading worlds.
+Binary snapshot loading stores `Component` ids using the component entity id path. This applies to `World::save` / `World::load` and to `load_json` when it consumes the embedded `"binary"` payload. Non-core components must already be registered in the target world with the same symbols, ids, and storage layout. A mismatch makes `load()` return false and leaves the target world unchanged. `World::load` remaps loaded ids when the target world has a different core-component layout, including component ids stored in `Component` values.
 
 ```cpp
 ecs::World world0;
@@ -4248,6 +4250,8 @@ if (w.add_raw(alice, affinityToBob, &initial, sizeof(initial))) {
 ```
 
 The relation defines the stored data. The target identifies which relationship the value belongs to.
+
+Compile-time relationship payloads use the same ownership: `World::add(entity, pair, value)` attaches the pair on the owner and writes its payload. Command buffers queue that owner-side write with `cb.add(entity, pair, value)` and `cb.set(entity, pair, value)`. `cb.add<T>(pair, value)` writes component `T` on the pair record itself, not on the owner.
 
 Queries can match one exact relationship or every target of the same relation:
 
