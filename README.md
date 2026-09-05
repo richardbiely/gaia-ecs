@@ -74,6 +74,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Uncached query](#uncached-query)
     * [Query remarks](#query-remarks)
     * [Iteration](#iteration)
+    * [Iterate ids](#iterate-ids)
     * [Constraints](#constraints)
     * [Change detection](#change-detection)
     * [Grouping](#grouping)
@@ -2082,6 +2083,58 @@ q.each([](ecs::Iter& it) {
 ```
 
 >**NOTE:**<br/>The functor accepting an iterator can be called any number of times per one `Query::each`. A matching chunk is the common case, but `DontFragment` / sparse entity-filter terms can split one chunk into several contiguous windows when membership is mixed. Therefore, it is best to make no assumptions about it and simply expect that the functor might be triggered multiple times per call to `each`.
+
+### Iterate ids
+To get a list of ids currently assigned to one entity, use `World::ids` or `World::ids_if`.
+It visits archetype ids, `DontFragment` components, and exclusive
+non-fragmenting pairs such as `Parent`.
+
+Pass `ecs::EntityIdOptions` to restrict storage or kind. Match helpers use
+the same names as query terms. `.in()` also visits ids supplied through
+`Is` inheritance.
+
+```cpp
+w.ids(e, [&](ecs::Entity id) {
+  if (id.pair()) {
+    const auto rel = w.get(id.id());
+    const auto tgt = w.get(id.gen());
+    // ...
+  } else {
+    const auto name = w.name(id);
+    // ...
+  }
+});
+
+// Archetype-resident ids only, same membership as Archetype::ids_view().
+w.ids(e, [&](ecs::Entity id) {
+  // ...
+}, ecs::EntityIdOptions{}.archetype());
+
+// Optional markers and exclusive non-fragmenting pairs only.
+w.ids(e, [&](ecs::Entity id) {
+  // ...
+}, ecs::EntityIdOptions{}.dont_fragment().relation());
+
+// Relationship pairs across every storage source.
+w.ids(e, [&](ecs::Entity id) {
+  // ...
+}, ecs::EntityIdOptions{}.pairs());
+
+// Direct ids plus ids supplied through Is inheritance.
+w.ids(e, [&](ecs::Entity id) {
+  // ...
+}, ecs::EntityIdOptions{}.components().pairs().in());
+```
+
+Archetype-resident ids are visited first, in the same order as
+`Archetype::ids_view()`. `DontFragment` components and exclusive non-fragmenting
+pairs follow, sorted by `Entity::value()`.
+Inherited ids from `.in()` are appended after that and also sorted by
+`Entity::value()`.
+
+`ids_if` uses the same membership and order, and stops when the
+callback returns false. Membership is assembled by scanning matching non-fragmenting
+stores in addition to the archetype id list.
 
 ### Constraints
 By default, Gaia queries operate on enabled entities only. `Constraints` let you switch that row-selection behavior without changing archetypes:

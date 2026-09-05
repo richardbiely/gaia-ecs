@@ -792,6 +792,163 @@ namespace gaia {
 			return is_variable(pair.first()) || is_variable(pair.second());
 		}
 
+		//----------------------------------------------------------------------
+		// Entity id enumeration
+		//----------------------------------------------------------------------
+
+		//! Storage sources visited by `World::ids` / `World::ids_if`.
+		enum class EntityIdStorage : uint8_t {
+			//! Visit no storage source.
+			None = 0x00,
+			//! Archetype-resident ids, matching `Archetype::ids_view()`.
+			Archetype = 0x01,
+			//! DontFragment component membership stored outside the archetype.
+			DontFragment = 0x02,
+			//! Exclusive non-fragmenting pairs such as `Parent`.
+			Relation = 0x04,
+			//! Every storage source.
+			All = 0x07
+		};
+
+		//! Combines entity-id storage sources.
+		//! \param lhs First storage mask.
+		//! \param rhs Second storage mask.
+		//! \return Bitwise union of \a lhs and \a rhs.
+		GAIA_NODISCARD constexpr EntityIdStorage operator|(EntityIdStorage lhs, EntityIdStorage rhs) {
+			return (EntityIdStorage)((uint8_t)lhs | (uint8_t)rhs);
+		}
+
+		//! Tests whether a storage mask contains a requested source.
+		//! \param value Combined storage mask.
+		//! \param bit Storage source to test.
+		//! \return True when \a bit is set in \a value.
+		GAIA_NODISCARD constexpr bool entity_id_storage_has(EntityIdStorage value, EntityIdStorage bit) {
+			return (((uint8_t)value) & ((uint8_t)bit)) != 0;
+		}
+
+		//! Id kinds visited by `World::ids` / `World::ids_if`.
+		enum class EntityIdKind : uint8_t {
+			//! Visit no id kind.
+			None = 0x00,
+			//! Non-pair ids: components, tags, and ordinary entities used as ids.
+			Component = 0x01,
+			//! Relationship pair ids.
+			Pair = 0x02,
+			//! Components and pairs.
+			All = 0x03
+		};
+
+		//! Combines entity-id kinds.
+		//! \param lhs First kind mask.
+		//! \param rhs Second kind mask.
+		//! \return Bitwise union of \a lhs and \a rhs.
+		GAIA_NODISCARD constexpr EntityIdKind operator|(EntityIdKind lhs, EntityIdKind rhs) {
+			return (EntityIdKind)((uint8_t)lhs | (uint8_t)rhs);
+		}
+
+		//! Tests whether a kind mask contains a requested kind.
+		//! \param value Combined kind mask.
+		//! \param bit Kind to test.
+		//! \return True when \a bit is set in \a value.
+		GAIA_NODISCARD constexpr bool entity_id_kind_has(EntityIdKind value, EntityIdKind bit) {
+			return (((uint8_t)value) & ((uint8_t)bit)) != 0;
+		}
+
+		//! Match semantics for entity ids.
+		//! Used by query terms and by `World::ids` / `World::ids_if`.
+		enum class QueryMatchKind : uint8_t {
+			//! Applies Gaia-ECS semantic matching, including inherited Is targets.
+			Semantic,
+			//! Matches entities containing the term directly or through inheritance.
+			In,
+			//! Matches only directly stored terms.
+			Direct
+		};
+
+		//! Options for `World::ids` / `World::ids_if`.
+		//! Defaults visit the complete direct type: every storage source and both id kinds.
+		//! Chain helpers to narrow or combine: the first storage or kind helper restricts,
+		//! later ones accumulate.
+		//! Match helpers use the same names as `QueryTermOptions`: `direct()` and `in()`.
+		//! Unlike queries, the default is `QueryMatchKind::Direct` because this API lists
+		//! assigned ids rather than testing presence of a known term.
+		struct EntityIdOptions {
+			//! Selects archetype-resident ids.
+			//! \return This options object.
+			EntityIdOptions& archetype() {
+				storage = select_storage(storage, EntityIdStorage::Archetype);
+				return *this;
+			}
+
+			//! Selects DontFragment component membership.
+			//! \return This options object.
+			EntityIdOptions& dont_fragment() {
+				storage = select_storage(storage, EntityIdStorage::DontFragment);
+				return *this;
+			}
+
+			//! Selects exclusive non-fragmenting pairs.
+			//! \return This options object.
+			EntityIdOptions& relation() {
+				storage = select_storage(storage, EntityIdStorage::Relation);
+				return *this;
+			}
+
+			//! Selects non-pair ids.
+			//! \return This options object.
+			EntityIdOptions& components() {
+				kind = select_kind(kind, EntityIdKind::Component);
+				return *this;
+			}
+
+			//! Selects relationship pair ids.
+			//! \return This options object.
+			EntityIdOptions& pairs() {
+				kind = select_kind(kind, EntityIdKind::Pair);
+				return *this;
+			}
+
+			//! Restricts visitation to ids stored on the entity.
+			//! \return This options object.
+			EntityIdOptions& direct() {
+				matchKind = QueryMatchKind::Direct;
+				return *this;
+			}
+
+			//! Allows direct and inherited matches.
+			//! After the direct type, appends `OnInstantiate(Inherit)` ids from `Is` bases
+			//! that are not already stored on the entity. Does not enumerate inferred
+			//! semantic `Pair(Is, ...)` ids; use `World::has` / `World::is` for those.
+			//! \return This options object.
+			EntityIdOptions& in() {
+				matchKind = QueryMatchKind::In;
+				return *this;
+			}
+
+		private:
+			friend class World;
+
+			EntityIdStorage storage = EntityIdStorage::All;
+			EntityIdKind kind = EntityIdKind::All;
+			QueryMatchKind matchKind = QueryMatchKind::Direct;
+
+			//! Adds a storage source. The first selection after `All` replaces it.
+			//! \param current Current storage mask.
+			//! \param bit Storage source to select.
+			//! \return Updated storage mask.
+			GAIA_NODISCARD static constexpr EntityIdStorage select_storage(EntityIdStorage current, EntityIdStorage bit) {
+				return current == EntityIdStorage::All ? bit : (current | bit);
+			}
+
+			//! Adds an id kind. The first selection after `All` replaces it.
+			//! \param current Current kind mask.
+			//! \param bit Kind to select.
+			//! \return Updated kind mask.
+			GAIA_NODISCARD static constexpr EntityIdKind select_kind(EntityIdKind current, EntityIdKind bit) {
+				return current == EntityIdKind::All ? bit : (current | bit);
+			}
+		};
+
 	} // namespace ecs
 
 	namespace cnt {

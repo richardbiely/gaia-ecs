@@ -56,8 +56,7 @@ namespace gaia {
 		Entity target(const World& world, Entity entity, Entity relation);
 		//! Invokes \a func for each live target of \a entity through \a relation.
 		//! This is a small C-style adapter used by header-only query/observer internals.
-		void
-		world_for_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity));
+		void world_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity));
 		Entity world_pair_target_if_alive(const World& world, Entity pair);
 		bool world_entity_enabled(const World& world, Entity entity);
 		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);

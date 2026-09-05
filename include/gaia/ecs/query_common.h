@@ -38,11 +38,11 @@ namespace gaia {
 		void world_collect_in_term_entities(const World& world, Entity term, cnt::darray<Entity>& out);
 		void world_collect_direct_term_entities_direct(const World& world, Entity term, cnt::darray<Entity>& out);
 		GAIA_NODISCARD bool
-		world_for_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
+		world_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
 		GAIA_NODISCARD bool
-		world_for_each_in_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
+		world_each_in_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
 		GAIA_NODISCARD bool
-		world_for_each_direct_term_entity_direct(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
+		world_each_direct_term_entity_direct(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
 		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
 		GAIA_NODISCARD bool world_entity_prefab(const World& world, Entity entity);
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
@@ -101,15 +101,6 @@ namespace gaia {
 			Read,
 			//! Mutable component access.
 			Write
-		};
-		//! Term match semantics.
-		enum class QueryMatchKind : uint8_t {
-			//! Applies Gaia-ECS semantic matching, including inherited Is targets.
-			Semantic,
-			//! Matches entities containing the term directly or through inheritance.
-			In,
-			//! Matches only directly stored terms.
-			Direct
 		};
 		//! Flags derived from query input parsing.
 		enum class QueryInputFlags : uint8_t {
@@ -651,6 +642,7 @@ namespace gaia {
 			}
 
 			//! Restricts the term to direct storage matches.
+			//! Same helper name as `EntityIdOptions::direct()`.
 			//! \return This options object.
 			QueryTermOptions& direct() {
 				matchKind = QueryMatchKind::Direct;
@@ -658,6 +650,7 @@ namespace gaia {
 			}
 
 			//! Allows direct and inherited matches for the term.
+			//! Same helper name as `EntityIdOptions::in()`.
 			//! \return This options object.
 			QueryTermOptions& in() {
 				matchKind = QueryMatchKind::In;

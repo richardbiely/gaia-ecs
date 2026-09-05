@@ -809,7 +809,7 @@ namespace gaia {
 		}
 
 		template <typename Func>
-		void ObserverRegistry::SharedDispatch::for_each_inherited_term(World& world, Entity baseEntity, Func&& func) {
+		void ObserverRegistry::SharedDispatch::each_inherited_term(World& world, Entity baseEntity, Func&& func) {
 			// Only plain component terms can be inherited through OnInstantiate.
 			auto collectTerms = [&](Entity entity) {
 				const auto* pEc = world.try_live_record(entity);
@@ -866,7 +866,7 @@ namespace gaia {
 					continue;
 
 				bool found = false;
-				for_each_inherited_term(world, target, [&](Entity inheritedId) {
+				each_inherited_term(world, target, [&](Entity inheritedId) {
 					if (found)
 						return;
 					const auto it = map.find(EntityLookupKey(inheritedId));
@@ -884,7 +884,7 @@ namespace gaia {
 		void ObserverRegistry::SharedDispatch::collect_for_inherited_terms(
 				ObserverRegistry& registry, World& world, const TObserverMap& map, Entity baseEntity, uint64_t matchStamp,
 				TObserverList& out) {
-			for_each_inherited_term(world, baseEntity, [&](Entity inheritedId) {
+			each_inherited_term(world, baseEntity, [&](Entity inheritedId) {
 				collect_for_event_term(registry, world, map, inheritedId, matchStamp, out);
 			});
 		}

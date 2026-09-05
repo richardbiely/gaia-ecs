@@ -1276,8 +1276,7 @@ namespace gaia {
 					return false;
 
 				const auto flags = pEc->flags;
-				return (flags & EntityContainerFlags::IsDontFragment) != 0 &&
-							 (flags & EntityContainerFlags::IsExclusive) == 0;
+				return (flags & EntityContainerFlags::IsDontFragment) != 0 && (flags & EntityContainerFlags::IsExclusive) == 0;
 			}
 
 			//! Returns the sparse storage mode used by a component.
@@ -1294,7 +1293,7 @@ namespace gaia {
 						return SparseStorageMode::None;
 
 					return (pEc->flags & EntityContainerFlags::IsDontFragment) != 0 ? SparseStorageMode::NonFragmenting
-																																				 : SparseStorageMode::Fragmenting;
+																																					: SparseStorageMode::Fragmenting;
 				}
 
 				const auto* pItem = comp_cache().find_pair_payload(component);
@@ -1302,7 +1301,7 @@ namespace gaia {
 					return SparseStorageMode::None;
 
 				return is_dont_fragment(pair_rel(*this, component)) ? SparseStorageMode::NonFragmenting
-																													 : SparseStorageMode::Fragmenting;
+																														: SparseStorageMode::Fragmenting;
 			}
 
 			//! Checks whether an inter-world copy includes a sparse component payload.
@@ -7798,6 +7797,102 @@ namespace gaia {
 				return allowSemanticIs && inherited_id_owner(entity, object) != EntityBad;
 			}
 
+			//! Visits ids assigned to \a entity according to \a options.
+			//! Direct archetype-resident ids are visited first, in the same order as `Archetype::ids_view()`.
+			//! Matching DontFragment components and exclusive non-fragmenting pairs follow, sorted by `Entity::value()`.
+			//! When `QueryMatchKind::In` is set, inherited ids follow that list, also sorted by `Entity::value()`.
+			//! Pair sparse payloads are not listed separately from their pair id.
+			//! \tparam Func Callable `bool(Entity)`. Return false to stop.
+			//! \param entity Entity or exact pair record to inspect.
+			//! \param options Storage, kind, and match filters.
+			//! \param func Visitor invoked for each selected id.
+			//! \return False when \a func stopped iteration. True otherwise.
+			template <typename Func>
+			bool each_id_inter(Entity entity, const EntityIdOptions& options, Func&& func) const {
+				auto accepts_kind = [&](Entity id) {
+					return id.pair() ? entity_id_kind_has(options.kind, EntityIdKind::Pair)
+													 : entity_id_kind_has(options.kind, EntityIdKind::Component);
+				};
+
+				auto visit_direct = [&](Entity source, auto&& onId) {
+					const auto* pEc = try_live_record(source);
+					if (pEc == nullptr || pEc->pArchetype == nullptr)
+						return true;
+
+					if (entity_id_storage_has(options.storage, EntityIdStorage::Archetype)) {
+						for (const auto id: pEc->pArchetype->ids_view()) {
+							if (!accepts_kind(id))
+								continue;
+							if (!onId(id))
+								return false;
+						}
+					}
+
+					const bool wantDontFragment = entity_id_storage_has(options.storage, EntityIdStorage::DontFragment) &&
+																				entity_id_kind_has(options.kind, EntityIdKind::Component);
+					const bool wantRelation = entity_id_storage_has(options.storage, EntityIdStorage::Relation) &&
+																		entity_id_kind_has(options.kind, EntityIdKind::Pair);
+					if (!wantDontFragment && !wantRelation)
+						return true;
+
+					cnt::darray_ext<Entity, 16> extra;
+					if (wantDontFragment) {
+						for (const auto& [compKey, store]: m_sparseComponentsByComp) {
+							const auto component = compKey.entity();
+							if (component.pair() || !component_is_non_fragmenting(component))
+								continue;
+							if (store.func_has(store.pStore, source))
+								extra.push_back(component);
+						}
+					}
+					if (wantRelation) {
+						for (const auto& [relKey, store]: m_nonFragmentingRelationsByRel) {
+							const auto target = store.target(source);
+							if (target != EntityBad)
+								extra.push_back(Pair(relKey.entity(), target));
+						}
+					}
+					core::sort(extra.begin(), extra.end(), [](Entity left, Entity right) {
+						return left < right;
+					});
+					for (const auto id: extra) {
+						if (!onId(id))
+							return false;
+					}
+
+					return true;
+				};
+
+				if (!visit_direct(entity, [&](Entity id) {
+							return func(id);
+						}))
+					return false;
+
+				if (options.matchKind == QueryMatchKind::Direct)
+					return true;
+
+				cnt::darray_ext<Entity, 16> inheritedIds;
+				for (const auto base: as_targets_trav_cache(entity)) {
+					(void)visit_direct(base, [&](Entity id) {
+						if (!id_uses_inherit_policy(id) || has_direct(entity, id))
+							return true;
+						if (core::get_index(inheritedIds, id) != BadIndex)
+							return true;
+						inheritedIds.push_back(id);
+						return true;
+					});
+				}
+				core::sort(inheritedIds.begin(), inheritedIds.end(), [](Entity left, Entity right) {
+					return left < right;
+				});
+				for (const auto id: inheritedIds) {
+					if (!func(id))
+						return false;
+				}
+
+				return true;
+			}
+
 		public:
 			//! Returns the ordered component lookup path used for unqualified component lookup.
 			//! Each scope is searched like a temporary component scope: the scope first, then its parents.
@@ -7950,6 +8045,38 @@ namespace gaia {
 					return false;
 
 				return id_owner_inter(entity, compEntity) != EntityBad;
+			}
+
+			//! Invokes \a func for each id assigned to \a entity.
+			//! By default this is the complete direct type: archetype-resident ids, DontFragment
+			//! components, and exclusive non-fragmenting pairs such as `Parent`.
+			//! `Archetype::ids_view()` is only the archetype-resident subset of that list.
+			//! Pass `EntityIdOptions` to select storage or kind, or `.in()` for inherited ids.
+			//! Scans matching non-fragmenting stores in addition to the archetype id list.
+			//! Not a per-frame hot path.
+			//! \param entity Entity or exact pair record to inspect.
+			//! \param func Callable `void(Entity)` invoked for each selected id.
+			//! \param options Storage, kind, and match filters. Defaults visit the complete direct type.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			template <typename Func>
+			void ids(Entity entity, Func&& func, EntityIdOptions options = {}) const {
+				(void)each_id_inter(entity, options, [&](Entity id) {
+					func(id);
+					return true;
+				});
+			}
+
+			//! Invokes \a func for each id assigned to \a entity until \a func returns false.
+			//! Membership and visit order match `ids()`.
+			//! \param entity Entity or exact pair record to inspect.
+			//! \param func Callable `bool(Entity)`. Return false to stop.
+			//! \param options Storage, kind, and match filters. Defaults visit the complete direct type.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			template <typename Func>
+			void ids_if(Entity entity, Func&& func, EntityIdOptions options = {}) const {
+				(void)each_id_inter(entity, options, [&](Entity id) {
+					return func(id);
+				});
 			}
 
 			//----------------------------------------------------------------------
@@ -9004,7 +9131,7 @@ namespace gaia {
 			//! \param func Callback invoked for each matching entity.
 			//! \return False when the callback stopped traversal. True otherwise.
 			template <typename Func>
-			GAIA_NODISCARD bool for_each_inherited_term_entity(Entity term, Func&& func) const {
+			GAIA_NODISCARD bool each_inherited_term_entity(Entity term, Func&& func) const {
 				cnt::set<EntityLookupKey> seen;
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(term));
 				if (it == m_entityToArchetypeMap.end())
@@ -9065,7 +9192,7 @@ namespace gaia {
 
 				if (allowSemanticIs && !is_wildcard(term) && valid(term) && target(term, OnInstantiate) == Inherit) {
 					uint32_t cnt = 0;
-					(void)for_each_inherited_term_entity(term, [&](Entity) {
+					(void)each_inherited_term_entity(term, [&](Entity) {
 						++cnt;
 						return true;
 					});
@@ -9128,7 +9255,7 @@ namespace gaia {
 				}
 
 				if (allowSemanticIs && !is_wildcard(term) && valid(term) && target(term, OnInstantiate) == Inherit) {
-					(void)for_each_inherited_term_entity(term, [&](Entity entity) {
+					(void)each_inherited_term_entity(term, [&](Entity entity) {
 						out.push_back(entity);
 						return true;
 					});
@@ -9195,8 +9322,8 @@ namespace gaia {
 			//! \param func Callback invoked for each matching entity.
 			//! \param allowSemanticIs Include inheritance semantics when true.
 			//! \return False when the callback requests early termination, true otherwise.
-			GAIA_NODISCARD bool for_each_direct_term_entity_inter(
-					Entity term, void* ctx, bool (*func)(void*, Entity), bool allowSemanticIs) const {
+			GAIA_NODISCARD bool
+			each_direct_term_entity_inter(Entity term, void* ctx, bool (*func)(void*, Entity), bool allowSemanticIs) const {
 				if (term == EntityBad)
 					return true;
 
@@ -9217,7 +9344,7 @@ namespace gaia {
 				}
 
 				if (allowSemanticIs && !is_wildcard(term) && valid(term) && target(term, OnInstantiate) == Inherit) {
-					return for_each_inherited_term_entity(term, [&](Entity entity) {
+					return each_inherited_term_entity(term, [&](Entity entity) {
 						return func(ctx, entity);
 					});
 				}
@@ -9261,7 +9388,7 @@ namespace gaia {
 					const auto it = m_sparseComponentsByComp.find(EntityLookupKey(term));
 					if (it == m_sparseComponentsByComp.end())
 						return true;
-					return it->second.func_for_each_entity(it->second.pStore, ctx, func);
+					return it->second.func_each_entity(it->second.pStore, ctx, func);
 				}
 
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(term));
@@ -9319,8 +9446,8 @@ namespace gaia {
 			//! \param ctx User context passed to \a func
 			//! \param func bool(void*, Entity) callback executed for each matching entity.
 			//! \return False when \a func requested early stop. True otherwise.
-			GAIA_NODISCARD bool for_each_direct_term_entity(Entity term, void* ctx, bool (*func)(void*, Entity)) const {
-				return for_each_direct_term_entity_inter(term, ctx, func, true);
+			GAIA_NODISCARD bool each_direct_term_entity(Entity term, void* ctx, bool (*func)(void*, Entity)) const {
+				return each_direct_term_entity_inter(term, ctx, func, true);
 			}
 
 			//! Visits entities directly matching \a term without semantic `Is` expansion.
@@ -9328,9 +9455,8 @@ namespace gaia {
 			//! \param ctx User context passed to \a func
 			//! \param func bool(void*, Entity) callback executed for each matching entity.
 			//! \return False when \a func requested early stop. True otherwise.
-			GAIA_NODISCARD bool
-			for_each_direct_term_entity_direct(Entity term, void* ctx, bool (*func)(void*, Entity)) const {
-				return for_each_direct_term_entity_inter(term, ctx, func, false);
+			GAIA_NODISCARD bool each_direct_term_entity_direct(Entity term, void* ctx, bool (*func)(void*, Entity)) const {
+				return each_direct_term_entity_inter(term, ctx, func, false);
 			}
 
 			//! Traverses relationship sources in breadth-first order.
@@ -10480,8 +10606,7 @@ namespace gaia {
 							component.pair() ? comp_cache().find_pair_payload(component) : comp_cache().find(component);
 					// Empty DontFragment tags keep a table-sized descriptor and still serialize through
 					// the membership store. Non-empty payloads must be Sparse.
-					if (pItem == nullptr ||
-							(pItem->comp.size() != 0 && pItem->comp.storage_type() != DataStorageType::Sparse)) {
+					if (pItem == nullptr || (pItem->comp.size() != 0 && pItem->comp.storage_type() != DataStorageType::Sparse)) {
 						GAIA_LOG_E("Missing sparse component metadata for entity %u", component.id());
 						return false;
 					}
@@ -15792,8 +15917,8 @@ namespace gaia {
 			//! \param world World containing the phase and system entities.
 			//! \param phase Phase entity assigned with SystemBuilder::phase().
 			//! \param items Output array receiving scheduling keys for that phase only.
-			inline void collect_phase_system_schedule_items(
-					World& world, Entity phase, cnt::darray<SystemScheduleItem>& items) {
+			inline void
+			collect_phase_system_schedule_items(World& world, Entity phase, cnt::darray<SystemScheduleItem>& items) {
 				world.sources(ChildOf, phase, [&](Entity source) {
 					if (!world.has(source, System))
 						return;
@@ -15947,7 +16072,7 @@ namespace gaia {
 		//! \param ctx Opaque callback context.
 		//! \param func Callback invoked for each target.
 		inline void
-		world_for_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity)) {
+		world_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity)) {
 			world.targets(entity, relation, [ctx, func](Entity target) {
 				func(ctx, target);
 			});
@@ -16089,9 +16214,9 @@ namespace gaia {
 		//! \param world World to query.
 		//! \param term Term to inspect.
 		//! \return True if \a term uses inherit policy.
-			inline bool world_term_uses_inherit_policy(const World& world, Entity term) {
-				return !is_wildcard(term) && world.target(term, OnInstantiate) == Inherit;
-			}
+		inline bool world_term_uses_inherit_policy(const World& world, Entity term) {
+			return !is_wildcard(term) && world.target(term, OnInstantiate) == Inherit;
+		}
 
 		//! Checks whether \a entity directly owns \a term without inheritance.
 		//! \param world World to query.
@@ -16202,9 +16327,8 @@ namespace gaia {
 		//! \param ctx Opaque callback context.
 		//! \param func Callback invoked for each entity.
 		//! \return False if iteration was stopped by \a func.
-		inline bool
-		world_for_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
-			return world.for_each_direct_term_entity(term, ctx, func);
+		inline bool world_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
+			return world.each_direct_term_entity(term, ctx, func);
 		}
 
 		//! Iterates relations reachable by an inherited `in(...)` term.
@@ -16213,7 +16337,7 @@ namespace gaia {
 		//! \param ctx Opaque callback context.
 		//! \param func Callback invoked for each entity.
 		//! \return False if iteration was stopped by \a func.
-		inline bool world_for_each_in_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
+		inline bool world_each_in_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
 			if (!term.pair() || term.id() != Is.id() || is_wildcard(term.gen()))
 				return true;
 
@@ -16236,8 +16360,8 @@ namespace gaia {
 		//! \param func Callback invoked for each entity.
 		//! \return False if iteration was stopped by \a func.
 		inline bool
-		world_for_each_direct_term_entity_direct(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
-			return world.for_each_direct_term_entity_direct(term, ctx, func);
+		world_each_direct_term_entity_direct(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
+			return world.each_direct_term_entity_direct(term, ctx, func);
 		}
 
 		//! Returns whether \a entity is enabled.

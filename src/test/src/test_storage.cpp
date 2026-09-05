@@ -106,6 +106,36 @@ namespace {
 			CHECK(found);
 		}
 	}
+
+	void collect_ids(
+			const ecs::World& world, ecs::Entity entity, cnt::darray<ecs::Entity>& out, ecs::EntityIdOptions options = {}) {
+		out.clear();
+		world.ids(
+				entity,
+				[&](ecs::Entity id) {
+					out.push_back(id);
+				},
+				options);
+	}
+
+	GAIA_NODISCARD bool contains_id(const cnt::darray<ecs::Entity>& ids, ecs::Entity id) {
+		return core::get_index(ids, id) != gaia::BadIndex;
+	}
+
+	void expect_unique_ids(const cnt::darray<ecs::Entity>& ids) {
+		GAIA_FOR_((uint32_t)ids.size(), idx) {
+			GAIA_FOR2_(idx + 1, (uint32_t)ids.size(), other) {
+				CHECK(ids[idx] != ids[other]);
+			}
+		}
+	}
+
+	void expect_unique_direct_ids(const ecs::World& world, ecs::Entity entity, const cnt::darray<ecs::Entity>& ids) {
+		expect_unique_ids(ids);
+		GAIA_FOR_((uint32_t)ids.size(), idx) {
+			CHECK(world.has_direct(entity, ids[idx]));
+		}
+	}
 } // namespace
 
 TEST_CASE("Bare Requires prevents direct trait removal") {
@@ -2207,5 +2237,175 @@ TEST_CASE("World set writes back when the proxy finishes") {
 		CHECK(updated.x == doctest::Approx(14.0f));
 		CHECK(updated.y == doctest::Approx(15.0f));
 		CHECK(updated.z == doctest::Approx(16.0f));
+	}
+}
+
+TEST_CASE("World ids enumeration") {
+	SparseTestWorld twld;
+
+	const auto position = wld.add<Position>().entity;
+	const auto sparse = wld.add<PositionSparse>().entity;
+	const auto emptyTag = wld.add<DontFragmentEmptyTag>().entity;
+	const auto payload = wld.add<DontFragmentPayload>().entity;
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto fragmentingPair = ecs::Pair(relation, target);
+	const auto parent = wld.add();
+	const auto childParent = wld.add();
+
+	SUBCASE("empty entity has no direct ids") {
+		const auto e = wld.add();
+		cnt::darray<ecs::Entity> ids;
+		collect_ids(wld, e, ids);
+		CHECK(ids.empty());
+		expect_unique_direct_ids(wld, e, ids);
+	}
+
+	SUBCASE("complete direct type across storage kinds") {
+		const auto e = wld.add();
+		wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+		wld.add<PositionSparse>(e, {4.0f, 5.0f, 6.0f});
+		wld.add<DontFragmentEmptyTag>(e);
+		wld.add<DontFragmentPayload>(e, {7.0f});
+		wld.add(e, fragmentingPair);
+		wld.parent(e, parent);
+		wld.child(e, childParent);
+		wld.name(e, "ids_inspector");
+
+		cnt::darray<ecs::Entity> ids;
+		collect_ids(wld, e, ids);
+		expect_unique_direct_ids(wld, e, ids);
+
+		const auto archIds = wld.fetch(e).pArchetype->ids_view();
+		CHECK(ids.size() == archIds.size() + 3);
+		GAIA_FOR((uint32_t)archIds.size()) {
+			CHECK(ids[i] == archIds[i]);
+		}
+
+		CHECK(contains_id(ids, position));
+		CHECK(contains_id(ids, sparse));
+		CHECK(contains_id(ids, emptyTag));
+		CHECK(contains_id(ids, payload));
+		CHECK(contains_id(ids, (ecs::Entity)fragmentingPair));
+		CHECK(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::Parent, parent)));
+		CHECK(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::ChildOf, childParent)));
+		CHECK(contains_id(ids, ecs::GAIA_ID(EntityDesc)));
+
+		CHECK(wld.fetch(e).pArchetype->has(position));
+		CHECK(wld.fetch(e).pArchetype->has(sparse));
+		CHECK(wld.fetch(e).pArchetype->has((ecs::Entity)fragmentingPair));
+		CHECK(wld.fetch(e).pArchetype->has((ecs::Entity)ecs::Pair(ecs::ChildOf, childParent)));
+		CHECK_FALSE(wld.fetch(e).pArchetype->has(emptyTag));
+		CHECK_FALSE(wld.fetch(e).pArchetype->has(payload));
+		CHECK_FALSE(wld.fetch(e).pArchetype->has((ecs::Entity)ecs::Pair(ecs::Parent, parent)));
+
+		uint32_t visited = 0;
+		wld.ids_if(e, [&](ecs::Entity id) {
+			++visited;
+			(void)id;
+			return visited < 2;
+		});
+		CHECK(visited == 2);
+
+		wld.del<DontFragmentEmptyTag>(e);
+		wld.del(e, ecs::Pair(ecs::Parent, parent));
+		collect_ids(wld, e, ids);
+		expect_unique_direct_ids(wld, e, ids);
+		CHECK_FALSE(contains_id(ids, emptyTag));
+		CHECK_FALSE(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::Parent, parent)));
+		CHECK(contains_id(ids, payload));
+	}
+
+	SUBCASE("EntityIdOptions restrict storage and kind") {
+		const auto e = wld.add();
+		wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+		wld.add<PositionSparse>(e, {4.0f, 5.0f, 6.0f});
+		wld.add<DontFragmentEmptyTag>(e);
+		wld.add<DontFragmentPayload>(e, {7.0f});
+		wld.add(e, fragmentingPair);
+		wld.parent(e, parent);
+		wld.child(e, childParent);
+		wld.name(e, "ids_options");
+
+		const auto archIds = wld.fetch(e).pArchetype->ids_view();
+		cnt::darray<ecs::Entity> ids;
+
+		collect_ids(wld, e, ids, ecs::EntityIdOptions{}.archetype());
+		expect_unique_direct_ids(wld, e, ids);
+		CHECK(ids.size() == archIds.size());
+		GAIA_FOR((uint32_t)archIds.size()) {
+			CHECK(ids[i] == archIds[i]);
+		}
+		CHECK_FALSE(contains_id(ids, emptyTag));
+		CHECK_FALSE(contains_id(ids, payload));
+		CHECK_FALSE(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::Parent, parent)));
+
+		collect_ids(wld, e, ids, ecs::EntityIdOptions{}.dont_fragment());
+		expect_unique_direct_ids(wld, e, ids);
+		CHECK(ids.size() == 2);
+		CHECK(contains_id(ids, emptyTag));
+		CHECK(contains_id(ids, payload));
+
+		collect_ids(wld, e, ids, ecs::EntityIdOptions{}.relation());
+		expect_unique_direct_ids(wld, e, ids);
+		CHECK(ids.size() == 1);
+		CHECK(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::Parent, parent)));
+
+		collect_ids(wld, e, ids, ecs::EntityIdOptions{}.pairs());
+		expect_unique_direct_ids(wld, e, ids);
+		CHECK(contains_id(ids, (ecs::Entity)fragmentingPair));
+		CHECK(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::ChildOf, childParent)));
+		CHECK(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::Parent, parent)));
+		CHECK_FALSE(contains_id(ids, position));
+		CHECK_FALSE(contains_id(ids, emptyTag));
+
+		collect_ids(wld, e, ids, ecs::EntityIdOptions{}.components());
+		expect_unique_direct_ids(wld, e, ids);
+		CHECK(contains_id(ids, position));
+		CHECK(contains_id(ids, sparse));
+		CHECK(contains_id(ids, emptyTag));
+		CHECK(contains_id(ids, payload));
+		CHECK(contains_id(ids, ecs::GAIA_ID(EntityDesc)));
+		CHECK_FALSE(contains_id(ids, (ecs::Entity)fragmentingPair));
+		CHECK_FALSE(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::Parent, parent)));
+		CHECK_FALSE(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::ChildOf, childParent)));
+
+		collect_ids(wld, e, ids, ecs::EntityIdOptions{}.dont_fragment().relation());
+		expect_unique_direct_ids(wld, e, ids);
+		CHECK(ids.size() == 3);
+		CHECK(contains_id(ids, emptyTag));
+		CHECK(contains_id(ids, payload));
+		CHECK(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::Parent, parent)));
+
+		cnt::darray<ecs::Entity> defaultIds;
+		collect_ids(wld, e, defaultIds);
+		collect_ids(wld, e, ids, ecs::EntityIdOptions{}.components().pairs());
+		CHECK(ids.size() == defaultIds.size());
+		GAIA_FOR((uint32_t)ids.size()) {
+			CHECK(ids[i] == defaultIds[i]);
+		}
+	}
+
+	SUBCASE("in() includes inherited ids") {
+		wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+		const auto prefab = wld.prefab();
+		wld.add<Position>(prefab, {9.0f, 0.0f, 0.0f});
+		const auto instance = wld.instantiate(prefab);
+
+		CHECK(wld.has<Position>(instance));
+		CHECK_FALSE(wld.has_direct(instance, position));
+
+		cnt::darray<ecs::Entity> ids;
+		collect_ids(wld, instance, ids);
+		expect_unique_direct_ids(wld, instance, ids);
+		CHECK_FALSE(contains_id(ids, position));
+		CHECK(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::Is, prefab)));
+
+		collect_ids(wld, instance, ids, ecs::EntityIdOptions{}.components().pairs().in());
+		expect_unique_ids(ids);
+		CHECK(contains_id(ids, position));
+		CHECK(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::Is, prefab)));
+		CHECK(wld.has(instance, position));
+		CHECK_FALSE(wld.has_direct(instance, position));
 	}
 }

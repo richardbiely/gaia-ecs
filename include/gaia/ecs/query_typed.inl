@@ -1070,12 +1070,12 @@ namespace gaia {
 				} else {
 					const auto seedPlan = direct_entity_seed_plan(world, queryInfo);
 					if (seedPlan.preferOrSeed) {
-						for_each_direct_or_union(world, queryInfo, Constraints::EnabledOnly, [&](Entity entity) {
+						each_direct_or_union(world, queryInfo, Constraints::EnabledOnly, [&](Entity entity) {
 							execEntity(entity);
 							return true;
 						});
 					} else {
-						(void)for_each_direct_all_seed(world, queryInfo, seedPlan, Constraints::EnabledOnly, [&](Entity entity) {
+						(void)each_direct_all_seed(world, queryInfo, seedPlan, Constraints::EnabledOnly, [&](Entity entity) {
 							execEntity(entity);
 							return true;
 						});
@@ -1628,14 +1628,14 @@ namespace gaia {
 					}
 
 					if (plan.preferOrSeed) {
-						for_each_direct_or_union(world, queryInfo, constraints, [&](Entity entity) {
+						each_direct_or_union(world, queryInfo, constraints, [&](Entity entity) {
 							execEntity(entity);
 							return true;
 						});
 						return;
 					}
 
-					(void)for_each_direct_all_seed(world, queryInfo, plan, constraints, [&](Entity entity) {
+					(void)each_direct_all_seed(world, queryInfo, plan, constraints, [&](Entity entity) {
 						execEntity(entity);
 						return true;
 					});
@@ -1676,13 +1676,13 @@ namespace gaia {
 						auto& world = *queryInfo.world();
 						const auto plan = direct_entity_seed_plan(world, queryInfo);
 						if (plan.preferOrSeed) {
-							for_each_direct_or_union(world, queryInfo, constraints, [&](Entity entity) {
+							each_direct_or_union(world, queryInfo, constraints, [&](Entity entity) {
 								typed_arr_push(world, entity, outArray);
 							});
 							return;
 						}
 
-						(void)for_each_direct_all_seed(world, queryInfo, plan, constraints, [&](Entity entity) {
+						(void)each_direct_all_seed(world, queryInfo, plan, constraints, [&](Entity entity) {
 							typed_arr_push(world, entity, outArray);
 							return true;
 						});

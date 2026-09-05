@@ -70,7 +70,7 @@ namespace gaia {
 				bool (*func_copy_entity)(void*, Entity, Entity) = nullptr;
 				uint32_t (*func_count)(const void*) = nullptr;
 				void (*func_collect_entities)(const void*, cnt::darray<Entity>&) = nullptr;
-				bool (*func_for_each_entity)(const void*, void*, bool (*)(void*, Entity)) = nullptr;
+				bool (*func_each_entity)(const void*, void*, bool (*)(void*, Entity)) = nullptr;
 				void (*func_clear_store)(void*) = nullptr;
 				void (*func_del_store)(void*) = nullptr;
 			};
@@ -299,7 +299,7 @@ namespace gaia {
 				//! \param ctx Opaque callback context.
 				//! \param func Callback returning false to stop iteration.
 				//! \return False when iteration was stopped by the callback, true otherwise.
-				GAIA_NODISCARD bool for_each_entity(void* ctx, bool (*func)(void*, Entity)) const {
+				GAIA_NODISCARD bool each_entity(void* ctx, bool (*func)(void*, Entity)) const {
 					for (const auto& item: data) {
 						if (!func(ctx, item.entity))
 							return false;
@@ -473,7 +473,7 @@ namespace gaia {
 				//! \param ctx Opaque callback context.
 				//! \param func Callback returning false to stop iteration.
 				//! \return False when iteration was stopped by the callback, true otherwise.
-				GAIA_NODISCARD bool for_each_entity(void* ctx, bool (*func)(void*, Entity)) const {
+				GAIA_NODISCARD bool each_entity(void* ctx, bool (*func)(void*, Entity)) const {
 					for (const auto& item: data) {
 						if (!func(ctx, item.entity))
 							return false;
@@ -545,8 +545,8 @@ namespace gaia {
 				store.func_collect_entities = [](const void* pStoreRaw, cnt::darray<Entity>& out) {
 					static_cast<const Store*>(pStoreRaw)->collect_entities(out);
 				};
-				store.func_for_each_entity = [](const void* pStoreRaw, void* pCtx, bool (*func)(void*, Entity)) {
-					return static_cast<const Store*>(pStoreRaw)->for_each_entity(pCtx, func);
+				store.func_each_entity = [](const void* pStoreRaw, void* pCtx, bool (*func)(void*, Entity)) {
+					return static_cast<const Store*>(pStoreRaw)->each_entity(pCtx, func);
 				};
 				store.func_clear_store = [](void* pStoreRaw) {
 					static_cast<Store*>(pStoreRaw)->clear_store();

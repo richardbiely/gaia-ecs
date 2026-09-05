@@ -4061,7 +4061,7 @@ namespace gaia {
 				}
 
 				template <typename Func>
-				GAIA_NODISCARD static bool for_each_direct_term_entity(const World& world, const QueryTerm& term, Func&& func) {
+				GAIA_NODISCARD static bool each_direct_term_entity(const World& world, const QueryTerm& term, Func&& func) {
 					struct Visitor {
 						Func& func;
 						static bool thunk(void* ctx, Entity entity) {
@@ -4071,11 +4071,11 @@ namespace gaia {
 
 					Visitor visitor{func};
 					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
-						return world_for_each_direct_term_entity(world, term.id, &visitor, &Visitor::thunk);
+						return world_each_direct_term_entity(world, term.id, &visitor, &Visitor::thunk);
 					if (uses_in_is_matching(term))
-						return world_for_each_in_term_entity(world, term.id, &visitor, &Visitor::thunk);
+						return world_each_in_term_entity(world, term.id, &visitor, &Visitor::thunk);
 
-					return world_for_each_direct_term_entity_direct(world, term.id, &visitor, &Visitor::thunk);
+					return world_each_direct_term_entity_direct(world, term.id, &visitor, &Visitor::thunk);
 				}
 
 				//! Detects queries that can skip archetype seeding and start directly from non-fragmenting term indices.
@@ -4405,7 +4405,7 @@ namespace gaia {
 					entities.clear();
 					chunkOrderedEntities.clear();
 
-					(void)for_each_direct_term_entity(world, seedTerm, [&](Entity entity) {
+					(void)each_direct_term_entity(world, seedTerm, [&](Entity entity) {
 						if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 							return true;
 
@@ -4451,7 +4451,7 @@ namespace gaia {
 				}
 
 				template <typename Func>
-				GAIA_NODISCARD static bool for_each_direct_all_seed(
+				GAIA_NODISCARD static bool each_direct_all_seed(
 						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedPlan& plan, Constraints constraints,
 						Func&& func) {
 					const auto* pSeedTerm = find_direct_all_seed_term(queryInfo, plan);
@@ -4477,7 +4477,7 @@ namespace gaia {
 
 					// Stream the chosen ALL seed term directly. This avoids materializing a temporary
 					// entity array for the common `all<T>().is(base)` shape.
-					return for_each_direct_term_entity(world, *pSeedTerm, [&](Entity entity) {
+					return each_direct_term_entity(world, *pSeedTerm, [&](Entity entity) {
 						if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 							return true;
 
@@ -4591,7 +4591,7 @@ namespace gaia {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						(void)for_each_direct_term_entity(world, term, [&](Entity entity) {
+						(void)each_direct_term_entity(world, term, [&](Entity entity) {
 							if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 								return true;
 
@@ -4638,7 +4638,7 @@ namespace gaia {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						const bool completed = for_each_direct_term_entity(world, term, [&](Entity entity) {
+						const bool completed = each_direct_term_entity(world, term, [&](Entity entity) {
 							if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 								return true;
 
@@ -4745,7 +4745,7 @@ namespace gaia {
 				//! \param constraints Iterator constraints applied to the candidate entities.
 				//! \param func Callback executed for each surviving entity.
 				template <typename Func>
-				void for_each_direct_or_union(World& world, const QueryInfo& queryInfo, Constraints constraints, Func&& func) {
+				void each_direct_or_union(World& world, const QueryInfo& queryInfo, Constraints constraints, Func&& func) {
 					auto& scratch = direct_query_scratch();
 					const auto seenVersion = next_direct_query_seen_version(scratch);
 					DirectEntitySeedInfo seedInfo{};
@@ -4755,7 +4755,7 @@ namespace gaia {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						(void)for_each_direct_term_entity(world, term, [&](Entity entity) {
+						(void)each_direct_term_entity(world, term, [&](Entity entity) {
 							if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 								return true;
 
@@ -4792,7 +4792,7 @@ namespace gaia {
 
 							const auto plan = direct_entity_seed_plan(*queryInfo.world(), queryInfo);
 							bool empty = true;
-							(void)for_each_direct_all_seed(*queryInfo.world(), queryInfo, plan, constraints, [&](Entity) {
+							(void)each_direct_all_seed(*queryInfo.world(), queryInfo, plan, constraints, [&](Entity) {
 								empty = false;
 								return false;
 							});
@@ -4880,8 +4880,8 @@ namespace gaia {
 				//! \see count(Constraints)
 				//! \see Iter::size() const
 				template <typename Emit>
-				static void for_each_matching_iter_range(
-						const QueryInfo& queryInfo, Chunk* pChunk, uint16_t from, uint16_t to, Emit&& emit) {
+				static void
+				each_matching_iter_range(const QueryInfo& queryInfo, Chunk* pChunk, uint16_t from, uint16_t to, Emit&& emit) {
 					if (pChunk == nullptr || from >= to)
 						return;
 					if (!queryInfo.has_entity_filter_terms()) {
@@ -4919,13 +4919,13 @@ namespace gaia {
 				//! \param groupId Group identifier stored on the batch.
 				//! \param from Inclusive start row.
 				//! \param to Exclusive end row.
-				//! \see for_each_matching_iter_range
+				//! \see each_matching_iter_range
 				template <typename Batches>
 				static void push_matching_chunk_batch(
 						Batches& batches, const QueryInfo& queryInfo, const Archetype* pArchetype, Chunk* pChunk,
 						const uint8_t* pCompIndices, InheritedTermDataView inheritedData, GroupId groupId, uint16_t from,
 						uint16_t to) {
-					for_each_matching_iter_range(queryInfo, pChunk, from, to, [&](uint16_t rangeFrom, uint16_t rangeTo) {
+					each_matching_iter_range(queryInfo, pChunk, from, to, [&](uint16_t rangeFrom, uint16_t rangeTo) {
 						batches.push_back({pArchetype, pChunk, pCompIndices, inheritedData, groupId, rangeFrom, rangeTo});
 					});
 				}
@@ -4933,14 +4933,15 @@ namespace gaia {
 				//! Same as the unbounded overload, but drains \a batches via \a flush when the list is full.
 				//! \tparam Flush Callable invoked as flush() when \a batches reaches capacity.
 				//! \param flush Callback that drains \a batches.
-				//! \see push_matching_chunk_batch(Batches&, const QueryInfo&, const Archetype*, Chunk*, const uint8_t*, InheritedTermDataView, GroupId, uint16_t, uint16_t)
-				//! \see for_each_matching_iter_range
+				//! \see push_matching_chunk_batch(Batches&, const QueryInfo&, const Archetype*, Chunk*, const uint8_t*,
+				//! InheritedTermDataView, GroupId, uint16_t, uint16_t)
+				//! \see each_matching_iter_range
 				template <typename Flush>
 				static void push_matching_chunk_batch(
 						ChunkBatchArray& batches, const QueryInfo& queryInfo, const Archetype* pArchetype, Chunk* pChunk,
 						const uint8_t* pCompIndices, InheritedTermDataView inheritedData, GroupId groupId, uint16_t from,
 						uint16_t to, Flush&& flush) {
-					for_each_matching_iter_range(queryInfo, pChunk, from, to, [&](uint16_t rangeFrom, uint16_t rangeTo) {
+					each_matching_iter_range(queryInfo, pChunk, from, to, [&](uint16_t rangeFrom, uint16_t rangeTo) {
 						if (batches.size() == batches.max_size())
 							flush();
 						batches.push_back({pArchetype, pChunk, pCompIndices, inheritedData, groupId, rangeFrom, rangeTo});
@@ -5082,7 +5083,7 @@ namespace gaia {
 										*queryInfo.world(), queryInfo, scratch.entities, seedInfo, constraints);
 
 							uint32_t cnt = 0;
-							(void)for_each_direct_all_seed(*queryInfo.world(), queryInfo, plan, constraints, [&](Entity) {
+							(void)each_direct_all_seed(*queryInfo.world(), queryInfo, plan, constraints, [&](Entity) {
 								++cnt;
 								return true;
 							});
@@ -5415,7 +5416,7 @@ namespace gaia {
 							exec_entity(entity);
 						}
 					} else if (plan.preferOrSeed) {
-						for_each_direct_or_union(world, queryInfo, constraints, exec_entity);
+						each_direct_or_union(world, queryInfo, constraints, exec_entity);
 					} else {
 						const auto* pSeedTerm = find_direct_all_seed_term(queryInfo, plan);
 						if (pSeedTerm != nullptr && can_use_direct_seed_run_cache(world, queryInfo, *pSeedTerm)) {
@@ -5426,7 +5427,7 @@ namespace gaia {
 							each_chunk_runs_iter(
 									queryInfo, cached_direct_seed_runs(queryInfo, *pSeedTerm, seedInfo, constraints), constraints, func);
 						} else {
-							(void)for_each_direct_all_seed(world, queryInfo, plan, constraints, [&](Entity entity) {
+							(void)each_direct_all_seed(world, queryInfo, plan, constraints, [&](Entity entity) {
 								exec_entity(entity);
 								return true;
 							});
@@ -6484,13 +6485,13 @@ namespace gaia {
 					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
 						auto& world = *queryInfo.world();
 						if (has_only_direct_or_terms(queryInfo)) {
-							for_each_direct_or_union(world, queryInfo, Constraints::EnabledOnly, [&](Entity entity) {
+							each_direct_or_union(world, queryInfo, Constraints::EnabledOnly, [&](Entity entity) {
 								func(pCtx, entity);
 								return true;
 							});
 						} else {
 							const auto plan = direct_entity_seed_plan(world, queryInfo);
-							(void)for_each_direct_all_seed(world, queryInfo, plan, Constraints::EnabledOnly, [&](Entity entity) {
+							(void)each_direct_all_seed(world, queryInfo, plan, Constraints::EnabledOnly, [&](Entity entity) {
 								func(pCtx, entity);
 								return true;
 							});
@@ -6572,13 +6573,13 @@ namespace gaia {
 					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
 						auto& world = *queryInfo.world();
 						if (has_only_direct_or_terms(queryInfo)) {
-							for_each_direct_or_union(world, queryInfo, Constraints::EnabledOnly, [&](Entity entity) {
+							each_direct_or_union(world, queryInfo, Constraints::EnabledOnly, [&](Entity entity) {
 								out.push_back(entity);
 								return true;
 							});
 						} else {
 							const auto plan = direct_entity_seed_plan(world, queryInfo);
-							(void)for_each_direct_all_seed(world, queryInfo, plan, Constraints::EnabledOnly, [&](Entity entity) {
+							(void)each_direct_all_seed(world, queryInfo, plan, Constraints::EnabledOnly, [&](Entity entity) {
 								out.push_back(entity);
 								return true;
 							});
@@ -6860,7 +6861,7 @@ namespace gaia {
 						for (uint32_t dependentIdx = 0; dependentIdx < cnt; ++dependentIdx) {
 							const auto dependent = entities[dependentIdx];
 							edgeCtx.dependentIdx = dependentIdx;
-							world_for_each_target(world, dependent, relation, &edgeCtx, &OrderedWalkTargetCtx::count_edge);
+							world_each_target(world, dependent, relation, &edgeCtx, &OrderedWalkTargetCtx::count_edge);
 						}
 
 						auto& offsets = walkData.scratchOffsets;
@@ -6881,7 +6882,7 @@ namespace gaia {
 						for (uint32_t dependentIdx = 0; dependentIdx < cnt; ++dependentIdx) {
 							const auto dependent = entities[dependentIdx];
 							edgeCtx.dependentIdx = dependentIdx;
-							world_for_each_target(world, dependent, relation, &edgeCtx, &OrderedWalkTargetCtx::write_edge);
+							world_each_target(world, dependent, relation, &edgeCtx, &OrderedWalkTargetCtx::write_edge);
 						}
 
 						ordered.reserve(cnt);

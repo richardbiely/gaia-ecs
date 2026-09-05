@@ -321,7 +321,7 @@ namespace gaia {
 				//! \param baseEntity First base entity to inspect.
 				//! \param func Callable that receives each inheritable component term.
 				template <typename Func>
-				static void for_each_inherited_term(World& world, Entity baseEntity, Func&& func);
+				static void each_inherited_term(World& world, Entity baseEntity, Func&& func);
 
 				//! Checks whether changed semantic Is pairs can reach an indexed base target.
 				//! \tparam TObserverMap Observer map type used by the selected event.
