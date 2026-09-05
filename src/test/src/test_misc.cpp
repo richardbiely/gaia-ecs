@@ -32,6 +32,11 @@ struct SparsePairConstructed {
 	SparsePairConstructed(): value(42) {}
 };
 
+struct AddNDontFragmentValue {
+	GAIA_STORAGE(DontFragment);
+	float x = 0.0f;
+};
+
 TEST_CASE("DataLayout SoA - ECS") {
 	TestDataLayoutSoA_ECS<PositionSoA>();
 	TestDataLayoutSoA_ECS<RotationSoA>();
@@ -4453,6 +4458,175 @@ TEST_CASE("Exact pair records - Entity-typed enable, modify, and add_n") {
 		++created;
 	});
 	CHECK(created == 3);
+}
+
+TEST_CASE("Exact pair records - copy produces ordinary entities") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto parent = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(source, pair);
+	wld.add<Position>(pair, {1.0f, 2.0f, 3.0f});
+	wld.add<PositionSparse>(pair, {4.0f, 5.0f, 6.0f});
+	wld.child(pair, parent);
+
+	const ecs::Entity pairEntity = pair;
+	CHECK(wld.query().all<Position>().count() == 1);
+
+	const auto silentCopy = wld.copy(pair);
+	CHECK_FALSE(silentCopy.pair());
+	CHECK(silentCopy != pairEntity);
+	CHECK(wld.has<Position>(silentCopy));
+	CHECK(wld.get<Position>(silentCopy).x == doctest::Approx(1.0f));
+	CHECK(wld.has<PositionSparse>(silentCopy));
+	CHECK(wld.get<PositionSparse>(silentCopy).x == doctest::Approx(4.0f));
+	CHECK(wld.is_child(silentCopy, parent));
+	CHECK(wld.has<Position>(pair));
+	CHECK(wld.get<Position>(pair).x == doctest::Approx(1.0f));
+	CHECK(wld.has<PositionSparse>(pair));
+	CHECK(wld.is_child(pair, parent));
+	CHECK_FALSE(wld.has<Position>(relation));
+	CHECK(wld.query().all<Position>().count() == 2);
+
+	const auto typedCopy = wld.copy(pairEntity);
+	CHECK_FALSE(typedCopy.pair());
+	CHECK(wld.get<Position>(typedCopy).z == doctest::Approx(3.0f));
+	CHECK(wld.is_child(typedCopy, parent));
+
+	uint32_t copied = 0;
+	wld.copy_n(pair, 3, [&](ecs::Entity entity) {
+		CHECK_FALSE(entity.pair());
+		CHECK(wld.has<Position>(entity));
+		CHECK(wld.get<Position>(entity).y == doctest::Approx(2.0f));
+		CHECK(wld.has<PositionSparse>(entity));
+		CHECK(wld.is_child(entity, parent));
+		++copied;
+	});
+	CHECK(copied == 3);
+
+#if GAIA_OBSERVERS_ENABLED
+	uint32_t addHits = 0;
+	wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all<Position>()
+			.on_each([&](ecs::Entity entity, const Position&) {
+				CHECK_FALSE(entity.pair());
+				CHECK(entity != pairEntity);
+				++addHits;
+			});
+	const auto observedCopy = wld.copy_ext(pair);
+	CHECK_FALSE(observedCopy.pair());
+	CHECK(wld.get<Position>(observedCopy).x == doctest::Approx(1.0f));
+	CHECK(addHits == 1);
+#endif
+}
+
+TEST_CASE("Exact pair records - add_n copies type without table values") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto parent = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(source, pair);
+	wld.add<Position>(pair, {1.0f, 2.0f, 3.0f});
+	wld.add<PositionSparse>(pair, {4.0f, 5.0f, 6.0f});
+	wld.add<AddNDontFragmentValue>(pair, {7.0f});
+	wld.child(pair, parent);
+
+	uint32_t created = 0;
+	wld.add_n(pair, 3, [&](ecs::Entity entity) {
+		CHECK_FALSE(entity.pair());
+		CHECK(wld.has<Position>(entity));
+		CHECK(wld.has<PositionSparse>(entity));
+		CHECK(wld.get<PositionSparse>(entity).x == doctest::Approx(0.0f));
+		CHECK(wld.has<AddNDontFragmentValue>(entity));
+		CHECK(wld.get<AddNDontFragmentValue>(entity).x == doctest::Approx(7.0f));
+		CHECK(wld.is_child(entity, parent));
+		++created;
+	});
+	CHECK(created == 3);
+	CHECK(wld.get<Position>(pair).x == doctest::Approx(1.0f));
+	CHECK(wld.get<PositionSparse>(pair).x == doctest::Approx(4.0f));
+	CHECK_FALSE(wld.has<Position>(relation));
+}
+
+TEST_CASE("Exact pair records - instantiate falls back to copy") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto parent = wld.add();
+	const auto scene = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(source, pair);
+	wld.add<Position>(pair, {1.0f, 2.0f, 3.0f});
+	wld.add<PositionSparse>(pair, {4.0f, 5.0f, 6.0f});
+	wld.child(pair, parent);
+
+	const auto instance = wld.instantiate(pair);
+	CHECK_FALSE(instance.pair());
+	CHECK(wld.get<Position>(instance).x == doctest::Approx(1.0f));
+	CHECK(wld.get<PositionSparse>(instance).x == doctest::Approx(4.0f));
+	CHECK(wld.is_child(instance, parent));
+	CHECK_FALSE(wld.has_direct(instance, ecs::Prefab));
+
+	const auto parented = wld.instantiate(pair, scene);
+	CHECK_FALSE(parented.pair());
+	CHECK(wld.get<Position>(parented).z == doctest::Approx(3.0f));
+	CHECK(wld.is_child(parented, parent));
+	CHECK(wld.has_direct(parented, ecs::Pair(ecs::Parent, scene)));
+
+	uint32_t copied = 0;
+	wld.instantiate_n(pair, 2, [&](ecs::Entity entity) {
+		CHECK_FALSE(entity.pair());
+		CHECK(wld.get<Position>(entity).y == doctest::Approx(2.0f));
+		CHECK(wld.is_child(entity, parent));
+		++copied;
+	});
+	CHECK(copied == 2);
+
+	const auto positionCount = wld.query().all<Position>().count();
+	ecs::CommandBufferST cb(wld);
+	(void)cb.instantiate(pair);
+	cb.commit();
+	CHECK(wld.query().all<Position>().count() == positionCount + 1);
+}
+
+TEST_CASE("Exact pair records - instantiate prefab drops Prefab without Is") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	wld.add(source, pair);
+	wld.add<Position>(pair, {1.0f, 2.0f, 3.0f});
+	wld.add<PositionSparse>(pair, {4.0f, 5.0f, 6.0f});
+	wld.add(pair, ecs::Prefab);
+	CHECK(wld.has_direct(pair, ecs::Prefab));
+
+	const auto instance = wld.instantiate(pair);
+	CHECK_FALSE(instance.pair());
+	CHECK(wld.get<Position>(instance).x == doctest::Approx(1.0f));
+	CHECK(wld.get<PositionSparse>(instance).x == doctest::Approx(4.0f));
+	CHECK_FALSE(wld.has_direct(instance, ecs::Prefab));
+	CHECK(wld.find_prefab_instance(instance, pair) == ecs::EntityBad);
+	CHECK(wld.sync(pair) == 0);
+
+	uint32_t spawned = 0;
+	wld.instantiate_n(pair, 2, [&](ecs::Entity entity) {
+		CHECK_FALSE(entity.pair());
+		CHECK(wld.get<Position>(entity).x == doctest::Approx(1.0f));
+		CHECK_FALSE(wld.has_direct(entity, ecs::Prefab));
+		++spawned;
+	});
+	CHECK(spawned == 2);
 }
 
 TEST_CASE("Exact pair records - archetype-based creation") {

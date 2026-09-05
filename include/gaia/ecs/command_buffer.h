@@ -138,8 +138,8 @@ namespace gaia {
 				//! Requests a prefab to be instantiated as a normal entity.
 				//! Commit replays through World::instantiate, including Prefab removal, the direct
 				//! Pair(Is, prefab) edge, skipped names, OnInstantiate policies, and recursive prefab children.
-				//! Non-prefab sources fall back to copy.
-				//! \param prefabEntity Prefab entity to instantiate.
+				//! Non-prefab sources fall back to copy. Exact pair records are a valid source.
+				//! \param prefabEntity Prefab entity or exact pair record to instantiate.
 				//! \return Temporary entity filled with the spawned root instance after commit().
 				//! \warning The returned entity is not usable until commit(). Prefab children are not
 				//!          exposed as temporaries; look them up with World::find_prefab_instance after commit.
@@ -150,14 +150,14 @@ namespace gaia {
 				//! Requests a prefab to be instantiated as a normal entity parented under \a parentInstance.
 				//! Commit replays through World::instantiate. Pair(Parent, parentInstance) is attached to the
 				//! spawned root. Non-prefab sources fall back to a parented copy.
-				//! \param prefabEntity Prefab entity to instantiate.
+				//! Exact pair records are a valid source.
+				//! \param prefabEntity Prefab entity or exact pair record to instantiate.
 				//! \param parentInstance Entity receiving the spawned root through Parent, or EntityBad for an
 				//!                      unparented root.
 				//! \return Temporary entity filled with the spawned root instance after commit().
 				//! \warning The returned entity is not usable until commit(). Prefab children are not
 				//!          exposed as temporaries; look them up with World::find_prefab_instance after commit.
 				GAIA_NODISCARD Entity instantiate(Entity prefabEntity, Entity parentInstance) {
-					GAIA_ASSERT(!prefabEntity.pair());
 					core::lock_scope lock(m_acc);
 
 					Entity temp = add_temp();

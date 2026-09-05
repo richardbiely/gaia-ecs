@@ -1045,6 +1045,9 @@ w.add(e, velocity, Velocity{0, 0, 1});
 // Value of Velocity on "e2" will be {0, 0, 1}.
 ecs::Entity e2 = w.copy(e);
 ```
+
+`copy`, `copy_n`, `copy_ext`, and `copy_ext_n` clone into new ordinary entities. An exact pair record can be the source. The destination receives the pair's components, sparse payloads, and non-fragmenting relation pairs, but not the pair identity.
+
 ### Entity cleanup
 
 Anything attached to an entity can be easily removed using `World::clear`. This is useful when you need to quickly reset your entity and still want to keep your Entity's id (deleting the entity would mean that as some point it could be recycled and its id could be used by some newly created entity).
@@ -1081,7 +1084,9 @@ w.add(e, position, Position{0, 100, 0});
 w.add(e, velocity, Velocity{0, 0, 1});
 
 // Create 1000 more entities like "e".
-// Their component values are not initialized to any particular value.
+// Table component values are not copied. Non-fragmenting ids (DontFragment tags,
+// DontFragment payloads, and relation pairs such as ChildOf) are copied.
+// Fragmenting sparse ids receive a default payload. Names are not copied.
 w.add_n(e, 1000);
 w.add_n(e, 1000, [](Entity newEntity) {
   // Do something with the new entity
@@ -2417,7 +2422,7 @@ Each relationship is expressed as following: "source, (relation, target)". All t
 
 Relationship pair is a special kind of entity where the id of the "relation" entity becomes the pair's id and the "target" entity's id becomes the pairs generation. The pair is created by calling `ecs::Pair(relation, target`) with two valid entities as its arguments. Only each endpoint's `id()` is stored, so both endpoints must be ordinary entities. Nested pairs are rejected when the relationship is attached.
 
-Because a pair is itself an entity, components can live on the pair record, not only on its endpoints. Query callbacks yield `Entity`, so `enable`, `enabled`, `get_chunk`, `add_n`, `modify`, `get`, and accessors treat an Entity-typed exact pair as that pair rather than the relation endpoint.
+Because a pair is itself an entity, components can live on the pair record, not only on its endpoints. Query callbacks yield `Entity`, so `enable`, `enabled`, `get_chunk`, `add_n`, `copy`, `instantiate`, `modify`, `get`, and accessors treat an Entity-typed exact pair as that pair rather than the relation endpoint. `copy`, `add_n`, and `instantiate` of a pair record still create ordinary entities. See [Copy entity](#copy-entity), [Batched creation](#batched-creation), and [Prefabs](#prefabs).
 
 Adding a relationship to any entity is as simple as adding any other entity.
 
@@ -2809,7 +2814,9 @@ Instantiation keeps the prefab relationship but intentionally strips prefab-only
 
 If the source entity is not tagged with `ecs::Prefab`, `instantiate(...)` falls back to `copy(...)`
 and `instantiate_n(...)` falls back to `copy_n(...)`. The parented overloads still attach the
-requested `ecs::Parent` relationship in that fallback path.
+requested `ecs::Parent` relationship in that fallback path. Exact pair records are valid sources.
+A Prefab-tagged pair record still drops `ecs::Prefab` and copies data, but it does not receive
+`Pair(ecs::Is, pair)` because nested pairs are not representable.
 
 Only children that are themselves tagged with `ecs::Prefab` are instantiated recursively. Plain `Parent` children under a prefab are ignored.
 

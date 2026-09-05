@@ -1395,6 +1395,37 @@ TEST_CASE("Empty DontFragment tag copy_ext and copy_n") {
 	CHECK(wld.fetch(src).pArchetype != pArchetypeBefore);
 }
 
+TEST_CASE("add_n copies non-table type without table values") {
+	TestWorld twld;
+
+	const auto parent = wld.add();
+	const auto src = wld.add();
+	wld.name(src, "NamedAddNSource");
+	wld.add<Position>(src, {1.0f, 2.0f, 3.0f});
+	wld.add<PositionSparse>(src, {4.0f, 5.0f, 6.0f});
+	wld.add<DontFragmentEmptyTag>(src);
+	wld.add<DontFragmentPayload>(src, {7.0f});
+	wld.child(src, parent);
+
+	uint32_t created = 0;
+	wld.add_n(src, 2, [&](ecs::Entity entity) {
+		CHECK_FALSE(entity.pair());
+		CHECK(wld.has<Position>(entity));
+		CHECK(wld.has<PositionSparse>(entity));
+		CHECK(wld.get<PositionSparse>(entity).x == doctest::Approx(0.0f));
+		CHECK(wld.has<DontFragmentEmptyTag>(entity));
+		CHECK(wld.has<DontFragmentPayload>(entity));
+		CHECK(wld.get<DontFragmentPayload>(entity).x == doctest::Approx(7.0f));
+		CHECK(wld.is_child(entity, parent));
+		CHECK(wld.name(entity).empty());
+		++created;
+	});
+	CHECK(created == 2);
+	CHECK(wld.get<Position>(src).x == doctest::Approx(1.0f));
+	CHECK(wld.get<PositionSparse>(src).x == doctest::Approx(4.0f));
+	CHECK(wld.name(src) == "NamedAddNSource");
+}
+
 TEST_CASE("Empty DontFragment tag multiple tags on one entity") {
 	TestWorld twld;
 

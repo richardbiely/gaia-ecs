@@ -4321,11 +4321,17 @@ namespace gaia {
 				add_entity_n(*m_pEntityArchetype, count, func);
 			}
 
-			//! Creates \a count of entities of the same archetype as \a entity.
-			//! \param entity Source entity or exact pair record whose archetype is reused.
+			//! Creates \a count ordinary entities with the same type as \a entity.
+			//! Table component payloads are left uninitialized or default-initialized.
+			//! Non-fragmenting ids are copied onto each destination: DontFragment tags,
+			//! DontFragment sparse payloads, and non-fragmenting relation pairs.
+			//! Fragmenting sparse ids receive a default payload so membership matches the source type.
+			//! EntityDesc is omitted so names stay unique.
+			//! Exact pair records are a valid source. Destinations are always ordinary entities.
+			//! \param entity Source entity or exact pair record whose type is reused.
 			//! \param count Number of entities to create.
 			//! \param func Functor invoked for each new entity.
-			//! \note Similar to copy_n(), but component payload is left uninitialized or default-initialized.
+			//! \note Similar to copy_n(), but table component payloads are not copied.
 			template <typename Func = TFunc_Void_With_Entity>
 			void add_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				auto& ec = cont(entity);
@@ -4333,22 +4339,39 @@ namespace gaia {
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 				GAIA_ASSERT(ec.pChunk != nullptr);
 
-				add_entity_n(*ec.pArchetype, count, func);
+				auto* pDstArchetype = ec.pArchetype;
+				if (pDstArchetype->has<EntityDesc>())
+					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
+
+				cnt::darray_ext<Entity, 8> nonfragmentingPairs;
+				collect_nonfragmenting_relation_pairs(entity, nonfragmentingPairs);
+				cnt::darray_ext<Entity, 16> nonFragSparseIds;
+				cnt::darray_ext<Entity, 16> fragSparseIds;
+				collect_add_n_sparse_ids(entity, nonFragSparseIds, fragSparseIds);
+
+				if (nonfragmentingPairs.empty() && nonFragSparseIds.empty() && fragSparseIds.empty()) {
+					add_entity_n(*pDstArchetype, count, func);
+					return;
+				}
+
+				add_entity_n(*pDstArchetype, count, [&](Entity dstEntity) {
+					apply_add_n_non_table_type(
+							entity, dstEntity, EntitySpan{nonfragmentingPairs}, EntitySpan{nonFragSparseIds},
+							EntitySpan{fragSparseIds});
+					func(dstEntity);
+				});
 			}
 
-			//! Creates \a count of entities of the same archetype as an exact pair record.
-			//! \param entity Source pair record whose archetype is reused.
+			//! Creates \a count ordinary entities with the same type as an exact pair record.
+			//! Table component payloads are left uninitialized or default-initialized.
+			//! Non-fragmenting ids and default fragmenting sparse membership are applied as in add_n(Entity).
+			//! \param entity Source pair record whose type is reused.
 			//! \param count Number of entities to create.
 			//! \param func Functor invoked for each new entity.
-			//! \note Similar to copy_n(), but component payload is left uninitialized or default-initialized.
+			//! \see add_n(Entity, uint32_t)
 			template <typename Func = TFunc_Void_With_Entity>
 			void add_n(Pair entity, uint32_t count, Func func = func_void_with_entity) {
-				auto& ec = fetch((Entity)entity);
-
-				GAIA_ASSERT(ec.pArchetype != nullptr);
-				GAIA_ASSERT(ec.pChunk != nullptr);
-
-				add_entity_n(*ec.pArchetype, count, func);
+				add_n((Entity)entity, count, func);
 			}
 
 			//! Creates a new component if not found already.
@@ -4696,24 +4719,26 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Creates a new entity by cloning an already existing one. Does not trigger observers.
-			//! \param srcEntity Entity to clone
-			//! \return New entity
+			//! Creates a new ordinary entity by cloning an already existing one. Does not trigger observers.
+			//! Exact pair records are cloned into a new ordinary entity. The pair identity is not duplicated.
+			//! \param srcEntity Entity or exact pair record to clone
+			//! \return New ordinary entity
 			//! \warning It is expected \a srcEntity is valid. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on \a srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			GAIA_NODISCARD Entity copy(Entity srcEntity) {
-				GAIA_ASSERT(!srcEntity.pair());
 				GAIA_ASSERT(valid(srcEntity));
 
-				auto& ec = m_recs.entities[srcEntity.id()];
+				auto& ec = cont(srcEntity);
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 				GAIA_ASSERT(ec.pChunk != nullptr);
 
 				cnt::darray_ext<Entity, 8> nonfragmentingPairs;
 				collect_nonfragmenting_relation_pairs(srcEntity, nonfragmentingPairs);
 
+				auto* pSrcChunk = ec.pChunk;
+				const auto srcRow = ec.row;
 				auto* pDstArchetype = ec.pArchetype;
 				Entity dstEntity;
 
@@ -4726,15 +4751,12 @@ namespace gaia {
 				cnt::darray_ext<Entity, 16> addHookIds;
 				collect_copy_add_hook_ids(srcEntity, *pDstArchetype, EntitySpan{nonfragmentingPairs}, addHookIds);
 
+				dstEntity = add(*pDstArchetype, true, false);
 				if (hasEntityDesc) {
-					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair());
 					auto& ecDst = m_recs.entities[dstEntity.id()];
-					Chunk::copy_foreign_entity_data(ec.pChunk, ec.row, ecDst.pChunk, ecDst.row);
-				} else {
-					// No description associated with the entity, direct copy is possible
-					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair());
+					Chunk::copy_foreign_entity_data(pSrcChunk, srcRow, ecDst.pChunk, ecDst.row);
+				} else
 					Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
-				}
 
 				copy_all_sparse_entity_data(srcEntity, dstEntity);
 				copy_nonfragmenting_relation_pairs(dstEntity, EntitySpan{nonfragmentingPairs});
@@ -4743,8 +4765,9 @@ namespace gaia {
 				return dstEntity;
 			}
 
-			//! Creates \a count new entities by cloning an already existing one.
-			//! \param entity Entity to clone
+			//! Creates \a count new ordinary entities by cloning an already existing one.
+			//! Exact pair records are cloned into ordinary entities. The pair identity is not duplicated.
+			//! \param entity Entity or exact pair record to clone
 			//! \param count Number of clones to make
 			//! \param func Functor executed every time a copy is created.
 			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
@@ -4756,7 +4779,7 @@ namespace gaia {
 			void copy_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				cnt::darray_ext<Entity, 8> nonfragmentingPairs;
 				collect_nonfragmenting_relation_pairs(entity, nonfragmentingPairs);
-				auto* pDstArchetype = m_recs.entities[entity.id()].pArchetype;
+				auto* pDstArchetype = cont(entity).pArchetype;
 				if (pDstArchetype->has<EntityDesc>())
 					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
 				cnt::darray_ext<Entity, 16> addHookIds;
@@ -4765,24 +4788,26 @@ namespace gaia {
 			}
 
 #if GAIA_OBSERVERS_ENABLED
-			//! Creates a new entity by cloning an already existing one. Trigger observers if necessary.
-			//! \param srcEntity Entity to clone
-			//! \return New entity
+			//! Creates a new ordinary entity by cloning an already existing one. Trigger observers if necessary.
+			//! Exact pair records are cloned into a new ordinary entity. The pair identity is not duplicated.
+			//! \param srcEntity Entity or exact pair record to clone
+			//! \return New ordinary entity
 			//! \warning It is expected \a srcEntity is valid. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on \a srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			GAIA_NODISCARD Entity copy_ext(Entity srcEntity) {
-				GAIA_ASSERT(!srcEntity.pair());
 				GAIA_ASSERT(valid(srcEntity));
 
-				auto& ec = m_recs.entities[srcEntity.id()];
+				auto& ec = cont(srcEntity);
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 				GAIA_ASSERT(ec.pChunk != nullptr);
 
 				cnt::darray_ext<Entity, 8> nonfragmentingPairs;
 				collect_nonfragmenting_relation_pairs(srcEntity, nonfragmentingPairs);
 
+				auto* pSrcChunk = ec.pChunk;
+				const auto srcRow = ec.row;
 				auto* pDstArchetype = ec.pArchetype;
 				// Names have to be unique so if we see that EntityDesc is present during copy
 				// we navigate towards a version of the archetype without the EntityDesc.
@@ -4805,16 +4830,12 @@ namespace gaia {
 				auto addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{pAddedIds, addedIdCount});
 	#endif
 
-				Entity dstEntity;
+				const auto dstEntity = add(*pDstArchetype, true, false);
 				if (hasEntityDesc) {
-					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair());
 					auto& ecDst = m_recs.entities[dstEntity.id()];
-					Chunk::copy_foreign_entity_data(ec.pChunk, ec.row, ecDst.pChunk, ecDst.row);
-				} else {
-					// No description associated with the entity, direct copy is possible
-					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair());
+					Chunk::copy_foreign_entity_data(pSrcChunk, srcRow, ecDst.pChunk, ecDst.row);
+				} else
 					Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
-				}
 
 				(void)copy_all_sparse_entity_data(srcEntity, dstEntity);
 				copy_nonfragmenting_relation_pairs(dstEntity, EntitySpan{nonfragmentingPairs});
@@ -4829,8 +4850,9 @@ namespace gaia {
 				return dstEntity;
 			}
 
-			//! Creates \a count new entities by cloning an already existing one. Trigger observers if necessary.
-			//! \param entity Entity to clone
+			//! Creates \a count new ordinary entities by cloning an already existing one. Trigger observers if necessary.
+			//! Exact pair records are cloned into ordinary entities. The pair identity is not duplicated.
+			//! \param entity Entity or exact pair record to clone
 			//! \param count Number of clones to make
 			//! \param func Functor executed every time a copy is created.
 			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
@@ -4843,7 +4865,7 @@ namespace gaia {
 				cnt::darray_ext<Entity, 8> nonfragmentingPairs;
 				collect_nonfragmenting_relation_pairs(entity, nonfragmentingPairs);
 
-				auto& ec = m_recs.entities[entity.id()];
+				auto& ec = cont(entity);
 				auto* pDstArchetype = ec.pArchetype;
 				if (pDstArchetype->has<EntityDesc>())
 					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
@@ -5291,7 +5313,7 @@ namespace gaia {
 
 			//! Copies an entity into one or more destination batches.
 			//! \tparam Func Callback type.
-			//! \param entity Source entity.
+			//! \param entity Source entity or exact pair record.
 			//! \param count Number of copies.
 			//! \param func Callback for copied entities.
 			//! \param addedIds Ids reported to add observers.
@@ -5310,7 +5332,6 @@ namespace gaia {
 					ObserverRegistry::DiffDispatchCtx* pAddDiffCtx = nullptr
 #endif
 			) {
-				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(parentInstance == EntityBad || valid(parentInstance));
 
@@ -5324,7 +5345,7 @@ namespace gaia {
 					addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{addedIds});
 #endif
 
-				auto& ec = m_recs.entities[entity.id()];
+				auto& ec = cont(entity);
 
 				GAIA_ASSERT(ec.pChunk != nullptr);
 				GAIA_ASSERT(ec.pArchetype != nullptr);
@@ -5591,6 +5612,58 @@ namespace gaia {
 				for (const auto pair: pairs)
 					builder.add_inter_init(pair);
 				builder.commit();
+			}
+
+			//! Collects sparse ids owned by \a srcEntity, split by fragmenting vs non-fragmenting storage.
+			//! Non-fragmenting ids are copied by value. Fragmenting ids receive a default payload.
+			//! \tparam TNonFrag Non-fragmenting id container type.
+			//! \tparam TFrag Fragmenting id container type.
+			//! \param srcEntity Source entity or exact pair record.
+			//! \param nonFragOut Destination list for DontFragment sparse ids.
+			//! \param fragOut Destination list for fragmenting sparse ids.
+			template <typename TNonFrag, typename TFrag>
+			void collect_add_n_sparse_ids(Entity srcEntity, TNonFrag& nonFragOut, TFrag& fragOut) const {
+				nonFragOut.clear();
+				fragOut.clear();
+				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
+					const auto comp = compKey.entity();
+					if (!store.func_has(store.pStore, srcEntity))
+						continue;
+
+					if (component_is_non_fragmenting(comp)) {
+						nonFragOut.push_back(comp);
+						continue;
+					}
+
+					if (sparse_storage_mode(comp) != SparseStorageMode::None)
+						fragOut.push_back(comp);
+				}
+			}
+
+			//! Adds default sparse payloads for \a sparseIds without copying source values.
+			//! \param dstEntity Destination entity.
+			//! \param sparseIds Fragmenting sparse ids to insert.
+			void add_default_sparse_ids(Entity dstEntity, EntitySpan sparseIds) {
+				for (const auto comp: sparseIds) {
+					auto it = m_sparseComponentsByComp.find(EntityLookupKey(comp));
+					GAIA_ASSERT(it != m_sparseComponentsByComp.end());
+					GAIA_ASSERT(it->second.func_add != nullptr);
+					(void)it->second.func_add(it->second.pStore, dstEntity);
+				}
+			}
+
+			//! Applies non-table type from an add_n source onto one destination entity.
+			//! \param srcEntity Source entity or exact pair record.
+			//! \param dstEntity Destination ordinary entity.
+			//! \param nonfragmentingPairs Exact out-of-archetype relation pairs.
+			//! \param nonFragSparseIds DontFragment sparse ids whose payloads are copied.
+			//! \param fragSparseIds Fragmenting sparse ids that receive a default payload.
+			void apply_add_n_non_table_type(
+					Entity srcEntity, Entity dstEntity, EntitySpan nonfragmentingPairs, EntitySpan nonFragSparseIds,
+					EntitySpan fragSparseIds) {
+				copy_nonfragmenting_relation_pairs(dstEntity, nonfragmentingPairs);
+				(void)copy_sparse_entity_data(srcEntity, dstEntity, nonFragSparseIds);
+				add_default_sparse_ids(dstEntity, fragSparseIds);
 			}
 
 			//! Copies one sparse payload between entities.
@@ -5947,14 +6020,13 @@ namespace gaia {
 			//! \param prefabEntity Prefab source.
 			//! \return Destination archetype.
 			GAIA_NODISCARD Archetype* instantiate_prefab_dst_archetype(Entity prefabEntity) {
-				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
 
 				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab))
 					return fetch(prefabEntity).pArchetype;
 
-				auto& ecSrc = m_recs.entities[prefabEntity.id()];
+				auto& ecSrc = cont(prefabEntity);
 				GAIA_ASSERT(ecSrc.pArchetype != nullptr);
 
 				auto* pDstArchetype = ecSrc.pArchetype;
@@ -5977,9 +6049,12 @@ namespace gaia {
 						pDstArchetype = foc_archetype_del(pDstArchetype, id);
 				}
 
-				const auto isPair = Pair(Is, prefabEntity);
-				assign_pair(isPair, *m_pEntityArchetype);
-				pDstArchetype = foc_archetype_add(pDstArchetype, isPair);
+				// Nested pairs are not representable, so pair prefabs cannot receive Pair(Is, prefab).
+				if (!prefabEntity.pair()) {
+					const auto isPair = Pair(Is, prefabEntity);
+					assign_pair(isPair, *m_pEntityArchetype);
+					pDstArchetype = foc_archetype_add(pDstArchetype, isPair);
+				}
 
 				return pDstArchetype;
 			}
@@ -6030,7 +6105,6 @@ namespace gaia {
 			GAIA_NODISCARD Entity instantiate_prefab_node_inter(
 					Entity prefabEntity, Archetype* pDstArchetype, Entity parentInstance, EntitySpan copiedSparseIds,
 					EntitySpan addedIds, EntitySpan addHookIds) {
-				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
 				GAIA_ASSERT(pDstArchetype != nullptr);
@@ -6038,7 +6112,7 @@ namespace gaia {
 				auto addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{addedIds});
 #endif
 
-				auto& ecSrc = m_recs.entities[prefabEntity.id()];
+				auto& ecSrc = cont(prefabEntity);
 				GAIA_ASSERT(ecSrc.pArchetype != nullptr);
 				GAIA_ASSERT(ecSrc.pChunk != nullptr);
 
@@ -6051,7 +6125,8 @@ namespace gaia {
 				Chunk::copy_foreign_entity_data(ecSrc.pChunk, ecSrc.row, pDstChunk, ecDst.row);
 				pDstChunk->update_versions();
 
-				ecDst.flags |= EntityContainerFlags::HasAliasOf;
+				if (!prefabEntity.pair())
+					ecDst.flags |= EntityContainerFlags::HasAliasOf;
 
 				// Keep payload copy and observer/add-id reporting separate:
 				// fragmenting sparse payloads must still be copied here even though their id is
@@ -6061,15 +6136,17 @@ namespace gaia {
 				m_observers.add_diff_targets(*this, addDiffCtx, EntitySpan{&instance, 1});
 #endif
 
-				invalidate_relation_caches(Is);
+				if (!prefabEntity.pair()) {
+					invalidate_relation_caches(Is);
 
-				const auto instanceKey = EntityLookupKey(instance);
-				const auto prefabKey = EntityLookupKey(prefabEntity);
-				m_entityToAsTargets[instanceKey].insert(prefabKey);
-				m_entityToAsTargetsTravCache = {};
-				m_entityToAsRelations[prefabKey].insert(instanceKey);
-				m_entityToAsRelationsTravCache = {};
-				invalidate_queries_for_entity({Is, prefabEntity});
+					const auto instanceKey = EntityLookupKey(instance);
+					const auto prefabKey = EntityLookupKey(prefabEntity);
+					m_entityToAsTargets[instanceKey].insert(prefabKey);
+					m_entityToAsTargetsTravCache = {};
+					m_entityToAsRelations[prefabKey].insert(instanceKey);
+					m_entityToAsRelationsTravCache = {};
+					invalidate_queries_for_entity({Is, prefabEntity});
+				}
 
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
 				if GAIA_UNLIKELY (tearing_down()) {
@@ -6141,7 +6218,7 @@ namespace gaia {
 				auto addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{node.addedIds});
 #endif
 
-				auto& ecSrc = m_recs.entities[node.prefab.id()];
+				auto& ecSrc = cont(node.prefab);
 				GAIA_ASSERT(ecSrc.pChunk != nullptr);
 
 				if (parentInstance != EntityBad)
@@ -6150,11 +6227,14 @@ namespace gaia {
 				const auto srcRow = ecSrc.row;
 				auto* pSrcChunk = ecSrc.pChunk;
 				auto* pDstArchetype = node.pDstArchetype;
+				const bool bindIs = !node.prefab.pair();
 				const auto prefabKey = EntityLookupKey(node.prefab);
 				EntityContainerCtx ctx{true, false};
-				auto& asRelations = m_entityToAsRelations[prefabKey];
-				m_entityToAsTargets.reserve(m_entityToAsTargets.size() + count);
-				asRelations.reserve(asRelations.size() + count);
+				if (bindIs) {
+					auto& asRelations = m_entityToAsRelations[prefabKey];
+					m_entityToAsTargets.reserve(m_entityToAsTargets.size() + count);
+					asRelations.reserve(asRelations.size() + count);
+				}
 
 				uint32_t left = count;
 				do {
@@ -6167,7 +6247,8 @@ namespace gaia {
 						const auto instance = m_recs.entities.alloc(&ctx);
 						auto& ecDst = m_recs.entities[instance.id()];
 						store_entity(ecDst, instance, pDstArchetype, pDstChunk);
-						ecDst.flags |= EntityContainerFlags::HasAliasOf;
+						if (bindIs)
+							ecDst.flags |= EntityContainerFlags::HasAliasOf;
 
 						(void)copy_sparse_entity_data(node.prefab, instance, EntitySpan{node.copiedSparseIds});
 					}
@@ -6176,17 +6257,20 @@ namespace gaia {
 					Chunk::copy_foreign_entity_data_n(pSrcChunk, srcRow, pDstChunk, originalChunkSize, toCreate);
 					pDstChunk->update_versions();
 
-					invalidate_relation_caches(Is);
-
 					auto entities = pDstChunk->entity_view();
-					GAIA_FOR2_(originalChunkSize, originalChunkSize + toCreate, rowIdx) {
-						const auto instance = entities[rowIdx];
-						m_entityToAsTargets[EntityLookupKey(instance)].insert(prefabKey);
-						asRelations.insert(EntityLookupKey(instance));
+					if (bindIs) {
+						auto& asRelations = m_entityToAsRelations[prefabKey];
+						invalidate_relation_caches(Is);
+
+						GAIA_FOR2_(originalChunkSize, originalChunkSize + toCreate, rowIdx) {
+							const auto instance = entities[rowIdx];
+							m_entityToAsTargets[EntityLookupKey(instance)].insert(prefabKey);
+							asRelations.insert(EntityLookupKey(instance));
+						}
+						m_entityToAsTargetsTravCache = {};
+						m_entityToAsRelationsTravCache = {};
+						invalidate_queries_for_entity({Is, node.prefab});
 					}
-					m_entityToAsTargetsTravCache = {};
-					m_entityToAsRelationsTravCache = {};
-					invalidate_queries_for_entity({Is, node.prefab});
 
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
 					if GAIA_UNLIKELY (tearing_down()) {
@@ -6265,6 +6349,9 @@ namespace gaia {
 			//! \param childPrefab Prefab child entity to find.
 			//! \return True when a matching child instance already exists.
 			GAIA_NODISCARD bool instance_has_prefab_child(Entity parentInstance, Entity relation, Entity childPrefab) const {
+				if (childPrefab.pair())
+					return false;
+
 				bool found = false;
 				sources(relation, parentInstance, [&](Entity child) {
 					if (found)
@@ -6317,7 +6404,6 @@ namespace gaia {
 			//! \param visited Prefab recursion guard keyed by prefab entity.
 			//! \return Number of copied ids or spawned child instances.
 			uint32_t sync_prefab_inter(Entity prefabEntity, cnt::set<EntityLookupKey>& visited) {
-				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 
 				if (!has_direct(prefabEntity, Prefab))
@@ -6376,11 +6462,12 @@ namespace gaia {
 			//! Instantiates a prefab as a normal entity.
 			//! The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name,
 			//! removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead.
+			//! Exact pair records are a valid source. Nested pairs are not representable, so a Prefab-tagged
+			//! pair record does not receive Pair(Is, prefab).
 			//! Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation.
-			//! \param prefabEntity Prefab entity to instantiate.
+			//! \param prefabEntity Prefab entity or exact pair record to instantiate.
 			//! \return Spawned root instance, or a plain copy when \p prefabEntity is not marked Prefab.
 			GAIA_NODISCARD Entity instantiate(Entity prefabEntity) {
-				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 
 				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab))
@@ -6394,11 +6481,12 @@ namespace gaia {
 			//! removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead,
 			//! and attaches Pair(Parent, parentInstance) to the new root instance. Prefab children linked through
 			//! Parent or ChildOf are instantiated with the same hierarchy relation.
-			//! \param prefabEntity Prefab entity to instantiate.
+			//! Exact pair records are a valid source. Nested pairs are not representable, so a Prefab-tagged
+			//! pair record does not receive Pair(Is, prefab).
+			//! \param prefabEntity Prefab entity or exact pair record to instantiate.
 			//! \param parentInstance Entity receiving the spawned root through Parent.
 			//! \return Spawned root instance, or a parented plain copy when \p prefabEntity is not marked Prefab.
 			GAIA_NODISCARD Entity instantiate(Entity prefabEntity, Entity parentInstance) {
-				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 				GAIA_ASSERT(valid(parentInstance));
 
@@ -6414,9 +6502,11 @@ namespace gaia {
 			//! Instantiates \a count copies of a prefab as normal root entities.
 			//! Each instance copies the prefab's direct data, drops the Prefab tag, does not copy the name,
 			//! removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead.
+			//! Exact pair records are a valid source. Nested pairs are not representable, so a Prefab-tagged
+			//! pair record does not receive Pair(Is, prefab).
 			//! Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.
 			//! \tparam Func Callback type. It can be either void(ecs::Entity) or void(ecs::CopyIter&).
-			//! \param prefabEntity Prefab entity to clone
+			//! \param prefabEntity Prefab entity or exact pair record to clone
 			//! \param count Number of clones to make
 			//! \param func Functor executed for spawned root instances.
 			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
@@ -6450,7 +6540,6 @@ namespace gaia {
 			//! \param func Functor executed for spawned root instances.
 			template <typename Func>
 			void instantiate_n(Entity prefabEntity, Entity parentInstance, uint32_t count, Func func) {
-				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 				GAIA_ASSERT(parentInstance == EntityBad || valid(parentInstance));
 
@@ -6465,7 +6554,7 @@ namespace gaia {
 
 					cnt::darray_ext<Entity, 8> nonfragmentingPairs;
 					collect_nonfragmenting_relation_pairs(prefabEntity, nonfragmentingPairs);
-					auto* pDstArchetype = m_recs.entities[prefabEntity.id()].pArchetype;
+					auto* pDstArchetype = cont(prefabEntity).pArchetype;
 					if (pDstArchetype->has<EntityDesc>())
 						pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
 					cnt::darray_ext<Entity, 16> addHookIds;
@@ -6529,7 +6618,6 @@ namespace gaia {
 			//! \param prefabEntity Prefab root whose instances are synchronized.
 			//! \return Number of copied ids and spawned child instances.
 			GAIA_NODISCARD uint32_t sync(Entity prefabEntity) {
-				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 
 				cnt::set<EntityLookupKey> visited;
@@ -6543,7 +6631,7 @@ namespace gaia {
 			//! \param prefabEntity Prefab entity to map into the instance subtree.
 			//! \return Matching instance entity, or EntityBad when the prefab is not present in the instance subtree.
 			GAIA_NODISCARD Entity find_prefab_instance(Entity instanceRoot, Entity prefabEntity) const {
-				if (!valid(instanceRoot) || !valid(prefabEntity))
+				if (!valid(instanceRoot) || !valid(prefabEntity) || prefabEntity.pair())
 					return EntityBad;
 
 				const auto isPair = Pair(Is, prefabEntity);
