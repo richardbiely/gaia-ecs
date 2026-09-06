@@ -1161,7 +1161,7 @@ namespace gaia {
 
 			//! Removes \a entity from the active deletion stack.
 			//! \param entity Entity leaving deletion.
-			void entity_deletion_leave(Entity entity) {
+			void entity_deletion_leave([[maybe_unused]] Entity entity) {
 				GAIA_ASSERT(!m_entitiesDeleting.empty());
 				GAIA_ASSERT(m_entitiesDeleting.back() == entity);
 				m_entitiesDeleting.pop_back();
@@ -11034,7 +11034,7 @@ namespace gaia {
 						// Pair record containers identify their chunk row as an entity. Rebuild the canonical
 						// pair key from its live endpoints so the lookup key keeps the entity bit clear.
 						const Entity pair = Pair(m_recs.entities.handle(ec.idx), m_recs.entities.handle(ec.data.gen));
-						const bool added = m_recs.pair_record_try_add(pair, GAIA_MOV(ec));
+						[[maybe_unused]] const bool added = m_recs.pair_record_try_add(pair, GAIA_MOV(ec));
 						GAIA_ASSERT(added);
 					}
 

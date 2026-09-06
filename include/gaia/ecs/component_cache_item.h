@@ -940,14 +940,14 @@ namespace gaia {
 
 				if (runtimeType.fieldCount > 0) {
 					GAIA_FOR(runtimeType.fieldCount) {
-						const bool copied = cci->copy_runtime_field(runtimeType.fields[i]);
+						[[maybe_unused]] const bool copied = cci->copy_runtime_field(runtimeType.fields[i]);
 						GAIA_ASSERT(copied);
 					}
 				}
 
 				if (runtimeType.constantCount > 0) {
 					GAIA_FOR(runtimeType.constantCount) {
-						const bool copied = cci->copy_runtime_constant(runtimeType.constants[i]);
+						[[maybe_unused]] const bool copied = cci->copy_runtime_constant(runtimeType.constants[i]);
 						GAIA_ASSERT(copied);
 					}
 				}

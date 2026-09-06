@@ -15093,9 +15093,11 @@ namespace gaia {
 			//!       table to contain null page entries. It does not allocate payload pages.
 			//! \note In fixed-page-table mode this only verifies that \a cap fits into MaxPages.
 			void reserve_slot_table(size_type cap) {
-				const auto pageCnt = page_count_for_slots(cap);
 				if constexpr (FixedPageTable) {
+#if GAIA_ASSERT_ENABLED
+					const auto pageCnt = page_count_for_slots(cap);
 					GAIA_ASSERT(pageCnt <= MaxPages);
+#endif
 				} else {
 					ensure_page_count(cap);
 				}
@@ -35618,14 +35620,14 @@ namespace gaia {
 
 				if (runtimeType.fieldCount > 0) {
 					GAIA_FOR(runtimeType.fieldCount) {
-						const bool copied = cci->copy_runtime_field(runtimeType.fields[i]);
+						[[maybe_unused]] const bool copied = cci->copy_runtime_field(runtimeType.fields[i]);
 						GAIA_ASSERT(copied);
 					}
 				}
 
 				if (runtimeType.constantCount > 0) {
 					GAIA_FOR(runtimeType.constantCount) {
-						const bool copied = cci->copy_runtime_constant(runtimeType.constants[i]);
+						[[maybe_unused]] const bool copied = cci->copy_runtime_constant(runtimeType.constants[i]);
 						GAIA_ASSERT(copied);
 					}
 				}
@@ -67745,7 +67747,7 @@ namespace gaia {
 
 			//! Removes \a entity from the active deletion stack.
 			//! \param entity Entity leaving deletion.
-			void entity_deletion_leave(Entity entity) {
+			void entity_deletion_leave([[maybe_unused]] Entity entity) {
 				GAIA_ASSERT(!m_entitiesDeleting.empty());
 				GAIA_ASSERT(m_entitiesDeleting.back() == entity);
 				m_entitiesDeleting.pop_back();
@@ -77618,7 +77620,7 @@ namespace gaia {
 						// Pair record containers identify their chunk row as an entity. Rebuild the canonical
 						// pair key from its live endpoints so the lookup key keeps the entity bit clear.
 						const Entity pair = Pair(m_recs.entities.handle(ec.idx), m_recs.entities.handle(ec.data.gen));
-						const bool added = m_recs.pair_record_try_add(pair, GAIA_MOV(ec));
+						[[maybe_unused]] const bool added = m_recs.pair_record_try_add(pair, GAIA_MOV(ec));
 						GAIA_ASSERT(added);
 					}
 

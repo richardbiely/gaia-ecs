@@ -1156,9 +1156,11 @@ namespace gaia {
 			//!       table to contain null page entries. It does not allocate payload pages.
 			//! \note In fixed-page-table mode this only verifies that \a cap fits into MaxPages.
 			void reserve_slot_table(size_type cap) {
-				const auto pageCnt = page_count_for_slots(cap);
 				if constexpr (FixedPageTable) {
+#if GAIA_ASSERT_ENABLED
+					const auto pageCnt = page_count_for_slots(cap);
 					GAIA_ASSERT(pageCnt <= MaxPages);
+#endif
 				} else {
 					ensure_page_count(cap);
 				}
