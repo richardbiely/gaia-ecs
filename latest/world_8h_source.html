@@ -1001,7 +1001,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 </div>
 <div class="line"><a id="l01161" name="l01161"></a><span class="lineno"> 1161</span> </div>
 <div class="foldopen" id="foldopen01164" data-start="{" data-end="}">
-<div class="line"><a id="l01164" name="l01164"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a6774d1f65aade3e9b71829390706d4d7"> 1164</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a6774d1f65aade3e9b71829390706d4d7">entity_deletion_leave</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) {</div>
+<div class="line"><a id="l01164" name="l01164"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a6774d1f65aade3e9b71829390706d4d7"> 1164</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a6774d1f65aade3e9b71829390706d4d7">entity_deletion_leave</a>([[maybe_unused]] <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) {</div>
 <div class="line"><a id="l01165" name="l01165"></a><span class="lineno"> 1165</span>        GAIA_ASSERT(!m_entitiesDeleting.empty());</div>
 <div class="line"><a id="l01166" name="l01166"></a><span class="lineno"> 1166</span>        GAIA_ASSERT(m_entitiesDeleting.back() == entity);</div>
 <div class="line"><a id="l01167" name="l01167"></a><span class="lineno"> 1167</span>        m_entitiesDeleting.pop_back();</div>
@@ -9484,7 +9484,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l11034" name="l11034"></a><span class="lineno">11034</span>            <span class="comment">// Pair record containers identify their chunk row as an entity. Rebuild the canonical</span></div>
 <div class="line"><a id="l11035" name="l11035"></a><span class="lineno">11035</span>            <span class="comment">// pair key from its live endpoints so the lookup key keeps the entity bit clear.</span></div>
 <div class="line"><a id="l11036" name="l11036"></a><span class="lineno">11036</span>            <span class="keyword">const</span> Entity pair = Pair(m_recs.entities.handle(ec.idx), m_recs.entities.handle(ec.data.gen));</div>
-<div class="line"><a id="l11037" name="l11037"></a><span class="lineno">11037</span>            <span class="keyword">const</span> <span class="keywordtype">bool</span> added = m_recs.pair_record_try_add(pair, GAIA_MOV(ec));</div>
+<div class="line"><a id="l11037" name="l11037"></a><span class="lineno">11037</span>            [[maybe_unused]] <span class="keyword">const</span> <span class="keywordtype">bool</span> added = m_recs.pair_record_try_add(pair, GAIA_MOV(ec));</div>
 <div class="line"><a id="l11038" name="l11038"></a><span class="lineno">11038</span>            GAIA_ASSERT(added);</div>
 <div class="line"><a id="l11039" name="l11039"></a><span class="lineno">11039</span>          }</div>
 <div class="line"><a id="l11040" name="l11040"></a><span class="lineno">11040</span> </div>
