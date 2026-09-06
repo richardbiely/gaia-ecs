@@ -265,7 +265,7 @@ TEST_CASE("System - nested retained query writes are visible to later system") {
 		uint32_t nestedHits = 0;
 		ecs::Entity requestEntity;
 	};
-	NestedSystemCtx ctx{&workQuery};
+	NestedSystemCtx ctx{&workQuery, 0, {}};
 
 	auto producer = wld.system().ctx(&ctx).all<NestedTick>().writes<NestedWork>().on_each([&](ecs::Iter& it) {
 		auto& data = *static_cast<NestedSystemCtx*>(it.ctx());

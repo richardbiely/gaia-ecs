@@ -40,11 +40,11 @@ namespace gaia {
 
 		private:
 			uint8_t* m_ptr;
-			uint32_t m_cnt;
-			uint32_t m_idx;
+			size_type m_cnt;
+			size_type m_idx;
 
 		public:
-			sarr_soa_iterator(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
+			sarr_soa_iterator(uint8_t* ptr, size_type cnt, size_type idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
@@ -52,16 +52,16 @@ namespace gaia {
 			T operator->() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-			iterator operator[](size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator[](difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
 
-			iterator& operator+=(size_type diff) {
-				m_idx += diff;
+			iterator& operator+=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx + diff);
 				return *this;
 			}
-			iterator& operator-=(size_type diff) {
-				m_idx -= diff;
+			iterator& operator-=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx - diff);
 				return *this;
 			}
 			iterator& operator++() {
@@ -83,11 +83,11 @@ namespace gaia {
 				return temp;
 			}
 
-			iterator operator+(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator+(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
-			iterator operator-(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx - offset);
+			iterator operator-(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx - offset));
 			}
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
@@ -133,11 +133,11 @@ namespace gaia {
 
 		private:
 			const uint8_t* m_ptr;
-			uint32_t m_cnt;
-			uint32_t m_idx;
+			size_type m_cnt;
+			size_type m_idx;
 
 		public:
-			const_sarr_soa_iterator(const uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
+			const_sarr_soa_iterator(const uint8_t* ptr, size_type cnt, size_type idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
@@ -145,16 +145,16 @@ namespace gaia {
 			T operator->() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-			iterator operator[](size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator[](difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
 
-			iterator& operator+=(size_type diff) {
-				m_idx += diff;
+			iterator& operator+=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx + diff);
 				return *this;
 			}
-			iterator& operator-=(size_type diff) {
-				m_idx -= diff;
+			iterator& operator-=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx - diff);
 				return *this;
 			}
 			iterator& operator++() {
@@ -176,11 +176,11 @@ namespace gaia {
 				return temp;
 			}
 
-			iterator operator+(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator+(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
-			iterator operator-(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx - offset);
+			iterator operator-(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx - offset));
 			}
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);

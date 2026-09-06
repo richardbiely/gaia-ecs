@@ -574,7 +574,7 @@ namespace gaia {
 					update_version(scratch.seenVersion);
 					if (scratch.seenVersion == 0) {
 						scratch.seenVersion = 1;
-						core::fill(scratch.counts.begin(), scratch.counts.end(), 0);
+						core::fill(scratch.counts.begin(), scratch.counts.end(), 0U);
 					}
 
 					return scratch.seenVersion;
@@ -3851,10 +3851,9 @@ namespace gaia {
 
 						each_runtime_erased(
 								queryInfo, plan, ExecType, static_cast<void*>(&func), &invoke_runtime_iter<Func, Iter>, constraints);
-						return;
+					} else {
+						each_runtime_erased(ExecType, static_cast<void*>(&func), &invoke_runtime_iter<Func, Iter>, constraints);
 					}
-
-					each_runtime_erased(ExecType, static_cast<void*>(&func), &invoke_runtime_iter<Func, Iter>, constraints);
 				}
 
 				//! Invokes a type-erased public iterator callback.
@@ -5336,7 +5335,7 @@ namespace gaia {
 				}
 
 				//! Invokes an iterator callback over an ordered direct-entity sequence.
-				//! 	param Func Callback type invocable with `Iter&`.
+				//! \tparam Func Callback type invocable with `Iter&`.
 				//! \param queryInfo Prepared query cache and term metadata.
 				//! \param entities Entities in the order in which the callback must observe them.
 				//! \param constraints Entity-row constraints represented by each iterator view.

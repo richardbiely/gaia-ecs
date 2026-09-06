@@ -141,7 +141,7 @@ namespace gaia {
 				//! \param out Output array receiving exact pair sources.
 				void collect_pair_sources(cnt::darray<Entity>& out) const {
 					const auto first = out.size();
-					out.reserve(first + pairSrcToTgt.size());
+					out.reserve(first + (uint32_t)pairSrcToTgt.size());
 					for (const auto& pair: pairSrcToTgt)
 						out.push_back(pair.first.entity());
 

@@ -150,7 +150,7 @@ void BM_HierarchyBatch_SpawnFlatPositions(picobench::state& state) {
 		uint64_t entitySum = 0;
 		const auto t0 = std::chrono::steady_clock::now();
 
-		GAIA_FOR(rootCount) {
+		GAIA_FOR_(rootCount, rootIdx) {
 			const auto root = w.add();
 			w.add<Position>(root, {1.0f, 2.0f, 3.0f});
 			entitySum += root.id();
@@ -182,7 +182,7 @@ void BM_HierarchyBatch_EdgeOnly(picobench::state& state) {
 		cnt::darray<ecs::Entity> leaves;
 		roots.reserve(rootCount);
 		leaves.reserve(rootCount * HierarchyBatchLeafCount);
-		GAIA_FOR(rootCount) {
+		GAIA_FOR_(rootCount, rootIdx) {
 			const auto root = w.add();
 			roots.push_back(root);
 			GAIA_FOR_(HierarchyBatchLeafCount, childIdx) {
@@ -229,7 +229,7 @@ void BM_HierarchyBatch_ParentEdgeOnlyExistingTargets(picobench::state& state) {
 		roots.reserve(rootCount);
 		leaves.reserve(rootCount * HierarchyBatchLeafCount);
 		warmups.reserve(rootCount);
-		GAIA_FOR(rootCount) {
+		GAIA_FOR_(rootCount, rootIdx) {
 			const auto root = w.add();
 			roots.push_back(root);
 			const auto warmup = w.add();
@@ -276,7 +276,7 @@ void BM_HierarchyBatch_ParentTargetPrepare(picobench::state& state) {
 		cnt::darray<ecs::Entity> warmups;
 		roots.reserve(rootCount);
 		warmups.reserve(rootCount);
-		GAIA_FOR(rootCount) {
+		GAIA_FOR_(rootCount, rootIdx) {
 			roots.push_back(w.add());
 			warmups.push_back(w.add());
 		}
@@ -284,9 +284,9 @@ void BM_HierarchyBatch_ParentTargetPrepare(picobench::state& state) {
 		uint64_t entitySum = 0;
 		const auto t0 = std::chrono::steady_clock::now();
 
-		GAIA_FOR(rootCount) {
-			w.parent(warmups[i], roots[i]);
-			entitySum += warmups[i].id();
+		GAIA_FOR_(rootCount, rootIdx) {
+			w.parent(warmups[rootIdx], roots[rootIdx]);
+			entitySum += warmups[rootIdx].id();
 		}
 
 		const auto t1 = std::chrono::steady_clock::now();
@@ -333,7 +333,7 @@ void BM_HierarchyBatch_SpawnParentRootOnly(picobench::state& state) {
 		uint64_t entitySum = 0;
 		const auto t0 = std::chrono::steady_clock::now();
 
-		GAIA_FOR(rootCount) {
+		GAIA_FOR_(rootCount, rootIdx) {
 			const auto root = w.add();
 			w.add<Position>(root, {1.0f, 2.0f, 3.0f});
 			w.parent(root, scene);
@@ -388,7 +388,7 @@ void BM_HierarchyBatch_PrefabChildAttachOnly(picobench::state& state) {
 		roots.reserve(rootCount);
 		leaves.reserve(rootCount * HierarchyBatchLeafCount);
 
-		GAIA_FOR(rootCount) {
+		GAIA_FOR_(rootCount, rootIdx) {
 			const auto root = w.add();
 			w.add<Position>(root, {1.0f, 2.0f, 3.0f});
 			roots.push_back(root);
@@ -462,7 +462,7 @@ void BM_HierarchyBatch_SpawnParentPrefabSingle(picobench::state& state) {
 		uint64_t entitySum = 0;
 		const auto t0 = std::chrono::steady_clock::now();
 
-		GAIA_FOR(rootCount) {
+		GAIA_FOR_(rootCount, rootIdx) {
 			const auto instance = w.instantiate(rootPrefab, scene);
 			entitySum += instance.id();
 		}

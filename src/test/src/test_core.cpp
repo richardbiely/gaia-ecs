@@ -1030,7 +1030,7 @@ void reverse_array_test(const T (&values)[N]) {
 	CHECK(itEnd - it == (typename Container::reverse_iterator::difference_type)N);
 	CHECK(*(it + 2) == values[N - 3]);
 	CHECK((itEnd - (typename Container::reverse_iterator::difference_type)N) == it);
-	GAIA_FOR(N) CHECK(it[i] == values[N - i - 1]);
+	GAIA_FOR(N) CHECK(it[(typename Container::difference_type)i] == values[N - i - 1]);
 	GAIA_FOR(N) {
 		CHECK(*it == values[N - i - 1]);
 		++it;
@@ -1203,8 +1203,8 @@ TEST_CASE("Containers - forward iterator range construction") {
 }
 
 TEST_CASE("Containers - dynamic lvalue insertion") {
-	lvalue_insert_test<cnt::darr<uint32_t>>(1, 2, 3, 4);
-	lvalue_insert_test<cnt::darr_ext<uint32_t, 4>>(1, 2, 3, 4);
+	lvalue_insert_test<cnt::darr<uint32_t>>(1U, 2U, 3U, 4U);
+	lvalue_insert_test<cnt::darr_ext<uint32_t, 4>>(1U, 2U, 3U, 4U);
 }
 
 TEST_CASE("Containers - SoA mutation iterators") {
@@ -2307,12 +2307,18 @@ TEST_CASE("Containers - alignment check") {
 	{
 		auto& a = arr[0];
 		a.b = 16;
-		a.arr = {{ecs::Entity(1, 2), {}, {}, {}}, {ecs::Entity(2, 30), {}, {}, {}}, {ecs::Entity(3, 400), {}, {}, {}}};
+		a.arr = {
+				{ecs::Entity(1, 2), {}, {}, {}, 0, {}, nullptr, {}},
+				{ecs::Entity(2, 30), {}, {}, {}, 0, {}, nullptr, {}},
+				{ecs::Entity(3, 400), {}, {}, {}, 0, {}, nullptr, {}}};
 	}
 	{
 		auto& a = arr[1];
 		a.b = 214;
-		a.arr = {{ecs::Entity(10, 2), {}, {}, {}}, {ecs::Entity(20, 90), {}, {}, {}}, {ecs::Entity(30, 421), {}, {}, {}}};
+		a.arr = {
+				{ecs::Entity(10, 2), {}, {}, {}, 0, {}, nullptr, {}},
+				{ecs::Entity(20, 90), {}, {}, {}, 0, {}, nullptr, {}},
+				{ecs::Entity(30, 421), {}, {}, {}, 0, {}, nullptr, {}}};
 	}
 	{
 		auto& a = arr[0];
@@ -2322,7 +2328,9 @@ TEST_CASE("Containers - alignment check") {
 		CHECK(a.arr[2].id == ecs::Entity(3, 400));
 
 		TArrInter test = {
-				{ecs::Entity(1, 2), {}, {}, {}}, {ecs::Entity(2, 30), {}, {}, {}}, {ecs::Entity(3, 400), {}, {}, {}}};
+				{ecs::Entity(1, 2), {}, {}, {}, 0, {}, nullptr, {}},
+				{ecs::Entity(2, 30), {}, {}, {}, 0, {}, nullptr, {}},
+				{ecs::Entity(3, 400), {}, {}, {}, 0, {}, nullptr, {}}};
 		CHECK(test == a.arr);
 	}
 	{
@@ -2333,7 +2341,9 @@ TEST_CASE("Containers - alignment check") {
 		CHECK(a.arr[2].id == ecs::Entity(30, 421));
 
 		TArrInter test = {
-				{ecs::Entity(10, 2), {}, {}, {}}, {ecs::Entity(20, 90), {}, {}, {}}, {ecs::Entity(30, 421), {}, {}, {}}};
+				{ecs::Entity(10, 2), {}, {}, {}, 0, {}, nullptr, {}},
+				{ecs::Entity(20, 90), {}, {}, {}, 0, {}, nullptr, {}},
+				{ecs::Entity(30, 421), {}, {}, {}, 0, {}, nullptr, {}}};
 		CHECK(test == a.arr);
 	}
 }
@@ -3444,7 +3454,7 @@ TEST_CASE("each_tuple") {
 	SUBCASE("func(Args)") {
 		uint32_t val = 0;
 		core::each_tuple(std::make_tuple(69, 10, 20), [&val](const auto& value) {
-			val += value;
+			val += (uint32_t)value;
 		});
 		CHECK(val == 99);
 	}
@@ -3452,7 +3462,7 @@ TEST_CASE("each_tuple") {
 		uint32_t val = 0;
 		uint32_t iter = 0;
 		core::each_tuple(std::make_tuple(69, 10, 20), [&](const auto& value, uint32_t i) {
-			val += value;
+			val += (uint32_t)value;
 			CHECK(i == iter);
 			++iter;
 		});
@@ -3464,7 +3474,7 @@ TEST_CASE("each_tuple_ext") {
 	SUBCASE("func(Args)") {
 		uint32_t val = 0;
 		core::each_tuple_ext<1, 3>(std::make_tuple(69, 10, 20), [&val](const auto& value) {
-			val += value;
+			val += (uint32_t)value;
 		});
 		CHECK(val == 30);
 	}
@@ -3472,7 +3482,7 @@ TEST_CASE("each_tuple_ext") {
 		uint32_t val = 0;
 		uint32_t iter = 1;
 		core::each_tuple_ext<1, 3>(std::make_tuple(69, 10, 20), [&](const auto& value, uint32_t i) {
-			val += value;
+			val += (uint32_t)value;
 			CHECK(i == iter);
 			++iter;
 		});
@@ -3528,7 +3538,7 @@ TEST_CASE("each_pack") {
 	uint32_t val = 0;
 	core::each_pack(
 			[&val](const auto& value) {
-				val += value;
+				val += (uint32_t)value;
 			},
 			69, 10, 20);
 	CHECK(val == 99);

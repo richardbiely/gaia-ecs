@@ -1933,8 +1933,8 @@ namespace gaia {
 							} else if (dataFieldCount > 1) {
 								dataOffset = (uint32_t)m_state.exec.directChunkData.size();
 								const auto recs = pChunk->comp_rec_view();
-								GAIA_FOR(dataFieldCount) {
-									const auto dataFieldIdx = pDataFields[i];
+								GAIA_FOR_(dataFieldCount, fieldIdx) {
+									const auto dataFieldIdx = pDataFields[fieldIdx];
 									const auto compIdx =
 											dataFieldIdx < ChunkHeader::MAX_COMPONENTS ? pCompIndices[dataFieldIdx] : uint8_t(0xFF);
 									m_state.exec.directChunkData.push_back(compIdx != 0xFF ? recs[compIdx].pData : nullptr);

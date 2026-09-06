@@ -360,7 +360,7 @@ namespace gaia {
 			};
 
 		public:
-			constexpr QueryHandle() noexcept: val((uint64_t)-1) {};
+			constexpr QueryHandle() noexcept: val((uint64_t)-1) {}
 
 			//! Constructs a handle from query slot metadata.
 			//! \param id Query slot identifier.
@@ -1386,7 +1386,7 @@ namespace gaia {
 				//! Returns the hash contribution from canonical lookup-key payload arrays.
 				//! \return Combined hash of canonical terms, filters, grouping dependencies, and identity flags.
 				GAIA_NODISCARD QueryLookupHash::Type hash_lookup_key_payload() const {
-					QueryLookupHash::Type hashLookup = 0;
+					QueryLookupHash::Type payloadHash = 0;
 
 					// Ids & ops
 					{
@@ -1408,7 +1408,7 @@ namespace gaia {
 						const bool matchPrefab = (flags & QueryFlags::MatchPrefab) != 0;
 						hash = core::hash_combine(hash, (QueryLookupHash::Type)matchPrefab);
 
-						hashLookup = hash;
+						payloadHash = hash;
 					}
 
 					// Filters
@@ -1419,7 +1419,7 @@ namespace gaia {
 							hash = core::hash_combine(hash, (QueryLookupHash::Type)entity.value());
 						hash = core::hash_combine(hash, (QueryLookupHash::Type)changedCnt);
 
-						hashLookup = core::hash_combine(hashLookup, hash);
+						payloadHash = core::hash_combine(payloadHash, hash);
 					}
 
 					// Explicit grouping dependencies
@@ -1430,10 +1430,10 @@ namespace gaia {
 							hash = core::hash_combine(hash, (QueryLookupHash::Type)entity.value());
 						hash = core::hash_combine(hash, (QueryLookupHash::Type)groupDepCnt);
 
-						hashLookup = core::hash_combine(hashLookup, hash);
+						payloadHash = core::hash_combine(payloadHash, hash);
 					}
 
-					return hashLookup;
+					return payloadHash;
 				}
 
 				//! Returns true when grouping identity payload matches another query context payload.

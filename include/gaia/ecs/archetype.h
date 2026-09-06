@@ -368,7 +368,7 @@ namespace gaia {
 				{
 					offset += mem::padding<alignof(ComponentVersion)>(memoryAddress);
 
-					const auto cnt = m_shape.properties.cntEntities + 1; // + 1 for entities
+					const auto cnt = (uint32_t)m_shape.properties.cntEntities + 1U; // + 1 for entities
 					GAIA_ASSERT(offset < 256);
 					m_shape.dataOffsets.firstByte_Versions = (ChunkDataVersionOffset)offset;
 					offset += sizeof(ComponentVersion) * cnt;

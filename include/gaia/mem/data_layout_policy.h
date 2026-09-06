@@ -184,7 +184,8 @@ namespace gaia {
 			template <typename Allocator>
 			GAIA_NODISCARD static uint8_t* alloc(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				auto* pData = (ValueType*)mem::AllocHelper::alloc<uint8_t, Allocator>(bytes);
+				void* pRaw = mem::AllocHelper::alloc<uint8_t, Allocator>(bytes);
+				auto* pData = (ValueType*)pRaw;
 				core::call_ctor_raw_n(pData, cnt);
 				return (uint8_t*)pData;
 			}
@@ -272,7 +273,7 @@ namespace gaia {
 			//! \return Read-only reference to the value.
 			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
 				GAIA_ASSERT(idx < m_data.size());
-				return ((const ValueType*)m_data.data())[idx];
+				return ((const ValueType*)(const void*)m_data.data())[idx];
 			}
 
 			//! Returns the backing byte address.
@@ -320,7 +321,7 @@ namespace gaia {
 			//! \return Mutable reference to the value.
 			GAIA_NODISCARD ValueType& operator[](size_t idx) noexcept {
 				GAIA_ASSERT(idx < m_data.size());
-				return ((ValueType*)m_data.data())[idx];
+				return ((ValueType*)(void*)m_data.data())[idx];
 			}
 
 			//! Returns a read-only value by index.
@@ -328,7 +329,7 @@ namespace gaia {
 			//! \return Read-only reference to the value.
 			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
 				GAIA_ASSERT(idx < m_data.size());
-				return ((const ValueType*)m_data.data())[idx];
+				return ((const ValueType*)(const void*)m_data.data())[idx];
 			}
 
 			//! Returns the backing byte address.
@@ -613,7 +614,7 @@ namespace gaia {
 			GAIA_NODISCARD constexpr static TMemberType& get_ref(const uint8_t* data, size_t idx) noexcept {
 				// Write the value directly to the memory address.
 				// Usage of unaligned_ref is not necessary because the memory is aligned.
-				auto* pCastData = (TMemberType*)data;
+				auto* pCastData = (TMemberType*)(void*)data;
 				return pCastData[idx];
 			}
 

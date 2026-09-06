@@ -1412,7 +1412,6 @@ namespace gaia {
 					if (compIdx >= recs.size())
 						return {};
 
-					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = recs[compIdx];
 					if (rec.comp.soa() != 0)
 						return {};
@@ -1503,7 +1502,6 @@ namespace gaia {
 					if (compIdx >= recs.size())
 						return {};
 
-					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = recs[compIdx];
 					if (rec.comp.soa() != 0)
 						return {};

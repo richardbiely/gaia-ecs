@@ -203,11 +203,11 @@ namespace gaia {
 
 		private:
 			GAIA_NODISCARD constexpr Node* data() noexcept {
-				return GAIA_ACC((Node*)&m_data[0]);
+				return GAIA_ACC((Node*)(void*)&m_data[0]);
 			}
 
 			GAIA_NODISCARD constexpr const Node* data() const noexcept {
-				return GAIA_ACC((const Node*)&m_data[0]);
+				return GAIA_ACC((const Node*)(const void*)&m_data[0]);
 			}
 
 			void init() {

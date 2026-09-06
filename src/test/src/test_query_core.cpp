@@ -2835,8 +2835,6 @@ TEST_CASE("Query - variable opcode paths") {
 
 template <typename TQuery>
 void Test_Query_Variable_Opcode_Selection_IsStructural() {
-	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
-
 	struct Cable {};
 	struct ConnectedTo {};
 	struct LinkedTo {};

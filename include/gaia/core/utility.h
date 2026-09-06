@@ -1108,15 +1108,17 @@ namespace gaia {
 		constexpr InputIt find(InputIt first, InputIt last, const T& value) {
 			if constexpr (std::is_pointer_v<InputIt>) {
 				auto size = distance(first, last);
-				for (decltype(size) i = 0; i < size; ++i) {
-					if (first[i] == value)
-						return &first[i];
+				auto it = first;
+				for (decltype(size) i = 0; i < size; ++i, ++it) {
+					if (*it == value)
+						return it;
 				}
 			} else if constexpr (is_random_iter_v<InputIt>) {
 				auto size = distance(first, last);
-				for (decltype(size) i = 0; i < size; ++i) {
-					if (*(first[i]) == value)
-						return first[i];
+				auto it = first;
+				for (decltype(size) i = 0; i < size; ++i, ++it) {
+					if (*it == value)
+						return it;
 				}
 			} else {
 				for (; first != last; ++first) {
@@ -1152,15 +1154,17 @@ namespace gaia {
 		constexpr InputIt find_if(InputIt first, InputIt last, Func func) {
 			if constexpr (std::is_pointer_v<InputIt>) {
 				auto size = distance(first, last);
-				for (decltype(size) i = 0; i < size; ++i) {
-					if (func(first[i]))
-						return &first[i];
+				auto it = first;
+				for (decltype(size) i = 0; i < size; ++i, ++it) {
+					if (func(*it))
+						return it;
 				}
 			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 				auto size = distance(first, last);
-				for (decltype(size) i = 0; i < size; ++i) {
-					if (func(*(first[i])))
-						return first[i];
+				auto it = first;
+				for (decltype(size) i = 0; i < size; ++i, ++it) {
+					if (func(*it))
+						return it;
 				}
 			} else {
 				for (; first != last; ++first) {
@@ -1196,15 +1200,17 @@ namespace gaia {
 		constexpr InputIt find_if_not(InputIt first, InputIt last, Func func) {
 			if constexpr (std::is_pointer_v<InputIt>) {
 				auto size = distance(first, last);
-				for (decltype(size) i = 0; i < size; ++i) {
-					if (!func(first[i]))
-						return &first[i];
+				auto it = first;
+				for (decltype(size) i = 0; i < size; ++i, ++it) {
+					if (!func(*it))
+						return it;
 				}
 			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 				auto size = distance(first, last);
-				for (decltype(size) i = 0; i < size; ++i) {
-					if (!func(*(first[i])))
-						return first[i];
+				auto it = first;
+				for (decltype(size) i = 0; i < size; ++i, ++it) {
+					if (!func(*it))
+						return it;
 				}
 			} else {
 				for (; first != last; ++first) {

@@ -93,7 +93,7 @@ namespace gaia {
 		//! field reflection, lifecycle callbacks, hooks, symbol lookup, and serialization. Instances are created through
 		//! the static create helpers and released with destroy().
 		struct GAIA_API ComponentCacheItem final {
-			GAIA_USE_SMALLBLOCK(ComponentCacheItem);
+			GAIA_USE_SMALLBLOCK(ComponentCacheItem)
 			friend class ComponentCache;
 
 			//! Maximum stored component and runtime-field symbol length, including the null terminator.
@@ -810,7 +810,6 @@ namespace gaia {
 				const auto nameTmpLen = init_type_name<T>(nameTmp);
 
 				uint8_t soaSizes[meta::StructToTupleMaxTypes]{};
-				RuntimeFieldInit fields[meta::StructToTupleMaxTypes]{};
 				auto desc = detail::ComponentDesc<T>::make(
 						util::str_view(nameTmp, nameTmpLen), std::span<uint8_t, meta::StructToTupleMaxTypes>{soaSizes});
 				if (pRuntimeType != nullptr) {
@@ -818,6 +817,7 @@ namespace gaia {
 				}
 #if GAIA_ECS_AUTO_COMPONENT_FIELDS
 				else {
+					RuntimeFieldInit fields[meta::StructToTupleMaxTypes]{};
 					desc.runtimeType.fields = fields;
 					desc.runtimeType.fieldCount =
 							detail::ComponentDesc<T>::auto_fields(std::span<RuntimeFieldInit, meta::StructToTupleMaxTypes>{fields});

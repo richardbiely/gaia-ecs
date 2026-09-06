@@ -364,11 +364,11 @@ TEST_CASE("Observer - OnSet") {
 
 	const auto e = wld.add();
 	wld.add<Position>(e);
-	wld.add<Rotation>(e, {4.0f, 5.0f, 6.0f});
+	wld.add<Rotation>(e, {4.0f, 5.0f, 6.0f, 0.0f});
 
 	CHECK(hits == 0);
 
-	wld.set<Rotation>(e) = {7.0f, 8.0f, 9.0f};
+	wld.set<Rotation>(e) = {7.0f, 8.0f, 9.0f, 0.0f};
 	CHECK(hits == 0);
 
 	wld.set<Position>(e) = {10.0f, 11.0f, 12.0f};

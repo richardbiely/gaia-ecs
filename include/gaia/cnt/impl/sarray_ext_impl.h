@@ -520,19 +520,19 @@ namespace gaia {
 			//! Returns an iterator one past the last element.
 			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto end() noexcept {
-				return iterator(GAIA_ACC((pointer)&m_data[0]) + size());
+				return iterator(data() + size());
 			}
 
 			//! Returns an iterator one past the last element.
 			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto end() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
+				return const_iterator(data() + size());
 			}
 
 			//! Returns a read-only iterator one past the last element.
 			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto cend() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
+				return const_iterator(data() + size());
 			}
 
 			//! Returns the reverse traversal sentinel preceding the first element.

@@ -1213,7 +1213,7 @@ namespace gaia {
 		//! Allocates enough memory to support \a PageCapacity elements.
 		//! Uses \a Allocator to allocate memory.
 		//! \tparam T Stored value type.
-		//! 	param PageCapacity Number of sparse entries represented by each page. Must be a power of two.
+		//! \tparam PageCapacity Number of sparse entries represented by each page. Must be a power of two.
 		//! \tparam Allocator Allocator used by the storage pages.
 		template <
 				typename T, uint32_t PageCapacity = 4096, typename Allocator = mem::DefaultAllocatorAdaptor, typename = void>
@@ -1596,7 +1596,7 @@ namespace gaia {
 		//! Uses \a Allocator to allocate memory.
 		//! This version is optimized for tags (data of zero size).
 		//! \tparam T Empty stored value type.
-		//! 	param PageCapacity Number of sparse entries represented by each page. Must be a power of two.
+		//! \tparam PageCapacity Number of sparse entries represented by each page. Must be a power of two.
 		//! \tparam Allocator Allocator used by the storage pages.
 		template <typename T, uint32_t PageCapacity, typename Allocator>
 		class sparse_storage<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {

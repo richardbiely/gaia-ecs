@@ -433,7 +433,7 @@ namespace gaia {
 					return;
 
 				const detail::ArenaLock arenaLock;
-				const auto& header = *(const SmallBlockHeader*)((uint8_t*)pBlock - SmallBlockUsableOffset);
+				const auto& header = *(const SmallBlockHeader*)(void*)((uint8_t*)pBlock - SmallBlockUsableOffset);
 				const auto pageAddr = header.m_pageAddr;
 				GAIA_ASSERT(pageAddr % sizeof(uintptr_t) == 0);
 #if GAIA_DEBUG

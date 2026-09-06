@@ -72,22 +72,22 @@ namespace gaia {
 			//! Returns an iterator at a logical offset from the current position.
 			//! \param offset Logical offset from the current index.
 			//! \return Offset iterator over the same ring buffer.
-			iterator operator[](size_type offset) const {
-				return {m_ptr, m_tail, m_size, m_index + offset};
+			iterator operator[](difference_type offset) const {
+				return {m_ptr, m_tail, m_size, (size_type)((difference_type)m_index + offset)};
 			}
 
 			//! Advances by a logical offset.
 			//! \param diff Number of positions to advance.
 			//! \return This iterator after advancement.
-			iterator& operator+=(size_type diff) {
-				m_index += diff;
+			iterator& operator+=(difference_type diff) {
+				m_index = (size_type)((difference_type)m_index + diff);
 				return *this;
 			}
 			//! Moves backward by a logical offset.
 			//! \param diff Number of positions to move backward.
 			//! \return This iterator after movement.
-			iterator& operator-=(size_type diff) {
-				m_index -= diff;
+			iterator& operator-=(difference_type diff) {
+				m_index = (size_type)((difference_type)m_index - diff);
 				return *this;
 			}
 			//! Advances by one logical position.
@@ -119,14 +119,14 @@ namespace gaia {
 			//! Returns an iterator advanced by an offset.
 			//! \param offset Number of logical positions to advance.
 			//! \return Offset iterator.
-			iterator operator+(size_type offset) const {
-				return {m_ptr, m_tail, m_size, m_index + offset};
+			iterator operator+(difference_type offset) const {
+				return {m_ptr, m_tail, m_size, (size_type)((difference_type)m_index + offset)};
 			}
 			//! Returns an iterator moved backward by an offset.
 			//! \param offset Number of logical positions to move backward.
 			//! \return Offset iterator.
-			iterator operator-(size_type offset) const {
-				return {m_ptr, m_tail, m_size, m_index - offset};
+			iterator operator-(difference_type offset) const {
+				return {m_ptr, m_tail, m_size, (size_type)((difference_type)m_index - offset)};
 			}
 			//! Calculates the logical distance between iterators from the same buffer.
 			//! \param other Iterator to subtract.

@@ -195,7 +195,7 @@ namespace {
 		uint32_t* pDtors = nullptr;
 		uint8_t payload[64]{};
 
-		GAIA_USE_SMALLBLOCK(SmallBlockMacroSmallObject);
+		GAIA_USE_SMALLBLOCK(SmallBlockMacroSmallObject)
 
 		SmallBlockMacroSmallObject() = default;
 		SmallBlockMacroSmallObject(uint32_t v, uint32_t& dtors): value(v), pDtors(&dtors) {}

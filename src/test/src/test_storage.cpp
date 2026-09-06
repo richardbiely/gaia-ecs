@@ -243,7 +243,7 @@ TEST_CASE("Sparse DontFragment relationship payload stays outside archetype stor
 	}
 
 	// The relationship payload is not a chunk column, so unrelated archetype moves do not relocate it.
-	wld.add<Rotation>(entity, {4.0f, 5.0f, 6.0f});
+	wld.add<Rotation>(entity, {4.0f, 5.0f, 6.0f, 0.0f});
 	CHECK(wld.fetch(entity).pArchetype != pArchetypeBefore);
 	CHECK(wld.get_raw(entity, pair).data == pPayloadBefore);
 

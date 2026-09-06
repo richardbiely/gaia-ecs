@@ -259,7 +259,7 @@ TEST_CASE("Entity - exact has/get across archetype moves") {
 		CHECK(p.z == 3);
 	}
 
-	wld.add<Rotation>(e, {4, 5, 6});
+	wld.add<Rotation>(e, {4, 5, 6, 0});
 
 	CHECK(wld.has<Position>(e));
 	CHECK(wld.has<Rotation>(e));

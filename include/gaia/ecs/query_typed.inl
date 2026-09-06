@@ -178,7 +178,7 @@ namespace gaia {
 
 			template <typename Func, typename... T>
 			inline void each_iter_dispatch(
-					QueryImpl& query, const QueryInfo& queryInfo, Iter& it, Func& func, const TypedQueryExecState& state,
+					const QueryInfo& queryInfo, Iter& it, Func& func, const TypedQueryExecState& state,
 					core::func_type_list<T...>) {
 				if (state.canUseDirectChunkEval) {
 					run_typed_chunk_views(
@@ -190,7 +190,7 @@ namespace gaia {
 							core::func_type_list<T...>{});
 					finish_typed_chunk_state(*it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
 				} else
-					run_typed_chunk_unmapped(query, queryInfo, it, func, state, core::func_type_list<T...>{});
+					run_typed_chunk_unmapped(queryInfo, it, func, state, core::func_type_list<T...>{});
 			}
 
 			template <typename Func, typename... T>
@@ -251,7 +251,7 @@ namespace gaia {
 
 			template <typename Func, typename... T>
 			inline void run_typed_chunk_unmapped(
-					QueryImpl& query, const QueryInfo& queryInfo, Iter& it, Func& func, const TypedQueryExecState& state,
+					const QueryInfo& queryInfo, Iter& it, Func& func, const TypedQueryExecState& state,
 					core::func_type_list<T...> types) {
 				auto& world = *const_cast<World*>(queryInfo.world());
 				auto* pChunk = const_cast<Chunk*>(it.chunk());
@@ -809,11 +809,12 @@ namespace gaia {
 			template <typename T>
 			struct TypedSparseQueryView {
 				using U = typename actual_type_t<T>::Type;
+				using UOriginal = typename actual_type_t<T>::TypeOriginal;
 				const Entity* pEntities = nullptr;
 				void* pStore = nullptr;
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
-					if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>)
+					if constexpr (core::is_mut_v<UOriginal>)
 						return world_typed_sparse_store_mut<U>(pStore, pEntities[idx]);
 					else
 						return world_typed_sparse_store_get<U>(pStore, pEntities[idx]);
@@ -823,7 +824,6 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD inline auto typed_sparse_chunk_view(
 					Chunk* pChunk, uint16_t from, uint16_t to, const TypedQueryExecState& state, uint32_t argIdx) {
-				using U = typename actual_type_t<T>::Type;
 				if constexpr (uses_ct_sparse_storage_v<T>)
 					return TypedSparseQueryView<T>{pChunk->entity_view().data() + from, state.sparseStores[argIdx]};
 				else
@@ -832,7 +832,6 @@ namespace gaia {
 
 			template <typename T, typename View>
 			GAIA_NODISCARD inline decltype(auto) typed_sparse_chunk_arg_at(View& view, uint32_t row, uint16_t from) {
-				using U = typename actual_type_t<T>::Type;
 				if constexpr (uses_ct_sparse_storage_v<T>)
 					return view[row];
 				else
@@ -860,10 +859,11 @@ namespace gaia {
 			GAIA_NODISCARD inline decltype(auto)
 			typed_sparse_entity_arg(World& world, Entity entity, const TypedQueryExecState& state, uint32_t argIdx) {
 				using U = typename actual_type_t<T>::Type;
+				using UOriginal = typename actual_type_t<T>::TypeOriginal;
 				if constexpr (std::is_same_v<U, Entity>)
 					return entity;
 				else if constexpr (uses_ct_sparse_storage_v<T>) {
-					if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>) {
+					if constexpr (core::is_mut_v<UOriginal>) {
 						if (auto* pValue = world_typed_sparse_store_try_mut<U>(state.sparseStores[argIdx], entity);
 								pValue != nullptr)
 							return *pValue;
@@ -873,7 +873,7 @@ namespace gaia {
 							return *pValue;
 					}
 				}
-				if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>)
+				if constexpr (core::is_mut_v<UOriginal>)
 					return world_query_entity_arg_by_id_raw<T>(world, entity, state.argIds[argIdx]);
 				else
 					return world_query_entity_arg_by_id<T>(world, entity, state.argIds[argIdx]);
@@ -1521,7 +1521,7 @@ namespace gaia {
 				const auto argCount = init_typed_query_arg_metas(metas, *it.world(), InputArgs{});
 				const auto state = build_typed_query_exec_state(*it.world(), queryInfo, metas, argCount);
 				it.ctx(m_ctx);
-				each_iter_dispatch(*this, queryInfo, it, func, state, InputArgs{});
+				each_iter_dispatch(queryInfo, it, func, state, InputArgs{});
 			}
 
 			inline void QueryImpl::each_iter_erased(

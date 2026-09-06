@@ -1450,7 +1450,7 @@ namespace gaia {
 					const auto cnt = m_header.count;
 					pItem->func_dtor(pSrc, cnt);
 				}
-			};
+			}
 
 			//----------------------------------------------------------------------
 			// Check component presence

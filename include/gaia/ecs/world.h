@@ -545,6 +545,8 @@ namespace gaia {
 #endif
 					>
 			void modify_table_inter(Entity entity, EntityContainer& ec) {
+				(void)entity;
+
 				ec.pChunk->template modify<
 						T
 #if GAIA_ENABLE_HOOKS
@@ -663,13 +665,12 @@ namespace gaia {
 				if constexpr (uses_ct_sparse_storage<FT>()) {
 					sparse_component_store_mut<FT>(term).add(entity) = value;
 					finish_write(entity, term);
-					return;
+				} else {
+					const auto& ec = fetch(entity);
+					const auto row = ec.row;
+					ComponentSetter{*this, ec.pChunk, entity, row}.sset<TApi>(value);
+					finish_write(entity, term);
 				}
-
-				const auto& ec = fetch(entity);
-				const auto row = ec.row;
-				ComponentSetter{*this, ec.pChunk, entity, row}.sset<TApi>(value);
-				finish_write(entity, term);
 			}
 
 			//! Commits a runtime-object proxy value through the component's selected storage path.
@@ -4515,10 +4516,9 @@ namespace gaia {
 					const auto object = register_sparse_component_id<FT>(mode);
 					(void)sparse_component_store_mut<FT>(object).add(entity);
 					finish_sparse_component_add_inter(entity, object, mode);
-					return;
+				} else {
+					EntityBuilder(*this, entity).add<T>();
 				}
-
-				EntityBuilder(*this, entity).add<T>();
 			}
 
 			//! Attaches a new component \a T to an exact pair record.
@@ -4600,27 +4600,26 @@ namespace gaia {
 					auto& data = sparse_component_store_mut<FT>(object).add(entity);
 					data = GAIA_FWD(value);
 					finish_sparse_component_add_inter(entity, object, mode);
-					return;
+				} else {
+					EntityBuilder builder(*this, entity);
+					auto object = builder.register_component<T>();
+#if GAIA_OBSERVERS_ENABLED
+					auto addDiffCtx =
+							m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
+#endif
+					// Materialize the component first, write the initial value, and only then dispatch OnAdd.
+					// This keeps observer-visible state aligned with the final stored payload.
+					builder.add_inter_init(object);
+					builder.commit();
+
+					const auto& ec = cont(entity);
+					const auto idx = ec.row;
+					ComponentSetter{*this, ec.pChunk, entity, idx}.sset<T>(GAIA_FWD(value));
+					notify_add_single(entity, object);
+#if GAIA_OBSERVERS_ENABLED
+					m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
+#endif
 				}
-
-				EntityBuilder builder(*this, entity);
-				auto object = builder.register_component<T>();
-#if GAIA_OBSERVERS_ENABLED
-				auto addDiffCtx =
-						m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
-#endif
-				// Materialize the component first, write the initial value, and only then dispatch OnAdd.
-				// This keeps observer-visible state aligned with the final stored payload.
-				builder.add_inter_init(object);
-				builder.commit();
-
-				const auto& ec = cont(entity);
-				const auto idx = ec.row;
-				ComponentSetter{*this, ec.pChunk, entity, idx}.sset<T>(GAIA_FWD(value));
-				notify_add_single(entity, object);
-#if GAIA_OBSERVERS_ENABLED
-				m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
-#endif
 			}
 
 			//! Attaches a new component \a T to an exact pair record and initializes its value.
@@ -4667,8 +4666,8 @@ namespace gaia {
 
 				if constexpr (uses_ct_sparse_storage<FT>())
 					return override_sparse_component_inter(entity, item.entity);
-
-				return override_inter(entity, item.entity);
+				else
+					return override_inter(entity, item.entity);
 			}
 
 			//! Materializes an inherited typed component associated with \p object on \p entity.
@@ -5015,6 +5014,9 @@ namespace gaia {
 			void parent_batch(
 					Entity parentEntity, Archetype& archetype, Chunk& chunk, uint32_t originalChunkSize, uint32_t toCreate) {
 				GAIA_ASSERT(valid(parentEntity));
+#if !GAIA_OBSERVERS_ENABLED
+				(void)archetype;
+#endif
 
 				if (toCreate == 0)
 					return;
@@ -5105,7 +5107,9 @@ namespace gaia {
 				if GAIA_UNLIKELY (tearing_down())
 					return;
 
+	#if GAIA_OBSERVERS_ENABLED
 				const auto& ec = fetch(entity);
+	#endif
 
 				lock();
 
@@ -5137,7 +5141,9 @@ namespace gaia {
 				if GAIA_UNLIKELY (tearing_down())
 					return;
 
+	#if GAIA_OBSERVERS_ENABLED
 				const auto& ec = fetch(entity);
+	#endif
 
 				lock();
 
@@ -5192,8 +5198,6 @@ namespace gaia {
 	#if GAIA_OBSERVERS_ENABLED
 				const bool inspectObserverTerms =
 						m_observers.has_on_del_observers() && (archetype.has_observed_terms() || !m_sparseComponentsByComp.empty());
-	#else
-				constexpr bool inspectObserverTerms = false;
 	#endif
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
 				const bool inspectHookTerms = m_compCache.hooks_accessed();
@@ -5346,6 +5350,9 @@ namespace gaia {
 			) {
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(parentInstance == EntityBad || valid(parentInstance));
+#if !GAIA_OBSERVERS_ENABLED
+				(void)addedIds;
+#endif
 
 				if (count == 0U)
 					return;
@@ -6776,18 +6783,17 @@ namespace gaia {
 						if (pItem != nullptr)
 							del(entity, pItem->entity);
 					}
-					return;
-				}
-
-				if constexpr (!is_pair<FT>::value) {
-					const auto* pItem = comp_cache().template find<FT>();
-					if (pItem != nullptr && component_is_non_fragmenting(pItem->entity)) {
-						del(entity, pItem->entity);
-						return;
+				} else {
+					if constexpr (!is_pair<FT>::value) {
+						const auto* pItem = comp_cache().template find<FT>();
+						if (pItem != nullptr && component_is_non_fragmenting(pItem->entity)) {
+							del(entity, pItem->entity);
+							return;
+						}
 					}
-				}
 
-				EntityBuilder(*this, entity).del<FT>();
+					EntityBuilder(*this, entity).del<FT>();
+				}
 			}
 
 			//----------------------------------------------------------------------
@@ -6946,17 +6952,16 @@ namespace gaia {
 							TriggerSetEffects
 #endif
 							>(source);
-					return;
-				}
-
-				auto& ec = fetch(source);
-				modify_table_inter<
-						T
+				} else {
+					auto& ec = fetch(source);
+					modify_table_inter<
+							T
 #if GAIA_ENABLE_HOOKS
-						,
-						TriggerSetEffects
+							,
+							TriggerSetEffects
 #endif
-						>(source, ec);
+							>(source, ec);
+				}
 			}
 
 			//! Marks the component associated with \p object as modified on \p entity.
@@ -7146,7 +7151,8 @@ namespace gaia {
 				const auto& item = add<FT>();
 				if constexpr (uses_ct_sparse_storage<FT>())
 					return sparse_component_store_mut<FT>(item.entity).mut(entity);
-				return acc_mut(entity).smut<T>();
+				else
+					return acc_mut(entity).smut<T>();
 			}
 
 			//! Returns silent mutable access to component type `T` on an exact pair record.
@@ -7162,7 +7168,8 @@ namespace gaia {
 				const auto& item = add<FT>();
 				if constexpr (uses_ct_sparse_storage<FT>())
 					return sparse_component_store_mut<FT>(item.entity).mut((Entity)entity);
-				return acc_mut(entity).smut<T>();
+				else
+					return acc_mut(entity).smut<T>();
 			}
 
 			//! Sets the value of the component associated with \p object on \p entity without updating world version.
@@ -7545,12 +7552,12 @@ namespace gaia {
 					if (owner.pair())
 						return pStore->get(owner);
 					return pStore->get_entity(owner);
+				} else {
+					const auto owner = id_owner_inter(entity, compEntity);
+					GAIA_ASSERT(owner != EntityBad);
+					const auto& ec = cont(owner);
+					return ComponentGetter{*this, ec.pChunk, owner, ec.row}.template get<T>();
 				}
-
-				const auto owner = id_owner_inter(entity, compEntity);
-				GAIA_ASSERT(owner != EntityBad);
-				const auto& ec = cont(owner);
-				return ComponentGetter{*this, ec.pChunk, owner, ec.row}.template get<T>();
 			}
 
 			//! Returns the value stored in component `T` on an exact pair record.
@@ -7578,12 +7585,12 @@ namespace gaia {
 					const auto* pStore = sparse_component_store<FT>(compEntity);
 					GAIA_ASSERT(pStore != nullptr);
 					return pStore->get(owner);
+				} else {
+					const auto owner = id_owner_inter(source, compEntity);
+					GAIA_ASSERT(owner != EntityBad);
+					const auto& ec = fetch(owner);
+					return ComponentGetter{*this, ec.pChunk, owner, ec.row}.template get<T>();
 				}
-
-				const auto owner = id_owner_inter(source, compEntity);
-				GAIA_ASSERT(owner != EntityBad);
-				const auto& ec = fetch(owner);
-				return ComponentGetter{*this, ec.pChunk, owner, ec.row}.template get<T>();
 			}
 
 			//! Returns the value stored in the component associated with \p object on \p entity.
@@ -10611,7 +10618,7 @@ namespace gaia {
 						return false;
 					}
 					auto& store = sparse_component_store_erased_mut(component, *pItem);
-					GAIA_FOR(ownerCnt) {
+					GAIA_FOR_(ownerCnt, ownerIdx) {
 						Entity owner;
 						s.load(owner);
 						auto* pData = store.func_add(store.pStore, owner);
@@ -16994,7 +17001,6 @@ namespace gaia {
 			GAIA_ASSERT(m_entity != EntityBad);
 
 			smut<T>(type) = GAIA_FWD(value);
-			using FT = typename component_type_t<T>::TypeFull;
 			auto& world = *const_cast<World*>(m_pWorld);
 
 			world.finish_write(m_entity, type);

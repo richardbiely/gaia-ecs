@@ -2470,15 +2470,17 @@ namespace gaia {
 		constexpr InputIt find(InputIt first, InputIt last, const T& value) {
 			if constexpr (std::is_pointer_v<InputIt>) {
 				auto size = distance(first, last);
-				for (decltype(size) i = 0; i < size; ++i) {
-					if (first[i] == value)
-						return &first[i];
+				auto it = first;
+				for (decltype(size) i = 0; i < size; ++i, ++it) {
+					if (*it == value)
+						return it;
 				}
 			} else if constexpr (is_random_iter_v<InputIt>) {
 				auto size = distance(first, last);
-				for (decltype(size) i = 0; i < size; ++i) {
-					if (*(first[i]) == value)
-						return first[i];
+				auto it = first;
+				for (decltype(size) i = 0; i < size; ++i, ++it) {
+					if (*it == value)
+						return it;
 				}
 			} else {
 				for (; first != last; ++first) {
@@ -2514,15 +2516,17 @@ namespace gaia {
 		constexpr InputIt find_if(InputIt first, InputIt last, Func func) {
 			if constexpr (std::is_pointer_v<InputIt>) {
 				auto size = distance(first, last);
-				for (decltype(size) i = 0; i < size; ++i) {
-					if (func(first[i]))
-						return &first[i];
+				auto it = first;
+				for (decltype(size) i = 0; i < size; ++i, ++it) {
+					if (func(*it))
+						return it;
 				}
 			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 				auto size = distance(first, last);
-				for (decltype(size) i = 0; i < size; ++i) {
-					if (func(*(first[i])))
-						return first[i];
+				auto it = first;
+				for (decltype(size) i = 0; i < size; ++i, ++it) {
+					if (func(*it))
+						return it;
 				}
 			} else {
 				for (; first != last; ++first) {
@@ -2558,15 +2562,17 @@ namespace gaia {
 		constexpr InputIt find_if_not(InputIt first, InputIt last, Func func) {
 			if constexpr (std::is_pointer_v<InputIt>) {
 				auto size = distance(first, last);
-				for (decltype(size) i = 0; i < size; ++i) {
-					if (!func(first[i]))
-						return &first[i];
+				auto it = first;
+				for (decltype(size) i = 0; i < size; ++i, ++it) {
+					if (!func(*it))
+						return it;
 				}
 			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 				auto size = distance(first, last);
-				for (decltype(size) i = 0; i < size; ++i) {
-					if (!func(*(first[i])))
-						return first[i];
+				auto it = first;
+				for (decltype(size) i = 0; i < size; ++i, ++it) {
+					if (!func(*it))
+						return it;
 				}
 			} else {
 				for (; first != last; ++first) {
@@ -6540,7 +6546,8 @@ namespace gaia {
 			template <typename Allocator>
 			GAIA_NODISCARD static uint8_t* alloc(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				auto* pData = (ValueType*)mem::AllocHelper::alloc<uint8_t, Allocator>(bytes);
+				void* pRaw = mem::AllocHelper::alloc<uint8_t, Allocator>(bytes);
+				auto* pData = (ValueType*)pRaw;
 				core::call_ctor_raw_n(pData, cnt);
 				return (uint8_t*)pData;
 			}
@@ -6628,7 +6635,7 @@ namespace gaia {
 			//! \return Read-only reference to the value.
 			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
 				GAIA_ASSERT(idx < m_data.size());
-				return ((const ValueType*)m_data.data())[idx];
+				return ((const ValueType*)(const void*)m_data.data())[idx];
 			}
 
 			//! Returns the backing byte address.
@@ -6676,7 +6683,7 @@ namespace gaia {
 			//! \return Mutable reference to the value.
 			GAIA_NODISCARD ValueType& operator[](size_t idx) noexcept {
 				GAIA_ASSERT(idx < m_data.size());
-				return ((ValueType*)m_data.data())[idx];
+				return ((ValueType*)(void*)m_data.data())[idx];
 			}
 
 			//! Returns a read-only value by index.
@@ -6684,7 +6691,7 @@ namespace gaia {
 			//! \return Read-only reference to the value.
 			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
 				GAIA_ASSERT(idx < m_data.size());
-				return ((const ValueType*)m_data.data())[idx];
+				return ((const ValueType*)(const void*)m_data.data())[idx];
 			}
 
 			//! Returns the backing byte address.
@@ -6969,7 +6976,7 @@ namespace gaia {
 			GAIA_NODISCARD constexpr static TMemberType& get_ref(const uint8_t* data, size_t idx) noexcept {
 				// Write the value directly to the memory address.
 				// Usage of unaligned_ref is not necessary because the memory is aligned.
-				auto* pCastData = (TMemberType*)data;
+				auto* pCastData = (TMemberType*)(void*)data;
 				return pCastData[idx];
 			}
 
@@ -10065,7 +10072,7 @@ namespace gaia {
 					return;
 
 				const detail::ArenaLock arenaLock;
-				const auto& header = *(const SmallBlockHeader*)((uint8_t*)pBlock - SmallBlockUsableOffset);
+				const auto& header = *(const SmallBlockHeader*)(void*)((uint8_t*)pBlock - SmallBlockUsableOffset);
 				const auto pageAddr = header.m_pageAddr;
 				GAIA_ASSERT(pageAddr % sizeof(uintptr_t) == 0);
 #if GAIA_DEBUG
@@ -11710,11 +11717,11 @@ namespace gaia {
 
 		private:
 			uint8_t* m_ptr;
-			uint32_t m_cnt;
-			uint32_t m_idx;
+			size_type m_cnt;
+			size_type m_idx;
 
 		public:
-			darr_ext_soa_iterator(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
+			darr_ext_soa_iterator(uint8_t* ptr, size_type cnt, size_type idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
@@ -11722,16 +11729,16 @@ namespace gaia {
 			T operator->() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-			iterator operator[](size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator[](difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
 
-			iterator& operator+=(size_type diff) {
-				m_idx += diff;
+			iterator& operator+=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx + diff);
 				return *this;
 			}
-			iterator& operator-=(size_type diff) {
-				m_idx -= diff;
+			iterator& operator-=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx - diff);
 				return *this;
 			}
 			iterator& operator++() {
@@ -11753,11 +11760,11 @@ namespace gaia {
 				return temp;
 			}
 
-			iterator operator+(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator+(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
-			iterator operator-(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx - offset);
+			iterator operator-(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx - offset));
 			}
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
@@ -11803,11 +11810,12 @@ namespace gaia {
 
 		private:
 			const uint8_t* m_ptr;
-			uint32_t m_cnt;
-			uint32_t m_idx;
+			size_type m_cnt;
+			size_type m_idx;
 
 		public:
-			const_darr_ext_soa_iterator(const uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
+			const_darr_ext_soa_iterator(const uint8_t* ptr, size_type cnt, size_type idx):
+					m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
@@ -11815,16 +11823,16 @@ namespace gaia {
 			T operator->() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-			iterator operator[](size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator[](difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
 
-			iterator& operator+=(size_type diff) {
-				m_idx += diff;
+			iterator& operator+=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx + diff);
 				return *this;
 			}
-			iterator& operator-=(size_type diff) {
-				m_idx -= diff;
+			iterator& operator-=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx - diff);
 				return *this;
 			}
 			iterator& operator++() {
@@ -11846,11 +11854,11 @@ namespace gaia {
 				return temp;
 			}
 
-			iterator operator+(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator+(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
-			iterator operator-(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx - offset);
+			iterator operator-(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx - offset));
 			}
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
@@ -12633,11 +12641,11 @@ namespace gaia {
 
 		private:
 			uint8_t* m_ptr;
-			uint32_t m_cnt;
-			uint32_t m_idx;
+			size_type m_cnt;
+			size_type m_idx;
 
 		public:
-			darr_soa_iterator(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
+			darr_soa_iterator(uint8_t* ptr, size_type cnt, size_type idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
@@ -12645,16 +12653,16 @@ namespace gaia {
 			T operator->() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-			iterator operator[](size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator[](difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
 
-			iterator& operator+=(size_type diff) {
-				m_idx += diff;
+			iterator& operator+=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx + diff);
 				return *this;
 			}
-			iterator& operator-=(size_type diff) {
-				m_idx -= diff;
+			iterator& operator-=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx - diff);
 				return *this;
 			}
 			iterator& operator++() {
@@ -12676,11 +12684,11 @@ namespace gaia {
 				return temp;
 			}
 
-			iterator operator+(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator+(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
-			iterator operator-(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx - offset);
+			iterator operator-(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx - offset));
 			}
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
@@ -12726,11 +12734,11 @@ namespace gaia {
 
 		private:
 			const uint8_t* m_ptr;
-			uint32_t m_cnt;
-			uint32_t m_idx;
+			size_type m_cnt;
+			size_type m_idx;
 
 		public:
-			const_darr_soa_iterator(const uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
+			const_darr_soa_iterator(const uint8_t* ptr, size_type cnt, size_type idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
@@ -12738,16 +12746,16 @@ namespace gaia {
 			T operator->() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-			iterator operator[](size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator[](difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
 
-			iterator& operator+=(size_type diff) {
-				m_idx += diff;
+			iterator& operator+=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx + diff);
 				return *this;
 			}
-			iterator& operator-=(size_type diff) {
-				m_idx -= diff;
+			iterator& operator-=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx - diff);
 				return *this;
 			}
 			iterator& operator++() {
@@ -12769,11 +12777,11 @@ namespace gaia {
 				return temp;
 			}
 
-			iterator operator+(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator+(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
-			iterator operator-(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx - offset);
+			iterator operator-(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx - offset));
 			}
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
@@ -15332,6 +15340,15 @@ namespace gaia {
 	} // namespace cnt
 } // namespace gaia
 
+GAIA_CLANG_WARNING_PUSH()
+GAIA_GCC_WARNING_PUSH()
+GAIA_CLANG_WARNING_DISABLE("-Wpadded")
+GAIA_CLANG_WARNING_DISABLE("-Wvariadic-macro-arguments-omitted")
+GAIA_CLANG_WARNING_DISABLE("-Wsign-conversion")
+GAIA_CLANG_WARNING_DISABLE("-Wconversion")
+GAIA_GCC_WARNING_DISABLE("-Wpadded")
+GAIA_GCC_WARNING_DISABLE("-Wsign-conversion")
+GAIA_GCC_WARNING_DISABLE("-Wconversion")
 //                 ______  _____                 ______                _________
 //  ______________ ___  /_ ___(_)_______         ___  /_ ______ ______ ______  /
 //  __  ___/_  __ \__  __ \__  / __  __ \        __  __ \_  __ \_  __ \_  __  /
@@ -18264,6 +18281,8 @@ namespace robin_hood {
 } // namespace robin_hood
 
 #endif
+GAIA_GCC_WARNING_POP()
+GAIA_CLANG_WARNING_POP()
 
 namespace gaia {
 	namespace cnt {
@@ -20687,19 +20706,19 @@ namespace gaia {
 			//! Returns an iterator one past the last element.
 			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto end() noexcept {
-				return iterator(GAIA_ACC((pointer)&m_data[0]) + size());
+				return iterator(data() + size());
 			}
 
 			//! Returns an iterator one past the last element.
 			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto end() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
+				return const_iterator(data() + size());
 			}
 
 			//! Returns a read-only iterator one past the last element.
 			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto cend() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
+				return const_iterator(data() + size());
 			}
 
 			//! Returns the reverse traversal sentinel preceding the first element.
@@ -20819,11 +20838,11 @@ namespace gaia {
 
 		private:
 			uint8_t* m_ptr;
-			uint32_t m_cnt;
-			uint32_t m_idx;
+			size_type m_cnt;
+			size_type m_idx;
 
 		public:
-			sarr_ext_soa_iterator(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
+			sarr_ext_soa_iterator(uint8_t* ptr, size_type cnt, size_type idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
@@ -20831,16 +20850,16 @@ namespace gaia {
 			T operator->() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-			iterator operator[](size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator[](difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
 
-			iterator& operator+=(size_type diff) {
-				m_idx += diff;
+			iterator& operator+=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx + diff);
 				return *this;
 			}
-			iterator& operator-=(size_type diff) {
-				m_idx -= diff;
+			iterator& operator-=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx - diff);
 				return *this;
 			}
 			iterator& operator++() {
@@ -20862,11 +20881,11 @@ namespace gaia {
 				return temp;
 			}
 
-			iterator operator+(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator+(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
-			iterator operator-(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx - offset);
+			iterator operator-(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx - offset));
 			}
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
@@ -20912,11 +20931,12 @@ namespace gaia {
 
 		private:
 			const uint8_t* m_ptr;
-			uint32_t m_cnt;
-			uint32_t m_idx;
+			size_type m_cnt;
+			size_type m_idx;
 
 		public:
-			const_sarr_ext_soa_iterator(const uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
+			const_sarr_ext_soa_iterator(const uint8_t* ptr, size_type cnt, size_type idx):
+					m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
@@ -20924,16 +20944,16 @@ namespace gaia {
 			T operator->() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-			iterator operator[](size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator[](difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
 
-			iterator& operator+=(size_type diff) {
-				m_idx += diff;
+			iterator& operator+=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx + diff);
 				return *this;
 			}
-			iterator& operator-=(size_type diff) {
-				m_idx -= diff;
+			iterator& operator-=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx - diff);
 				return *this;
 			}
 			iterator& operator++() {
@@ -20955,11 +20975,11 @@ namespace gaia {
 				return temp;
 			}
 
-			iterator operator+(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator+(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
-			iterator operator-(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx - offset);
+			iterator operator-(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx - offset));
 			}
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
@@ -21605,11 +21625,11 @@ namespace gaia {
 
 		private:
 			uint8_t* m_ptr;
-			uint32_t m_cnt;
-			uint32_t m_idx;
+			size_type m_cnt;
+			size_type m_idx;
 
 		public:
-			sarr_soa_iterator(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
+			sarr_soa_iterator(uint8_t* ptr, size_type cnt, size_type idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
@@ -21617,16 +21637,16 @@ namespace gaia {
 			T operator->() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-			iterator operator[](size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator[](difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
 
-			iterator& operator+=(size_type diff) {
-				m_idx += diff;
+			iterator& operator+=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx + diff);
 				return *this;
 			}
-			iterator& operator-=(size_type diff) {
-				m_idx -= diff;
+			iterator& operator-=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx - diff);
 				return *this;
 			}
 			iterator& operator++() {
@@ -21648,11 +21668,11 @@ namespace gaia {
 				return temp;
 			}
 
-			iterator operator+(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator+(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
-			iterator operator-(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx - offset);
+			iterator operator-(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx - offset));
 			}
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
@@ -21698,11 +21718,11 @@ namespace gaia {
 
 		private:
 			const uint8_t* m_ptr;
-			uint32_t m_cnt;
-			uint32_t m_idx;
+			size_type m_cnt;
+			size_type m_idx;
 
 		public:
-			const_sarr_soa_iterator(const uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
+			const_sarr_soa_iterator(const uint8_t* ptr, size_type cnt, size_type idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
@@ -21710,16 +21730,16 @@ namespace gaia {
 			T operator->() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-			iterator operator[](size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator[](difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
 
-			iterator& operator+=(size_type diff) {
-				m_idx += diff;
+			iterator& operator+=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx + diff);
 				return *this;
 			}
-			iterator& operator-=(size_type diff) {
-				m_idx -= diff;
+			iterator& operator-=(difference_type diff) {
+				m_idx = (size_type)((difference_type)m_idx - diff);
 				return *this;
 			}
 			iterator& operator++() {
@@ -21741,11 +21761,11 @@ namespace gaia {
 				return temp;
 			}
 
-			iterator operator+(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx + offset);
+			iterator operator+(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx + offset));
 			}
-			iterator operator-(size_type offset) const {
-				return iterator(m_ptr, m_cnt, m_idx - offset);
+			iterator operator-(difference_type offset) const {
+				return iterator(m_ptr, m_cnt, (size_type)((difference_type)m_idx - offset));
 			}
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
@@ -22148,6 +22168,18 @@ namespace gaia {
 		using sarray_soa = cnt::sarr_soa<T, N>;
 	} // namespace cnt
 } // namespace gaia
+
+GAIA_CLANG_WARNING_PUSH()
+GAIA_GCC_WARNING_PUSH()
+GAIA_CLANG_WARNING_DISABLE("-Wpadded")
+GAIA_CLANG_WARNING_DISABLE("-Wvariadic-macro-arguments-omitted")
+GAIA_CLANG_WARNING_DISABLE("-Wsign-conversion")
+GAIA_CLANG_WARNING_DISABLE("-Wconversion")
+GAIA_GCC_WARNING_DISABLE("-Wpadded")
+GAIA_GCC_WARNING_DISABLE("-Wsign-conversion")
+GAIA_GCC_WARNING_DISABLE("-Wconversion")
+GAIA_GCC_WARNING_POP()
+GAIA_CLANG_WARNING_POP()
 
 namespace gaia {
 	namespace cnt {
@@ -23364,7 +23396,7 @@ namespace gaia {
 		//! Allocates enough memory to support \a PageCapacity elements.
 		//! Uses \a Allocator to allocate memory.
 		//! \tparam T Stored value type.
-		//! 	param PageCapacity Number of sparse entries represented by each page. Must be a power of two.
+		//! \tparam PageCapacity Number of sparse entries represented by each page. Must be a power of two.
 		//! \tparam Allocator Allocator used by the storage pages.
 		template <
 				typename T, uint32_t PageCapacity = 4096, typename Allocator = mem::DefaultAllocatorAdaptor, typename = void>
@@ -23747,7 +23779,7 @@ namespace gaia {
 		//! Uses \a Allocator to allocate memory.
 		//! This version is optimized for tags (data of zero size).
 		//! \tparam T Empty stored value type.
-		//! 	param PageCapacity Number of sparse entries represented by each page. Must be a power of two.
+		//! \tparam PageCapacity Number of sparse entries represented by each page. Must be a power of two.
 		//! \tparam Allocator Allocator used by the storage pages.
 		template <typename T, uint32_t PageCapacity, typename Allocator>
 		class sparse_storage<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
@@ -24121,22 +24153,22 @@ namespace gaia {
 			//! Returns an iterator at a logical offset from the current position.
 			//! \param offset Logical offset from the current index.
 			//! \return Offset iterator over the same ring buffer.
-			iterator operator[](size_type offset) const {
-				return {m_ptr, m_tail, m_size, m_index + offset};
+			iterator operator[](difference_type offset) const {
+				return {m_ptr, m_tail, m_size, (size_type)((difference_type)m_index + offset)};
 			}
 
 			//! Advances by a logical offset.
 			//! \param diff Number of positions to advance.
 			//! \return This iterator after advancement.
-			iterator& operator+=(size_type diff) {
-				m_index += diff;
+			iterator& operator+=(difference_type diff) {
+				m_index = (size_type)((difference_type)m_index + diff);
 				return *this;
 			}
 			//! Moves backward by a logical offset.
 			//! \param diff Number of positions to move backward.
 			//! \return This iterator after movement.
-			iterator& operator-=(size_type diff) {
-				m_index -= diff;
+			iterator& operator-=(difference_type diff) {
+				m_index = (size_type)((difference_type)m_index - diff);
 				return *this;
 			}
 			//! Advances by one logical position.
@@ -24168,14 +24200,14 @@ namespace gaia {
 			//! Returns an iterator advanced by an offset.
 			//! \param offset Number of logical positions to advance.
 			//! \return Offset iterator.
-			iterator operator+(size_type offset) const {
-				return {m_ptr, m_tail, m_size, m_index + offset};
+			iterator operator+(difference_type offset) const {
+				return {m_ptr, m_tail, m_size, (size_type)((difference_type)m_index + offset)};
 			}
 			//! Returns an iterator moved backward by an offset.
 			//! \param offset Number of logical positions to move backward.
 			//! \return Offset iterator.
-			iterator operator-(size_type offset) const {
-				return {m_ptr, m_tail, m_size, m_index - offset};
+			iterator operator-(difference_type offset) const {
+				return {m_ptr, m_tail, m_size, (size_type)((difference_type)m_index - offset)};
 			}
 			//! Calculates the logical distance between iterators from the same buffer.
 			//! \param other Iterator to subtract.
@@ -28583,11 +28615,11 @@ namespace gaia {
 
 		private:
 			GAIA_NODISCARD constexpr Node* data() noexcept {
-				return GAIA_ACC((Node*)&m_data[0]);
+				return GAIA_ACC((Node*)(void*)&m_data[0]);
 			}
 
 			GAIA_NODISCARD constexpr const Node* data() const noexcept {
-				return GAIA_ACC((const Node*)&m_data[0]);
+				return GAIA_ACC((const Node*)(const void*)&m_data[0]);
 			}
 
 			void init() {
@@ -31995,7 +32027,7 @@ namespace gaia {
 				Identifier val;
 			};
 
-			constexpr Entity() noexcept: val(IdentifierBad) {};
+			constexpr Entity() noexcept: val(IdentifierBad) {}
 
 			//! We need the entity to be braces-constructible and at the same type prevent it from
 			//! getting constructed accidentally from an int (e.g .Entity::id()). Therefore, only
@@ -34739,7 +34771,7 @@ namespace gaia {
 		//! field reflection, lifecycle callbacks, hooks, symbol lookup, and serialization. Instances are created through
 		//! the static create helpers and released with destroy().
 		struct GAIA_API ComponentCacheItem final {
-			GAIA_USE_SMALLBLOCK(ComponentCacheItem);
+			GAIA_USE_SMALLBLOCK(ComponentCacheItem)
 			friend class ComponentCache;
 
 			//! Maximum stored component and runtime-field symbol length, including the null terminator.
@@ -35456,7 +35488,6 @@ namespace gaia {
 				const auto nameTmpLen = init_type_name<T>(nameTmp);
 
 				uint8_t soaSizes[meta::StructToTupleMaxTypes]{};
-				RuntimeFieldInit fields[meta::StructToTupleMaxTypes]{};
 				auto desc = detail::ComponentDesc<T>::make(
 						util::str_view(nameTmp, nameTmpLen), std::span<uint8_t, meta::StructToTupleMaxTypes>{soaSizes});
 				if (pRuntimeType != nullptr) {
@@ -35464,6 +35495,7 @@ namespace gaia {
 				}
 #if GAIA_ECS_AUTO_COMPONENT_FIELDS
 				else {
+					RuntimeFieldInit fields[meta::StructToTupleMaxTypes]{};
 					desc.runtimeType.fields = fields;
 					desc.runtimeType.fieldCount =
 							detail::ComponentDesc<T>::auto_fields(std::span<RuntimeFieldInit, meta::StructToTupleMaxTypes>{fields});
@@ -38501,7 +38533,7 @@ namespace gaia {
 					const auto cnt = m_header.count;
 					pItem->func_dtor(pSrc, cnt);
 				}
-			};
+			}
 
 			//----------------------------------------------------------------------
 			// Check component presence
@@ -39344,7 +39376,7 @@ namespace gaia {
 				{
 					offset += mem::padding<alignof(ComponentVersion)>(memoryAddress);
 
-					const auto cnt = m_shape.properties.cntEntities + 1; // + 1 for entities
+					const auto cnt = (uint32_t)m_shape.properties.cntEntities + 1U; // + 1 for entities
 					GAIA_ASSERT(offset < 256);
 					m_shape.dataOffsets.firstByte_Versions = (ChunkDataVersionOffset)offset;
 					offset += sizeof(ComponentVersion) * cnt;
@@ -41949,7 +41981,7 @@ namespace gaia {
 			};
 
 		public:
-			constexpr QueryHandle() noexcept: val((uint64_t)-1) {};
+			constexpr QueryHandle() noexcept: val((uint64_t)-1) {}
 
 			//! Constructs a handle from query slot metadata.
 			//! \param id Query slot identifier.
@@ -42975,7 +43007,7 @@ namespace gaia {
 				//! Returns the hash contribution from canonical lookup-key payload arrays.
 				//! \return Combined hash of canonical terms, filters, grouping dependencies, and identity flags.
 				GAIA_NODISCARD QueryLookupHash::Type hash_lookup_key_payload() const {
-					QueryLookupHash::Type hashLookup = 0;
+					QueryLookupHash::Type payloadHash = 0;
 
 					// Ids & ops
 					{
@@ -42997,7 +43029,7 @@ namespace gaia {
 						const bool matchPrefab = (flags & QueryFlags::MatchPrefab) != 0;
 						hash = core::hash_combine(hash, (QueryLookupHash::Type)matchPrefab);
 
-						hashLookup = hash;
+						payloadHash = hash;
 					}
 
 					// Filters
@@ -43008,7 +43040,7 @@ namespace gaia {
 							hash = core::hash_combine(hash, (QueryLookupHash::Type)entity.value());
 						hash = core::hash_combine(hash, (QueryLookupHash::Type)changedCnt);
 
-						hashLookup = core::hash_combine(hashLookup, hash);
+						payloadHash = core::hash_combine(payloadHash, hash);
 					}
 
 					// Explicit grouping dependencies
@@ -43019,10 +43051,10 @@ namespace gaia {
 							hash = core::hash_combine(hash, (QueryLookupHash::Type)entity.value());
 						hash = core::hash_combine(hash, (QueryLookupHash::Type)groupDepCnt);
 
-						hashLookup = core::hash_combine(hashLookup, hash);
+						payloadHash = core::hash_combine(payloadHash, hash);
 					}
 
-					return hashLookup;
+					return payloadHash;
 				}
 
 				//! Returns true when grouping identity payload matches another query context payload.
@@ -45033,7 +45065,6 @@ namespace gaia {
 					if (compIdx >= recs.size())
 						return {};
 
-					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = recs[compIdx];
 					if (rec.comp.soa() != 0)
 						return {};
@@ -45123,7 +45154,6 @@ namespace gaia {
 					if (compIdx >= recs.size())
 						return {};
 
-					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = recs[compIdx];
 					if (rec.comp.soa() != 0)
 						return {};
@@ -46621,7 +46651,7 @@ namespace gaia {
 				//! \param out Output array receiving exact pair sources.
 				void collect_pair_sources(cnt::darray<Entity>& out) const {
 					const auto first = out.size();
-					out.reserve(first + pairSrcToTgt.size());
+					out.reserve(first + (uint32_t)pairSrcToTgt.size());
 					for (const auto& pair: pairSrcToTgt)
 						out.push_back(pair.first.entity());
 
@@ -52895,8 +52925,8 @@ namespace gaia {
 							} else if (dataFieldCount > 1) {
 								dataOffset = (uint32_t)m_state.exec.directChunkData.size();
 								const auto recs = pChunk->comp_rec_view();
-								GAIA_FOR(dataFieldCount) {
-									const auto dataFieldIdx = pDataFields[i];
+								GAIA_FOR_(dataFieldCount, fieldIdx) {
+									const auto dataFieldIdx = pDataFields[fieldIdx];
 									const auto compIdx =
 											dataFieldIdx < ChunkHeader::MAX_COMPONENTS ? pCompIndices[dataFieldIdx] : uint8_t(0xFF);
 									m_state.exec.directChunkData.push_back(compIdx != 0xFF ? recs[compIdx].pData : nullptr);
@@ -55873,7 +55903,7 @@ namespace gaia {
 					update_version(scratch.seenVersion);
 					if (scratch.seenVersion == 0) {
 						scratch.seenVersion = 1;
-						core::fill(scratch.counts.begin(), scratch.counts.end(), 0);
+						core::fill(scratch.counts.begin(), scratch.counts.end(), 0U);
 					}
 
 					return scratch.seenVersion;
@@ -59150,10 +59180,9 @@ namespace gaia {
 
 						each_runtime_erased(
 								queryInfo, plan, ExecType, static_cast<void*>(&func), &invoke_runtime_iter<Func, Iter>, constraints);
-						return;
+					} else {
+						each_runtime_erased(ExecType, static_cast<void*>(&func), &invoke_runtime_iter<Func, Iter>, constraints);
 					}
-
-					each_runtime_erased(ExecType, static_cast<void*>(&func), &invoke_runtime_iter<Func, Iter>, constraints);
 				}
 
 				//! Invokes a type-erased public iterator callback.
@@ -60635,7 +60664,7 @@ namespace gaia {
 				}
 
 				//! Invokes an iterator callback over an ordered direct-entity sequence.
-				//! 	param Func Callback type invocable with `Iter&`.
+				//! \tparam Func Callback type invocable with `Iter&`.
 				//! \param queryInfo Prepared query cache and term metadata.
 				//! \param entities Entities in the order in which the callback must observe them.
 				//! \param constraints Entity-row constraints represented by each iterator view.
@@ -62872,7 +62901,7 @@ namespace gaia {
 
 			template <typename Func, typename... T>
 			inline void each_iter_dispatch(
-					QueryImpl& query, const QueryInfo& queryInfo, Iter& it, Func& func, const TypedQueryExecState& state,
+					const QueryInfo& queryInfo, Iter& it, Func& func, const TypedQueryExecState& state,
 					core::func_type_list<T...>) {
 				if (state.canUseDirectChunkEval) {
 					run_typed_chunk_views(
@@ -62884,7 +62913,7 @@ namespace gaia {
 							core::func_type_list<T...>{});
 					finish_typed_chunk_state(*it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
 				} else
-					run_typed_chunk_unmapped(query, queryInfo, it, func, state, core::func_type_list<T...>{});
+					run_typed_chunk_unmapped(queryInfo, it, func, state, core::func_type_list<T...>{});
 			}
 
 			template <typename Func, typename... T>
@@ -62945,7 +62974,7 @@ namespace gaia {
 
 			template <typename Func, typename... T>
 			inline void run_typed_chunk_unmapped(
-					QueryImpl& query, const QueryInfo& queryInfo, Iter& it, Func& func, const TypedQueryExecState& state,
+					const QueryInfo& queryInfo, Iter& it, Func& func, const TypedQueryExecState& state,
 					core::func_type_list<T...> types) {
 				auto& world = *const_cast<World*>(queryInfo.world());
 				auto* pChunk = const_cast<Chunk*>(it.chunk());
@@ -63503,11 +63532,12 @@ namespace gaia {
 			template <typename T>
 			struct TypedSparseQueryView {
 				using U = typename actual_type_t<T>::Type;
+				using UOriginal = typename actual_type_t<T>::TypeOriginal;
 				const Entity* pEntities = nullptr;
 				void* pStore = nullptr;
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
-					if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>)
+					if constexpr (core::is_mut_v<UOriginal>)
 						return world_typed_sparse_store_mut<U>(pStore, pEntities[idx]);
 					else
 						return world_typed_sparse_store_get<U>(pStore, pEntities[idx]);
@@ -63517,7 +63547,6 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD inline auto typed_sparse_chunk_view(
 					Chunk* pChunk, uint16_t from, uint16_t to, const TypedQueryExecState& state, uint32_t argIdx) {
-				using U = typename actual_type_t<T>::Type;
 				if constexpr (uses_ct_sparse_storage_v<T>)
 					return TypedSparseQueryView<T>{pChunk->entity_view().data() + from, state.sparseStores[argIdx]};
 				else
@@ -63526,7 +63555,6 @@ namespace gaia {
 
 			template <typename T, typename View>
 			GAIA_NODISCARD inline decltype(auto) typed_sparse_chunk_arg_at(View& view, uint32_t row, uint16_t from) {
-				using U = typename actual_type_t<T>::Type;
 				if constexpr (uses_ct_sparse_storage_v<T>)
 					return view[row];
 				else
@@ -63554,10 +63582,11 @@ namespace gaia {
 			GAIA_NODISCARD inline decltype(auto)
 			typed_sparse_entity_arg(World& world, Entity entity, const TypedQueryExecState& state, uint32_t argIdx) {
 				using U = typename actual_type_t<T>::Type;
+				using UOriginal = typename actual_type_t<T>::TypeOriginal;
 				if constexpr (std::is_same_v<U, Entity>)
 					return entity;
 				else if constexpr (uses_ct_sparse_storage_v<T>) {
-					if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>) {
+					if constexpr (core::is_mut_v<UOriginal>) {
 						if (auto* pValue = world_typed_sparse_store_try_mut<U>(state.sparseStores[argIdx], entity);
 								pValue != nullptr)
 							return *pValue;
@@ -63567,7 +63596,7 @@ namespace gaia {
 							return *pValue;
 					}
 				}
-				if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>)
+				if constexpr (core::is_mut_v<UOriginal>)
 					return world_query_entity_arg_by_id_raw<T>(world, entity, state.argIds[argIdx]);
 				else
 					return world_query_entity_arg_by_id<T>(world, entity, state.argIds[argIdx]);
@@ -64215,7 +64244,7 @@ namespace gaia {
 				const auto argCount = init_typed_query_arg_metas(metas, *it.world(), InputArgs{});
 				const auto state = build_typed_query_exec_state(*it.world(), queryInfo, metas, argCount);
 				it.ctx(m_ctx);
-				each_iter_dispatch(*this, queryInfo, it, func, state, InputArgs{});
+				each_iter_dispatch(queryInfo, it, func, state, InputArgs{});
 			}
 
 			inline void QueryImpl::each_iter_erased(
@@ -67100,6 +67129,8 @@ namespace gaia {
 #endif
 					>
 			void modify_table_inter(Entity entity, EntityContainer& ec) {
+				(void)entity;
+
 				ec.pChunk->template modify<
 						T
 #if GAIA_ENABLE_HOOKS
@@ -67218,13 +67249,12 @@ namespace gaia {
 				if constexpr (uses_ct_sparse_storage<FT>()) {
 					sparse_component_store_mut<FT>(term).add(entity) = value;
 					finish_write(entity, term);
-					return;
+				} else {
+					const auto& ec = fetch(entity);
+					const auto row = ec.row;
+					ComponentSetter{*this, ec.pChunk, entity, row}.sset<TApi>(value);
+					finish_write(entity, term);
 				}
-
-				const auto& ec = fetch(entity);
-				const auto row = ec.row;
-				ComponentSetter{*this, ec.pChunk, entity, row}.sset<TApi>(value);
-				finish_write(entity, term);
 			}
 
 			//! Commits a runtime-object proxy value through the component's selected storage path.
@@ -71070,10 +71100,9 @@ namespace gaia {
 					const auto object = register_sparse_component_id<FT>(mode);
 					(void)sparse_component_store_mut<FT>(object).add(entity);
 					finish_sparse_component_add_inter(entity, object, mode);
-					return;
+				} else {
+					EntityBuilder(*this, entity).add<T>();
 				}
-
-				EntityBuilder(*this, entity).add<T>();
 			}
 
 			//! Attaches a new component \a T to an exact pair record.
@@ -71155,27 +71184,26 @@ namespace gaia {
 					auto& data = sparse_component_store_mut<FT>(object).add(entity);
 					data = GAIA_FWD(value);
 					finish_sparse_component_add_inter(entity, object, mode);
-					return;
+				} else {
+					EntityBuilder builder(*this, entity);
+					auto object = builder.register_component<T>();
+#if GAIA_OBSERVERS_ENABLED
+					auto addDiffCtx =
+							m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
+#endif
+					// Materialize the component first, write the initial value, and only then dispatch OnAdd.
+					// This keeps observer-visible state aligned with the final stored payload.
+					builder.add_inter_init(object);
+					builder.commit();
+
+					const auto& ec = cont(entity);
+					const auto idx = ec.row;
+					ComponentSetter{*this, ec.pChunk, entity, idx}.sset<T>(GAIA_FWD(value));
+					notify_add_single(entity, object);
+#if GAIA_OBSERVERS_ENABLED
+					m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
+#endif
 				}
-
-				EntityBuilder builder(*this, entity);
-				auto object = builder.register_component<T>();
-#if GAIA_OBSERVERS_ENABLED
-				auto addDiffCtx =
-						m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
-#endif
-				// Materialize the component first, write the initial value, and only then dispatch OnAdd.
-				// This keeps observer-visible state aligned with the final stored payload.
-				builder.add_inter_init(object);
-				builder.commit();
-
-				const auto& ec = cont(entity);
-				const auto idx = ec.row;
-				ComponentSetter{*this, ec.pChunk, entity, idx}.sset<T>(GAIA_FWD(value));
-				notify_add_single(entity, object);
-#if GAIA_OBSERVERS_ENABLED
-				m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
-#endif
 			}
 
 			//! Attaches a new component \a T to an exact pair record and initializes its value.
@@ -71222,8 +71250,8 @@ namespace gaia {
 
 				if constexpr (uses_ct_sparse_storage<FT>())
 					return override_sparse_component_inter(entity, item.entity);
-
-				return override_inter(entity, item.entity);
+				else
+					return override_inter(entity, item.entity);
 			}
 
 			//! Materializes an inherited typed component associated with \p object on \p entity.
@@ -71570,6 +71598,9 @@ namespace gaia {
 			void parent_batch(
 					Entity parentEntity, Archetype& archetype, Chunk& chunk, uint32_t originalChunkSize, uint32_t toCreate) {
 				GAIA_ASSERT(valid(parentEntity));
+#if !GAIA_OBSERVERS_ENABLED
+				(void)archetype;
+#endif
 
 				if (toCreate == 0)
 					return;
@@ -71660,7 +71691,9 @@ namespace gaia {
 				if GAIA_UNLIKELY (tearing_down())
 					return;
 
+	#if GAIA_OBSERVERS_ENABLED
 				const auto& ec = fetch(entity);
+	#endif
 
 				lock();
 
@@ -71692,7 +71725,9 @@ namespace gaia {
 				if GAIA_UNLIKELY (tearing_down())
 					return;
 
+	#if GAIA_OBSERVERS_ENABLED
 				const auto& ec = fetch(entity);
+	#endif
 
 				lock();
 
@@ -71747,8 +71782,6 @@ namespace gaia {
 	#if GAIA_OBSERVERS_ENABLED
 				const bool inspectObserverTerms =
 						m_observers.has_on_del_observers() && (archetype.has_observed_terms() || !m_sparseComponentsByComp.empty());
-	#else
-				constexpr bool inspectObserverTerms = false;
 	#endif
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
 				const bool inspectHookTerms = m_compCache.hooks_accessed();
@@ -71901,6 +71934,9 @@ namespace gaia {
 			) {
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(parentInstance == EntityBad || valid(parentInstance));
+#if !GAIA_OBSERVERS_ENABLED
+				(void)addedIds;
+#endif
 
 				if (count == 0U)
 					return;
@@ -73331,18 +73367,17 @@ namespace gaia {
 						if (pItem != nullptr)
 							del(entity, pItem->entity);
 					}
-					return;
-				}
-
-				if constexpr (!is_pair<FT>::value) {
-					const auto* pItem = comp_cache().template find<FT>();
-					if (pItem != nullptr && component_is_non_fragmenting(pItem->entity)) {
-						del(entity, pItem->entity);
-						return;
+				} else {
+					if constexpr (!is_pair<FT>::value) {
+						const auto* pItem = comp_cache().template find<FT>();
+						if (pItem != nullptr && component_is_non_fragmenting(pItem->entity)) {
+							del(entity, pItem->entity);
+							return;
+						}
 					}
-				}
 
-				EntityBuilder(*this, entity).del<FT>();
+					EntityBuilder(*this, entity).del<FT>();
+				}
 			}
 
 			//----------------------------------------------------------------------
@@ -73501,17 +73536,16 @@ namespace gaia {
 							TriggerSetEffects
 #endif
 							>(source);
-					return;
-				}
-
-				auto& ec = fetch(source);
-				modify_table_inter<
-						T
+				} else {
+					auto& ec = fetch(source);
+					modify_table_inter<
+							T
 #if GAIA_ENABLE_HOOKS
-						,
-						TriggerSetEffects
+							,
+							TriggerSetEffects
 #endif
-						>(source, ec);
+							>(source, ec);
+				}
 			}
 
 			//! Marks the component associated with \p object as modified on \p entity.
@@ -73701,7 +73735,8 @@ namespace gaia {
 				const auto& item = add<FT>();
 				if constexpr (uses_ct_sparse_storage<FT>())
 					return sparse_component_store_mut<FT>(item.entity).mut(entity);
-				return acc_mut(entity).smut<T>();
+				else
+					return acc_mut(entity).smut<T>();
 			}
 
 			//! Returns silent mutable access to component type `T` on an exact pair record.
@@ -73717,7 +73752,8 @@ namespace gaia {
 				const auto& item = add<FT>();
 				if constexpr (uses_ct_sparse_storage<FT>())
 					return sparse_component_store_mut<FT>(item.entity).mut((Entity)entity);
-				return acc_mut(entity).smut<T>();
+				else
+					return acc_mut(entity).smut<T>();
 			}
 
 			//! Sets the value of the component associated with \p object on \p entity without updating world version.
@@ -74100,12 +74136,12 @@ namespace gaia {
 					if (owner.pair())
 						return pStore->get(owner);
 					return pStore->get_entity(owner);
+				} else {
+					const auto owner = id_owner_inter(entity, compEntity);
+					GAIA_ASSERT(owner != EntityBad);
+					const auto& ec = cont(owner);
+					return ComponentGetter{*this, ec.pChunk, owner, ec.row}.template get<T>();
 				}
-
-				const auto owner = id_owner_inter(entity, compEntity);
-				GAIA_ASSERT(owner != EntityBad);
-				const auto& ec = cont(owner);
-				return ComponentGetter{*this, ec.pChunk, owner, ec.row}.template get<T>();
 			}
 
 			//! Returns the value stored in component `T` on an exact pair record.
@@ -74133,12 +74169,12 @@ namespace gaia {
 					const auto* pStore = sparse_component_store<FT>(compEntity);
 					GAIA_ASSERT(pStore != nullptr);
 					return pStore->get(owner);
+				} else {
+					const auto owner = id_owner_inter(source, compEntity);
+					GAIA_ASSERT(owner != EntityBad);
+					const auto& ec = fetch(owner);
+					return ComponentGetter{*this, ec.pChunk, owner, ec.row}.template get<T>();
 				}
-
-				const auto owner = id_owner_inter(source, compEntity);
-				GAIA_ASSERT(owner != EntityBad);
-				const auto& ec = fetch(owner);
-				return ComponentGetter{*this, ec.pChunk, owner, ec.row}.template get<T>();
 			}
 
 			//! Returns the value stored in the component associated with \p object on \p entity.
@@ -77166,7 +77202,7 @@ namespace gaia {
 						return false;
 					}
 					auto& store = sparse_component_store_erased_mut(component, *pItem);
-					GAIA_FOR(ownerCnt) {
+					GAIA_FOR_(ownerCnt, ownerIdx) {
 						Entity owner;
 						s.load(owner);
 						auto* pData = store.func_add(store.pStore, owner);
@@ -87552,7 +87588,7 @@ namespace gaia {
 		inline bool
 		World::write_runtime_schema_json(ser::ser_json& writer, const char* schemaHash, bool includeRuntimeEntities) const {
 			cnt::darray<const ComponentCacheItem*> items;
-			items.reserve(m_compCache.m_compByEntityId.size());
+			items.reserve((uint32_t)m_compCache.m_compByEntityId.size());
 			for (const auto& [entityId, pItem]: m_compCache.m_compByEntityId) {
 				(void)entityId;
 				items.push_back(pItem);
@@ -89515,7 +89551,6 @@ namespace gaia {
 			GAIA_ASSERT(m_entity != EntityBad);
 
 			smut<T>(type) = GAIA_FWD(value);
-			using FT = typename component_type_t<T>::TypeFull;
 			auto& world = *const_cast<World*>(m_pWorld);
 
 			world.finish_write(m_entity, type);

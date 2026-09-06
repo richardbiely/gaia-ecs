@@ -1,4 +1,4 @@
-if(!GAIA_BUILD_SRC)
+if(NOT GAIA_BUILD_SRC)
   return()
 endif()
 
@@ -170,15 +170,16 @@ else()
   # Tracy profiler is not written with strictness and warnings-as-errors in mind
   # so rather than reading spam in the build output we disable any strictness
   # rules and deprecation warnings when profiling.
-  if(!GAIA_PROFILER_CPU AND !GAIA_PROFILER_MEM)
+  if(NOT GAIA_PROFILER_CPU AND NOT GAIA_PROFILER_MEM)
     enable_cxx_compiler_flag_if_supported("-Wall")
     enable_cxx_compiler_flag_if_supported("-Wextra")
     enable_cxx_compiler_flag_if_supported("-Wextra-semi")
     enable_cxx_compiler_flag_if_supported("-Wextra-tokens")
     enable_cxx_compiler_flag_if_supported("-pedantic")
     enable_cxx_compiler_flag_if_supported("-pedantic-errors")
-    enable_cxx_compiler_flag_if_supported("-Wpadded")
-    enable_cxx_compiler_flag_if_supported("-Wpadded-bitfield")
+    # Cannot be used yet. Template containers and cache-line structs pad by design.
+    # enable_cxx_compiler_flag_if_supported("-Wpadded")
+    # enable_cxx_compiler_flag_if_supported("-Wpadded-bitfield")
     enable_cxx_compiler_flag_if_supported("-Werror")
     enable_cxx_compiler_flag_if_supported("-Wshadow")
     enable_cxx_compiler_flag_if_supported("-Wcast-align")

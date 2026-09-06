@@ -490,7 +490,7 @@ TEST_CASE("Query - cached exact and ANY query without positive selectors") {
 	CHECK(q.count() == 0);
 
 	auto e = wld.add();
-	wld.add<Rotation>(e, {1, 0, 0});
+	wld.add<Rotation>(e, {1, 0, 0, 0});
 
 	CHECK(info.cache_archetype_view().empty());
 	CHECK(q.count() == 0);
@@ -529,7 +529,7 @@ TEST_CASE("Query - broad-first exact query with selective match") {
 
 	auto eMatch = wld.add();
 	wld.add<Position>(eMatch, {4, 5, 6});
-	wld.add<Rotation>(eMatch, {7, 8, 9});
+	wld.add<Rotation>(eMatch, {7, 8, 9, 0});
 
 	CHECK(info.cache_archetype_view().size() == 1);
 	CHECK(q.count() == 1);

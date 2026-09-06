@@ -265,7 +265,7 @@ namespace gaia {
 				Identifier val;
 			};
 
-			constexpr Entity() noexcept: val(IdentifierBad) {};
+			constexpr Entity() noexcept: val(IdentifierBad) {}
 
 			//! We need the entity to be braces-constructible and at the same type prevent it from
 			//! getting constructed accidentally from an int (e.g .Entity::id()). Therefore, only

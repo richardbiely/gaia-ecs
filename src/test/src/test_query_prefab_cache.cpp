@@ -302,7 +302,7 @@ TEST_CASE("Query - cached direct-source query with unrelated archetype changes")
 	CHECK(q.count() == 1);
 
 	auto unrelated = wld.add();
-	wld.add<Rotation>(unrelated, {4, 5, 6});
+	wld.add<Rotation>(unrelated, {4, 5, 6, 0});
 	wld.add<Scale>(unrelated, {7, 8, 9});
 
 	q.match_all(info);
@@ -618,7 +618,7 @@ TEST_CASE("Query - cached traversed-source query with unrelated archetype change
 	CHECK(q.count() == 1);
 
 	auto unrelated = wld.add();
-	wld.add<Rotation>(unrelated, {4, 5, 6});
+	wld.add<Rotation>(unrelated, {4, 5, 6, 0});
 	wld.add<Scale>(unrelated, {7, 8, 9});
 
 	q.match_all(info);

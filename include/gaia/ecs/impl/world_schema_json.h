@@ -358,7 +358,7 @@ namespace gaia {
 		inline bool
 		World::write_runtime_schema_json(ser::ser_json& writer, const char* schemaHash, bool includeRuntimeEntities) const {
 			cnt::darray<const ComponentCacheItem*> items;
-			items.reserve(m_compCache.m_compByEntityId.size());
+			items.reserve((uint32_t)m_compCache.m_compByEntityId.size());
 			for (const auto& [entityId, pItem]: m_compCache.m_compByEntityId) {
 				(void)entityId;
 				items.push_back(pItem);
