@@ -196,7 +196,7 @@ $(document).ready(function(){initNavTree('component__cache__item_8h_source.html'
 <div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>    };</div>
 <div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
 <div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>    <span class="keyword">struct </span>GAIA_API ComponentCacheItem final {</div>
-<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>      GAIA_USE_SMALLBLOCK(ComponentCacheItem);</div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>      GAIA_USE_SMALLBLOCK(ComponentCacheItem)</div>
 <div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>      <span class="keyword">friend</span> <span class="keyword">class </span>ComponentCache;</div>
 <div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span> </div>
 <div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>      <span class="keyword">static</span> <span class="keyword">constexpr</span> uint32_t MaxNameLength = 256;</div>
@@ -729,14 +729,14 @@ $(document).ready(function(){initNavTree('component__cache__item_8h_source.html'
 <div class="line"><a id="l00810" name="l00810"></a><span class="lineno">  810</span>        <span class="keyword">const</span> <span class="keyword">auto</span> nameTmpLen = init_type_name&lt;T&gt;(nameTmp);</div>
 <div class="line"><a id="l00811" name="l00811"></a><span class="lineno">  811</span> </div>
 <div class="line"><a id="l00812" name="l00812"></a><span class="lineno">  812</span>        uint8_t soaSizes[meta::StructToTupleMaxTypes]{};</div>
-<div class="line"><a id="l00813" name="l00813"></a><span class="lineno">  813</span>        RuntimeFieldInit fields[meta::StructToTupleMaxTypes]{};</div>
-<div class="line"><a id="l00814" name="l00814"></a><span class="lineno">  814</span>        <span class="keyword">auto</span> desc = detail::ComponentDesc&lt;T&gt;::make(</div>
-<div class="line"><a id="l00815" name="l00815"></a><span class="lineno">  815</span>            util::str_view(nameTmp, nameTmpLen), std::span&lt;uint8_t, meta::StructToTupleMaxTypes&gt;{soaSizes});</div>
-<div class="line"><a id="l00816" name="l00816"></a><span class="lineno">  816</span>        <span class="keywordflow">if</span> (pRuntimeType != <span class="keyword">nullptr</span>) {</div>
-<div class="line"><a id="l00817" name="l00817"></a><span class="lineno">  817</span>          desc.runtimeType = *pRuntimeType;</div>
-<div class="line"><a id="l00818" name="l00818"></a><span class="lineno">  818</span>        }</div>
-<div class="line"><a id="l00819" name="l00819"></a><span class="lineno">  819</span><span class="preprocessor">#if GAIA_ECS_AUTO_COMPONENT_FIELDS</span></div>
-<div class="line"><a id="l00820" name="l00820"></a><span class="lineno">  820</span>        <span class="keywordflow">else</span> {</div>
+<div class="line"><a id="l00813" name="l00813"></a><span class="lineno">  813</span>        <span class="keyword">auto</span> desc = detail::ComponentDesc&lt;T&gt;::make(</div>
+<div class="line"><a id="l00814" name="l00814"></a><span class="lineno">  814</span>            util::str_view(nameTmp, nameTmpLen), std::span&lt;uint8_t, meta::StructToTupleMaxTypes&gt;{soaSizes});</div>
+<div class="line"><a id="l00815" name="l00815"></a><span class="lineno">  815</span>        <span class="keywordflow">if</span> (pRuntimeType != <span class="keyword">nullptr</span>) {</div>
+<div class="line"><a id="l00816" name="l00816"></a><span class="lineno">  816</span>          desc.runtimeType = *pRuntimeType;</div>
+<div class="line"><a id="l00817" name="l00817"></a><span class="lineno">  817</span>        }</div>
+<div class="line"><a id="l00818" name="l00818"></a><span class="lineno">  818</span><span class="preprocessor">#if GAIA_ECS_AUTO_COMPONENT_FIELDS</span></div>
+<div class="line"><a id="l00819" name="l00819"></a><span class="lineno">  819</span>        <span class="keywordflow">else</span> {</div>
+<div class="line"><a id="l00820" name="l00820"></a><span class="lineno">  820</span>          RuntimeFieldInit fields[meta::StructToTupleMaxTypes]{};</div>
 <div class="line"><a id="l00821" name="l00821"></a><span class="lineno">  821</span>          desc.runtimeType.fields = fields;</div>
 <div class="line"><a id="l00822" name="l00822"></a><span class="lineno">  822</span>          desc.runtimeType.fieldCount =</div>
 <div class="line"><a id="l00823" name="l00823"></a><span class="lineno">  823</span>              detail::ComponentDesc&lt;T&gt;::auto_fields(std::span&lt;RuntimeFieldInit, meta::StructToTupleMaxTypes&gt;{fields});</div>

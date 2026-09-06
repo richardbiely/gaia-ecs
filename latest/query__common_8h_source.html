@@ -424,7 +424,7 @@ $(document).ready(function(){initNavTree('query__common_8h_source.html',''); ini
 <div class="line"><a id="l00360" name="l00360"></a><span class="lineno">  360</span>      };</div>
 <div class="line"><a id="l00361" name="l00361"></a><span class="lineno">  361</span> </div>
 <div class="line"><a id="l00362" name="l00362"></a><span class="lineno">  362</span>    <span class="keyword">public</span>:</div>
-<div class="line"><a id="l00363" name="l00363"></a><span class="lineno">  363</span>      <span class="keyword">constexpr</span> QueryHandle() noexcept: val((uint64_t)-1) {};</div>
+<div class="line"><a id="l00363" name="l00363"></a><span class="lineno">  363</span>      <span class="keyword">constexpr</span> QueryHandle() noexcept: val((uint64_t)-1) {}</div>
 <div class="line"><a id="l00364" name="l00364"></a><span class="lineno">  364</span> </div>
 <div class="foldopen" id="foldopen00368" data-start="{" data-end="}">
 <div class="line"><a id="l00368" name="l00368"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1QueryHandle.html#ac8c6b445125ba0d4f2a03d4a8d019b53">  368</a></span>      <a class="code hl_function" href="structgaia_1_1ecs_1_1QueryHandle.html#ac8c6b445125ba0d4f2a03d4a8d019b53">QueryHandle</a>(QueryId <span class="keywordtype">id</span>, uint32_t <a class="code hl_function" href="structgaia_1_1ecs_1_1QueryHandle.html#a236ee8dedba98deb20088af4f991a0ba">gen</a>) {</div>
@@ -1268,7 +1268,7 @@ $(document).ready(function(){initNavTree('query__common_8h_source.html',''); ini
 <div class="line"><a id="l01385" name="l01385"></a><span class="lineno"> 1385</span> </div>
 <div class="foldopen" id="foldopen01388" data-start="{" data-end="}">
 <div class="line"><a id="l01388" name="l01388"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a4482a08870c69aaa26b6542c69645070"> 1388</a></span>        GAIA_NODISCARD <a class="code hl_typedef" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a> <a class="code hl_function" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a4482a08870c69aaa26b6542c69645070">hash_lookup_key_payload</a>()<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l01389" name="l01389"></a><span class="lineno"> 1389</span>          <a class="code hl_typedef" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a> <a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryCtx.html#ad2f9b56b4cf85654f3d66ece014fa16f">hashLookup</a> = 0;</div>
+<div class="line"><a id="l01389" name="l01389"></a><span class="lineno"> 1389</span>          <a class="code hl_typedef" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a> payloadHash = 0;</div>
 <div class="line"><a id="l01390" name="l01390"></a><span class="lineno"> 1390</span> </div>
 <div class="line"><a id="l01391" name="l01391"></a><span class="lineno"> 1391</span>          <span class="comment">// Ids &amp; ops</span></div>
 <div class="line"><a id="l01392" name="l01392"></a><span class="lineno"> 1392</span>          {</div>
@@ -1290,7 +1290,7 @@ $(document).ready(function(){initNavTree('query__common_8h_source.html',''); ini
 <div class="line"><a id="l01408" name="l01408"></a><span class="lineno"> 1408</span>            <span class="keyword">const</span> <span class="keywordtype">bool</span> matchPrefab = (<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#aa9edbc95e3a6d93d78188c84e50fd94f">flags</a> &amp; <a class="code hl_enumvalue" href="structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aa215832865698b1b73c8f68e54605ff66">QueryFlags::MatchPrefab</a>) != 0;</div>
 <div class="line"><a id="l01409" name="l01409"></a><span class="lineno"> 1409</span>            hash = core::hash_combine(hash, (<a class="code hl_typedef" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a>)matchPrefab);</div>
 <div class="line"><a id="l01410" name="l01410"></a><span class="lineno"> 1410</span> </div>
-<div class="line"><a id="l01411" name="l01411"></a><span class="lineno"> 1411</span>            <a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryCtx.html#ad2f9b56b4cf85654f3d66ece014fa16f">hashLookup</a> = hash;</div>
+<div class="line"><a id="l01411" name="l01411"></a><span class="lineno"> 1411</span>            payloadHash = hash;</div>
 <div class="line"><a id="l01412" name="l01412"></a><span class="lineno"> 1412</span>          }</div>
 <div class="line"><a id="l01413" name="l01413"></a><span class="lineno"> 1413</span> </div>
 <div class="line"><a id="l01414" name="l01414"></a><span class="lineno"> 1414</span>          <span class="comment">// Filters</span></div>
@@ -1301,7 +1301,7 @@ $(document).ready(function(){initNavTree('query__common_8h_source.html',''); ini
 <div class="line"><a id="l01419" name="l01419"></a><span class="lineno"> 1419</span>              hash = core::hash_combine(hash, (<a class="code hl_typedef" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a>)entity.value());</div>
 <div class="line"><a id="l01420" name="l01420"></a><span class="lineno"> 1420</span>            hash = core::hash_combine(hash, (<a class="code hl_typedef" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a>)<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a07eca82bc1999a317b4551c88cc8eb9f">changedCnt</a>);</div>
 <div class="line"><a id="l01421" name="l01421"></a><span class="lineno"> 1421</span> </div>
-<div class="line"><a id="l01422" name="l01422"></a><span class="lineno"> 1422</span>            <a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryCtx.html#ad2f9b56b4cf85654f3d66ece014fa16f">hashLookup</a> = core::hash_combine(<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryCtx.html#ad2f9b56b4cf85654f3d66ece014fa16f">hashLookup</a>, hash);</div>
+<div class="line"><a id="l01422" name="l01422"></a><span class="lineno"> 1422</span>            payloadHash = core::hash_combine(payloadHash, hash);</div>
 <div class="line"><a id="l01423" name="l01423"></a><span class="lineno"> 1423</span>          }</div>
 <div class="line"><a id="l01424" name="l01424"></a><span class="lineno"> 1424</span> </div>
 <div class="line"><a id="l01425" name="l01425"></a><span class="lineno"> 1425</span>          <span class="comment">// Explicit grouping dependencies</span></div>
@@ -1312,10 +1312,10 @@ $(document).ready(function(){initNavTree('query__common_8h_source.html',''); ini
 <div class="line"><a id="l01430" name="l01430"></a><span class="lineno"> 1430</span>              hash = core::hash_combine(hash, (<a class="code hl_typedef" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a>)entity.value());</div>
 <div class="line"><a id="l01431" name="l01431"></a><span class="lineno"> 1431</span>            hash = core::hash_combine(hash, (<a class="code hl_typedef" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a>)<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#acfab20b714b9e2649ae3e589df23fd3c">groupDepCnt</a>);</div>
 <div class="line"><a id="l01432" name="l01432"></a><span class="lineno"> 1432</span> </div>
-<div class="line"><a id="l01433" name="l01433"></a><span class="lineno"> 1433</span>            <a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryCtx.html#ad2f9b56b4cf85654f3d66ece014fa16f">hashLookup</a> = core::hash_combine(<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryCtx.html#ad2f9b56b4cf85654f3d66ece014fa16f">hashLookup</a>, hash);</div>
+<div class="line"><a id="l01433" name="l01433"></a><span class="lineno"> 1433</span>            payloadHash = core::hash_combine(payloadHash, hash);</div>
 <div class="line"><a id="l01434" name="l01434"></a><span class="lineno"> 1434</span>          }</div>
 <div class="line"><a id="l01435" name="l01435"></a><span class="lineno"> 1435</span> </div>
-<div class="line"><a id="l01436" name="l01436"></a><span class="lineno"> 1436</span>          <span class="keywordflow">return</span> <a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryCtx.html#ad2f9b56b4cf85654f3d66ece014fa16f">hashLookup</a>;</div>
+<div class="line"><a id="l01436" name="l01436"></a><span class="lineno"> 1436</span>          <span class="keywordflow">return</span> payloadHash;</div>
 <div class="line"><a id="l01437" name="l01437"></a><span class="lineno"> 1437</span>        }</div>
 </div>
 <div class="line"><a id="l01438" name="l01438"></a><span class="lineno"> 1438</span> </div>

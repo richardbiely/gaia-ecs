@@ -442,7 +442,7 @@ $(document).ready(function(){initNavTree('archetype_8h_source.html',''); initRes
 <div class="line"><a id="l00368" name="l00368"></a><span class="lineno">  368</span>        {</div>
 <div class="line"><a id="l00369" name="l00369"></a><span class="lineno">  369</span>          offset += mem::padding&lt;alignof(ComponentVersion)&gt;(memoryAddress);</div>
 <div class="line"><a id="l00370" name="l00370"></a><span class="lineno">  370</span> </div>
-<div class="line"><a id="l00371" name="l00371"></a><span class="lineno">  371</span>          <span class="keyword">const</span> <span class="keyword">auto</span> cnt = m_shape.properties.cntEntities + 1; <span class="comment">// + 1 for entities</span></div>
+<div class="line"><a id="l00371" name="l00371"></a><span class="lineno">  371</span>          <span class="keyword">const</span> <span class="keyword">auto</span> cnt = (uint32_t)m_shape.properties.cntEntities + 1U; <span class="comment">// + 1 for entities</span></div>
 <div class="line"><a id="l00372" name="l00372"></a><span class="lineno">  372</span>          GAIA_ASSERT(offset &lt; 256);</div>
 <div class="line"><a id="l00373" name="l00373"></a><span class="lineno">  373</span>          m_shape.dataOffsets.firstByte_Versions = (ChunkDataVersionOffset)offset;</div>
 <div class="line"><a id="l00374" name="l00374"></a><span class="lineno">  374</span>          offset += <span class="keyword">sizeof</span>(ComponentVersion) * cnt;</div>

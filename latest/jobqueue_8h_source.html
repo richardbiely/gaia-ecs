@@ -302,11 +302,11 @@ $(document).ready(function(){initNavTree('jobqueue_8h_source.html',''); initResi
 <div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span> </div>
 <div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span>    private:</div>
 <div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span>      GAIA_NODISCARD constexpr Node* data() noexcept {</div>
-<div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span>        return GAIA_ACC((Node*)&amp;m_data[0]);</div>
+<div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span>        return GAIA_ACC((Node*)(<span class="keywordtype">void</span>*)&amp;m_data[0]);</div>
 <div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span>      }</div>
 <div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span> </div>
 <div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span>      GAIA_NODISCARD constexpr const Node* data() const noexcept {</div>
-<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span>        return GAIA_ACC((const Node*)&amp;m_data[0]);</div>
+<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span>        return GAIA_ACC((const Node*)(const <span class="keywordtype">void</span>*)&amp;m_data[0]);</div>
 <div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span>      }</div>
 <div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span> </div>
 <div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>      <span class="keywordtype">void</span> init() {</div>

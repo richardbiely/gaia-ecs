@@ -1867,8 +1867,8 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="line"><a id="l01933" name="l01933"></a><span class="lineno"> 1933</span>              } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (dataFieldCount &gt; 1) {</div>
 <div class="line"><a id="l01934" name="l01934"></a><span class="lineno"> 1934</span>                dataOffset = (uint32_t)m_state.exec.directChunkData.size();</div>
 <div class="line"><a id="l01935" name="l01935"></a><span class="lineno"> 1935</span>                <span class="keyword">const</span> <span class="keyword">auto</span> recs = pChunk-&gt;comp_rec_view();</div>
-<div class="line"><a id="l01936" name="l01936"></a><span class="lineno"> 1936</span>                GAIA_FOR(dataFieldCount) {</div>
-<div class="line"><a id="l01937" name="l01937"></a><span class="lineno"> 1937</span>                  <span class="keyword">const</span> <span class="keyword">auto</span> dataFieldIdx = pDataFields[i];</div>
+<div class="line"><a id="l01936" name="l01936"></a><span class="lineno"> 1936</span>                GAIA_FOR_(dataFieldCount, fieldIdx) {</div>
+<div class="line"><a id="l01937" name="l01937"></a><span class="lineno"> 1937</span>                  <span class="keyword">const</span> <span class="keyword">auto</span> dataFieldIdx = pDataFields[fieldIdx];</div>
 <div class="line"><a id="l01938" name="l01938"></a><span class="lineno"> 1938</span>                  <span class="keyword">const</span> <span class="keyword">auto</span> compIdx =</div>
 <div class="line"><a id="l01939" name="l01939"></a><span class="lineno"> 1939</span>                      dataFieldIdx &lt; ChunkHeader::MAX_COMPONENTS ? pCompIndices[dataFieldIdx] : uint8_t(0xFF);</div>
 <div class="line"><a id="l01940" name="l01940"></a><span class="lineno"> 1940</span>                  m_state.exec.directChunkData.push_back(compIdx != 0xFF ? recs[compIdx].pData : <span class="keyword">nullptr</span>);</div>

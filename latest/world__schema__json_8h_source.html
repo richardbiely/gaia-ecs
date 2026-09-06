@@ -433,7 +433,7 @@ $(document).ready(function(){initNavTree('world__schema__json_8h_source.html',''
 <div class="line"><a id="l00358" name="l00358"></a><span class="lineno">  358</span>    <span class="keyword">inline</span> <span class="keywordtype">bool</span></div>
 <div class="line"><a id="l00359" name="l00359"></a><span class="lineno">  359</span>    World::write_runtime_schema_json(ser::ser_json&amp; writer, <span class="keyword">const</span> <span class="keywordtype">char</span>* schemaHash, <span class="keywordtype">bool</span> includeRuntimeEntities)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l00360" name="l00360"></a><span class="lineno">  360</span>      cnt::darray&lt;const ComponentCacheItem*&gt; items;</div>
-<div class="line"><a id="l00361" name="l00361"></a><span class="lineno">  361</span>      items.reserve(m_compCache.m_compByEntityId.size());</div>
+<div class="line"><a id="l00361" name="l00361"></a><span class="lineno">  361</span>      items.reserve((uint32_t)m_compCache.m_compByEntityId.size());</div>
 <div class="line"><a id="l00362" name="l00362"></a><span class="lineno">  362</span>      <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; [entityId, pItem]: m_compCache.m_compByEntityId) {</div>
 <div class="line"><a id="l00363" name="l00363"></a><span class="lineno">  363</span>        (void)entityId;</div>
 <div class="line"><a id="l00364" name="l00364"></a><span class="lineno">  364</span>        items.push_back(pItem);</div>
