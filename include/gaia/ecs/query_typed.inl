@@ -1059,8 +1059,9 @@ namespace gaia {
 				};
 
 				if (boundState.hasWriteArgs) {
-					auto& scratch = direct_query_scratch();
-					const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+					DirectQueryScratchScope scratchScope;
+					auto& scratch = scratchScope.scratch;
+					const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch);
 					for (const auto entity: scratch.entities) {
 						if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly) ||
 								!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
@@ -1615,8 +1616,9 @@ namespace gaia {
 
 				auto walk_entities = [&](auto&& execEntity) {
 					if (hasWriteTerms) {
-						auto& scratch = direct_query_scratch();
-						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+						DirectQueryScratchScope scratchScope;
+						auto& scratch = scratchScope.scratch;
+						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch);
 						for (const auto entity: scratch.entities) {
 							if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 								continue;

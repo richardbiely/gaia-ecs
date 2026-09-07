@@ -528,6 +528,8 @@ Rule of thumb:
 - `GAIA_STORAGE(Sparse)` plus a runtime `DontFragment` latch is equivalent for data-bearing AoS payloads.
 - Avoid sparse storage for components such as `Position` or `Velocity` that benefit from sequential table access, unless profiling justifies it.
 
+Nested direct queries keep independent deduplication stamps and writable entity snapshots. Calling `count()`, `empty()`, `arr()`, or `each()` from a callback does not overwrite the outer query's scratch state, including when the nested query uses another world. Scratch storage is reused per thread and active nesting depth. A new depth allocates its slot and grows its buffers on demand.
+
 Directly adding or removing an already-registered `DontFragment` component is safe during serial query iteration because the entity does not move to another archetype. If the active query filters on that component, later rows are matched against the current world state rather than a snapshot taken before iteration.
 
 >**NOTE:<br/>**

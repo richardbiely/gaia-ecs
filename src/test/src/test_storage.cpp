@@ -1032,6 +1032,131 @@ TEST_CASE("Copy keeps empty DontFragment tag membership outside the archetype") 
 	CHECK(wld.has<DontFragmentEmptyTag>(dst));
 }
 
+TEST_CASE("Direct query scratch - nested OR queries keep their own seen stamps") {
+	for (const bool cached: {false, true}) {
+		TestWorld twld;
+		wld.add<DontFragmentEmptyTag>();
+		wld.add<DontFragmentEmptyTagB>();
+		wld.add<DontFragmentPayload>();
+		cnt::sarray<ecs::Entity, 4> entities;
+		GAIA_FOR(4) {
+			entities[i] = wld.add();
+			if (i != 3)
+				wld.add<DontFragmentEmptyTag>(entities[i]);
+			if (i != 2)
+				wld.add<DontFragmentEmptyTagB>(entities[i]);
+		}
+		auto outer = (cached ? wld.query() : wld.uquery()).or_<DontFragmentEmptyTag>().or_<DontFragmentEmptyTagB>();
+		auto inner = (cached ? wld.uquery() : wld.query()).or_<DontFragmentEmptyTag>().or_<DontFragmentEmptyTagB>();
+		auto bucket = wld.query().all<DontFragmentEmptyTag>();
+		const bool emptyBefore = inner.empty();
+
+		// Repeated runs also exercise scratch reuse after an early-returning empty() call.
+		for (uint32_t mode = 0; mode < 6; ++mode) {
+			for (uint32_t repeat = 0; repeat < 2; ++repeat) {
+				uint32_t visits[4]{};
+				auto visit = [&](ecs::Entity entity) {
+					const auto idx = core::get_index(entities, entity);
+					CHECK(idx != BadIndex);
+					if (idx == BadIndex)
+						return;
+					++visits[idx];
+					if (mode == 0) {
+						CHECK(inner.count() == 4);
+					} else if (mode == 1) {
+						CHECK(inner.empty() == emptyBefore);
+					} else if (mode == 2) {
+						cnt::darray<ecs::Entity> result;
+						inner.arr(result);
+						CHECK(result.size() == 4);
+					} else if (mode == 3) {
+						uint32_t innerVisits = 0;
+						inner.each([&](ecs::Entity) {
+							++innerVisits;
+							CHECK(outer.count() == 4);
+						});
+						CHECK(innerVisits == 4);
+					} else if (mode == 4) {
+						CHECK(bucket.count() == 3);
+					} else {
+						CHECK(outer.count() == 4);
+					}
+				};
+				if (repeat == 0) {
+					outer.each([&](ecs::Iter& it) {
+						const auto view = it.view<ecs::Entity>();
+						GAIA_FOR(it.size()) visit(view[i]);
+					});
+				} else {
+					outer.each(visit);
+				}
+				for (const auto count: visits)
+					CHECK(count == 1);
+			}
+		}
+	}
+}
+
+TEST_CASE("Direct query scratch - nested worlds preserve writable entity snapshots") {
+	for (const bool cached: {false, true}) {
+		TestWorld twld;
+		ecs::World innerWorld;
+		for (auto* world: {&wld, &innerWorld}) {
+			world->add<DontFragmentEmptyTag>();
+			world->add<DontFragmentEmptyTagB>();
+			world->add<DontFragmentPayload>();
+		}
+		cnt::sarray<ecs::Entity, 4> entities;
+		GAIA_FOR(4) {
+			entities[i] = wld.add();
+			wld.add<DontFragmentPayload>(entities[i]);
+			wld.add<DontFragmentEmptyTag>(entities[i]);
+			wld.add<DontFragmentEmptyTagB>(entities[i]);
+		}
+		// A larger nested seed forces growth if it accidentally shares the outer snapshot.
+		GAIA_FOR(257) {
+			const auto entity = innerWorld.add();
+			innerWorld.add<DontFragmentPayload>(entity);
+			innerWorld.add<DontFragmentEmptyTag>(entity);
+			innerWorld.add<DontFragmentEmptyTagB>(entity);
+		}
+		auto outer = (cached ? wld.query() : wld.uquery()).all<DontFragmentPayload&>();
+		auto inner = innerWorld.query().all<DontFragmentEmptyTag>();
+		auto innerOr = innerWorld.uquery().or_<DontFragmentEmptyTag>().or_<DontFragmentEmptyTagB>();
+		auto outerOr = wld.query().or_<DontFragmentEmptyTag>().or_<DontFragmentEmptyTagB>();
+		for (uint32_t repeat = 0; repeat < 2; ++repeat) {
+			uint32_t visits = 0;
+			auto nested = [&]() {
+				++visits;
+				CHECK(inner.count() == 257);
+				CHECK(innerOr.count() == 257);
+			};
+			if (repeat == 0) {
+				outer.each([&](ecs::Iter& it) {
+					auto values = it.view_any_mut<DontFragmentPayload>();
+					for (uint32_t row = 0; row < it.size(); ++row) {
+						nested();
+						values[row].x += 1;
+					}
+				});
+			} else {
+				outer.each([&](DontFragmentPayload& value) {
+					nested();
+					value.x += 1;
+				});
+			}
+			CHECK(visits == 4);
+			for (const auto entity: entities)
+				CHECK(wld.get<DontFragmentPayload>(entity).x == float(repeat + 1));
+			visits = 0;
+			outerOr.each([&](ecs::Entity) {
+				nested();
+			});
+			CHECK(visits == 4);
+		}
+	}
+}
+
 TEST_CASE("Empty DontFragment tag query all, no, and or with a table neighbor") {
 	TestWorld twld;
 

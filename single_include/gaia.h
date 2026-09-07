@@ -55878,6 +55878,8 @@ namespace gaia {
 				using ChunkBatchArray = cnt::sarray_ext<ChunkBatch, ChunkBatchSize>;
 				using CmdFunc = void (*)(QuerySerBuffer& buffer, QueryCtx& ctx);
 
+				//! Reusable per-thread storage. Access only while reserved by DirectQueryScratchScope.
+				//! The thread-local root owns the nested slot chain and destroys it after all scopes have released it.
 				struct DirectQueryScratch {
 					cnt::darray<const Archetype*> archetypes;
 					cnt::darray<Entity> entities;
@@ -55885,6 +55887,14 @@ namespace gaia {
 					cnt::darray<Entity> bucketEntities;
 					cnt::darray<uint32_t> counts;
 					uint32_t seenVersion = 1;
+					//! Owns the lazily allocated slot for the next active invocation. Null marks the end of the chain.
+					DirectQueryScratch* pNext = nullptr;
+					bool inUse = false;
+
+					~DirectQueryScratch() {
+						GAIA_ASSERT(!inUse);
+						delete pNext;
+					}
 				};
 
 			private:
@@ -55902,12 +55912,39 @@ namespace gaia {
 					m_storage.invalidate();
 				}
 
-				//! Returns the per-thread scratch storage used by the direct entity-seeded query fast path.
-				//! \return Per-thread scratch storage.
+				//! Acquires a nested slot without adding allocation code to the common non-nested path.
+				GAIA_NOINLINE static DirectQueryScratch& nested_direct_query_scratch(DirectQueryScratch& scratch) {
+					auto* pScratch = &scratch;
+					do {
+						if (pScratch->pNext == nullptr)
+							pScratch->pNext = new DirectQueryScratch;
+						pScratch = pScratch->pNext;
+					} while (pScratch->inUse);
+					return *pScratch;
+				}
+
+				//! Returns an unused per-thread scratch slot, retaining nested slots for subsequent calls.
+				//! \return Scratch storage that must be held by a DirectQueryScratchScope while in use.
 				GAIA_NODISCARD static DirectQueryScratch& direct_query_scratch() {
 					static thread_local DirectQueryScratch scratch;
+					if GAIA_UNLIKELY (scratch.inUse)
+						return nested_direct_query_scratch(scratch);
 					return scratch;
 				}
+
+				//! Reserves scratch until all callbacks using its stamps or entity snapshot have returned.
+				struct DirectQueryScratchScope {
+					DirectQueryScratch& scratch;
+
+					DirectQueryScratchScope(): scratch(direct_query_scratch()) {
+						scratch.inUse = true;
+					}
+					~DirectQueryScratchScope() {
+						scratch.inUse = false;
+					}
+					DirectQueryScratchScope(const DirectQueryScratchScope&) = delete;
+					DirectQueryScratchScope& operator=(const DirectQueryScratchScope&) = delete;
+				};
 
 				//! Grows the direct-query seen/count array so the given entity id can be addressed directly.
 				//! \param scratch Scratch storage
@@ -59901,9 +59938,7 @@ namespace gaia {
 				//! Groups seeded entities by archetype and counts whole buckets when only structural ALL/NOT terms remain.
 				GAIA_NODISCARD static uint32_t count_direct_entity_seed_by_archetype(
 						const World& world, const QueryInfo& queryInfo, const cnt::darray<Entity>& seedEntities,
-						const DirectEntitySeedInfo& seedInfo, Constraints constraints) {
-					auto& scratch = direct_query_scratch();
-
+						const DirectEntitySeedInfo& seedInfo, Constraints constraints, DirectQueryScratch& scratch) {
 					scratch.archetypes.clear();
 					scratch.bucketEntities.clear();
 					scratch.counts.clear();
@@ -59936,7 +59971,8 @@ namespace gaia {
 				//! Counts the union of direct OR term entity sets while deduplicating entities across terms.
 				GAIA_NODISCARD static uint32_t
 				count_direct_or_union(const World& world, const QueryInfo& queryInfo, Constraints constraints) {
-					auto& scratch = direct_query_scratch();
+					DirectQueryScratchScope scratchScope;
+					auto& scratch = scratchScope.scratch;
 					const auto seenVersion = next_direct_query_seen_version(scratch);
 					const bool hasDirectNotTerms = has_direct_not_terms(queryInfo);
 
@@ -59984,7 +60020,8 @@ namespace gaia {
 				//! \return True if no surviving entity exists. False otherwise.
 				GAIA_NODISCARD static bool
 				is_empty_direct_or_union(const World& world, const QueryInfo& queryInfo, Constraints constraints) {
-					auto& scratch = direct_query_scratch();
+					DirectQueryScratchScope scratchScope;
+					auto& scratch = scratchScope.scratch;
 					const auto seenVersion = next_direct_query_seen_version(scratch);
 					const bool hasDirectNotTerms = has_direct_not_terms(queryInfo);
 
@@ -60029,8 +60066,8 @@ namespace gaia {
 
 				//! Builds the best direct entity seed set from the smallest positive ALL term or the OR union fallback.
 				static DirectEntitySeedInfo
-				build_direct_entity_seed(const World& world, const QueryInfo& queryInfo, cnt::darray<Entity>& out) {
-					auto& scratch = direct_query_scratch();
+				build_direct_entity_seed(const World& world, const QueryInfo& queryInfo, DirectQueryScratch& scratch) {
+					auto& out = scratch.entities;
 					out.clear();
 					DirectEntitySeedInfo seedInfo{};
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
@@ -60093,14 +60130,17 @@ namespace gaia {
 				}
 
 				//! Visits the deduplicated OR union for direct-seeded queries without materializing an entity seed array first.
+				//! \note Kept inline so scoped scratch does not add a call boundary to the OR fast path.
 				//! \tparam Func Callback type
 				//! \param world World
 				//! \param queryInfo Query info
 				//! \param constraints Iterator constraints applied to the candidate entities.
 				//! \param func Callback executed for each surviving entity.
 				template <typename Func>
-				void each_direct_or_union(World& world, const QueryInfo& queryInfo, Constraints constraints, Func&& func) {
-					auto& scratch = direct_query_scratch();
+				GAIA_FORCEINLINE void
+				each_direct_or_union(World& world, const QueryInfo& queryInfo, Constraints constraints, Func&& func) {
+					DirectQueryScratchScope scratchScope;
+					auto& scratch = scratchScope.scratch;
 					const auto seenVersion = next_direct_query_seen_version(scratch);
 					DirectEntitySeedInfo seedInfo{};
 					seedInfo.seededFromOr = true;
@@ -60425,16 +60465,18 @@ namespace gaia {
 
 					if constexpr (!UseFilters) {
 						if (!cacheRange.hasSelectedGroup && can_use_direct_entity_seed_eval(queryInfo)) {
-							auto& scratch = direct_query_scratch();
 							if (has_only_direct_or_terms(queryInfo))
 								return count_direct_or_union(*queryInfo.world(), queryInfo, constraints);
 
+							DirectQueryScratchScope scratchScope;
+							auto& scratch = scratchScope.scratch;
+
 							const auto plan = direct_entity_seed_plan(*queryInfo.world(), queryInfo);
-							const auto seedInfo = build_direct_entity_seed(*queryInfo.world(), queryInfo, scratch.entities);
+							const auto seedInfo = build_direct_entity_seed(*queryInfo.world(), queryInfo, scratch);
 
 							if (can_use_archetype_bucket_count(*queryInfo.world(), queryInfo, seedInfo))
 								return count_direct_entity_seed_by_archetype(
-										*queryInfo.world(), queryInfo, scratch.entities, seedInfo, constraints);
+										*queryInfo.world(), queryInfo, scratch.entities, seedInfo, constraints, scratch);
 
 							uint32_t cnt = 0;
 							(void)each_direct_all_seed(*queryInfo.world(), queryInfo, plan, constraints, [&](Entity) {
@@ -60758,10 +60800,11 @@ namespace gaia {
 					};
 
 					if (hasWriteTerms) {
-						auto& scratch = direct_query_scratch();
+						DirectQueryScratchScope scratchScope;
+						auto& scratch = scratchScope.scratch;
 						// Writable callbacks may add local overrides and reshuffle direct-term indices,
 						// so direct-seeded execution must iterate a stable snapshot.
-						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch);
 						for (const auto entity: scratch.entities) {
 							if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 								continue;
@@ -63808,8 +63851,9 @@ namespace gaia {
 				};
 
 				if (boundState.hasWriteArgs) {
-					auto& scratch = direct_query_scratch();
-					const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+					DirectQueryScratchScope scratchScope;
+					auto& scratch = scratchScope.scratch;
+					const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch);
 					for (const auto entity: scratch.entities) {
 						if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly) ||
 								!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
@@ -64364,8 +64408,9 @@ namespace gaia {
 
 				auto walk_entities = [&](auto&& execEntity) {
 					if (hasWriteTerms) {
-						auto& scratch = direct_query_scratch();
-						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+						DirectQueryScratchScope scratchScope;
+						auto& scratch = scratchScope.scratch;
+						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch);
 						for (const auto entity: scratch.entities) {
 							if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 								continue;
