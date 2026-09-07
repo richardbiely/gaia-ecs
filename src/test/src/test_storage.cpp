@@ -1898,6 +1898,108 @@ TEST_CASE("DontFragment runtime-registered table component typed object access")
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 }
 
+TEST_CASE("Typed component accessors route table and sparse storage") {
+	auto run = [](auto value, bool pairRecord = false) {
+		using T = decltype(value);
+		TestWorld twld;
+		const auto component = wld.add<T>().entity;
+		auto entity = ecs::EntityBad;
+		if (pairRecord) {
+			const auto relation = wld.add();
+			const auto target = wld.add();
+			const auto pair = ecs::Pair(relation, target);
+			wld.add(wld.add(), pair);
+			entity = pair;
+		} else {
+			entity = wld.add();
+		}
+		value.x = 1.0f;
+		wld.add<T>(entity, value);
+
+		uint32_t setHits = 0;
+		float expectedValue = 5.0f;
+		wld.observer().event(ecs::ObserverEvent::OnSet).all<T>().on_each([&](ecs::Entity changed) {
+			CHECK(changed == entity);
+			CHECK(wld.get<T>(changed).x == doctest::Approx(expectedValue));
+			++setHits;
+		});
+		auto query = wld.query().all<T>().template changed<T>();
+		expect_changed_consume_exact(query, {entity});
+
+		const auto getter = wld.acc(entity);
+		auto setter = wld.acc_mut(entity);
+		CHECK(&getter.template get<T>() == &wld.get<T>(entity));
+		CHECK(&setter.template get<T>() == &getter.template get<T>(component));
+		setter.template mut<T>().x = 2.0f;
+		CHECK(getter.template get<T>().x == doctest::Approx(2.0f));
+		setter.template smut<T>().x = 3.0f;
+		CHECK(getter.template get<T>().x == doctest::Approx(3.0f));
+		value.x = 4.0f;
+		CHECK(&setter.template sset<T>(value) == &setter);
+		CHECK(getter.template get<T>().x == doctest::Approx(4.0f));
+		CHECK(setHits == 0);
+		expect_changed_consume_exact(query, {});
+
+		value.x = expectedValue;
+		CHECK(&setter.template set<T>(value) == &setter);
+		CHECK(getter.template get<T>().x == doctest::Approx(expectedValue));
+		CHECK(setHits == 1);
+		if constexpr (ecs::uses_ct_sparse_storage_v<T>) {
+			expect_changed_consume_exact(query, {entity});
+			expect_changed_consume_exact(query, {});
+		}
+
+		expectedValue = 6.0f;
+		value.x = expectedValue;
+		setter.template set<T>(GAIA_MOV(value));
+		CHECK(getter.template get<T>().x == doctest::Approx(expectedValue));
+		CHECK(setHits == 2);
+		if constexpr (ecs::uses_ct_sparse_storage_v<T>)
+			expect_changed_consume_exact(query, {entity});
+	};
+
+	SUBCASE("table") {
+		run(Position{});
+	}
+	SUBCASE("fragmenting sparse") {
+		run(PositionSparse{});
+	}
+	SUBCASE("non-fragmenting sparse") {
+		run(DontFragmentPayload{});
+	}
+	SUBCASE("sparse component on an exact pair record") {
+		run(DontFragmentPayload{}, true);
+	}
+}
+
+TEST_CASE("Typed component accessors route sparse relationship payloads") {
+	TestWorld twld;
+	using PairType = ecs::pair<PositionSparse, Position>;
+	const auto relation = wld.add<PositionSparse>().entity;
+	const auto target = wld.add<Position>().entity;
+	const auto pair = ecs::Pair(relation, target);
+	const auto entity = wld.add();
+	wld.add<PositionSparse>(entity, pair, {1.0f, 2.0f, 3.0f});
+	uint32_t setHits = 0;
+	wld.observer().event(ecs::ObserverEvent::OnSet).all(pair).on_each([&](ecs::Entity changed) {
+		CHECK(changed == entity);
+		CHECK(wld.get<PairType>(changed).x == doctest::Approx(5.0f));
+		++setHits;
+	});
+
+	const auto getter = wld.acc(entity);
+	auto setter = wld.acc_mut(entity);
+	CHECK(getter.get<PairType>().x == doctest::Approx(1.0f));
+	setter.mut<PairType>().x = 2.0f;
+	setter.smut<PairType>().x = 3.0f;
+	setter.sset<PairType>({4.0f, 2.0f, 3.0f});
+	CHECK(getter.get<PairType>().x == doctest::Approx(4.0f));
+	CHECK(setHits == 0);
+	setter.set<PairType>({5.0f, 2.0f, 3.0f});
+	CHECK(getter.get<PairType>().x == doctest::Approx(5.0f));
+	CHECK(setHits == 1);
+}
+
 TEST_CASE("Runtime-registered component accessor object setter paths") {
 	TestWorld twld;
 

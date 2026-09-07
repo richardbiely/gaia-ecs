@@ -958,6 +958,10 @@ const auto& updated = w.get<Position>(e);
 
 If you need the write to happen immediately, use `acc_mut(entity).set<T>(...)` instead of `w.set<T>(entity)`.
 For runtime object/component entities, the immediate form is `acc_mut(entity).set<T>(object, value)`.
+Typed entity accessors also support `GAIA_STORAGE(Sparse)` and `GAIA_STORAGE(DontFragment)` payloads:
+`acc(entity).get<T>()` reads their sparse storage, and `acc_mut(entity).set<T>(value)` writes immediately,
+updates changed-query tracking, and emits `OnSet` after the write. `mut<T>()`, `smut<T>()`, and `sset<T>(value)`
+remain silent, matching the component-ID accessor overloads.
 
 When setting multiple component values at once it is more efficient doing it via chaining:
 

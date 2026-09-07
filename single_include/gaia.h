@@ -46318,7 +46318,10 @@ namespace gaia {
 				GAIA_ASSERT(m_pChunk != nullptr);
 				verify_comp<T>();
 
-				return m_pChunk->template get<T>(m_row);
+				if constexpr (uses_ct_sparse_storage_v<T>)
+					return get<T>(m_pChunk->template comp_entity<T>());
+				else
+					return m_pChunk->template get<T>(m_row);
 			}
 
 			//! Returns the value stored in the component associated with \a type on entity.
@@ -46364,10 +46367,7 @@ namespace gaia {
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) mut() {
-				GAIA_ASSERT(m_pWorld != nullptr);
-				GAIA_ASSERT(m_entity != EntityBad);
-				GAIA_ASSERT(m_pChunk != nullptr);
-				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
+				return smut<T>();
 			}
 
 			//! Sets the value of the component \tparam T and then emits the normal post-write set notifications.
@@ -46375,16 +46375,7 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T, typename U = typename actual_type_t<T>::Type>
-			ComponentSetter& set(U&& value) {
-				GAIA_ASSERT(m_pWorld != nullptr);
-				GAIA_ASSERT(m_entity != EntityBad);
-				GAIA_ASSERT(m_pChunk != nullptr);
-				smut<T>() = GAIA_FWD(value);
-				auto& chunk = *const_cast<Chunk*>(m_pChunk);
-				chunk.template modify<T, true>();
-				world_notify_on_set(chunk.world(), chunk.template comp_entity<T>(), chunk, m_row, (uint16_t)(m_row + 1));
-				return *this;
-			}
+			ComponentSetter& set(U&& value);
 
 			//! Returns a mutable reference to component without triggering hooks, observers or world-version updates.
 			//! Call `World::modify<T, true>(entity, type)` if the write should emit `OnSet`.
@@ -46410,7 +46401,10 @@ namespace gaia {
 				GAIA_ASSERT(m_pWorld != nullptr);
 				GAIA_ASSERT(m_entity != EntityBad);
 				GAIA_ASSERT(m_pChunk != nullptr);
-				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
+				if constexpr (uses_ct_sparse_storage_v<T>)
+					return smut<T>(m_pChunk->template comp_entity<T>());
+				else
+					return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
 			}
 
 			//! Sets the value of the component without triggering a world version update.
@@ -89544,6 +89538,23 @@ namespace gaia {
 		template <typename T>
 		ComponentSetter& ComponentSetter::sset(Entity type, T&& value) {
 			smut<T>(type) = GAIA_FWD(value);
+			return *this;
+		}
+
+		template <typename T, typename U>
+		ComponentSetter& ComponentSetter::set(U&& value) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			GAIA_ASSERT(m_pChunk != nullptr);
+			smut<T>() = GAIA_FWD(value);
+			if constexpr (uses_ct_sparse_storage_v<T>) {
+				auto& world = *const_cast<World*>(m_pWorld);
+				world.finish_write(m_entity, m_pChunk->template comp_entity<T>());
+			} else {
+				auto& chunk = *const_cast<Chunk*>(m_pChunk);
+				chunk.template modify<T, true>();
+				world_notify_on_set(chunk.world(), chunk.template comp_entity<T>(), chunk, m_row, (uint16_t)(m_row + 1));
+			}
 			return *this;
 		}
 

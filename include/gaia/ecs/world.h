@@ -16995,6 +16995,23 @@ namespace gaia {
 			return *this;
 		}
 
+		template <typename T, typename U>
+		ComponentSetter& ComponentSetter::set(U&& value) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			GAIA_ASSERT(m_pChunk != nullptr);
+			smut<T>() = GAIA_FWD(value);
+			if constexpr (uses_ct_sparse_storage_v<T>) {
+				auto& world = *const_cast<World*>(m_pWorld);
+				world.finish_write(m_entity, m_pChunk->template comp_entity<T>());
+			} else {
+				auto& chunk = *const_cast<Chunk*>(m_pChunk);
+				chunk.template modify<T, true>();
+				world_notify_on_set(chunk.world(), chunk.template comp_entity<T>(), chunk, m_row, (uint16_t)(m_row + 1));
+			}
+			return *this;
+		}
+
 		template <typename T>
 		ComponentSetter& ComponentSetter::set(Entity type, T&& value) {
 			GAIA_ASSERT(m_pWorld != nullptr);

@@ -41,7 +41,10 @@ namespace gaia {
 				GAIA_ASSERT(m_pChunk != nullptr);
 				verify_comp<T>();
 
-				return m_pChunk->template get<T>(m_row);
+				if constexpr (uses_ct_sparse_storage_v<T>)
+					return get<T>(m_pChunk->template comp_entity<T>());
+				else
+					return m_pChunk->template get<T>(m_row);
 			}
 
 			//! Returns the value stored in the component associated with \a type on entity.
