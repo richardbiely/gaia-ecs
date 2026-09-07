@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "gaia/cnt/impl/array_utils.h"
 #include "gaia/core/iterator.h"
 #include "gaia/core/utility.h"
 #include "gaia/mem/data_layout_policy.h"
@@ -408,35 +409,13 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! The predicate may modify its element but must not change the array's size or storage.
 			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
 			auto retain(Func&& func) noexcept {
-				size_type erased = 0;
-				size_type idxDst = 0;
-				size_type idxSrc = 0;
-
-				while (idxSrc < m_cnt) {
-					if (func(operator[](idxSrc))) {
-						if (idxDst < idxSrc) {
-							auto* ptr = (uint8_t*)data();
-							mem::move_element<T, false>(ptr, ptr, idxDst, idxSrc, max_size(), max_size());
-						}
-						++idxDst;
-					} else {
-						++erased;
-					}
-
-					++idxSrc;
-				}
-
-				//! Keep assignment destinations alive until compaction finishes.
-				if (erased != 0)
-					core::call_dtor_n(data() + idxDst, erased);
-
-				m_cnt -= erased;
-				return idxDst;
+				return detail::retain_array<false>(*this, m_cnt, func);
 			}
 
 			//! Returns the number of elements.

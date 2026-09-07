@@ -4371,6 +4371,18 @@ is not satisfied.
 Directly stored table runtime SoA component and exact-pair terms use `view_raw_field(termIdx, fieldIdx)` for a
 contiguous read-only field array. See [Iteration](#iteration) for the supported storage and ownership contracts.
 
+## Containers
+
+Gaia dynamic arrays (`cnt::darray` and `cnt::darray_ext`) keep only `size()` live elements.
+`reserve()` allocates capacity without default-constructing spare values. Growth relocates live values and releases their old storage.
+`retain()` preserves survivor order, keeps assignment destinations alive during compaction, then destroys the removed tail. It scans once, moves each displaced survivor once, and updates the size directly without entering the capacity-growth path. Range erasure supports overlapping suffix shifts.
+Append, emplacement, insertion, and fill-resize may use values from the same array. Those inputs are consumed before relocation or shifting invalidates them.
+`shrink_to_fit()` releases unused heap capacity. Extended arrays return to inline storage when `size()` fits, including empty arrays.
+
+The AoS and SoA variants of `cnt::darray`, `cnt::darray_ext`, and `cnt::sarray_ext` share the retention scan in `cnt::detail::retain_array`. AoS compacts live objects by assignment and destroys the discarded tail. SoA compacts fields through Gaia's layout views. A predicate may modify its current element but must not change the array's size or storage.
+
+Relocation into raw AoS storage uses `mem::move_ctor_elements`, which constructs the destination and leaves source destruction to the caller. `mem::move_element` and `mem::move_elements` require live AoS destinations. SoA range moves use source and destination capacities to calculate field strides. Storage ownership and sanitizer annotations stay in the individual containers.
+
 ## Multithreading
 
 ### Worlds, threads, and allocation arenas
@@ -4439,12 +4451,6 @@ tp.wait(jobHandle);
 // Use the result
 GAIA_LOG("Sum: %u\n", sum);
 ```
-
-Gaia dynamic arrays (`cnt::darray` and `cnt::darray_ext`) keep only `size()` live elements.
-`reserve()` allocates capacity without default-constructing spare values. Growth relocates live values and releases their old storage.
-`retain()` preserves survivor order, keeps assignment destinations alive during compaction, then destroys the removed tail. It scans once, moves each displaced survivor once, and updates the size directly without entering the capacity-growth path. Range erasure supports overlapping suffix shifts.
-Append, emplacement, insertion, and fill-resize may use values from the same array. Those inputs are consumed before relocation or shifting invalidates them.
-`shrink_to_fit()` releases unused heap capacity. Extended arrays return to inline storage when `size()` fits, including empty arrays.
 
 ### Job dependencies
 

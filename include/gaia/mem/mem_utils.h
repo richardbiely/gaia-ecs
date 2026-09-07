@@ -450,15 +450,16 @@ namespace gaia {
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy \a cnt elements of type \a T from the address pointed to by \a src to \a dst.
-		//! \tparam T Data type
+		//! Constructs an AoS destination from a live source at the specified indices.
+		//! The source remains alive. SoA assigns fields using the two capacities.
+		//! \tparam T Stored value type.
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
-		//! \param[out] dst Destination pointer
-		//! \param src Source pointer
-		//! \param idxDst Destination index
-		//! \param idxSrc Source index
-		//! \param sizeSrc Number of elements in source
-		//! \param sizeDst Number of elements in destination
+		//! \param dst Uninitialized AoS destination or writable SoA field storage.
+		//! \param src Live source storage.
+		//! \param idxDst Destination element index.
+		//! \param idxSrc Source element index.
+		//! \param sizeDst Destination capacity for SoA field strides.
+		//! \param sizeSrc Source capacity for SoA field strides.
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_ctor_element(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -475,16 +476,17 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy one elements of type \a T from the address pointed to by \a src to \a dst
-		//! at relative offsets \a idxSrc and \a idxDst.
-		//! \tparam T Data type
+		//! Assigns one live source element into a live destination at the specified indices.
+		//! AoS uses move or copy assignment. SoA assigns fields using the two capacities.
+		//! Neither source nor destination is constructed or destroyed.
+		//! \tparam T Stored value type.
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
-		//! \param[out] dst Destination pointer
-		//! \param src Source pointer
-		//! \param idxDst Destination index
-		//! \param idxSrc Source index
-		//! \param sizeSrc Number of elements in source
-		//! \param sizeDst Number of elements in destination
+		//! \param dst Live destination storage.
+		//! \param src Live source storage, which may overlap the destination.
+		//! \param idxDst Destination element index.
+		//! \param idxSrc Source element index.
+		//! \param sizeDst Destination capacity for SoA field strides.
+		//! \param sizeSrc Source capacity for SoA field strides.
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_element(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -501,16 +503,18 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy elements of type \a T from the address pointed to by \a src to \a dst
-		//! at relative offsets \a idxSrc and \a idxDst. The number of moved elements is idxDst-idxSrc.
-		//! \tparam T Data type
+		//! Assigns the range [idxSrc, idxDst) to the same indices in separate storage.
+		//! AoS destinations must already be alive. Use move_ctor_elements for raw AoS storage.
+		//! SoA copies field ranges using the source and destination capacities for their strides.
+		//! Does not destroy source elements. Use shift_elements_left for overlapping ranges.
+		//! \tparam T Stored value type.
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
-		//! \param[out] dst Destination pointer
-		//! \param src Source pointer
-		//! \param idxDst Destination index
-		//! \param idxSrc Source index
-		//! \param sizeSrc Number of elements in source
-		//! \param sizeDst Number of elements in destination
+		//! \param dst Destination storage, distinct from the source.
+		//! \param src Live source storage.
+		//! \param idxDst End of the range, exclusive.
+		//! \param idxSrc Beginning of the range, inclusive.
+		//! \param sizeDst Destination capacity for SoA field strides.
+		//! \param sizeSrc Source capacity for SoA field strides.
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_elements(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,

@@ -215,6 +215,7 @@ namespace {
 			int visited = 0;
 			const auto count = values.retain([&](const auto& value) {
 				CHECK(ArrayOwner::live == 6);
+				CHECK(values.size() == 6);
 				CHECK(*value.value == visited++);
 				return (mask & (1U << *value.value)) != 0;
 			});
@@ -242,20 +243,51 @@ namespace {
 
 	template <typename Array>
 	void array_retain_soa() {
-		Array values;
-		for (int i = 0; i < 6; ++i)
-			values.push_back({i, (float)i});
-		CHECK(values.retain([](ArraySoA v) {
-			return v.x % 2 != 0;
-		}) == 3);
-		for (int i = 0; i < 3; ++i) {
-			const ArraySoA value = values[(uint32_t)i];
-			CHECK(value.x == 2 * i + 1);
-			CHECK(value.y == (float)(2 * i + 1));
+		//! Match the AoS coverage for all keep/reject patterns and both SoA fields.
+		for (uint32_t mask = 0; mask < 64; ++mask) {
+			Array values;
+			CHECK(values.retain([](auto&&) {
+				return true;
+			}) == 0);
+			for (int i = 0; i < 6; ++i)
+				values.push_back({i, (float)(10 + i)});
+			const auto capacity = values.capacity();
+			const auto* data = values.data();
+			int visited = 0;
+			const auto count = values.retain([&](auto&& proxy) {
+				const ArraySoA value = proxy;
+				CHECK(values.size() == 6);
+				CHECK(value.x == visited++);
+				CHECK(value.y == (float)(10 + value.x));
+				//! Predicate writes must survive subsequent compaction.
+				proxy = ArraySoA{value.x, value.y + 100};
+				return (mask & (1U << value.x)) != 0;
+			});
+			CHECK(visited == 6);
+			CHECK(values.capacity() == capacity);
+			CHECK(values.data() == data);
+			uint32_t expected = 0;
+			for (int i = 0; i < 6; ++i) {
+				if ((mask & (1U << i)) == 0)
+					continue;
+				REQUIRE(expected < values.size());
+				const ArraySoA value = values[expected++];
+				CHECK(value.x == i);
+				CHECK(value.y == (float)(110 + i));
+			}
+			CHECK(count == expected);
+			CHECK(values.size() == expected);
+			CHECK(values.retain([](auto&&) {
+				return true;
+			}) == expected);
+			CHECK(values.retain([](auto&&) {
+				return false;
+			}) == 0);
+			values.push_back({19, 29});
+			const ArraySoA reused = values[0];
+			CHECK(reused.x == 19);
+			CHECK(reused.y == 29);
 		}
-		CHECK(values.retain([](ArraySoA) {
-			return false;
-		}) == 0);
 	}
 } // namespace
 

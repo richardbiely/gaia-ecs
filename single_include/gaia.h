@@ -7687,15 +7687,16 @@ namespace gaia {
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy \a cnt elements of type \a T from the address pointed to by \a src to \a dst.
-		//! \tparam T Data type
+		//! Constructs an AoS destination from a live source at the specified indices.
+		//! The source remains alive. SoA assigns fields using the two capacities.
+		//! \tparam T Stored value type.
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
-		//! \param[out] dst Destination pointer
-		//! \param src Source pointer
-		//! \param idxDst Destination index
-		//! \param idxSrc Source index
-		//! \param sizeSrc Number of elements in source
-		//! \param sizeDst Number of elements in destination
+		//! \param dst Uninitialized AoS destination or writable SoA field storage.
+		//! \param src Live source storage.
+		//! \param idxDst Destination element index.
+		//! \param idxSrc Source element index.
+		//! \param sizeDst Destination capacity for SoA field strides.
+		//! \param sizeSrc Source capacity for SoA field strides.
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_ctor_element(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -7712,16 +7713,17 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy one elements of type \a T from the address pointed to by \a src to \a dst
-		//! at relative offsets \a idxSrc and \a idxDst.
-		//! \tparam T Data type
+		//! Assigns one live source element into a live destination at the specified indices.
+		//! AoS uses move or copy assignment. SoA assigns fields using the two capacities.
+		//! Neither source nor destination is constructed or destroyed.
+		//! \tparam T Stored value type.
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
-		//! \param[out] dst Destination pointer
-		//! \param src Source pointer
-		//! \param idxDst Destination index
-		//! \param idxSrc Source index
-		//! \param sizeSrc Number of elements in source
-		//! \param sizeDst Number of elements in destination
+		//! \param dst Live destination storage.
+		//! \param src Live source storage, which may overlap the destination.
+		//! \param idxDst Destination element index.
+		//! \param idxSrc Source element index.
+		//! \param sizeDst Destination capacity for SoA field strides.
+		//! \param sizeSrc Source capacity for SoA field strides.
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_element(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -7738,16 +7740,18 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy elements of type \a T from the address pointed to by \a src to \a dst
-		//! at relative offsets \a idxSrc and \a idxDst. The number of moved elements is idxDst-idxSrc.
-		//! \tparam T Data type
+		//! Assigns the range [idxSrc, idxDst) to the same indices in separate storage.
+		//! AoS destinations must already be alive. Use move_ctor_elements for raw AoS storage.
+		//! SoA copies field ranges using the source and destination capacities for their strides.
+		//! Does not destroy source elements. Use shift_elements_left for overlapping ranges.
+		//! \tparam T Stored value type.
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
-		//! \param[out] dst Destination pointer
-		//! \param src Source pointer
-		//! \param idxDst Destination index
-		//! \param idxSrc Source index
-		//! \param sizeSrc Number of elements in source
-		//! \param sizeDst Number of elements in destination
+		//! \param dst Destination storage, distinct from the source.
+		//! \param src Live source storage.
+		//! \param idxDst End of the range, exclusive.
+		//! \param idxSrc Beginning of the range, inclusive.
+		//! \param sizeDst Destination capacity for SoA field strides.
+		//! \param sizeSrc Source capacity for SoA field strides.
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_elements(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -8608,6 +8612,54 @@ namespace gaia {
 namespace gaia {
 	namespace cnt {
 		//! \cond INTERNAL
+		namespace detail {
+			//! Stably compacts an array using assignment, then destroys the discarded AoS tail.
+			//! SoA moves fields through the existing memory helper without destroying AoS objects.
+			//! The caller adjusts sanitizer annotations after this function returns.
+			//! \tparam SOA Whether the array uses SoA field storage.
+			//! \tparam Array Gaia array implementation.
+			//! \tparam Func Predicate callable type.
+			//! \param arr Array whose live elements are compacted.
+			//! \param count Reference to the array's live size, updated after compaction.
+			//! \param func Predicate called once per element in order. May modify the element,
+			//! but must not change the array's size or storage.
+			//! \return Number of retained elements.
+			template <bool SOA, typename Array, typename Func>
+			uint32_t retain_array(Array& arr, uint32_t& count, Func&& func) {
+				using T = typename Array::value_type;
+				uint32_t erased = 0;
+				uint32_t idxDst = 0;
+				uint32_t idxSrc = 0;
+
+				while (idxSrc < count) {
+					if (func(arr[idxSrc])) {
+						if (idxDst < idxSrc) {
+							auto* ptr = (uint8_t*)arr.data();
+							mem::move_element<T, SOA>(ptr, ptr, idxDst, idxSrc, arr.capacity(), arr.capacity());
+						}
+						++idxDst;
+					} else {
+						++erased;
+					}
+					++idxSrc;
+				}
+
+				//! Assignment destinations must remain alive throughout the scan.
+				if constexpr (!SOA) {
+					if (erased != 0)
+						core::call_dtor_n(arr.data() + idxDst, erased);
+				}
+				count -= erased;
+				return idxDst;
+			}
+		} // namespace detail
+		//! \endcond
+	} // namespace cnt
+} // namespace gaia
+
+namespace gaia {
+	namespace cnt {
+		//! \cond INTERNAL
 		namespace darr_ext_detail {
 			using difference_type = int32_t;
 			using size_type = uint32_t;
@@ -9132,37 +9184,16 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! The predicate may modify its element but must not change the array's size or storage.
 			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
 			auto retain(Func&& func) noexcept {
-				size_type erased = 0;
-				size_type idxDst = 0;
-				size_type idxSrc = 0;
-
-				while (idxSrc < m_cnt) {
-					if (func(operator[](idxSrc))) {
-						if (idxDst < idxSrc) {
-							auto* ptr = (uint8_t*)data();
-							mem::move_element<T, false>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
-						}
-						++idxDst;
-					} else {
-						++erased;
-					}
-
-					++idxSrc;
-				}
-
-				//! Keep assignment destinations alive until compaction finishes.
-				if (erased != 0)
-					core::call_dtor_n(data() + idxDst, erased);
-
-				GAIA_MEM_SANI_POP_N(value_size, data(), m_cap, m_cnt, erased);
-
-				m_cnt -= erased;
-				return idxDst;
+				const auto oldCount = m_cnt;
+				const auto newSize = detail::retain_array<false>(*this, m_cnt, func);
+				GAIA_MEM_SANI_POP_N(value_size, data(), m_cap, oldCount, oldCount - m_cnt);
+				return newSize;
 			}
 
 			//! Returns the number of elements.
@@ -11523,36 +11554,16 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! The predicate may modify its element but must not change the array's size or storage.
 			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
 			auto retain(Func&& func) {
-				size_type erased = 0;
-				size_type idxDst = 0;
-				size_type idxSrc = 0;
-
-				while (idxSrc < m_cnt) {
-					if (func(operator[](idxSrc))) {
-						if (idxDst < idxSrc) {
-							mem::move_element<T, false>(m_pData, m_pData, idxDst, idxSrc, m_cap, m_cap);
-						}
-						++idxDst;
-					} else {
-						++erased;
-					}
-
-					++idxSrc;
-				}
-
-				//! Keep assignment destinations alive until compaction finishes.
-				if (erased != 0)
-					core::call_dtor_n(data() + idxDst, erased);
-
-				GAIA_MEM_SANI_POP_N(value_size, data(), m_cap, m_cnt, erased);
-
-				m_cnt -= erased;
-				return idxDst;
+				const auto oldCount = m_cnt;
+				const auto newSize = detail::retain_array<false>(*this, m_cnt, func);
+				GAIA_MEM_SANI_POP_N(value_size, data(), m_cap, oldCount, oldCount - m_cnt);
+				return newSize;
 			}
 
 			//! Returns the number of elements.
@@ -12408,33 +12419,16 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! The predicate may modify its element but must not change the array's size or storage.
 			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
 			auto retain(Func&& func) noexcept {
-				size_type erased = 0;
-				size_type idxDst = 0;
-				size_type idxSrc = 0;
-
-				while (idxSrc < m_cnt) {
-					if (func(operator[](idxSrc))) {
-						if (idxDst < idxSrc) {
-							auto* ptr = (uint8_t*)data();
-							mem::move_element<T, true>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
-						}
-						++idxDst;
-					} else {
-						++erased;
-					}
-
-					++idxSrc;
-				}
-
-				view_policy::mem_pop_block(data(), m_cap, m_cnt, erased);
-
-				m_cnt -= erased;
-				return idxDst;
+				const auto oldCount = m_cnt;
+				const auto newSize = detail::retain_array<true>(*this, m_cnt, func);
+				view_policy::mem_pop_block(data(), m_cap, oldCount, oldCount - m_cnt);
+				return newSize;
 			}
 
 			//! Returns the number of elements.
@@ -13277,32 +13271,16 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! The predicate may modify its element but must not change the array's size or storage.
 			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
 			auto retain(Func&& func) noexcept {
-				size_type erased = 0;
-				size_type idxDst = 0;
-				size_type idxSrc = 0;
-
-				while (idxSrc < m_cnt) {
-					if (func(operator[](idxSrc))) {
-						if (idxDst < idxSrc) {
-							mem::move_element<T, true>(m_pData, m_pData, idxDst, idxSrc, m_cap, m_cap);
-						}
-						++idxDst;
-					} else {
-						++erased;
-					}
-
-					++idxSrc;
-				}
-
-				view_policy::mem_pop_block(data(), m_cap, m_cnt, erased);
-
-				m_cnt -= erased;
-				return idxDst;
+				const auto oldCount = m_cnt;
+				const auto newSize = detail::retain_array<true>(*this, m_cnt, func);
+				view_policy::mem_pop_block(data(), m_cap, oldCount, oldCount - m_cnt);
+				return newSize;
 			}
 
 			//! Returns the number of elements.
@@ -20620,35 +20598,13 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! The predicate may modify its element but must not change the array's size or storage.
 			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
 			auto retain(Func&& func) noexcept {
-				size_type erased = 0;
-				size_type idxDst = 0;
-				size_type idxSrc = 0;
-
-				while (idxSrc < m_cnt) {
-					if (func(operator[](idxSrc))) {
-						if (idxDst < idxSrc) {
-							auto* ptr = (uint8_t*)data();
-							mem::move_element<T, false>(ptr, ptr, idxDst, idxSrc, max_size(), max_size());
-						}
-						++idxDst;
-					} else {
-						++erased;
-					}
-
-					++idxSrc;
-				}
-
-				//! Keep assignment destinations alive until compaction finishes.
-				if (erased != 0)
-					core::call_dtor_n(data() + idxDst, erased);
-
-				m_cnt -= erased;
-				return idxDst;
+				return detail::retain_array<false>(*this, m_cnt, func);
 			}
 
 			//! Returns the number of elements.
@@ -21389,31 +21345,13 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! The predicate may modify its element but must not change the array's size or storage.
 			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
 			auto retain(Func&& func) noexcept {
-				size_type erased = 0;
-				size_type idxDst = 0;
-				size_type idxSrc = 0;
-
-				while (idxSrc < m_cnt) {
-					if (func(operator[](idxSrc))) {
-						if (idxDst < idxSrc) {
-							auto* ptr = (uint8_t*)data();
-							mem::move_element<T, true>(ptr, ptr, idxDst, idxSrc, max_size(), max_size());
-						}
-						++idxDst;
-					} else {
-						++erased;
-					}
-
-					++idxSrc;
-				}
-
-				m_cnt -= erased;
-				return idxDst;
+				return detail::retain_array<true>(*this, m_cnt, func);
 			}
 
 			//! Returns the number of elements.

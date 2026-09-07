@@ -41,8 +41,8 @@ This repository is Gaia-ECS. All changes, examples, benchmarks, tests, documenta
 
 ## Build and runtime performance
 
-- Compilation time must stay fast. Do not introduce template-heavy, macro-heavy, or abstraction-heavy code without strong justification.
-- Runtime must stay fast. Prefer predictable, low-overhead code in hot paths.
+- Compilation times should improve or remain unchanged. Code simplification alone does not justify a reproducible compile-time regression. Do not introduce template-heavy, macro-heavy, or abstraction-heavy code without strong justification.
+- Runtime performance should improve or remain unchanged. Code simplification alone does not justify a reproducible runtime regression. Prefer predictable, low-overhead code in hot paths.
 - Changes must consider both compile-time cost and runtime cost, not just one of them.
 
 ## Testing requirements
