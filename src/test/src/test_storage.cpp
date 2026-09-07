@@ -1032,6 +1032,56 @@ TEST_CASE("Copy keeps empty DontFragment tag membership outside the archetype") 
 	CHECK(wld.has<DontFragmentEmptyTag>(dst));
 }
 
+TEST_CASE("Direct OR query empty respects matches, exclusions, and enabled state") {
+	for (const bool cached: {false, true}) {
+		TestWorld twld;
+		wld.add<DontFragmentEmptyTag>();
+		wld.add<DontFragmentEmptyTagB>();
+		wld.add<DontFragmentPayload>();
+		auto query = (cached ? wld.query() : wld.uquery()).or_<DontFragmentEmptyTag>().or_<DontFragmentEmptyTagB>();
+		auto filtered = (cached ? wld.query() : wld.uquery())
+												.or_<DontFragmentEmptyTag>()
+												.or_<DontFragmentEmptyTagB>()
+												.no<DontFragmentPayload>();
+		auto expect = [](ecs::Query& q, uint32_t count, ecs::Constraints constraints = ecs::Constraints::EnabledOnly) {
+			CHECK(q.count(constraints) == count);
+			CHECK(q.empty(constraints) == (count == 0));
+		};
+		expect(query, 0);
+		expect(filtered, 0);
+
+		const auto both = wld.add();
+		wld.add<DontFragmentEmptyTagB>(both);
+		expect(query, 1);
+		wld.add<DontFragmentEmptyTag>(both);
+		expect(query, 1);
+		expect(filtered, 1);
+
+		wld.add<DontFragmentPayload>(both);
+		expect(query, 1);
+		expect(filtered, 0);
+		const auto other = wld.add();
+		wld.add<DontFragmentEmptyTag>(other);
+		expect(filtered, 1);
+
+		wld.enable(other, false);
+		expect(filtered, 0);
+		expect(filtered, 1, ecs::Constraints::DisabledOnly);
+		expect(filtered, 1, ecs::Constraints::AcceptAll);
+		expect(query, 1);
+		expect(query, 1, ecs::Constraints::DisabledOnly);
+		expect(query, 2, ecs::Constraints::AcceptAll);
+
+		wld.del<DontFragmentPayload>(both);
+		expect(filtered, 1);
+		wld.del<DontFragmentEmptyTag>(both);
+		wld.del<DontFragmentEmptyTagB>(both);
+		wld.del<DontFragmentEmptyTag>(other);
+		expect(query, 0, ecs::Constraints::AcceptAll);
+		expect(filtered, 0, ecs::Constraints::AcceptAll);
+	}
+}
+
 TEST_CASE("Direct query scratch - nested OR queries keep their own seen stamps") {
 	for (const bool cached: {false, true}) {
 		TestWorld twld;
@@ -1049,7 +1099,7 @@ TEST_CASE("Direct query scratch - nested OR queries keep their own seen stamps")
 		auto outer = (cached ? wld.query() : wld.uquery()).or_<DontFragmentEmptyTag>().or_<DontFragmentEmptyTagB>();
 		auto inner = (cached ? wld.uquery() : wld.query()).or_<DontFragmentEmptyTag>().or_<DontFragmentEmptyTagB>();
 		auto bucket = wld.query().all<DontFragmentEmptyTag>();
-		const bool emptyBefore = inner.empty();
+		CHECK_FALSE(inner.empty());
 
 		// Repeated runs also exercise scratch reuse after an early-returning empty() call.
 		for (uint32_t mode = 0; mode < 6; ++mode) {
@@ -1064,7 +1114,7 @@ TEST_CASE("Direct query scratch - nested OR queries keep their own seen stamps")
 					if (mode == 0) {
 						CHECK(inner.count() == 4);
 					} else if (mode == 1) {
-						CHECK(inner.empty() == emptyBefore);
+						CHECK_FALSE(inner.empty());
 					} else if (mode == 2) {
 						cnt::darray<ecs::Entity> result;
 						inner.arr(result);

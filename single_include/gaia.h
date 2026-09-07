@@ -60058,10 +60058,10 @@ namespace gaia {
 						});
 
 						if (!completed)
-							return true;
+							return false;
 					}
 
-					return false;
+					return true;
 				}
 
 				//! Builds the best direct entity seed set from the smallest positive ALL term or the OR union fallback.
@@ -61826,14 +61826,14 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				//!	Returns true or false depending on whether there are any entities matching the query.
+				//! Returns whether no entities match the query.
 				//!	\warning Only use if you only care if there are any entities matching the query.
 				//!					 The result is not cached and repeated calls to the function might be slow.
 				//!					 If you already called arr(), checking if it is empty is preferred.
 				//!					 Use empty() instead of calling count()==0.
 				//! \note For changed() queries this is a non-consuming probe. It does not advance the
 				//!       query's changed-reporting state. Iteration APIs such as each()/arr() do consume it.
-				//!	\return True if there are any entities matching the query. False otherwise.
+				//! \return True if no entities match the query. False otherwise.
 				//! \param constraints Entity-row subset included in the probe.
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();

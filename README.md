@@ -528,8 +528,6 @@ Rule of thumb:
 - `GAIA_STORAGE(Sparse)` plus a runtime `DontFragment` latch is equivalent for data-bearing AoS payloads.
 - Avoid sparse storage for components such as `Position` or `Velocity` that benefit from sequential table access, unless profiling justifies it.
 
-Nested direct queries keep independent deduplication stamps and writable entity snapshots. Calling `count()`, `empty()`, `arr()`, or `each()` from a callback does not overwrite the outer query's scratch state, including when the nested query uses another world. Scratch storage is reused per thread and active nesting depth. A new depth allocates its slot and grows its buffers on demand.
-
 Directly adding or removing an already-registered `DontFragment` component is safe during serial query iteration because the entity does not move to another archetype. If the active query filters on that component, later rows are matched against the current world state rather than a snapshot taken before iteration.
 
 >**NOTE:<br/>**
@@ -1450,6 +1448,29 @@ ecs::Query qBad = w.query().or_<A>();
 qBad.count(); // expected (Debug): assertion failure, use all<A>() or any<A>()
 ```
 
+`empty()` returns true when no entities match the query. For an OR query, matching any OR term is enough, but `no(...)` exclusions and [enabled-state constraints](#constraints) still apply. Only enabled entities are considered by default.
+
+```cpp
+struct Selected { GAIA_STORAGE(DontFragment); };
+struct Highlighted { GAIA_STORAGE(DontFragment); };
+struct Hidden {};
+
+ecs::World w;
+auto q = w.query()
+  .or_<Selected>()
+  .or_<Highlighted>()
+  .no<Hidden>();
+
+GAIA_ASSERT(q.empty()); // No matching entities yet.
+
+const auto e = w.add();
+w.add<Highlighted>(e);
+GAIA_ASSERT(!q.empty()); // One OR term is enough to match.
+
+w.add<Hidden>(e);
+GAIA_ASSERT(q.empty()); // The matching entity is now excluded.
+```
+
 ### Query traversal
 
 More advanced lookup settings are supported via `QueryTermOptions`. This includes source selection, traversal by relation (`ChildOf` by default), traversal filtering (`trav`, `trav_up`, `trav_parent`, `trav_self_parent`, `trav_down`, `trav_child`, `trav_self_down`, `trav_self_child`, `trav_depth`), and access type (read or write).
@@ -1906,6 +1927,8 @@ q.each(...) { ... };
 ```
 
 ### Query remarks
+
+Nested direct queries keep independent deduplication stamps and writable entity snapshots. Calling `count()`, `empty()`, `arr()`, or `each()` from a callback does not overwrite the outer query's scratch state, including when the nested query uses another world. Scratch storage is reused per thread and active nesting depth. A new depth allocates its slot and grows its buffers on demand.
 
 Building cache requires memory. Because of that, sometimes it comes handy having the ability to release this data. Calling ```myQuery.reset()``` will remove any data allocated by the query. The next time the query is used to fetch results the cache is rebuilt.
 
