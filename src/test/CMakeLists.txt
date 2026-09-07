@@ -1,6 +1,7 @@
 set(GAIA_TEST_SOURCES
 	src/main.cpp
 	src/test_core.cpp
+	src/test_array_lifetime.cpp
 	src/test_ecs_entity.cpp
 	src/test_query_core.cpp
 	src/test_query_prefab_lifecycle.cpp

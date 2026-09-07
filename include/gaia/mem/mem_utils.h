@@ -528,6 +528,30 @@ namespace gaia {
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
+		//! Constructs a range in raw AoS storage by moving or copying live source values.
+		//! The source values remain alive and must be destroyed by the caller.
+		//! \tparam T Stored value type.
+		//! \param dst Uninitialized destination storage.
+		//! \param src Live source storage, distinct from the destination.
+		//! \param count Number of values to construct.
+		template <typename T>
+		void move_ctor_elements(uint8_t* dst, uint8_t* src, uint32_t count) {
+			if (count == 0)
+				return;
+			if constexpr (std::is_trivially_copyable_v<T>) {
+				memcpy(dst, src, sizeof(T) * count);
+			} else {
+				GAIA_FOR(count) {
+					if constexpr (std::is_move_constructible_v<T>)
+						core::call_ctor(&((T*)dst)[i], GAIA_MOV(((T*)src)[i]));
+					else if constexpr (std::is_copy_constructible_v<T>)
+						core::call_ctor(&((T*)dst)[i], ((const T*)src)[i]);
+					else
+						move_ctor_element<T, false>(dst, src, i, i, count, count);
+				}
+			}
+		}
+
 		//! Move or copy \a cnt elements of type \a T from the address pointed to by \a src to \a dst.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.

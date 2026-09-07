@@ -177,17 +177,14 @@ namespace gaia {
 				return (uint32_t)(offset - addr);
 			}
 
-			//! Allocates and default-constructs an AoS value range.
+			//! Allocates raw AoS capacity. The caller constructs the live values.
 			//! \tparam Allocator Allocator adaptor type.
 			//! \param cnt Number of values.
 			//! \return Allocated byte buffer.
 			template <typename Allocator>
 			GAIA_NODISCARD static uint8_t* alloc(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				void* pRaw = mem::AllocHelper::alloc<uint8_t, Allocator>(bytes);
-				auto* pData = (ValueType*)pRaw;
-				core::call_ctor_raw_n(pData, cnt);
-				return (uint8_t*)pData;
+				return mem::AllocHelper::alloc<uint8_t, Allocator>(bytes);
 			}
 
 			//! Destroys and releases an instrumented AoS value range.

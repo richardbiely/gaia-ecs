@@ -83,7 +83,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(m_cap);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, m_cap, cnt);
-				mem::move_elements<T, false>(m_pData, pDataOld, cnt, 0, m_cap, cap);
+				mem::move_ctor_elements<T>(m_pData, pDataOld, cnt);
 				view_policy::template free<Allocator>(pDataOld, cap, cnt);
 			}
 
@@ -232,7 +232,7 @@ namespace gaia {
 				m_pData = view_policy::template alloc<Allocator>(cap);
 				if (pDataOld != nullptr) {
 					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, cap, m_cnt);
-					mem::move_elements<T, false>(m_pData, pDataOld, m_cnt, 0, cap, m_cap);
+					mem::move_ctor_elements<T>(m_pData, pDataOld, m_cnt);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				}
 
@@ -250,7 +250,7 @@ namespace gaia {
 					if (count > 0) {
 						m_pData = view_policy::template alloc<Allocator>(count);
 						GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, count, count);
-						core::call_ctor_n(m_pData, count);
+						core::call_ctor_n(data(), count);
 						m_cap = count;
 						m_cnt = count;
 					}
@@ -281,7 +281,7 @@ namespace gaia {
 				m_pData = view_policy::template alloc<Allocator>(count);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, count, count);
 				// Move old data to the new location
-				mem::move_elements<T, false>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
+				mem::move_ctor_elements<T>(m_pData, pDataOld, m_cnt);
 				// Default-construct new items
 				core::call_ctor_n(&data()[m_cnt], count - m_cnt);
 				// Release old memory
@@ -366,9 +366,14 @@ namespace gaia {
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
 				GAIA_MEM_SANI_PUSH(value_size, m_pData, m_cap, m_cnt);
-				mem::shift_elements_right<T, false>(m_pData, idxDst, idxSrc, m_cap);
 				auto* ptr = &data()[idxSrc];
-				core::call_ctor(ptr, arg);
+				if (idxSrc == idxDst) {
+					core::call_ctor(ptr, arg);
+				} else {
+					mem::move_ctor_elements<T>((uint8_t*)&data()[idxDst], (uint8_t*)&data()[idxDst - 1], 1);
+					mem::shift_elements_right<T, false>(m_pData, idxDst - 1, idxSrc, m_cap);
+					*ptr = arg;
+				}
 
 				++m_cnt;
 
@@ -388,9 +393,14 @@ namespace gaia {
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
 				GAIA_MEM_SANI_PUSH(value_size, m_pData, m_cap, m_cnt);
-				mem::shift_elements_right<T, false>(m_pData, idxDst, idxSrc, m_cap);
 				auto* ptr = &data()[idxSrc];
-				core::call_ctor(ptr, GAIA_MOV(arg));
+				if (idxSrc == idxDst) {
+					core::call_ctor(ptr, GAIA_MOV(arg));
+				} else {
+					mem::move_ctor_elements<T>((uint8_t*)&data()[idxDst], (uint8_t*)&data()[idxDst - 1], 1);
+					mem::shift_elements_right<T, false>(m_pData, idxDst - 1, idxSrc, m_cap);
+					*ptr = GAIA_MOV(arg);
+				}
 
 				++m_cnt;
 

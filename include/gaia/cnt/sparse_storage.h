@@ -719,7 +719,7 @@ namespace gaia {
 
 					// Release allocated memory
 					mem::AllocHelper::free("SparsePage", m_pSparse);
-					view_policy::template free<Allocator>(m_pData, m_cnt);
+					view_policy::template free<Allocator>(m_pData, 0);
 
 					m_pSparse = nullptr;
 					m_pData = nullptr;

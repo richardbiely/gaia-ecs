@@ -4415,6 +4415,9 @@ tp.wait(jobHandle);
 GAIA_LOG("Sum: %u\n", sum);
 ```
 
+Gaia dynamic arrays (`cnt::darray` and `cnt::darray_ext`) keep only `size()` live elements.
+`reserve()` allocates capacity without default-constructing spare values. Growth relocates live values and releases their old storage.
+
 ### Job dependencies
 
 Sometimes we need to wait for the result of another operation before we can proceed. To achieve this we need to use low-level API and handle job registration and submitting jobs on our own.
