@@ -79,34 +79,8 @@ namespace gaia {
 			size_type m_cap = extent;
 
 			void try_grow() {
-				const auto cnt = size();
-				const auto cap = capacity();
-
-				// Unless we reached the capacity don't do anything
-				if GAIA_LIKELY (cnt < cap)
-					return;
-
-				// We increase the capacity in multiples of 1.5 which is about the golden ratio (1.618).
-				// This means we prefer more frequent allocations over memory fragmentation.
-				m_cap = (cap * 3 + 1) / 2;
-
-				if GAIA_UNLIKELY (m_pDataHeap == nullptr) {
-					// If no heap memory is allocated yet we need to allocate it and move the old stack elements to it
-					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
-					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, cnt);
-					mem::move_ctor_elements<T>(m_pDataHeap, m_data, cnt);
-					core::call_dtor_n(data(), cnt);
-					GAIA_MEM_SANI_DEL_BLOCK(value_size, m_data, cap, cnt);
-				} else {
-					// Move items from the old heap array to the new one. Delete the old
-					auto* pDataOld = m_pDataHeap;
-					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
-					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, cnt);
-					mem::move_ctor_elements<T>(m_pDataHeap, pDataOld, cnt);
-					view_policy::template free<Allocator>(pDataOld, cap, cnt);
-				}
-
-				m_pData = m_pDataHeap;
+				if (m_cnt == m_cap)
+					reserve(m_cap != 0 ? (m_cap * 3 + 1) / 2 : 4);
 			}
 
 		public:
@@ -358,37 +332,35 @@ namespace gaia {
 			//! \param count Number of elements.
 			//! \param value Value assigned to each new element.
 			void resize(size_type count, const_reference value) {
+				if (count <= m_cnt) {
+					resize(count);
+					return;
+				}
 				const auto oldCount = m_cnt;
-				resize(count);
-
 				if constexpr (std::is_copy_constructible_v<value_type>) {
 					const value_type valueCopy = value;
+					resize(count);
 					for (size_type i = oldCount; i < m_cnt; ++i)
 						operator[](i) = valueCopy;
 				} else {
+					value_type valueCopy;
+					valueCopy = value;
+					resize(count);
 					for (size_type i = oldCount; i < m_cnt; ++i)
-						operator[](i) = value;
+						operator[](i) = valueCopy;
 				}
 			}
 
 			//! Appends an element.
 			//! \param arg Element value to append.
 			void push_back(const T& arg) {
-				try_grow();
-
-				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
-				auto* ptr = &data()[m_cnt++];
-				core::call_ctor(ptr, arg);
+				emplace_back(arg);
 			}
 
 			//! Appends an element.
 			//! \param arg Element value to append.
 			void push_back(T&& arg) {
-				try_grow();
-
-				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
-				auto* ptr = &data()[m_cnt++];
-				core::call_ctor(ptr, GAIA_MOV(arg));
+				emplace_back(GAIA_MOV(arg));
 			}
 
 			//! Constructs and appends an element.
@@ -397,12 +369,27 @@ namespace gaia {
 			//! \return Reference to the appended element.
 			template <typename... Args>
 			decltype(auto) emplace_back(Args&&... args) {
-				try_grow();
-
-				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
-				auto* ptr = &data()[m_cnt++];
-				core::call_ctor(ptr, GAIA_FWD(args)...);
-				return (reference)*ptr;
+				if GAIA_UNLIKELY (m_cnt == m_cap) {
+					const auto cap = m_cap != 0 ? (m_cap * 3 + 1) / 2 : 4;
+					auto* pDataNew = view_policy::template alloc<Allocator>(cap);
+					GAIA_MEM_SANI_ADD_BLOCK(value_size, pDataNew, cap, m_cnt + 1);
+					//! Consume arguments before relocation invalidates references into this array.
+					core::call_ctor(&static_cast<T*>(static_cast<void*>(pDataNew))[m_cnt], GAIA_FWD(args)...);
+					mem::move_ctor_elements<T>(pDataNew, m_pData, m_cnt);
+					if (m_pDataHeap != nullptr)
+						view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+					else {
+						core::call_dtor_n(data(), m_cnt);
+						GAIA_MEM_SANI_DEL_BLOCK(value_size, m_data, m_cap, m_cnt);
+					}
+					m_pDataHeap = pDataNew;
+					m_pData = pDataNew;
+					m_cap = cap;
+				} else {
+					GAIA_MEM_SANI_PUSH(value_size, m_pData, m_cap, m_cnt);
+					core::call_ctor(&data()[m_cnt], GAIA_FWD(args)...);
+				}
+				return (reference)data()[m_cnt++];
 			}
 
 			//! Removes the last element.
@@ -424,6 +411,7 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
+				T value(arg);
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end());
@@ -431,11 +419,11 @@ namespace gaia {
 				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
 				auto* ptr = &data()[idxSrc];
 				if (idxSrc == idxDst) {
-					core::call_ctor(ptr, arg);
+					core::call_ctor(ptr, std::move_if_noexcept(value));
 				} else {
 					mem::move_ctor_elements<T>((uint8_t*)&data()[idxDst], (uint8_t*)&data()[idxDst - 1], 1);
 					mem::shift_elements_right<T, false>(m_pData, idxDst - 1, idxSrc, m_cap);
-					*ptr = arg;
+					mem::move_element<T, false>((uint8_t*)ptr, (uint8_t*)&value, 0, 0, 1, 1);
 				}
 
 				++m_cnt;
@@ -451,6 +439,7 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
+				T value(GAIA_MOV(arg));
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end());
@@ -458,11 +447,11 @@ namespace gaia {
 				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
 				auto* ptr = &data()[idxSrc];
 				if (idxSrc == idxDst) {
-					core::call_ctor(ptr, GAIA_MOV(arg));
+					core::call_ctor(ptr, std::move_if_noexcept(value));
 				} else {
 					mem::move_ctor_elements<T>((uint8_t*)&data()[idxDst], (uint8_t*)&data()[idxDst - 1], 1);
 					mem::shift_elements_right<T, false>(m_pData, idxDst - 1, idxSrc, m_cap);
-					*ptr = GAIA_MOV(arg);
+					mem::move_element<T, false>((uint8_t*)ptr, (uint8_t*)&value, 0, 0, 1, 1);
 				}
 
 				++m_cnt;

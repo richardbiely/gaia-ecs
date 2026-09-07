@@ -507,6 +507,7 @@ namespace gaia {
 			void push_back(const T& arg) {
 				try_grow();
 
+				view_policy::mem_push_block(m_pData, m_cap, m_cnt, 1);
 				operator[](m_cnt++) = arg;
 			}
 
@@ -525,10 +526,11 @@ namespace gaia {
 			//! \return No value. The deduced return type is void.
 			template <typename... Args>
 			decltype(auto) emplace_back(Args&&... args) {
+				T value(GAIA_FWD(args)...);
 				try_grow();
 
 				view_policy::mem_push_block(m_pData, m_cap, m_cnt, 1);
-				operator[](m_cnt++) = T(GAIA_FWD(args)...);
+				operator[](m_cnt++) = GAIA_MOV(value);
 			}
 
 			//! Removes the last element.

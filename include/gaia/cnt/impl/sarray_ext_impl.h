@@ -257,10 +257,15 @@ namespace gaia {
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
-				mem::shift_elements_right<T, false>(m_data, idxDst, idxSrc, extent);
-
+				T value(arg);
 				auto* ptr = &data()[idxSrc];
-				core::call_ctor(ptr, arg);
+				if (idxSrc == idxDst) {
+					core::call_ctor(ptr, std::move_if_noexcept(value));
+				} else {
+					mem::move_ctor_elements<T>((uint8_t*)&data()[idxDst], (uint8_t*)&data()[idxDst - 1], 1);
+					mem::shift_elements_right<T, false>(m_data, idxDst - 1, idxSrc, extent);
+					mem::move_element<T, false>((uint8_t*)ptr, (uint8_t*)&value, 0, 0, 1, 1);
+				}
 
 				++m_cnt;
 
@@ -279,10 +284,15 @@ namespace gaia {
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
-				mem::shift_elements_right<T, false>(m_data, idxDst, idxSrc, extent);
-
+				T value(GAIA_MOV(arg));
 				auto* ptr = &data()[idxSrc];
-				core::call_ctor(ptr, GAIA_MOV(arg));
+				if (idxSrc == idxDst) {
+					core::call_ctor(ptr, std::move_if_noexcept(value));
+				} else {
+					mem::move_ctor_elements<T>((uint8_t*)&data()[idxDst], (uint8_t*)&data()[idxDst - 1], 1);
+					mem::shift_elements_right<T, false>(m_data, idxDst - 1, idxSrc, extent);
+					mem::move_element<T, false>((uint8_t*)ptr, (uint8_t*)&value, 0, 0, 1, 1);
+				}
 
 				++m_cnt;
 

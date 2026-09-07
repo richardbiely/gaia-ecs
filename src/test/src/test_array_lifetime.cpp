@@ -144,6 +144,10 @@ TEST_CASE("Array lifetime - reserve supports non-default-constructible values") 
 	values.emplace_back(17);
 	values.reserve(4);
 	CHECK(values[0].value == 17);
+	while (values.size() < values.capacity())
+		values.emplace_back(17);
+	values.emplace_back(values[0].value);
+	CHECK(values.back().value == 17);
 }
 
 TEST_CASE("Array lifetime - sparse pages destroy only occupied slots") {
@@ -250,5 +254,108 @@ TEST_CASE("Array lifetime - retain compacts live objects") {
 	}
 	SUBCASE("SoA fixed capacity") {
 		array_retain_soa<cnt::sarray_ext_soa<ArraySoA, 8>>();
+	}
+}
+
+namespace {
+	//! Runs aliasing paths with and without heap relocation.
+	template <typename Array>
+	void array_alias_inputs() {
+		{
+			Array values;
+			values.reserve(4);
+			while (values.size() < values.capacity())
+				values.emplace_back(17);
+			values.push_back(values[0]);
+			CHECK(*values.back().value == 17);
+			values.resize(values.capacity() + 3, values[0]);
+			CHECK(*values.back().value == 17);
+			values.resize(1, values.back());
+			CHECK(*values[0].value == 17);
+			values.clear();
+			while (values.size() < values.capacity())
+				values.emplace_back(23);
+			values.emplace_back(*values[0].value);
+			CHECK(*values.back().value == 23);
+			values.clear();
+			while (values.size() < values.capacity())
+				values.emplace_back(29);
+			values.push_back(GAIA_MOV(values[0]));
+			CHECK(*values.back().value == 29);
+			CHECK(values[0].value == nullptr);
+		}
+		CHECK(ArrayOwner::live == 0);
+	}
+
+	template <typename Array>
+	void array_alias_insert(bool fillCapacity) {
+		{
+			Array values;
+			values.emplace_back(10);
+			values.emplace_back(20);
+			values.emplace_back(30);
+			if (fillCapacity)
+				while (values.size() < values.capacity())
+					values.emplace_back(40);
+			values.insert(values.begin(), values[2]);
+			CHECK(*values[0].value == 30);
+			CHECK(*values[1].value == 10);
+			CHECK(*values[2].value == 20);
+			CHECK(*values[3].value == 30);
+			values.insert(values.begin() + 1, GAIA_MOV(values[3]));
+			CHECK(*values[1].value == 30);
+			CHECK(*values[2].value == 10);
+			CHECK(*values[3].value == 20);
+			CHECK(values[4].value == nullptr);
+		}
+		CHECK(ArrayOwner::live == 0);
+	}
+} // namespace
+
+TEST_CASE("Array lifetime - aliased append and resize") {
+	SUBCASE("heap") {
+		array_alias_inputs<cnt::darray<ArrayOwner>>();
+	}
+	SUBCASE("extended") {
+		array_alias_inputs<cnt::darray_ext<ArrayOwner, 4>>();
+	}
+}
+
+TEST_CASE("Array lifetime - aliased insertion") {
+	SUBCASE("heap growth") {
+		array_alias_insert<cnt::darray<ArrayOwner>>(true);
+	}
+	SUBCASE("heap spare capacity") {
+		array_alias_insert<cnt::darray<ArrayOwner>>(false);
+	}
+	SUBCASE("inline to heap") {
+		array_alias_insert<cnt::darray_ext<ArrayOwner, 4>>(true);
+	}
+	SUBCASE("inline spare capacity") {
+		array_alias_insert<cnt::darray_ext<ArrayOwner, 8>>(false);
+	}
+	SUBCASE("fixed capacity") {
+		array_alias_insert<cnt::sarray_ext<ArrayOwner, 8>>(false);
+	}
+}
+
+TEST_CASE("Array lifetime - SoA emplacement consumes aliased proxies before growth") {
+	auto run = [](auto& values) {
+		const ArraySoA source{37, 4.0f};
+		values.push_back(source);
+		while (values.size() < values.capacity())
+			values.push_back(source);
+		values.emplace_back(values[0]);
+		const ArraySoA result = values[values.size() - 1];
+		CHECK(result.x == 37);
+		CHECK(result.y == 4.0f);
+	};
+	SUBCASE("heap") {
+		cnt::darray_soa<ArraySoA> values;
+		run(values);
+	}
+	SUBCASE("inline to heap") {
+		cnt::darray_ext_soa<ArraySoA, 4> values;
+		run(values);
 	}
 }
