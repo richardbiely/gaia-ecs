@@ -213,7 +213,7 @@ namespace gaia {
 			}
 
 			//! Shift elements at the address pointed to by \a dst to the left by \a n elements.
-			//! Handles only the non-overlapping part.
+			//! Supports overlapping source and destination ranges.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
 			//! \param idxDst Destination index
@@ -229,7 +229,7 @@ namespace gaia {
 				const auto max = idxDst - idxSrc - n;
 
 				if constexpr (std::is_trivially_copy_assignable_v<T> || std::is_trivially_move_assignable_v<T>) {
-					memcpy((void*)&dst[idxSrc], (const void*)&dst[idxSrc + n], sizeof(T) * max);
+					memmove((void*)&dst[idxSrc], (const void*)&dst[idxSrc + n], sizeof(T) * max);
 				}
 				// Move first if possible
 				else if constexpr (std::is_move_assignable_v<T>) {

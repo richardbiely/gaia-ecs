@@ -359,3 +359,50 @@ TEST_CASE("Array lifetime - SoA emplacement consumes aliased proxies before grow
 		run(values);
 	}
 }
+
+namespace {
+	template <typename Array>
+	void array_erase_overlap() {
+		const uint32_t ranges[][2] = {{1, 2}, {0, 3}, {3, 8}, {0, 8}};
+		for (const auto& range: ranges) {
+			Array values;
+			for (int i = 0; i < 8; ++i)
+				values.push_back(i);
+			const auto first = range[0];
+			const auto last = range[1];
+			const auto it = values.erase(values.begin() + first, values.begin() + last);
+			CHECK(values.size() == 8 - (last - first));
+			CHECK(it == values.begin() + first);
+			for (uint32_t i = 0; i < values.size(); ++i)
+				CHECK(values[i] == (int)(i < first ? i : i + last - first));
+		}
+	}
+} // namespace
+
+TEST_CASE("Array lifetime - overlapping range erase") {
+	SUBCASE("heap") {
+		array_erase_overlap<cnt::darray<int>>();
+	}
+	SUBCASE("inline") {
+		array_erase_overlap<cnt::darray_ext<int, 16>>();
+	}
+	SUBCASE("extended heap") {
+		array_erase_overlap<cnt::darray_ext<int, 2>>();
+	}
+	SUBCASE("fixed capacity") {
+		array_erase_overlap<cnt::sarray_ext<int, 16>>();
+	}
+	SUBCASE("owning values") {
+		REQUIRE(ArrayOwner::live == 0);
+		{
+			cnt::darray<ArrayOwner> values;
+			for (int i = 0; i < 8; ++i)
+				values.emplace_back(i);
+			values.erase(values.begin() + 1, values.begin() + 2);
+			CHECK(ArrayOwner::live == 7);
+			for (uint32_t i = 0; i < values.size(); ++i)
+				CHECK(*values[i].value == (int)(i == 0 ? 0 : i + 1));
+		}
+		CHECK(ArrayOwner::live == 0);
+	}
+}

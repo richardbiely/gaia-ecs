@@ -4417,7 +4417,7 @@ GAIA_LOG("Sum: %u\n", sum);
 
 Gaia dynamic arrays (`cnt::darray` and `cnt::darray_ext`) keep only `size()` live elements.
 `reserve()` allocates capacity without default-constructing spare values. Growth relocates live values and releases their old storage.
-`retain()` preserves survivor order, keeps assignment destinations alive during compaction, then destroys the removed tail.
+`retain()` preserves survivor order, keeps assignment destinations alive during compaction, then destroys the removed tail. Range erasure supports overlapping suffix shifts.
 Append, emplacement, insertion, and fill-resize may use values from the same array. Those inputs are consumed before relocation or shifting invalidates them.
 
 ### Job dependencies
