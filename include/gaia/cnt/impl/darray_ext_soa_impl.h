@@ -683,28 +683,24 @@ namespace gaia {
 			void shrink_to_fit() {
 				const auto cap = capacity();
 				const auto cnt = size();
-
-				if (cap == cnt)
+				if (m_pDataHeap == nullptr || (cnt > extent && cap == cnt))
 					return;
 
-				if (m_pDataHeap != nullptr) {
-					auto* pDataOld = m_pDataHeap;
-
-					if (cnt < extent) {
-						mem::move_elements<T, true>(m_data, pDataOld, cnt, 0);
-						m_pData = m_data;
-						m_cap = extent;
-					} else {
-						m_pDataHeap = view_policy::template alloc<Allocator>(m_cap = cnt);
-						view_policy::mem_add_block(m_pDataHeap, m_cap, m_cnt);
-						mem::move_elements<T, true>(m_pDataHeap, pDataOld, cnt, 0);
-						m_pData = m_pDataHeap;
-					}
-
-					view_policy::mem_del_block(pDataOld, cap, cnt);
-					view_policy::template free<Allocator>(pDataOld);
-				} else
-					resize(cnt);
+				auto* pDataOld = m_pDataHeap;
+				if (cnt <= extent) {
+					view_policy::mem_add_block(m_data, extent, cnt);
+					mem::move_elements<T, true>(m_data, pDataOld, cnt, 0, extent, cap);
+					m_pDataHeap = nullptr;
+					m_pData = m_data;
+					m_cap = extent;
+				} else {
+					m_pDataHeap = view_policy::template alloc<Allocator>(cnt);
+					view_policy::mem_add_block(m_pDataHeap, cnt, cnt);
+					mem::move_elements<T, true>(m_pDataHeap, pDataOld, cnt, 0, cnt, cap);
+					m_pData = m_pDataHeap;
+					m_cap = cnt;
+				}
+				view_policy::template free<Allocator>(pDataOld, cap, cnt);
 			}
 
 			//! Removes all elements that fail the predicate.

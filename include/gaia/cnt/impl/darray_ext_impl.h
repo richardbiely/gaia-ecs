@@ -519,28 +519,24 @@ namespace gaia {
 			void shrink_to_fit() {
 				const auto cap = capacity();
 				const auto cnt = size();
-
-				if (cap == cnt)
+				if (m_pDataHeap == nullptr || (cnt > extent && cap == cnt))
 					return;
 
-				if (m_pDataHeap != nullptr) {
-					auto* pDataOld = m_pDataHeap;
-
-					if (cnt < extent) {
-						mem::move_elements<T, false>(m_data, pDataOld, cnt, 0);
-						m_pData = m_data;
-						m_cap = extent;
-					} else {
-						m_pDataHeap = view_policy::template alloc<Allocator>(m_cap = cnt);
-						GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, m_cnt);
-						mem::move_elements<T, false>(m_pDataHeap, pDataOld, cnt, 0);
-						m_pData = m_pDataHeap;
-					}
-
-					GAIA_MEM_SANI_DEL_BLOCK(value_size, pDataOld, cap, cnt);
-					view_policy::template free<Allocator>(pDataOld);
-				} else
-					resize(cnt);
+				auto* pDataOld = m_pDataHeap;
+				if (cnt <= extent) {
+					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_data, extent, cnt);
+					mem::move_ctor_elements<T>(m_data, pDataOld, cnt);
+					m_pDataHeap = nullptr;
+					m_pData = m_data;
+					m_cap = extent;
+				} else {
+					m_pDataHeap = view_policy::template alloc<Allocator>(cnt);
+					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, cnt, cnt);
+					mem::move_ctor_elements<T>(m_pDataHeap, pDataOld, cnt);
+					m_pData = m_pDataHeap;
+					m_cap = cnt;
+				}
+				view_policy::template free<Allocator>(pDataOld, cap, cnt);
 			}
 
 			//! Removes all elements that fail the predicate.

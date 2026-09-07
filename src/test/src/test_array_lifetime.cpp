@@ -1,13 +1,17 @@
 #define DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS
 #include <doctest/doctest.h>
 
-#include "gaia/cnt/darray.h"
-#include "gaia/cnt/darray_ext.h"
-#include "gaia/cnt/darray_ext_soa.h"
-#include "gaia/cnt/darray_soa.h"
-#include "gaia/cnt/sarray_ext.h"
-#include "gaia/cnt/sarray_ext_soa.h"
-#include "gaia/cnt/sparse_storage.h"
+#if defined(GAIA_TEST_SINGLE_HEADER) && GAIA_TEST_SINGLE_HEADER
+	#include <gaia.h>
+#else
+	#include "gaia/cnt/darray.h"
+	#include "gaia/cnt/darray_ext.h"
+	#include "gaia/cnt/darray_ext_soa.h"
+	#include "gaia/cnt/darray_soa.h"
+	#include "gaia/cnt/sarray_ext.h"
+	#include "gaia/cnt/sarray_ext_soa.h"
+	#include "gaia/cnt/sparse_storage.h"
+#endif
 
 using namespace gaia;
 
@@ -405,4 +409,97 @@ TEST_CASE("Array lifetime - overlapping range erase") {
 		}
 		CHECK(ArrayOwner::live == 0);
 	}
+}
+
+namespace {
+	//! Checks compaction, heap-to-inline ownership, empty release, and reuse.
+	template <typename Array>
+	void array_shrink_storage(uint32_t inlineCapacity) {
+		using T = typename Array::value_type;
+		Array values;
+		auto* initialData = values.data();
+		auto append = [](Array& arr, int n) {
+			if constexpr (std::is_same_v<T, ArrayOwner> || std::is_same_v<T, int>)
+				arr.emplace_back(n);
+			else
+				arr.push_back({n, (float)n});
+		};
+		auto verify = [](const Array& arr) {
+			for (uint32_t i = 0; i < arr.size(); ++i) {
+				if constexpr (std::is_same_v<T, ArrayOwner>)
+					CHECK(*arr[i].value == (int)i);
+				else if constexpr (std::is_same_v<T, int>)
+					CHECK(arr[i] == (int)i);
+				else {
+					const T value = arr[i];
+					CHECK(value.x == (int)i);
+					CHECK(value.y == (float)i);
+				}
+			}
+		};
+		values.shrink_to_fit();
+		CHECK(values.capacity() == inlineCapacity);
+		values.reserve(20);
+		for (int i = 0; i < 8; ++i)
+			append(values, i);
+		values.shrink_to_fit();
+		CHECK(values.capacity() == 8);
+		verify(values);
+		auto* compactData = values.data();
+		values.shrink_to_fit();
+		CHECK(values.data() == compactData);
+		values.resize(4);
+		values.shrink_to_fit();
+		CHECK(values.capacity() == 4);
+		verify(values);
+		if (inlineCapacity != 0)
+			CHECK(values.data() == initialData);
+		append(values, 4);
+		verify(values);
+		values.reserve(24);
+		values.resize(2);
+		values.shrink_to_fit();
+		CHECK(values.capacity() == (inlineCapacity != 0 ? inlineCapacity : 2));
+		verify(values);
+		Array moved(GAIA_MOV(values));
+		verify(moved);
+		CHECK(values.empty());
+		append(values, 0);
+		values = GAIA_MOV(moved);
+		verify(values);
+		values.clear();
+		values.shrink_to_fit();
+		CHECK(values.capacity() == inlineCapacity);
+		if (inlineCapacity == 0)
+			CHECK(values.data() == nullptr);
+		append(values, 0);
+		verify(values);
+		values.reserve(16);
+		values.clear();
+		values.shrink_to_fit();
+		CHECK(values.capacity() == inlineCapacity);
+	}
+} // namespace
+
+TEST_CASE("Array lifetime - shrink releases capacity and preserves ownership") {
+	REQUIRE(ArrayOwner::live == 0);
+	SUBCASE("AoS heap") {
+		array_shrink_storage<cnt::darray<int>>(0);
+	}
+	SUBCASE("AoS extended") {
+		array_shrink_storage<cnt::darray_ext<int, 4>>(4);
+	}
+	SUBCASE("owning AoS heap") {
+		array_shrink_storage<cnt::darray<ArrayOwner>>(0);
+	}
+	SUBCASE("owning AoS extended") {
+		array_shrink_storage<cnt::darray_ext<ArrayOwner, 4>>(4);
+	}
+	SUBCASE("SoA heap") {
+		array_shrink_storage<cnt::darray_soa<ArraySoA>>(0);
+	}
+	SUBCASE("SoA extended") {
+		array_shrink_storage<cnt::darray_ext_soa<ArraySoA, 4>>(4);
+	}
+	CHECK(ArrayOwner::live == 0);
 }

@@ -637,15 +637,17 @@ namespace gaia {
 			void shrink_to_fit() {
 				const auto cap = capacity();
 				const auto cnt = size();
-
 				if (cap == cnt)
 					return;
 
 				auto* pDataOld = m_pData;
-				m_pData = view_policy::template alloc<Allocator>(m_cap = cnt);
-				view_policy::mem_add_block(m_pData, m_cap, m_cnt);
-				mem::move_elements<T, true>(m_pData, pDataOld, cnt, 0);
+				m_pData = cnt != 0 ? view_policy::template alloc<Allocator>(cnt) : nullptr;
+				if (cnt != 0) {
+					view_policy::mem_add_block(m_pData, cnt, cnt);
+					mem::move_elements<T, true>(m_pData, pDataOld, cnt, 0, cnt, cap);
+				}
 				view_policy::template free<Allocator>(pDataOld, cap, cnt);
+				m_cap = cnt;
 			}
 
 			//! Removes all elements that fail the predicate.
