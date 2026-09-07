@@ -137,7 +137,8 @@ namespace gaia {
 			size_type m_idx;
 
 		public:
-			const_darr_ext_soa_iterator(const uint8_t* ptr, size_type cnt, size_type idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
+			const_darr_ext_soa_iterator(const uint8_t* ptr, size_type cnt, size_type idx):
+					m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
@@ -711,27 +712,15 @@ namespace gaia {
 			//! \return The new size of the array.
 			template <typename Func>
 			auto retain(Func&& func) noexcept {
-				size_type erased = 0;
 				size_type idxDst = 0;
-				size_type idxSrc = 0;
-
-				while (idxSrc < m_cnt) {
-					if (func(operator[](idxSrc))) {
-						if (idxDst < idxSrc) {
-							auto* ptr = (uint8_t*)data();
-							mem::move_elements<T, true>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
-						}
-						++idxDst;
-					} else {
-						++erased;
-					}
-
-					++idxSrc;
+				for (size_type idxSrc = 0; idxSrc < m_cnt; ++idxSrc) {
+					if (!func(operator[](idxSrc)))
+						continue;
+					if (idxDst != idxSrc)
+						mem::move_element<T, true>((uint8_t*)data(), (uint8_t*)data(), idxDst, idxSrc, m_cap, m_cap);
+					++idxDst;
 				}
-
-				view_policy::mem_pop_block(data(), m_cap, m_cnt, erased);
-
-				m_cnt -= erased;
+				resize(idxDst);
 				return idxDst;
 			}
 

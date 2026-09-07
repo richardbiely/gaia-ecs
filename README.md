@@ -4417,6 +4417,7 @@ GAIA_LOG("Sum: %u\n", sum);
 
 Gaia dynamic arrays (`cnt::darray` and `cnt::darray_ext`) keep only `size()` live elements.
 `reserve()` allocates capacity without default-constructing spare values. Growth relocates live values and releases their old storage.
+`retain()` preserves survivor order, keeps assignment destinations alive during compaction, then destroys the removed tail.
 
 ### Job dependencies
 

@@ -3,6 +3,10 @@
 
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/darray_ext.h"
+#include "gaia/cnt/darray_ext_soa.h"
+#include "gaia/cnt/darray_soa.h"
+#include "gaia/cnt/sarray_ext.h"
+#include "gaia/cnt/sarray_ext_soa.h"
 #include "gaia/cnt/sparse_storage.h"
 
 using namespace gaia;
@@ -153,4 +157,98 @@ TEST_CASE("Array lifetime - sparse pages destroy only occupied slots") {
 		CHECK(*page.get_data(9).value == 19);
 	}
 	CHECK(ArrayOwner::live == 0);
+}
+
+namespace {
+	//! Forces retention to use ownership-transferring moves.
+	struct ArrayMoveOnly: ArrayOwner {
+		using ArrayOwner::ArrayOwner;
+		ArrayMoveOnly(ArrayMoveOnly&&) = default;
+		ArrayMoveOnly& operator=(ArrayMoveOnly&&) = default;
+	};
+
+	//! Checks compaction into rejected slots, tail destruction, and predicate order.
+	template <typename Array>
+	void array_retain_lifetime() {
+		REQUIRE(ArrayOwner::live == 0);
+		{
+			Array values;
+			CHECK(values.retain([](const auto&) {
+				return false;
+			}) == 0);
+			for (int i = 0; i < 6; ++i)
+				values.emplace_back(i);
+			int visited = 0;
+			CHECK(values.retain([&](const auto& value) {
+				CHECK(*value.value == visited++);
+				return *value.value % 2 != 0;
+			}) == 3);
+			CHECK(visited == 6);
+			CHECK(ArrayOwner::live == 3);
+			for (int i = 0; i < 3; ++i)
+				CHECK(*values[(uint32_t)i].value == 2 * i + 1);
+			CHECK(values.retain([](const auto&) {
+				return true;
+			}) == 3);
+			CHECK(ArrayOwner::live == 3);
+			CHECK(values.retain([](const auto&) {
+				return false;
+			}) == 0);
+			CHECK(ArrayOwner::live == 0);
+			values.emplace_back(19);
+		}
+		CHECK(ArrayOwner::live == 0);
+	}
+
+	//! Trivial fields used to check SoA storage variants.
+	struct ArraySoA {
+		GAIA_LAYOUT(SoA);
+		int x;
+		float y;
+	};
+
+	template <typename Array>
+	void array_retain_soa() {
+		Array values;
+		for (int i = 0; i < 6; ++i)
+			values.push_back({i, (float)i});
+		CHECK(values.retain([](ArraySoA v) {
+			return v.x % 2 != 0;
+		}) == 3);
+		for (int i = 0; i < 3; ++i) {
+			const ArraySoA value = values[(uint32_t)i];
+			CHECK(value.x == 2 * i + 1);
+			CHECK(value.y == (float)(2 * i + 1));
+		}
+		CHECK(values.retain([](ArraySoA) {
+			return false;
+		}) == 0);
+	}
+} // namespace
+
+TEST_CASE("Array lifetime - retain compacts live objects") {
+	SUBCASE("heap") {
+		array_retain_lifetime<cnt::darray<ArrayMoveOnly>>();
+	}
+	SUBCASE("extended inline") {
+		array_retain_lifetime<cnt::darray_ext<ArrayMoveOnly, 8>>();
+	}
+	SUBCASE("extended heap") {
+		array_retain_lifetime<cnt::darray_ext<ArrayMoveOnly, 2>>();
+	}
+	SUBCASE("fixed capacity") {
+		array_retain_lifetime<cnt::sarray_ext<ArrayMoveOnly, 8>>();
+	}
+	SUBCASE("SoA heap") {
+		array_retain_soa<cnt::darray_soa<ArraySoA>>();
+	}
+	SUBCASE("SoA extended inline") {
+		array_retain_soa<cnt::darray_ext_soa<ArraySoA, 8>>();
+	}
+	SUBCASE("SoA extended heap") {
+		array_retain_soa<cnt::darray_ext_soa<ArraySoA, 2>>();
+	}
+	SUBCASE("SoA fixed capacity") {
+		array_retain_soa<cnt::sarray_ext_soa<ArraySoA, 8>>();
+	}
 }
