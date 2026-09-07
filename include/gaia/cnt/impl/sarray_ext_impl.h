@@ -413,15 +413,29 @@ namespace gaia {
 			//! \return The new size of the array.
 			template <typename Func>
 			auto retain(Func&& func) noexcept {
+				size_type erased = 0;
 				size_type idxDst = 0;
-				for (size_type idxSrc = 0; idxSrc < m_cnt; ++idxSrc) {
-					if (!func(operator[](idxSrc)))
-						continue;
-					if (idxDst != idxSrc)
-						mem::move_element<T, false>((uint8_t*)data(), (uint8_t*)data(), idxDst, idxSrc, extent, extent);
-					++idxDst;
+				size_type idxSrc = 0;
+
+				while (idxSrc < m_cnt) {
+					if (func(operator[](idxSrc))) {
+						if (idxDst < idxSrc) {
+							auto* ptr = (uint8_t*)data();
+							mem::move_element<T, false>(ptr, ptr, idxDst, idxSrc, max_size(), max_size());
+						}
+						++idxDst;
+					} else {
+						++erased;
+					}
+
+					++idxSrc;
 				}
-				resize(idxDst);
+
+				//! Keep assignment destinations alive until compaction finishes.
+				if (erased != 0)
+					core::call_dtor_n(data() + idxDst, erased);
+
+				m_cnt -= erased;
 				return idxDst;
 			}
 

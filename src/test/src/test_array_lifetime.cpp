@@ -206,6 +206,31 @@ namespace {
 			values.emplace_back(19);
 		}
 		CHECK(ArrayOwner::live == 0);
+
+		//! Cover every rejection pattern, including kept prefixes and discarded suffixes.
+		for (uint32_t mask = 0; mask < 64; ++mask) {
+			Array values;
+			for (int i = 0; i < 6; ++i)
+				values.emplace_back(i);
+			int visited = 0;
+			const auto count = values.retain([&](const auto& value) {
+				CHECK(ArrayOwner::live == 6);
+				CHECK(*value.value == visited++);
+				return (mask & (1U << *value.value)) != 0;
+			});
+			CHECK(visited == 6);
+			uint32_t expected = 0;
+			for (int i = 0; i < 6; ++i) {
+				if ((mask & (1U << i)) == 0)
+					continue;
+				REQUIRE(expected < values.size());
+				CHECK(*values[expected++].value == i);
+			}
+			CHECK(count == expected);
+			CHECK(values.size() == expected);
+			CHECK(ArrayOwner::live == (int)expected);
+		}
+		CHECK(ArrayOwner::live == 0);
 	}
 
 	//! Trivial fields used to check SoA storage variants.

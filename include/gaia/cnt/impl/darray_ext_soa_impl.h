@@ -709,15 +709,27 @@ namespace gaia {
 			//! \return The new size of the array.
 			template <typename Func>
 			auto retain(Func&& func) noexcept {
+				size_type erased = 0;
 				size_type idxDst = 0;
-				for (size_type idxSrc = 0; idxSrc < m_cnt; ++idxSrc) {
-					if (!func(operator[](idxSrc)))
-						continue;
-					if (idxDst != idxSrc)
-						mem::move_element<T, true>((uint8_t*)data(), (uint8_t*)data(), idxDst, idxSrc, m_cap, m_cap);
-					++idxDst;
+				size_type idxSrc = 0;
+
+				while (idxSrc < m_cnt) {
+					if (func(operator[](idxSrc))) {
+						if (idxDst < idxSrc) {
+							auto* ptr = (uint8_t*)data();
+							mem::move_element<T, true>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
+						}
+						++idxDst;
+					} else {
+						++erased;
+					}
+
+					++idxSrc;
 				}
-				resize(idxDst);
+
+				view_policy::mem_pop_block(data(), m_cap, m_cnt, erased);
+
+				m_cnt -= erased;
 				return idxDst;
 			}
 
