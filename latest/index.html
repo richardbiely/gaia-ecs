@@ -895,7 +895,7 @@ Set or get component value</h3>
 <div class="line"><span class="comment">// The proxy went out of scope, so the new value is now stored.</span></div>
 <div class="line"><span class="keyword">const</span> <span class="keyword">auto</span>&amp; updated = w.get&lt;Position&gt;(e);</div>
 <div class="line"><span class="comment">// updated is {10, 20, 30}</span></div>
-</div><!-- fragment --><p>If you need the write to happen immediately, use <code>acc_mut(entity).set&lt;T&gt;(...)</code> instead of <code>w.set&lt;T&gt;(entity)</code>. For runtime object/component entities, the immediate form is <code>acc_mut(entity).set&lt;T&gt;(object, value)</code>.</p>
+</div><!-- fragment --><p>If you need the write to happen immediately, use <code>acc_mut(entity).set&lt;T&gt;(...)</code> instead of <code>w.set&lt;T&gt;(entity)</code>. For runtime object/component entities, the immediate form is <code>acc_mut(entity).set&lt;T&gt;(object, value)</code>. Typed entity accessors also support <code>GAIA_STORAGE(Sparse)</code> and <code>GAIA_STORAGE(DontFragment)</code> payloads: <code>acc(entity).get&lt;T&gt;()</code> reads their sparse storage, and <code>acc_mut(entity).set&lt;T&gt;(value)</code> writes immediately, updates changed-query tracking, and emits <code>OnSet</code> after the write. <code>mut&lt;T&gt;()</code>, <code>smut&lt;T&gt;()</code>, and <code>sset&lt;T&gt;(value)</code> remain silent, matching the component-ID accessor overloads.</p>
 <p>When setting multiple component values at once it is more efficient doing it via chaining:</p>
 <div class="fragment"><div class="line">w.acc_mut(e)</div>
 <div class="line"><span class="comment">// Change Velocity&#39;s value on entity &quot;e&quot;</span></div>
@@ -1285,6 +1285,25 @@ Simple query</h3>
 <div class="line"> </div>
 <div class="line">ecs::Query qBad = w.query().or_&lt;A&gt;();</div>
 <div class="line">qBad.count(); <span class="comment">// expected (Debug): assertion failure, use all&lt;A&gt;() or any&lt;A&gt;()</span></div>
+</div><!-- fragment --><p><code>empty()</code> returns true when no entities match the query. For an OR query, matching any OR term is enough, but <code>no(...)</code> exclusions and <a class="el" href="index.html#constraints">enabled-state constraints</a> still apply. Only enabled entities are considered by default.</p>
+<div class="fragment"><div class="line"><span class="keyword">struct </span>Selected { GAIA_STORAGE(DontFragment); };</div>
+<div class="line"><span class="keyword">struct </span>Highlighted { GAIA_STORAGE(DontFragment); };</div>
+<div class="line"><span class="keyword">struct </span>Hidden {};</div>
+<div class="line"> </div>
+<div class="line">ecs::World w;</div>
+<div class="line"><span class="keyword">auto</span> q = w.query()</div>
+<div class="line">  .or_&lt;Selected&gt;()</div>
+<div class="line">  .or_&lt;Highlighted&gt;()</div>
+<div class="line">  .no&lt;Hidden&gt;();</div>
+<div class="line"> </div>
+<div class="line">GAIA_ASSERT(q.empty()); <span class="comment">// No matching entities yet.</span></div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">const</span> <span class="keyword">auto</span> e = w.add();</div>
+<div class="line">w.add&lt;Highlighted&gt;(e);</div>
+<div class="line">GAIA_ASSERT(!q.empty()); <span class="comment">// One OR term is enough to match.</span></div>
+<div class="line"> </div>
+<div class="line">w.add&lt;Hidden&gt;(e);</div>
+<div class="line">GAIA_ASSERT(q.empty()); <span class="comment">// The matching entity is now excluded.</span></div>
 </div><!-- fragment --><h3><a class="anchor" id="query-traversal"></a>
 Query traversal</h3>
 <p>More advanced lookup settings are supported via <code>QueryTermOptions</code>. This includes source selection, traversal by relation (<code>ChildOf</code> by default), traversal filtering (<code>trav</code>, <code>trav_up</code>, <code>trav_parent</code>, <code>trav_self_parent</code>, <code>trav_down</code>, <code>trav_child</code>, <code>trav_self_down</code>, <code>trav_self_child</code>, <code>trav_depth</code>), and access type (read or write).</p>
@@ -1683,6 +1702,7 @@ Uncached query</h3>
 <div class="line">q.each(...) { ... };</div>
 </div><!-- fragment --><h3><a class="anchor" id="query-remarks"></a>
 Query remarks</h3>
+<p>Nested direct queries keep independent deduplication stamps and writable entity snapshots. Calling <code>count()</code>, <code>empty()</code>, <code>arr()</code>, or <code>each()</code> from a callback does not overwrite the outer query's scratch state, including when the nested query uses another world. Scratch storage is reused per thread and active nesting depth. A new depth allocates its slot and grows its buffers on demand.</p>
 <p>Building cache requires memory. Because of that, sometimes it comes handy having the ability to release this data. Calling <code>myQuery.reset()</code> will remove any data allocated by the query. The next time the query is used to fetch results the cache is rebuilt.</p>
 <div class="fragment"><div class="line">q.reset();</div>
 </div><!-- fragment --><p>If this is a cached query, even after resetting it the compiled query state still remains alive. For local queries, destroying that query object releases the private cached state. For shared queries, the shared cache entry stays alive until the last query with the matching signature is destroyed:</p>
@@ -3589,6 +3609,11 @@ Querying runtime components</h3>
 <div class="line">  }</div>
 <div class="line">});</div>
 </div><!-- fragment --><p>Iterator callbacks can use <code>view_raw(termIdx)</code> for directly chunk-backed AoS payloads. Use <code>view_raw_any(component)</code> when sparse or inherited runtime payloads must be resolved separately for each entity. Each indexed access performs a world lookup, and the returned entity-resolved view is valid only during the callback. The mutable <code>view_raw_any_mut(component)</code> path emits normal write notifications after the callback. <code>sview_raw_any_mut(component)</code> stays silent until <code>modify_raw(component)</code> returns true. Both mutable paths require every iterated entity to own the component directly. A callback can track up to 32 distinct sparse components. A later mutable view is invalid, and <code>modify_raw(component)</code> returns false when that limit or the ownership requirement is not satisfied. Directly stored table runtime SoA component and exact-pair terms use <code>view_raw_field(termIdx, fieldIdx)</code> for a contiguous read-only field array. See <a class="el" href="index.html#iteration">Iteration</a> for the supported storage and ownership contracts.</p>
+<h2><a class="anchor" id="containers"></a>
+Containers</h2>
+<p>Gaia dynamic arrays (<code>cnt::darray</code> and <code>cnt::darray_ext</code>) keep only <code>size()</code> live elements. <code>reserve()</code> allocates capacity without default-constructing spare values. Growth relocates live values and releases their old storage. <code>retain()</code> preserves survivor order, keeps assignment destinations alive during compaction, then destroys the removed tail. It scans once, moves each displaced survivor once, and updates the size directly without entering the capacity-growth path. Range erasure supports overlapping suffix shifts. Append, emplacement, insertion, and fill-resize may use values from the same array. Those inputs are consumed before relocation or shifting invalidates them. <code>shrink_to_fit()</code> releases unused heap capacity. Extended arrays return to inline storage when <code>size()</code> fits, including empty arrays.</p>
+<p>The AoS and SoA variants of <code>cnt::darray</code>, <code>cnt::darray_ext</code>, and <code>cnt::sarray_ext</code> share the retention scan in <code>cnt::detail::retain_array</code>. AoS compacts live objects by assignment and destroys the discarded tail. SoA compacts fields through Gaia's layout views. A predicate may modify its current element but must not change the array's size or storage.</p>
+<p>Relocation into raw AoS storage uses <code>mem::move_ctor_elements</code>, which constructs the destination and leaves source destruction to the caller. <code>mem::move_element</code> and <code>mem::move_elements</code> require live AoS destinations. SoA range moves use source and destination capacities to calculate field strides. Storage ownership and sanitizer annotations stay in the individual containers.</p>
 <h2><a class="anchor" id="multithreading"></a>
 Multithreading</h2>
 <h3><a class="anchor" id="worlds-threads-and-allocation-arenas"></a>

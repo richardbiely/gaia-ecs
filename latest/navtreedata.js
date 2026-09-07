@@ -126,6 +126,7 @@ var NAVTREE =
         [ "Data on runtime relationships", "index.html#data-on-runtime-relationships", null ],
         [ "Querying runtime components", "index.html#querying-runtime-components", null ]
       ] ],
+      [ "Containers", "index.html#containers", null ],
       [ "Multithreading", "index.html#multithreading", [
         [ "Worlds, threads, and allocation arenas", "index.html#worlds-threads-and-allocation-arenas", null ],
         [ "Jobs", "index.html#jobs", null ],
@@ -185,20 +186,20 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "annotated.html",
-"classgaia_1_1cnt_1_1darr__ext__soa.html#adb8d3fccf92f1ed0f3a9eb21e72145ee",
-"classgaia_1_1cnt_1_1sarr__ext.html#a2b8bb125e5872b4e6fd9b3f597568aea",
-"classgaia_1_1cnt_1_1sringbuffer.html#a13a89af925686a71e88f802e6505fdd1",
-"classgaia_1_1ecs_1_1Chunk.html#a8d3153395a06da2a4cf6c85a509b45f0",
-"classgaia_1_1ecs_1_1World.html#a1defe7c266ece1fe15b90a88b4efe2c2",
-"classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a0da44c0483d55125d72982734d0875df",
-"classgaia_1_1mt_1_1ThreadPool.html#ad6b39ffc5339d878f52938789fc5df7b",
-"index.html#data-processing",
-"structgaia_1_1cnt_1_1fwd__llist.html#a88ab7e7585c44d86e3c11789a74fa7ef",
-"structgaia_1_1cnt_1_1sringbuffer__iterator.html#aea23347e282435a22cff7ed2a73ffd6b",
-"structgaia_1_1ecs_1_1DirectChunkEntry.html#a5e780711297cbe3ebd0899b84ed18880",
-"structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html#a5c8a084286187fb4576a2c1e610a678f",
-"structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html#ad1821db2a75b925a99183959401587b6",
-"structgaia_1_1mem_1_1data__view__policy__soa__get.html#a3d4f66c11c0e2e03442ff585ad8fec93"
+"classgaia_1_1cnt_1_1darr__ext__soa.html#ada3d0dbce534c0bf54d4a328cf282ffa",
+"classgaia_1_1cnt_1_1sarr__ext.html#a263de1fd2e6a28c0c7291ef35b701770",
+"classgaia_1_1cnt_1_1sringbuffer.html#a0cabb22652f0a7af690a331ba8e35938",
+"classgaia_1_1ecs_1_1Chunk.html#a86b5f4873ef794bfcd92a557292f82fc",
+"classgaia_1_1ecs_1_1World.html#a1bb9ce70535fc64f8f44c8a53e3c2223",
+"classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a03af1860a176d3fb9c7619c0d5d337c0",
+"classgaia_1_1mt_1_1ThreadPool.html#ad34530603ddff9f01e0a04236f7e736d",
+"index.html#data-layouts",
+"structgaia_1_1cnt_1_1fwd__llist.html#a7366cb78cde81927efb927d8640e163d",
+"structgaia_1_1cnt_1_1sringbuffer__iterator.html#adc8c9b76688a288c8a8a775514f21b48",
+"structgaia_1_1ecs_1_1DependsOn__.html",
+"structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html",
+"structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html#a9d603d38a25afa32ed65af30c3370797",
+"structgaia_1_1mem_1_1data__view__policy__soa__get.html#a1aa2860f84152a19319d1900bc2e7743"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

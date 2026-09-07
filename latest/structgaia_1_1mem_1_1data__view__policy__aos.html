@@ -146,7 +146,7 @@ Static Public Member Functions</h2></td></tr>
 <tr class="separator:a121616d30948c5462399821ee8b34df2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2358c69b576b04859789d51ca3da31aa" id="r_a2358c69b576b04859789d51ca3da31aa"><td class="memTemplParams" colspan="2">template&lt;typename Allocator &gt; </td></tr>
 <tr class="memitem:a2358c69b576b04859789d51ca3da31aa"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD uint8_t *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html#a2358c69b576b04859789d51ca3da31aa">alloc</a> (size_t cnt) noexcept</td></tr>
-<tr class="memdesc:a2358c69b576b04859789d51ca3da31aa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates and default-constructs an AoS value range.  <br /></td></tr>
+<tr class="memdesc:a2358c69b576b04859789d51ca3da31aa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates raw AoS capacity. The caller constructs the live values.  <br /></td></tr>
 <tr class="separator:a2358c69b576b04859789d51ca3da31aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acac6be820b146dd6fd4290d6d41c0d91" id="r_acac6be820b146dd6fd4290d6d41c0d91"><td class="memTemplParams" colspan="2">template&lt;typename Allocator &gt; </td></tr>
 <tr class="memitem:acac6be820b146dd6fd4290d6d41c0d91"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html#acac6be820b146dd6fd4290d6d41c0d91">free</a> (void *pData, size_t cap, size_t cnt) noexcept</td></tr>
@@ -211,7 +211,7 @@ template&lt;typename Allocator &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Allocates and default-constructs an AoS value range. </p>
+<p>Allocates raw AoS capacity. The caller constructs the live values. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">Allocator</td><td>Allocator adaptor type. </td></tr>
