@@ -31418,13 +31418,15 @@ namespace gaia {
 		class World;
 
 		namespace detail {
-			template <typename AccessContext>
+			template <typename AccessContext, bool Optimize = true>
 			class CommandBuffer;
 		}
 		struct AccessContextST;
 		struct AccessContextMT;
 		using CommandBufferST = detail::CommandBuffer<AccessContextST>;
 		using CommandBufferMT = detail::CommandBuffer<AccessContextMT>;
+		using CommandBufferPlainST = detail::CommandBuffer<AccessContextST, false>;
+		using CommandBufferPlainMT = detail::CommandBuffer<AccessContextMT, false>;
 
 		CommandBufferST* cmd_buffer_st_create(World& world);
 		void cmd_buffer_destroy(CommandBufferST& cmdBuffer);
@@ -66678,6 +66680,8 @@ namespace gaia {
 		private:
 			friend CommandBufferST;
 			friend CommandBufferMT;
+			friend CommandBufferPlainST;
+			friend CommandBufferPlainMT;
 #if GAIA_OBSERVERS_ENABLED
 			friend class ObserverRegistry;
 			friend struct ObserverRuntimeData;
@@ -68538,6 +68542,8 @@ namespace gaia {
 				friend class World;
 				friend CommandBufferST;
 				friend CommandBufferMT;
+				friend CommandBufferPlainST;
+				friend CommandBufferPlainMT;
 
 				//! World receiving the accumulated entity changes.
 				World& m_world;
@@ -89708,7 +89714,8 @@ namespace gaia {
 			//! Therefore, such operations have to be executed after the loop is done.
 			//! \tparam AccessContext Access guard. AccessContextST for single-threaded recording,
 			//!                       AccessContextMT when multiple threads record into the same buffer.
-			template <typename AccessContext>
+			//! \tparam Optimize Merge and batch operations when true; replay each request in recorded order when false.
+			template <typename AccessContext, bool Optimize>
 			class CommandBuffer final {
 				//! \cond INTERNAL
 				enum class OpType : uint8_t {
@@ -89832,7 +89839,7 @@ namespace gaia {
 				}
 
 				//! Requests \a count prefab instantiations.
-				//! Commit groups matching records and replays them through World::instantiate_n.
+				//! Optimizing buffers group matching records through World::instantiate_n; plain buffers replay each instance.
 				//! \param prefabEntity Prefab entity to instantiate.
 				//! \param count Number of root instances to spawn. Zero is a no-op.
 				void instantiate_n(Entity prefabEntity, uint32_t count) {
@@ -90604,9 +90611,38 @@ namespace gaia {
 				//! Pushes an operation to the operation buffer.
 				//! \param op Operation to append.
 				void push_op(Op&& op) {
-					op.order = m_ops.size();
-					check_sort(op);
+					if constexpr (Optimize) {
+						op.order = m_ops.size();
+						check_sort(op);
+					}
 					m_ops.push_back(GAIA_MOV(op));
+				}
+
+				//! Replays all requests in insertion order without sorting, cancellation or batching.
+				//! Temporary entities become available exactly at their creation record. As with direct
+				//! World calls, later requests must refer to entities and components that are still valid.
+				void replay_plain() {
+					for (const Op& op: m_ops) {
+						switch (op.type) {
+							case OpType::ADD_ENTITY:
+								m_temp2real[op.target.id()] = m_world.add();
+								break;
+							case OpType::CPY_ENTITY:
+								m_temp2real[op.target.id()] = m_world.copy(resolve(op.other));
+								break;
+							case OpType::INSTANTIATE_ENTITY:
+								m_temp2real[op.target.id()] = op.pairTarget == EntityBad
+																									? m_world.instantiate(resolve(op.other))
+																									: m_world.instantiate(resolve(op.other), resolve(op.pairTarget));
+								break;
+							case OpType::DEL_ENTITY:
+								m_world.del(resolve(op.target));
+								break;
+							default:
+								replay_op(op, resolve(op.target), resolve_object(op));
+								break;
+						}
+					}
 				}
 
 				//! Clears the internal buffers and effectively resets the object to its default state.
@@ -90623,14 +90659,15 @@ namespace gaia {
 
 			public:
 				//! Commits all queued changes.
-				//! Entity create, copy, and instantiate records are allocated first, then component
+				//! Plain buffers replay every request in recorded order, including entity creation and deletion.
+				//! In optimizing buffers, entity create, copy, and instantiate records are allocated first, then component
 				//! operations are merged and replayed, then entity deletions are applied.
 				//! Component groups containing a delete reduce in recorded order from initial membership.
 				//! Independent table-component groups can share one entity-builder commit before payload replay.
 				//! Observable or policy-sensitive groups replay through World. Groups with only adds
 				//! and sets merge using the last payload. Relationship operations retain their order
 				//! per entity and merge only consecutive requests for the same pair.
-				//! Commit does not promise global replay order across entities and components.
+				//! Optimizing commit does not promise global replay order across entities and components.
 				void commit() {
 					core::lock_scope lock(m_acc);
 
@@ -90638,6 +90675,12 @@ namespace gaia {
 						return;
 
 					GAIA_PROF_SCOPE(cmdbuf::commit);
+
+					if constexpr (!Optimize) {
+						replay_plain();
+						clear();
+						return;
+					}
 
 					// Build flags + allocate entities
 					if (m_nextTemp > 0) {
@@ -90862,6 +90905,11 @@ namespace gaia {
 		using CommandBufferST = detail::CommandBuffer<AccessContextST>;
 		//! Multi-threaded command buffer serialized by a spin lock.
 		using CommandBufferMT = detail::CommandBuffer<AccessContextMT>;
+		//! Single-threaded command buffer replaying every request in recorded order without optimization.
+		using CommandBufferPlainST = detail::CommandBuffer<AccessContextST, false>;
+		//! Plain command buffer with recording and commit serialized by a spin lock.
+		//! Recording order is lock acquisition order; competing threads have no predetermined order.
+		using CommandBufferPlainMT = detail::CommandBuffer<AccessContextMT, false>;
 
 		//! Creates a heap-allocated single-threaded command buffer.
 		//! \param world World that receives the recorded operations on commit.

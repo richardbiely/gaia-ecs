@@ -2935,7 +2935,8 @@ TEST_CASE("Sparse storage - chunk transitions construct payloads only in sparse 
 }
 
 TEST_CASE_TEMPLATE(
-		"CommandBuffer - standalone SoA payload recording", CmdBuffer, ecs::CommandBufferST, ecs::CommandBufferMT) {
+		"CommandBuffer - standalone SoA payload recording", CmdBuffer, ecs::CommandBufferST, ecs::CommandBufferMT,
+		ecs::CommandBufferPlainST, ecs::CommandBufferPlainMT) {
 	TestWorld twld;
 	using SoAPair = ecs::pair<PositionSoA, CmdBufRelTarget>;
 	const auto component = wld.add<PositionSoA>().entity;
@@ -2973,6 +2974,244 @@ TEST_CASE_TEMPLATE(
 			CHECK(value.x == x);
 			CHECK(value.y == x + 1);
 			CHECK(value.z == x + 2);
+		}
+	}
+}
+
+TEST_CASE_TEMPLATE(
+		"CommandBufferPlain - recorded World order", CmdBuffer, ecs::CommandBufferPlainST, ecs::CommandBufferPlainMT) {
+	TestWorld twld;
+	(void)wld.add<Position>();
+	(void)wld.add<Acceleration>();
+	(void)wld.add<PositionNonTrivial>();
+	CmdBuffer cb(wld);
+
+	SUBCASE("Component lifetimes match direct World calls") {
+		for (uint32_t initial = 0; initial < 2; ++initial) {
+			for (uint32_t sequence = 0; sequence < 64; ++sequence) {
+				CAPTURE(initial);
+				CAPTURE(sequence);
+				const auto direct = wld.add();
+				const auto deferred = wld.add();
+				if (initial != 0) {
+					wld.add<PositionNonTrivial>(direct, {9, 9, 9});
+					wld.add<PositionNonTrivial>(deferred, {9, 9, 9});
+				}
+				for (uint32_t step = 0; step < 3; ++step) {
+					const auto op = (sequence >> (step * 2)) & 3;
+					const auto value = (float)(step + 2);
+					if (op == 0 && !wld.has<PositionNonTrivial>(direct)) {
+						wld.add<PositionNonTrivial>(direct);
+						cb.template add<PositionNonTrivial>(deferred);
+					} else if (op == 1 && !wld.has<PositionNonTrivial>(direct)) {
+						wld.add<PositionNonTrivial>(direct, {value, value, value});
+						cb.template add<PositionNonTrivial>(deferred, {value, value, value});
+					} else if (op == 2 && wld.has<PositionNonTrivial>(direct)) {
+						wld.del<PositionNonTrivial>(direct);
+						cb.template del<PositionNonTrivial>(deferred);
+					} else if (op == 3 && wld.has<PositionNonTrivial>(direct)) {
+						wld.set<PositionNonTrivial>(direct) = {value, value, value};
+						cb.template set<PositionNonTrivial>(deferred, {value, value, value});
+					}
+				}
+				cb.commit();
+				const auto present = wld.has<PositionNonTrivial>(direct);
+				CHECK(wld.has<PositionNonTrivial>(deferred) == present);
+				if (present) {
+					const auto expected = wld.get<PositionNonTrivial>(direct);
+					const auto actual = wld.get<PositionNonTrivial>(deferred);
+					CHECK(actual.x == expected.x);
+					CHECK(actual.y == expected.y);
+					CHECK(actual.z == expected.z);
+				}
+			}
+		}
+	}
+
+	SUBCASE("Observers retain interleaved entity and component order") {
+		const auto first = wld.add();
+		const auto second = wld.add();
+		cnt::darray<uint32_t> observed;
+		(void)wld.observer()
+				.event(ecs::ObserverEvent::OnAdd)
+				.all<Position>()
+				.on_each([&](ecs::Entity e) {
+					observed.push_back(e == first ? 11 : 21);
+				})
+				.entity();
+		(void)wld.observer()
+				.event(ecs::ObserverEvent::OnAdd)
+				.all<Acceleration>()
+				.on_each([&](ecs::Entity e) {
+					observed.push_back(e == first ? 12 : 22);
+				})
+				.entity();
+		cb.template add<Acceleration>(second, {1, 2, 3});
+		cb.template add<Position>(first, {4, 5, 6});
+		cb.template add<Position>(second, {7, 8, 9});
+		cb.template add<Acceleration>(first, {10, 11, 12});
+		CHECK(observed.empty());
+		cb.commit();
+		CHECK(observed.size() == 4);
+		if (observed.size() != 4)
+			return;
+		CHECK(observed[0] == 22);
+		CHECK(observed[1] == 11);
+		CHECK(observed[2] == 21);
+		CHECK(observed[3] == 12);
+	}
+
+	SUBCASE("Every recorded set remains observable") {
+		const auto e = wld.add();
+		wld.add<Position>(e, {1, 1, 1});
+		cnt::darray<float> observed;
+		(void)wld.observer()
+				.event(ecs::ObserverEvent::OnSet)
+				.all<Position>()
+				.on_each([&](const Position& value) {
+					observed.push_back(value.x);
+				})
+				.entity();
+		cb.template set<Position>(e, {2, 2, 2});
+		cb.template set<Position>(e, {3, 3, 3});
+		cb.template set<Position>(e, {4, 4, 4});
+		cb.commit();
+		CHECK(observed.size() == 3);
+		if (observed.size() != 3)
+			return;
+		CHECK(observed[0] == 2);
+		CHECK(observed[1] == 3);
+		CHECK(observed[2] == 4);
+	}
+
+	SUBCASE("Copies and instances observe source state at their recorded position") {
+		for (uint32_t instantiate = 0; instantiate < 2; ++instantiate) {
+			CAPTURE(instantiate);
+			const auto source = instantiate != 0 ? wld.prefab() : wld.add();
+			wld.add<Position>(source, {1, 1, 1});
+			const auto firstDeferredId = wld.size();
+			(void)(instantiate != 0 ? cb.instantiate(source) : cb.copy(source));
+			cb.template set<Position>(source, {2, 2, 2});
+			(void)(instantiate != 0 ? cb.instantiate(source) : cb.copy(source));
+			cb.template set<Position>(source, {3, 3, 3});
+			cb.commit();
+			const auto before = wld.get(firstDeferredId);
+			const auto after = wld.get(firstDeferredId + 1);
+			CHECK(wld.get<Position>(before).x == 1);
+			CHECK(wld.get<Position>(after).x == 2);
+			CHECK(wld.get<Position>(source).x == 3);
+			if (instantiate != 0) {
+				CHECK(wld.has_direct(before, ecs::Pair(ecs::Is, source)));
+				CHECK(wld.has_direct(after, ecs::Pair(ecs::Is, source)));
+				CHECK_FALSE(wld.has_direct(before, ecs::Prefab));
+			}
+		}
+	}
+
+	SUBCASE("Temporary sources and pair endpoints resolve after their creation") {
+		const auto firstDeferredId = wld.size();
+		const auto source = cb.add();
+		const auto relation = cb.add();
+		const auto target = cb.add();
+		cb.template add<Position>(source, {1, 2, 3});
+		cb.add(source, ecs::Pair(relation, target));
+		cb.template set<Position>(source, {4, 5, 6});
+		const auto copy = cb.copy(source);
+		cb.template set<Position>(source, {7, 8, 9});
+		cb.template add<Acceleration>(copy, {10, 11, 12});
+		cb.commit();
+		const auto realSource = wld.get(firstDeferredId);
+		const auto realCopy = wld.get(firstDeferredId + 3);
+		const ecs::Pair pair(wld.get(firstDeferredId + 1), wld.get(firstDeferredId + 2));
+		CHECK(wld.has(realSource, pair));
+		CHECK(wld.has(realCopy, pair));
+		CHECK(wld.get<Position>(realSource).x == 7);
+		CHECK(wld.get<Position>(realCopy).x == 4);
+		CHECK(wld.get<Acceleration>(realCopy).x == 10);
+	}
+
+	SUBCASE("Temporary parents exist before instances are created") {
+		const auto prefab = wld.prefab();
+		wld.add<Position>(prefab, {1, 2, 3});
+		const auto firstDeferredId = wld.size();
+		const auto parent = cb.add();
+		cb.instantiate_n(prefab, parent, 2, [&](ecs::Entity instance) {
+			cb.template set<Position>(instance, {4, 5, 6});
+		});
+		cb.commit();
+		const auto realParent = wld.get(firstDeferredId);
+		CHECK(wld.query().is(prefab).count() == 2);
+		wld.query().is(prefab).each([&](ecs::Entity instance) {
+			CHECK(wld.has(instance, ecs::Pair(ecs::Parent, realParent)));
+			CHECK(wld.get<Position>(instance).x == 4);
+		});
+	}
+
+	SUBCASE("Creation followed by deletion remains observable") {
+		cnt::darray<float> observed;
+		ecs::Entity removed = ecs::EntityBad;
+		(void)wld.observer()
+				.event(ecs::ObserverEvent::OnAdd)
+				.all<Position>()
+				.on_each([&](const Position& value) {
+					observed.push_back(value.x);
+				})
+				.entity();
+		(void)wld.observer()
+				.event(ecs::ObserverEvent::OnDel)
+				.all<Position>()
+				.on_each([&](ecs::Entity e, const Position& value) {
+					removed = e;
+					observed.push_back(-value.x);
+				})
+				.entity();
+		const auto e = cb.add();
+		cb.template add<Position>(e, {7, 8, 9});
+		cb.del(e);
+		cb.commit();
+		CHECK(observed.size() == 2);
+		if (observed.size() != 2)
+			return;
+		CHECK(observed[0] == 7);
+		CHECK(observed[1] == -7);
+		CHECK(removed != ecs::EntityBad);
+		CHECK_FALSE(wld.has(removed));
+	}
+
+	SUBCASE("Entity deletion precedes later component observations") {
+		const auto first = wld.add();
+		const auto second = wld.add();
+		uint32_t hits = 0;
+		(void)wld.observer()
+				.event(ecs::ObserverEvent::OnAdd)
+				.all<Position>()
+				.on_each([&](const Position&) {
+					++hits;
+					CHECK_FALSE(wld.has(first));
+				})
+				.entity();
+		cb.del(first);
+		cb.template add<Position>(second, {1, 2, 3});
+		cb.commit();
+		CHECK(hits == 1);
+	}
+
+	SUBCASE("Serialized non-trivial values and temporary mappings survive buffer reuse") {
+		(void)wld.add<StringComponent>();
+		cb.commit();
+		for (uint32_t round = 0; round < 3; ++round) {
+			CAPTURE(round);
+			const auto firstDeferredId = wld.size();
+			const auto e = cb.add();
+			cb.template add<StringComponent>(e, {StringComponentDefaultValue});
+			cb.template set<StringComponent>(e, {StringComponent2DefaultValue});
+			(void)cb.copy(e);
+			cb.template del<StringComponent>(e);
+			cb.template add<StringComponent>(e, {StringComponentEmptyValue});
+			cb.commit();
+			CHECK(wld.get<StringComponent>(wld.get(firstDeferredId)).value == StringComponentEmptyValue);
+			CHECK(wld.get<StringComponent>(wld.get(firstDeferredId + 1)).value == StringComponent2DefaultValue);
+			cb.commit();
 		}
 	}
 }

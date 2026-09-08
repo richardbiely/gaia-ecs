@@ -85,6 +85,8 @@ namespace gaia {
 		private:
 			friend CommandBufferST;
 			friend CommandBufferMT;
+			friend CommandBufferPlainST;
+			friend CommandBufferPlainMT;
 #if GAIA_OBSERVERS_ENABLED
 			friend class ObserverRegistry;
 			friend struct ObserverRuntimeData;
@@ -1945,6 +1947,8 @@ namespace gaia {
 				friend class World;
 				friend CommandBufferST;
 				friend CommandBufferMT;
+				friend CommandBufferPlainST;
+				friend CommandBufferPlainMT;
 
 				//! World receiving the accumulated entity changes.
 				World& m_world;

@@ -3108,13 +3108,13 @@ See [Hierarchies](#hierarchies) and [Exclusivity](#exclusivity).
 ## Delayed execution
 Sometimes you need to delay executing a part of the code for later. This can be achieved via command buffers.
 
-A command buffer records requests for later execution. Commit applies the merging rules below. It does not replay every request as a sequential `World` call.
+A command buffer records requests for later execution. Optimizing buffers apply the merging rules below; plain buffers replay every request in recorded order.
 
 Typically you use them when there is a need to perform structural changes (adding or removing an entity or component, copying an entity, or instantiating a prefab) while iterating queries.
 
 Performing an unprotected structural change is undefined behavior and most likely crashes the program. However, using a command buffer you can collect all requests first and commit them when it is safe later.
 
-You can use either a command buffer provided by the iterator or one you created. There are two kinds of the command buffer - `ecs::CommandBufferST` that is not thread-safe and should only be used by one thread, and `ecs::CommandBufferMT` that is safe to access from multiple threads at once.
+You can use either a command buffer provided by the iterator or one you created. `ecs::CommandBufferST` and `ecs::CommandBufferMT` optimize recorded commands by merging and batching them. `ecs::CommandBufferPlainST` and `ecs::CommandBufferPlainMT` provide the same recording API and payload serialization, with no sorting, merging, cancellation or batching. ST buffers are for one thread; MT buffers serialize access with a spin lock. The choice is made by the buffer type, with no runtime mode switch. Iterator-provided buffers use the optimizing types.
 
 The command buffer provided by the iterator is committed in a safe manner when the world is not locked for structural changes, and is a recommended way for queuing commands.
 
@@ -3156,10 +3156,23 @@ q.each([&](Entity e, const Position& p) {
 cb.commit();
 ```
 
+To replay every request, construct a plain buffer and commit it at a safe point:
+
+```cpp
+ecs::CommandBufferPlainST cb(w);
+cb.del<Position>(e);
+cb.add<Position>(e, Position{1, 2, 3});
+cb.commit();
+```
+
+Plain commit preserves order across components and entities. A copy sees source mutations recorded before that copy; creation followed by deletion still creates and deletes the entity, including the intermediate notifications. Each instantiate record calls `World::instantiate` separately. Requests must form a valid sequence of `World` operations: a deleted entity cannot be used afterwards, and `set` requires the component to be present. Temporary handles may only be used in the buffer and batch that created them. MT recording order is lock acquisition order; competing threads have no predetermined order.
+
+Plain buffers avoid reduction overhead but perform every recorded mutation. Optimizing buffers can eliminate repeated writes and combine eligible table-component changes into one entity move. Measure recording plus commit for the actual workload when choosing between them; command count, storage, observers and recording order affect the tradeoff.
+
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
 
 >**NOTE:<br/>** 
-There is one situation to be wary about with command buffers. Function `add` accepting a component as template argument needs to make sure that the component is registered in the component cache. If it is not, it will be inserted. Registering a component is a structural change, so it is not safe while the world is locked for query or system iteration. As a result, when used from multiple threads, both CommandBufferST and CommandBufferMT are also subject to race conditions. To avoid both cases, make sure that component T has been registered in the world already. If you already added the component to some entity before, everything is fine. If you did not, call this before you run your system or query:
+There is one situation to be wary about with command buffers. Function `add` accepting a component as template argument needs to make sure that the component is registered in the component cache. If it is not, it will be inserted. Registering a component is a structural change, so it is not safe while the world is locked for query or system iteration. As a result, component registration must be completed before recording from multiple threads, for both optimizing and plain buffers. To avoid both cases, make sure that component T has been registered in the world already. If you already added the component to some entity before, everything is fine. If you did not, call this before you run your system or query:
 ```cpp
 // Register the component YourComponent in the world
 world.add<YourComponent>();
@@ -3171,7 +3184,7 @@ Relationship payloads use the same add/set data ops as components. `cb.add(entit
 Payload arguments are standalone C++ values, including types with a SoA layout. The command buffer serializes those values when recording and restores them into the component's storage layout at commit. Sparse payload construction remains in the sparse store; chunk transitions do not construct sparse data in table storage.
 
 ### Command Merging rules
-Before applying any operations to the world, the command buffer performs operation merging and cancellation to remove redundant or meaningless actions.
+The following rules apply to `CommandBufferST` and `CommandBufferMT`. Plain buffers do not merge or cancel requests.
 
 #### Entity Merging
 | Sequence | Result |
