@@ -6,6 +6,7 @@
 
 #include "gaia/cnt/darray_ext.h"
 #include "gaia/cnt/dbitset.h"
+#include "gaia/cnt/sarray_ext.h"
 #include "gaia/ecs/archetype.h"
 #include "gaia/ecs/command_buffer_fwd.h"
 #include "gaia/ecs/common.h"
@@ -63,6 +64,14 @@ namespace gaia {
 					ADD_COMPONENT_DATA,
 					SET_COMPONENT,
 					DEL_COMPONENT,
+				};
+
+				//! Flags describing the surviving component lifetime during reduction.
+				enum : uint8_t {
+					F_ADD = 1 << 0, //
+					F_ADD_DATA = 1 << 1, //
+					F_SET = 1 << 2, //
+					F_DEL = 1 << 3 //
 				};
 
 				struct Op {
@@ -279,7 +288,7 @@ namespace gaia {
 					const auto& item = comp_cache_add<T>(m_world);
 					const auto pos = m_data.tell();
 					auto serializer = ser::make_serializer(m_data);
-					item.save(serializer, &value, 0, 1, 1);
+					save_value(serializer, item, value);
 					push_op({OpType::ADD_COMPONENT_DATA, pos, entity, other, pairTarget});
 				}
 
@@ -300,7 +309,7 @@ namespace gaia {
 					const auto& item = comp_cache_add<T>(m_world);
 					const auto pos = m_data.tell();
 					auto serializer = ser::make_serializer(m_data);
-					item.save(serializer, &value, 0, 1, 1);
+					save_value(serializer, item, value);
 					push_op({OpType::ADD_COMPONENT_DATA, pos, entity, pair.first(), pair.second()});
 				}
 
@@ -321,7 +330,7 @@ namespace gaia {
 
 					const auto pos = m_data.tell();
 					auto serializer = ser::make_serializer(m_data);
-					item.save(serializer, &value, 0, 1, 1);
+					save_value(serializer, item, value);
 					push_op({OpType::ADD_COMPONENT_DATA, pos, entity, item.entity});
 				}
 
@@ -341,7 +350,7 @@ namespace gaia {
 
 					const auto pos = m_data.tell();
 					auto serializer = ser::make_serializer(m_data);
-					item.save(serializer, &value, 0, 1, 1);
+					save_value(serializer, item, value);
 					push_op({OpType::SET_COMPONENT, pos, entity, item.entity});
 				}
 
@@ -368,7 +377,7 @@ namespace gaia {
 					const auto& item = comp_cache(m_world).template get<T>();
 					const auto pos = m_data.tell();
 					auto serializer = ser::make_serializer(m_data);
-					item.save(serializer, &value, 0, 1, 1);
+					save_value(serializer, item, value);
 					push_op({OpType::SET_COMPONENT, pos, entity, other, pairTarget});
 				}
 
@@ -388,7 +397,7 @@ namespace gaia {
 					const auto& item = comp_cache(m_world).template get<T>();
 					const auto pos = m_data.tell();
 					auto serializer = ser::make_serializer(m_data);
-					item.save(serializer, &value, 0, 1, 1);
+					save_value(serializer, item, value);
 					push_op({OpType::SET_COMPONENT, pos, entity, pair.first(), pair.second()});
 				}
 
@@ -441,6 +450,23 @@ namespace gaia {
 
 			private:
 				//! \cond INTERNAL
+				//! Serializes a standalone payload without interpreting it as chunk storage.
+				//! \tparam T Payload type, deduced without reference or const qualification.
+				//! \param serializer Destination command stream.
+				//! \param item Component metadata for ordinary storage serialization.
+				//! \param value Standalone C++ component value.
+				template <typename T>
+				static void save_value(ser::serializer& serializer, const ComponentCacheItem& item, const T& value) {
+					if constexpr (mem::is_soa_layout_v<T>) {
+#if GAIA_ASSERT_ENABLED
+						serializer.check(value);
+#endif
+						serializer.save(value);
+					} else {
+						item.save(serializer, &value, 0, 1, 1);
+					}
+				}
+
 				//! Returns true if the op modifies a relationship between entities (e.g. adds or removes a component).
 				//! \param t Operation type.
 				//! \return True when \a t is a component add, set, or delete.
@@ -570,10 +596,12 @@ namespace gaia {
 				}
 
 				//! Replays serialized component data into table or sparse storage.
+				//! \tparam Reset Initialize a new lifetime in existing trivially destructible storage.
 				//! \param target Entity receiving the payload.
 				//! \param object Component id whose payload is restored.
 				//! \param dataPos Serialized payload offset in the command-buffer data stream.
 				//! \param finishWrite Whether to publish changed state and `OnSet` after loading.
+				template <bool Reset = false>
 				void replay_data(Entity target, Entity object, uint32_t dataPos, bool finishWrite = true) {
 					auto serializer = ser::make_serializer(m_data);
 					serializer.seek(dataPos);
@@ -587,8 +615,13 @@ namespace gaia {
 					if (m_world.component_uses_sparse_storage(object)) {
 						const auto payload = m_world.mut_raw(target, object);
 						GAIA_ASSERT(payload.valid());
-						if (payload.valid())
+						if (payload.valid()) {
+							if constexpr (Reset) {
+								if (item.func_ctor != nullptr)
+									item.func_ctor(payload.data, 1);
+							}
 							item.load(serializer, payload.data, 0, 1, 1);
+						}
 						if (finishWrite)
 							m_world.finish_write(target, object);
 						return;
@@ -597,6 +630,8 @@ namespace gaia {
 					const auto& ec = target.pair() ? m_world.fetch(target) : m_world.m_recs.entities[target.id()];
 					const auto row = ec.row;
 					const auto compIdx = ec.pChunk->comp_idx(object);
+					if constexpr (Reset)
+						ec.pChunk->call_ctor(row, compIdx, item);
 					auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 					item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
 					if (finishWrite)
@@ -614,7 +649,7 @@ namespace gaia {
 					if (pItem == nullptr)
 						return;
 					const auto& item = *pItem;
-					if (m_world.component_uses_sparse_storage(object)) {
+					if (gaia::ecs::component_uses_sparse_storage(item.comp)) {
 						const auto mode = m_world.sparse_storage_mode(object);
 						GAIA_ASSERT(mode != World::SparseStorageMode::None);
 						auto& store = m_world.sparse_component_store_erased_mut(object, item);
@@ -639,6 +674,221 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 					m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
 #endif
+				}
+
+				//! Replays one component operation through the normal World mutation paths.
+				//! \param op Recorded operation.
+				//! \param target Resolved entity being modified.
+				//! \param object Resolved component or relationship pair.
+				void replay_op(const Op& op, Entity target, Entity object) {
+					switch (op.type) {
+						case OpType::DEL_COMPONENT:
+							replay_del(target, object);
+							break;
+						case OpType::ADD_COMPONENT:
+							replay_add(target, object);
+							break;
+						case OpType::ADD_COMPONENT_DATA:
+							replay_add_data(target, object, op.off);
+							break;
+						case OpType::SET_COMPONENT:
+							replay_data(target, object, op.off);
+							break;
+						default:
+							break;
+					}
+				}
+
+				//! Reduces a deletion-containing group or replays policy-sensitive operations in order.
+				//! Keeping this work out of line avoids inflating the add/set-only commit path.
+				//! \param i First recorded operation in the group.
+				//! \param j End of the group, exclusive.
+				//! \param target Resolved entity being modified.
+				//! \param object Resolved component or relationship pair.
+				//! \param mask Operations surviving the last recorded delete.
+				//! \param dataPos Last payload in the surviving lifetime.
+				GAIA_NOINLINE void
+				replay_merged(uint32_t i, uint32_t j, Entity target, Entity object, uint8_t mask, uint32_t dataPos) {
+					// Reduce ordinary component lifetimes when intermediate mutations have no ECS side effects.
+					bool canReduce = !object.pair() && object.id() > GAIA_ID(LastCoreComponent).id() &&
+													 !m_world.m_hasRequiresPolicy && !m_world.m_hasCantCombinePolicy &&
+													 !m_world.has_direct(object, Requires);
+#if GAIA_OBSERVERS_ENABLED
+					canReduce = canReduce && !m_world.m_observers.has_on_add_observers() &&
+											!m_world.m_observers.has_on_del_observers() && !m_world.m_observers.has_on_set_observers(object);
+#endif
+					const bool initial = canReduce && m_world.has_direct(target, object);
+					const bool hasAdd = (mask & (F_ADD | F_ADD_DATA)) != 0;
+					const auto* pItem = canReduce ? m_world.comp_cache().find(object) : nullptr;
+					if (pItem != nullptr) {
+						// Tags with constructors need World's chunk-backed construction path.
+						canReduce = pItem->func_dtor == nullptr && (pItem->comp.size() != 0 || pItem->func_ctor == nullptr);
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+						canReduce = canReduce && pItem->hooks().func_add == nullptr && pItem->hooks().func_del == nullptr;
+#endif
+#if GAIA_ENABLE_SET_HOOKS
+						canReduce = canReduce && pItem->hooks().func_set == nullptr;
+#endif
+					}
+					if (canReduce) {
+						const bool hasData = (mask & (F_ADD_DATA | F_SET)) != 0;
+						GAIA_ASSERT(!hasData || hasAdd);
+						if (!hasAdd) {
+							if (initial)
+								replay_del(target, object);
+						} else if (hasData) {
+							if (initial)
+								replay_data<true>(target, object, dataPos);
+							else
+								replay_add_data(target, object, dataPos);
+						} else if (initial) {
+							// Bare re-adds run their default constructor without moving the entity.
+							if (pItem != nullptr && pItem->func_ctor != nullptr) {
+								const auto payload = m_world.mut_raw(target, object);
+								GAIA_ASSERT(payload.valid());
+								pItem->func_ctor(payload.data, 1);
+								m_world.finish_write(target, object);
+							}
+						} else {
+							replay_add(target, object);
+						}
+						return;
+					}
+
+					for (uint32_t k = i; k < j; ++k) {
+						const Op& op = m_ops[k];
+						// Merged groups may contain redundant deletes of an absent component.
+						if (op.type != OpType::DEL_COMPONENT || m_world.has_direct(target, object))
+							replay_op(op, target, object);
+					}
+				}
+
+				//! Batches independent table-component groups into one entity-builder commit.
+				//! Preflights a contiguous eligible prefix before mutation; unsupported suffixes retain normal replay.
+				//! \param p First operation for the target, advanced past applied groups on success.
+				//! \param q End of the target's operations, exclusive.
+				//! \param target Resolved entity being modified.
+				//! \return True when at least two component groups were applied.
+				GAIA_NOINLINE bool replay_batch(uint32_t& p, uint32_t q, Entity target) {
+					if (target.pair() || m_world.m_hasRequiresPolicy || m_world.m_hasCantCombinePolicy)
+						return false;
+#if GAIA_OBSERVERS_ENABLED
+					if (m_world.m_observers.has_on_add_observers() || m_world.m_observers.has_on_del_observers())
+						return false;
+#endif
+					struct Group {
+						Entity object;
+						uint32_t dataPos;
+						uint8_t mask;
+						bool initial;
+					};
+					cnt::sarray_ext<Group, ChunkHeader::MAX_COMPONENTS> groups;
+					bool hasStructural = false;
+					const Archetype* pArchetype = nullptr;
+					uint32_t end = p;
+					for (uint32_t i = p; i < q;) {
+						// Allocation records were already applied; entity deletion remains deferred.
+						if (m_ops[i].type < OpType::ADD_COMPONENT) {
+							++i;
+							continue;
+						}
+						if (m_ops[i].pairTarget != EntityBad || groups.size() == groups.capacity())
+							break;
+						const Entity object = resolve_object(m_ops[i]);
+						if (object == EntityBad || object.pair() || object.id() <= GAIA_ID(LastCoreComponent).id())
+							break;
+						const auto* pItem = m_world.comp_cache().find(object);
+						if (pItem != nullptr) {
+							if (pItem->comp.storage_type() == DataStorageType::Sparse || pItem->func_dtor != nullptr ||
+									(pItem->comp.size() == 0 && pItem->func_ctor != nullptr))
+								break;
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+							if (pItem->hooks().func_add != nullptr || pItem->hooks().func_del != nullptr)
+								break;
+#endif
+#if GAIA_ENABLE_SET_HOOKS
+							if (pItem->hooks().func_set != nullptr)
+								break;
+#endif
+						}
+#if GAIA_OBSERVERS_ENABLED
+						if (m_world.m_observers.has_on_set_observers(object))
+							break;
+#endif
+						if (m_world.component_is_non_fragmenting(object))
+							break;
+						if (pArchetype == nullptr)
+							pArchetype = m_world.fetch(target).pArchetype;
+						Group group{object, 0, 0, pArchetype->has(object)};
+						const Entity key = m_ops[i].other;
+						do {
+							const Op& op = m_ops[i];
+							switch (op.type) {
+								case OpType::ADD_COMPONENT:
+									group.mask |= F_ADD;
+									break;
+								case OpType::ADD_COMPONENT_DATA:
+									group.mask |= F_ADD_DATA;
+									group.dataPos = op.off;
+									break;
+								case OpType::SET_COMPONENT:
+									group.mask |= F_SET;
+									group.dataPos = op.off;
+									break;
+								case OpType::DEL_COMPONENT:
+									group.mask = F_DEL;
+									break;
+								default:
+									break;
+							}
+							++i;
+						} while (i < q && m_ops[i].other == key && m_ops[i].pairTarget == EntityBad);
+						if ((group.mask & F_DEL) != 0 && m_world.has_direct(object, Requires))
+							break;
+						const bool hasAdd = (group.mask & (F_ADD | F_ADD_DATA)) != 0;
+						hasStructural |= hasAdd ? !group.initial : ((group.mask & F_DEL) != 0 && group.initial);
+						groups.push_back(group);
+						end = i;
+					}
+					if (groups.size() < 2)
+						return false;
+
+					if (hasStructural) {
+						World::EntityBuilder builder(m_world, target);
+						for (const auto& group: groups) {
+							const bool hasAdd = (group.mask & (F_ADD | F_ADD_DATA)) != 0;
+							if (hasAdd && !group.initial)
+								builder.add_inter_init(group.object);
+							else if (!hasAdd && (group.mask & F_DEL) != 0 && group.initial)
+								builder.del_inter(group.object);
+						}
+						builder.commit();
+					}
+
+					// Restore surviving payloads only after the destination storage is available.
+					for (const auto& group: groups) {
+						const bool hasAdd = (group.mask & (F_ADD | F_ADD_DATA)) != 0;
+						const bool hasDel = (group.mask & F_DEL) != 0;
+						if (hasDel && !hasAdd) {
+							GAIA_ASSERT((group.mask & F_SET) == 0);
+							continue;
+						}
+						if ((group.mask & (F_ADD_DATA | F_SET)) != 0) {
+							if (hasDel && group.initial)
+								replay_data<true>(target, group.object, group.dataPos);
+							else
+								replay_data(target, group.object, group.dataPos, !hasAdd);
+						} else if (hasDel && group.initial) {
+							const auto* pItem = m_world.comp_cache().find(group.object);
+							if (pItem != nullptr && pItem->func_ctor != nullptr) {
+								const auto& ec = m_world.fetch(target);
+								ec.pChunk->call_ctor(ec.row, ec.pChunk->comp_idx(group.object), *pItem);
+								m_world.finish_write(target, group.object);
+							}
+						}
+					}
+					p = end;
+					return true;
 				}
 
 				//! Returns true if a temporary entity was created and then destroyed within the same command buffer,
@@ -718,6 +968,12 @@ namespace gaia {
 				//! Commits all queued changes.
 				//! Entity create, copy, and instantiate records are allocated first, then component
 				//! operations are merged and replayed, then entity deletions are applied.
+				//! Component groups containing a delete reduce in recorded order from initial membership.
+				//! Independent table-component groups can share one entity-builder commit before payload replay.
+				//! Observable or policy-sensitive groups replay through World. Groups with only adds
+				//! and sets merge using the last payload. Relationship operations retain their order
+				//! per entity and merge only consecutive requests for the same pair.
+				//! Commit does not promise global replay order across entities and components.
 				void commit() {
 					core::lock_scope lock(m_acc);
 
@@ -783,8 +1039,8 @@ namespace gaia {
 						}
 					}
 
-					// Sort by (target, other), reduce last-wins, apply relations.
-					// DEL_COMPONENT last per target.
+					// Sort by (target, other), reduce each component group, apply relations.
+					// Preserve recorded order within each component group and each target's pair operations.
 					if (m_needsSort) {
 						GAIA_PROF_SCOPE(cmdbuf::sort);
 
@@ -840,7 +1096,14 @@ namespace gaia {
 								continue;
 							}
 
-							enum : uint8_t { F_ADD = 1 << 0, F_ADD_DATA = 1 << 1, F_SET = 1 << 2, F_DEL = 1 << 3 };
+							if GAIA_UNLIKELY (m_ops[p].other != m_ops[q - 1].other &&
+									(m_ops[p].type != OpType::SET_COMPONENT || m_ops[q - 1].type != OpType::SET_COMPONENT) &&
+									replay_batch(p, q, tgtReal) && p == q) {
+								if (hasDelEntity)
+									deleteTargets.push_back(tgtReal);
+								p = q;
+								continue;
+							}
 
 							// Emit relation groups.
 							// Inside [p..q) range (same target), process groups by 'other'.
@@ -859,23 +1122,7 @@ namespace gaia {
 									const uint32_t groupSize = j - i;
 									// Fast path - single op
 									if (groupSize == 1) {
-										const Op& op = m_ops[i];
-										switch (op.type) {
-											case OpType::DEL_COMPONENT:
-												replay_del(tgtReal, othReal);
-												break;
-											case OpType::ADD_COMPONENT:
-												replay_add(tgtReal, othReal);
-												break;
-											case OpType::ADD_COMPONENT_DATA:
-												replay_add_data(tgtReal, othReal, op.off);
-												break;
-											case OpType::SET_COMPONENT:
-												replay_data(tgtReal, othReal, op.off);
-												break;
-											default:
-												break;
-										}
+										replay_op(m_ops[i], tgtReal, othReal);
 									}
 									// Slow path: merge multiple ops
 									else {
@@ -897,7 +1144,8 @@ namespace gaia {
 													dataPos = op.off;
 													break;
 												case OpType::DEL_COMPONENT:
-													mask |= F_DEL;
+													// A delete discards payloads from the preceding component lifetime.
+													mask = F_DEL;
 													break;
 												default:
 													break;
@@ -909,22 +1157,20 @@ namespace gaia {
 										const bool hasSet = mask & F_SET;
 										const bool hasDel = mask & F_DEL;
 
-										// 1) ADD(+DATA) + DEL = no-op
-										if (hasDel && (hasAdd || hasAddData)) {
+										// 1) DEL present: reduce the surviving component lifetime.
+										// Replay in order when World policies or observable side effects require it.
+										if (hasDel) {
+											replay_merged(i, j, tgtReal, othReal, mask, dataPos);
 										}
-										// 2) DEL only
-										else if (hasDel) {
-											replay_del(tgtReal, othReal);
-										}
-										// 3) ADD_WITH_DATA or ADD+SET = ADD_WITH_DATA
+										// 2) ADD_WITH_DATA or ADD+SET = ADD_WITH_DATA
 										else if (hasAddData || (hasAdd && hasSet)) {
 											replay_add_data(tgtReal, othReal, dataPos);
 										}
-										// 4) ADD only
+										// 3) ADD only
 										else if (hasAdd) {
 											replay_add(tgtReal, othReal);
 										}
-										// 5) SET only
+										// 4) SET only
 										else if (hasSet) {
 											replay_data(tgtReal, othReal, dataPos);
 										}

@@ -17,6 +17,38 @@ namespace {
 	struct CmdBufRelTarget {};
 	using CmdBufRelPair = ecs::pair<CmdBufRelPayload, CmdBufRelTarget>;
 
+	struct CmdBufCtorTag {
+		inline static const void* instance = nullptr;
+		CmdBufCtorTag() {
+			instance = this;
+		}
+	};
+
+	//! Counts sparse-store initialization during table archetype transitions.
+	struct SparseCtorProbe {
+		GAIA_STORAGE(Sparse);
+		inline static uint32_t ctorCalls = 0;
+		uint32_t value;
+
+		SparseCtorProbe(): value(17) {
+			++ctorCalls;
+		}
+	};
+
+	struct CmdBufPartialPayload {
+		int serialized = 0;
+		int omitted = 7;
+
+		template <typename Serializer>
+		void save(Serializer& serializer) const {
+			serializer.save(serialized);
+		}
+		template <typename Serializer>
+		void load(Serializer& serializer) {
+			serializer.load(serialized);
+		}
+	};
+
 	struct SmallFuncLargeCallable {
 		uint32_t* pValue = nullptr;
 		uint8_t payload[128]{};
@@ -2557,6 +2589,772 @@ TEST_CASE("CommandBuffer") {
 
 		cb.commit();
 		CHECK_FALSE(wld.has(e));
+	}
+}
+
+TEST_CASE_TEMPLATE(
+		"CommandBuffer - recorded component order", CmdBuffer, ecs::CommandBufferST, ecs::CommandBufferMT) {
+	TestWorld twld;
+	(void)wld.add<PositionNonTrivial>();
+	CmdBuffer cb(wld);
+	const auto marker = wld.add();
+
+	for (uint32_t scenario = 0; scenario < 32; ++scenario) {
+		const bool present = (scenario & 1) != 0;
+		const bool deleteFirst = (scenario & 2) != 0;
+		const bool withData = (scenario & 4) != 0;
+		const bool withSet = (scenario & 8) != 0;
+		const bool interleaved = (scenario & 16) != 0;
+		CAPTURE(scenario);
+		const auto e = wld.add();
+		if (present)
+			wld.add<PositionNonTrivial>(e, {1, 1, 1});
+
+		if (deleteFirst)
+			cb.template del<PositionNonTrivial>(e);
+		if (withData)
+			cb.template add<PositionNonTrivial>(e, {2, 2, 2});
+		else
+			cb.template add<PositionNonTrivial>(e);
+		if (interleaved)
+			cb.template add<PositionNonTrivial>(marker, {4, 4, 4});
+		if (withSet)
+			cb.template set<PositionNonTrivial>(e, {3, 3, 3});
+		if (!deleteFirst)
+			cb.template del<PositionNonTrivial>(e);
+		cb.commit();
+
+		CHECK(wld.has<PositionNonTrivial>(e) == deleteFirst);
+		if (deleteFirst) {
+			const auto p = wld.get<PositionNonTrivial>(e);
+			CHECK(p.x == (withSet ? 3.0f : (withData ? 2.0f : 1.0f)));
+			CHECK(p.y == (withSet ? 3.0f : 2.0f));
+			CHECK(p.z == (withSet ? 3.0f : (withData ? 2.0f : 3.0f)));
+		}
+		if (interleaved)
+			CHECK(wld.get<PositionNonTrivial>(marker).x == 4);
+	}
+
+	SUBCASE("Pair requests preserve delete and add order") {
+		const auto relation = wld.add<CmdBufRelPayload>().entity;
+		const auto target = wld.add<CmdBufRelTarget>().entity;
+		const ecs::Pair pair(relation, target);
+		for (uint32_t scenario = 0; scenario < 4; ++scenario) {
+			const bool present = (scenario & 1) != 0;
+			const bool deleteFirst = (scenario & 2) != 0;
+			CAPTURE(scenario);
+			const auto e = wld.add();
+			if (present)
+				wld.add(e, pair, CmdBufRelPayload{1, 1});
+			if (deleteFirst)
+				cb.del(e, pair);
+			cb.add(e, pair, CmdBufRelPayload{2, 2});
+			if (!deleteFirst)
+				cb.del(e, pair);
+			cb.commit();
+			CHECK(wld.has(e, pair) == deleteFirst);
+			if (deleteFirst)
+				CHECK(wld.get<CmdBufRelPair>(e).x == 2);
+		}
+
+		const auto e = wld.add();
+		wld.add(e, pair, CmdBufRelPayload{1, 1});
+		cb.del(e, pair);
+		cb.add(e, ecs::Pair(relation, marker));
+		cb.add(e, pair, CmdBufRelPayload{2, 2});
+		cb.commit();
+		CHECK(wld.get<CmdBufRelPair>(e).x == 2);
+	}
+
+	SUBCASE("Separate commits preserve delete then add") {
+		const auto e = wld.add();
+		wld.add<PositionNonTrivial>(e, {1, 1, 1});
+		cb.template del<PositionNonTrivial>(e);
+		cb.commit();
+		CHECK_FALSE(wld.has<PositionNonTrivial>(e));
+		cb.template add<PositionNonTrivial>(e, {2, 2, 2});
+		cb.commit();
+		CHECK(wld.get<PositionNonTrivial>(e).x == 2);
+	}
+
+	SUBCASE("Unobserved payload replacement keeps the entity in its chunk row") {
+		ecs::World reducedWorld;
+		(void)reducedWorld.add<PositionNonTrivial>();
+		CmdBuffer reducedBuffer(reducedWorld);
+		const auto first = reducedWorld.add();
+		const auto second = reducedWorld.add();
+		reducedWorld.add<PositionNonTrivial>(first, {1, 1, 1});
+		reducedWorld.add<PositionNonTrivial>(second, {9, 9, 9});
+		const auto* before = &reducedWorld.get<PositionNonTrivial>(first);
+		reducedBuffer.template del<PositionNonTrivial>(first);
+		reducedBuffer.template add<PositionNonTrivial>(first, {2, 2, 2});
+		reducedBuffer.commit();
+		CHECK(&reducedWorld.get<PositionNonTrivial>(first) == before);
+		CHECK(reducedWorld.get<PositionNonTrivial>(first).x == 2);
+		CHECK(reducedWorld.get<PositionNonTrivial>(second).x == 9);
+		reducedBuffer.template del<PositionNonTrivial>(first);
+		reducedBuffer.template add<PositionNonTrivial>(first);
+		reducedBuffer.commit();
+		CHECK(&reducedWorld.get<PositionNonTrivial>(first) == before);
+		CHECK(reducedWorld.get<PositionNonTrivial>(first).x == 1);
+		CHECK(reducedWorld.get<PositionNonTrivial>(first).y == 2);
+		CHECK(reducedWorld.get<PositionNonTrivial>(first).z == 3);
+	}
+
+	SUBCASE("Canceled membership still applies required component side effects") {
+		const auto component = wld.add<PositionNonTrivial>().entity;
+		wld.add(component, ecs::Pair(ecs::Requires, marker));
+		const auto e = wld.add();
+		cb.template add<PositionNonTrivial>(e, {2, 2, 2});
+		cb.template del<PositionNonTrivial>(e);
+		cb.commit();
+		CHECK_FALSE(wld.has<PositionNonTrivial>(e));
+		CHECK(wld.has(e, marker));
+	}
+
+	SUBCASE("Bare re-add constructs empty tags at a valid address") {
+		(void)wld.add<CmdBufCtorTag>();
+		const auto e = wld.add();
+		wld.add<CmdBufCtorTag>(e);
+		cb.template del<CmdBufCtorTag>(e);
+		cb.template add<CmdBufCtorTag>(e);
+		CmdBufCtorTag::instance = nullptr;
+		cb.commit();
+		CHECK(CmdBufCtorTag::instance != nullptr);
+		CHECK(wld.has<CmdBufCtorTag>(e));
+	}
+
+	SUBCASE("In-place replacement initializes fields omitted by a custom serializer") {
+		(void)wld.add<CmdBufPartialPayload>();
+		const auto e = wld.add();
+		wld.add<CmdBufPartialPayload>(e, {1, 99});
+		cb.template del<CmdBufPartialPayload>(e);
+		cb.template add<CmdBufPartialPayload>(e, {2, 42});
+		cb.commit();
+		const auto& value = wld.get<CmdBufPartialPayload>(e);
+		CHECK(value.serialized == 2);
+		CHECK(value.omitted == 7);
+	}
+
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+	SUBCASE("Removal hooks retain the preceding payload write") {
+		static uint32_t delHits;
+		static float removedValue;
+		delHits = 0;
+		removedValue = 0;
+		const auto& item = wld.add<PositionNonTrivial>();
+		ecs::ComponentCache::hooks(item).func_del =
+				[](const ecs::World& world, const ecs::ComponentCacheItem&, ecs::Entity e) {
+					++delHits;
+					removedValue = world.get<PositionNonTrivial>(e).x;
+				};
+		const auto e = wld.add();
+		wld.add<PositionNonTrivial>(e, {1, 1, 1});
+		cb.template add<PositionNonTrivial>(e, {2, 2, 2});
+		cb.template del<PositionNonTrivial>(e);
+		cb.commit();
+		CHECK(delHits == 1);
+		CHECK(removedValue == 2);
+		ecs::ComponentCache::hooks(item).func_del = nullptr;
+	}
+#endif
+
+	SUBCASE("A queued re-add replaces the value at commit time") {
+		const auto e = wld.add();
+		wld.add<PositionNonTrivial>(e, {1, 1, 1});
+		cb.template del<PositionNonTrivial>(e);
+		cb.template add<PositionNonTrivial>(e, {2, 2, 2});
+		wld.set<PositionNonTrivial>(e) = {3, 3, 3};
+		cb.commit();
+		CHECK(wld.get<PositionNonTrivial>(e).x == 2);
+	}
+	SUBCASE("Removal observes the preceding payload write") {
+		const auto e = wld.add();
+		wld.add<PositionNonTrivial>(e, {1, 1, 1});
+		uint32_t delHits = 0;
+		float removedValue = 0;
+		(void)wld.observer()
+				.event(ecs::ObserverEvent::OnDel)
+				.all<PositionNonTrivial>()
+				.on_each([&](const PositionNonTrivial& value) {
+					++delHits;
+					removedValue = value.x;
+				})
+				.entity();
+		cb.template add<PositionNonTrivial>(e, {2, 2, 2});
+		cb.template del<PositionNonTrivial>(e);
+		cb.commit();
+		CHECK(delHits == 1);
+		CHECK(removedValue == 2);
+	}
+
+	SUBCASE("A rejected removal preserves the preceding write") {
+		const auto component = wld.add<PositionNonTrivial>().entity;
+		wld.add(component, ecs::Requires);
+		const auto e = wld.add();
+		wld.add<PositionNonTrivial>(e, {1, 1, 1});
+		cb.template add<PositionNonTrivial>(e, {2, 2, 2});
+		cb.template del<PositionNonTrivial>(e);
+		cb.commit();
+		CHECK(wld.has<PositionNonTrivial>(e));
+		CHECK(wld.get<PositionNonTrivial>(e).x == 2);
+	}
+
+	SUBCASE("Exclusive pair add then delete does not restore the old target") {
+		const auto relation = wld.add();
+		wld.add(relation, ecs::Exclusive);
+		wld.add(relation, ecs::DontFragment);
+		const auto a = wld.add();
+		const auto b = wld.add();
+		const auto e = wld.add();
+		wld.add(e, ecs::Pair(relation, a));
+		cb.add(e, ecs::Pair(relation, b));
+		cb.del(e, ecs::Pair(relation, b));
+		cb.commit();
+		CHECK_FALSE(wld.has(e, ecs::Pair(relation, ecs::All)));
+	}
+
+	SUBCASE("Sparse storage respects the same order with and without fragmentation") {
+		for (uint32_t mode = 0; mode < 2; ++mode) {
+			ecs::World sparseWorld;
+			const auto component = sparseWorld.add<PositionSparse>().entity;
+			if (mode != 0)
+				sparseWorld.add(component, ecs::DontFragment);
+			CmdBuffer sparseBuffer(sparseWorld);
+			for (uint32_t scenario = 0; scenario < 4; ++scenario) {
+				const auto e = sparseWorld.add();
+				const bool deleteFirst = (scenario & 2) != 0;
+				if ((scenario & 1) != 0)
+					sparseWorld.add<PositionSparse>(e, {1, 1, 1});
+				if (deleteFirst)
+					sparseBuffer.template del<PositionSparse>(e);
+				sparseBuffer.template add<PositionSparse>(e, {2, 2, 2});
+				if (!deleteFirst)
+					sparseBuffer.template del<PositionSparse>(e);
+				sparseBuffer.commit();
+				CHECK(sparseWorld.has<PositionSparse>(e) == deleteFirst);
+				if (deleteFirst)
+					CHECK(sparseWorld.get<PositionSparse>(e).x == 2);
+			}
+		}
+	}
+
+	SUBCASE("Longer sequences match direct World membership and values") {
+		for (uint32_t initial = 0; initial < 2; ++initial) {
+			for (uint32_t sequence = 0; sequence < 256; ++sequence) {
+				CAPTURE(initial);
+				CAPTURE(sequence);
+				const auto direct = wld.add();
+				const auto deferred = wld.add();
+				if (initial != 0) {
+					wld.add<PositionNonTrivial>(direct, {9, 9, 9});
+					wld.add<PositionNonTrivial>(deferred, {9, 9, 9});
+				}
+				for (uint32_t step = 0; step < 4; ++step) {
+					const uint32_t op = (sequence >> (step * 2)) & 3;
+					const float value = (float)(step + 2);
+					if (op == 0) {
+						wld.add<PositionNonTrivial>(direct);
+						cb.template add<PositionNonTrivial>(deferred);
+					} else if (op == 1) {
+						wld.add<PositionNonTrivial>(direct, {value, value, value});
+						cb.template add<PositionNonTrivial>(deferred, {value, value, value});
+					} else if (op == 2) {
+						if (wld.has<PositionNonTrivial>(direct)) {
+							wld.del<PositionNonTrivial>(direct);
+							cb.template del<PositionNonTrivial>(deferred);
+						}
+					} else if (wld.has<PositionNonTrivial>(direct)) {
+						wld.set<PositionNonTrivial>(direct) = {value, value, value};
+						cb.template set<PositionNonTrivial>(deferred, {value, value, value});
+					}
+				}
+				cb.commit();
+				const bool present = wld.has<PositionNonTrivial>(direct);
+				CHECK(wld.has<PositionNonTrivial>(deferred) == present);
+				if (present) {
+					const auto expected = wld.get<PositionNonTrivial>(direct);
+					const auto actual = wld.get<PositionNonTrivial>(deferred);
+					CHECK(actual.x == expected.x);
+					CHECK(actual.y == expected.y);
+					CHECK(actual.z == expected.z);
+				}
+			}
+		}
+	}
+
+}
+
+TEST_CASE("Sparse storage - chunk transitions construct payloads only in sparse store") {
+	for (uint32_t mode = 0; mode < 2; ++mode) {
+		CAPTURE(mode);
+		TestWorld twld;
+		(void)wld.add<Position>();
+		if (mode != 0)
+			(void)wld.add<SparseCtorProbe>();
+		(void)wld.add<Acceleration>();
+		(void)wld.add<Rotation>();
+		(void)wld.add<SparseCtorProbe>();
+		const auto e = wld.add();
+		wld.add<Position>(e, {1, 2, 3});
+		wld.add<Acceleration>(e, {4, 5, 6});
+		wld.add<Rotation>(e, {7, 8, 9, 10});
+		SparseCtorProbe::ctorCalls = 0;
+		wld.add<SparseCtorProbe>(e);
+		CHECK(SparseCtorProbe::ctorCalls == 1);
+		CHECK(wld.get<SparseCtorProbe>(e).value == 17);
+		CHECK(wld.get<Position>(e).x == 1);
+		CHECK(wld.get<Acceleration>(e).y == 5);
+		CHECK(wld.get<Rotation>(e).w == 10);
+
+		wld.sset<SparseCtorProbe>(e).value = 91;
+		wld.name(e, "sparse_ctor_source");
+		SparseCtorProbe::ctorCalls = 0;
+		const auto copy = wld.copy(e);
+		CHECK(SparseCtorProbe::ctorCalls == 1);
+		CHECK(wld.get<SparseCtorProbe>(copy).value == 91);
+		CHECK(wld.get<Position>(copy).x == 1);
+		CHECK(wld.get<Acceleration>(copy).y == 5);
+		CHECK(wld.get<Rotation>(copy).w == 10);
+		CHECK(wld.name(copy).empty());
+
+		wld.add(e, ecs::Prefab);
+		SparseCtorProbe::ctorCalls = 0;
+		uint32_t count = 0;
+		wld.instantiate_n(e, 2, [&](ecs::Entity instance) {
+			++count;
+			CHECK(wld.get<SparseCtorProbe>(instance).value == 91);
+			CHECK(wld.get<Position>(instance).x == 1);
+			CHECK(wld.get<Acceleration>(instance).y == 5);
+			CHECK(wld.get<Rotation>(instance).w == 10);
+		});
+		CHECK(count == 2);
+		CHECK(SparseCtorProbe::ctorCalls == 2);
+		CHECK(wld.get<SparseCtorProbe>(e).value == 91);
+	}
+}
+
+TEST_CASE_TEMPLATE(
+		"CommandBuffer - standalone SoA payload recording", CmdBuffer, ecs::CommandBufferST, ecs::CommandBufferMT) {
+	TestWorld twld;
+	using SoAPair = ecs::pair<PositionSoA, CmdBufRelTarget>;
+	const auto component = wld.add<PositionSoA>().entity;
+	const auto target = wld.add<CmdBufRelTarget>().entity;
+	const ecs::Pair pair(component, target);
+	const ecs::Entity pairEntity = pair;
+	CmdBuffer cb(wld);
+	for (uint32_t mode = 0; mode < 4; ++mode) {
+		CAPTURE(mode);
+		const auto e = wld.add();
+		for (uint32_t step = 0; step < 2; ++step) {
+			CAPTURE(step);
+			const float x = 4.0f + (float)step * 3.0f;
+			if (step == 0) {
+				if (mode == 0)
+					cb.template add<PositionSoA>(e, {x, x + 1, x + 2});
+				else if (mode == 1)
+					cb.add(e, component, PositionSoA{x, x + 1, x + 2});
+				else if (mode == 2)
+					cb.add(e, pair, PositionSoA{x, x + 1, x + 2});
+				else
+					cb.add(e, pairEntity, PositionSoA{x, x + 1, x + 2});
+			} else {
+				if (mode == 0)
+					cb.template set<PositionSoA>(e, {x, x + 1, x + 2});
+				else if (mode == 1)
+					cb.set(e, component, PositionSoA{x, x + 1, x + 2});
+				else if (mode == 2)
+					cb.set(e, pair, PositionSoA{x, x + 1, x + 2});
+				else
+					cb.set(e, pairEntity, PositionSoA{x, x + 1, x + 2});
+			}
+			cb.commit();
+			const auto value = mode < 2 ? wld.get<PositionSoA>(e) : wld.get<SoAPair>(e);
+			CHECK(value.x == x);
+			CHECK(value.y == x + 1);
+			CHECK(value.z == x + 2);
+		}
+	}
+}
+
+TEST_CASE_TEMPLATE(
+		"CommandBuffer - per-entity structural batches", CmdBuffer, ecs::CommandBufferST, ecs::CommandBufferMT) {
+	TestWorld twld;
+	(void)wld.add<Position>();
+	(void)wld.add<Acceleration>();
+	(void)wld.add<Rotation>();
+	(void)wld.add<PositionNonTrivial>();
+	(void)wld.add<CmdBufPartialPayload>();
+	CmdBuffer cb(wld);
+
+	SUBCASE("Multiple additions preserve payloads with sorted and interleaved recording") {
+		for (uint32_t mode = 0; mode < 2; ++mode) {
+			CAPTURE(mode);
+			const ecs::Entity entities[] = {wld.add(), wld.add(), wld.add()};
+			if (mode == 0) {
+				for (auto e: entities) {
+					cb.template add<Position>(e, {4, 5, 6});
+					cb.template add<Acceleration>(e, {7, 8, 9});
+					cb.template add<Rotation>(e, {10, 11, 12, 13});
+					cb.template add<PositionNonTrivial>(e);
+				}
+			} else {
+				for (uint32_t i = 3; i > 0; --i)
+					cb.template add<PositionNonTrivial>(entities[i - 1]);
+				for (uint32_t i = 3; i > 0; --i)
+					cb.template add<Rotation>(entities[i - 1], {10, 11, 12, 13});
+				for (uint32_t i = 3; i > 0; --i)
+					cb.template add<Acceleration>(entities[i - 1], {7, 8, 9});
+				for (uint32_t i = 3; i > 0; --i)
+					cb.template add<Position>(entities[i - 1], {4, 5, 6});
+			}
+			cb.commit();
+			for (auto e: entities) {
+				CHECK(wld.get<Position>(e).x == 4);
+				CHECK(wld.get<Position>(e).z == 6);
+				CHECK(wld.get<Acceleration>(e).y == 8);
+				CHECK(wld.get<Rotation>(e).w == 13);
+				const auto& value = wld.get<PositionNonTrivial>(e);
+				CHECK(value.x == 1);
+				CHECK(value.y == 2);
+				CHECK(value.z == 3);
+			}
+		}
+	}
+
+	SUBCASE("Mixed additions removals and sets preserve retained and neighboring values") {
+		(void)wld.add<StringComponent>();
+		const auto e = wld.add();
+		const auto neighbor = wld.add();
+		const ecs::Entity entities[] = {e, neighbor};
+		for (auto entity: entities) {
+			wld.add<StringComponent>(entity, {StringComponentDefaultValue});
+			wld.add<Position>(entity, {1, 2, 3});
+			wld.add<Acceleration>(entity, {4, 5, 6});
+			wld.add<Rotation>(entity, {7, 8, 9, 10});
+		}
+		cb.template add<PositionNonTrivial>(e);
+		cb.template del<Acceleration>(e);
+		cb.template set<Rotation>(e, {11, 12, 13, 14});
+		cb.template del<Position>(e);
+		cb.template add<CmdBufPartialPayload>(e, {15, 99});
+		cb.commit();
+		CHECK_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.get<Rotation>(e).x == 11);
+		CHECK(wld.get<Rotation>(e).w == 14);
+		CHECK(wld.get<PositionNonTrivial>(e).y == 2);
+		CHECK(wld.get<CmdBufPartialPayload>(e).serialized == 15);
+		CHECK(wld.get<CmdBufPartialPayload>(e).omitted == 7);
+		CHECK(wld.get<Position>(neighbor).x == 1);
+		CHECK(wld.get<Acceleration>(neighbor).y == 5);
+		CHECK(wld.get<Rotation>(neighbor).w == 10);
+		CHECK_FALSE(wld.has<PositionNonTrivial>(neighbor));
+		CHECK_FALSE(wld.has<CmdBufPartialPayload>(neighbor));
+		CHECK(wld.get<StringComponent>(e).value == StringComponentDefaultValue);
+		CHECK(wld.get<StringComponent>(neighbor).value == StringComponentDefaultValue);
+	}
+
+	SUBCASE("Table SoA payloads coexist with other additions") {
+		(void)wld.add<PositionSoA>();
+		const auto e = wld.add();
+		cb.template add<PositionSoA>(e, {4, 5, 6});
+		cb.template add<Acceleration>(e, {7, 8, 9});
+		cb.commit();
+		CHECK(wld.get<PositionSoA>(e).x == 4);
+		CHECK(wld.get<PositionSoA>(e).y == 5);
+		CHECK(wld.get<PositionSoA>(e).z == 6);
+		CHECK(wld.get<Acceleration>(e).y == 8);
+	}
+
+	SUBCASE("Re-added lifetimes initialize after other components change archetype") {
+		const auto e = wld.add();
+		wld.add<PositionNonTrivial>(e, {9, 9, 9});
+		wld.add<CmdBufPartialPayload>(e, {1, 99});
+		wld.add<Acceleration>(e, {4, 5, 6});
+		cb.template del<PositionNonTrivial>(e);
+		cb.template del<CmdBufPartialPayload>(e);
+		cb.template add<Position>(e, {3, 4, 5});
+		cb.template add<PositionNonTrivial>(e);
+		cb.template add<CmdBufPartialPayload>(e, {2, 42});
+		cb.template del<Acceleration>(e);
+		cb.commit();
+		const auto& position = wld.get<PositionNonTrivial>(e);
+		CHECK(position.x == 1);
+		CHECK(position.y == 2);
+		CHECK(position.z == 3);
+		CHECK(wld.get<CmdBufPartialPayload>(e).serialized == 2);
+		CHECK(wld.get<CmdBufPartialPayload>(e).omitted == 7);
+		CHECK(wld.get<Position>(e).x == 3);
+		CHECK_FALSE(wld.has<Acceleration>(e));
+	}
+
+	SUBCASE("Temporary allocations and copies accept multiple component groups") {
+		const auto source = wld.add();
+		wld.add<Position>(source, {1, 2, 3});
+		const auto firstId = wld.size();
+		const auto first = cb.add();
+		cb.template add<PositionNonTrivial>(first);
+		const auto second = cb.copy(source);
+		cb.template add<Acceleration>(second, {4, 5, 6});
+		cb.template add<Position>(first, {7, 8, 9});
+		cb.template set<Position>(second, {10, 11, 12});
+		cb.template add<Rotation>(first, {13, 14, 15, 16});
+		cb.template add<PositionNonTrivial>(second);
+		cb.commit();
+		const auto firstEntity = wld.get(firstId);
+		const auto secondEntity = wld.get(firstId + 1);
+		CHECK(wld.get<Position>(firstEntity).x == 7);
+		CHECK(wld.get<Rotation>(firstEntity).w == 16);
+		CHECK(wld.get<PositionNonTrivial>(firstEntity).y == 2);
+		CHECK(wld.get<Position>(secondEntity).x == 10);
+		CHECK(wld.get<Acceleration>(secondEntity).z == 6);
+		CHECK(wld.get<PositionNonTrivial>(secondEntity).z == 3);
+		CHECK(wld.get<Position>(source).x == 1);
+		CHECK_FALSE(wld.has<Acceleration>(source));
+	}
+
+	SUBCASE("Inherited values become local overrides without changing the base") {
+		const auto component = wld.add<Position>().entity;
+		wld.add(component, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+		const auto base = wld.add();
+		wld.add<Position>(base, {1, 2, 3});
+		const auto e = wld.add();
+		wld.as(e, base);
+		CHECK_FALSE(wld.has_direct(e, component));
+		cb.template add<Acceleration>(e, {4, 5, 6});
+		cb.template add<Position>(e, {7, 8, 9});
+		cb.commit();
+		CHECK(wld.has_direct(e, component));
+		CHECK(wld.get<Position>(e).x == 7);
+		CHECK(wld.get<Acceleration>(e).z == 6);
+		CHECK(wld.get<Position>(base).x == 1);
+		CHECK_FALSE(wld.has<Acceleration>(base));
+	}
+
+	SUBCASE("More component groups than batch capacity retain normal replay") {
+		const auto e = wld.add();
+		ecs::Entity tags[ecs::ChunkHeader::MAX_COMPONENTS + 1];
+		for (auto& tag: tags) {
+			tag = wld.add();
+			cb.add(e, tag);
+			cb.del(e, tag);
+		}
+		cb.template add<Position>(e, {1, 2, 3});
+		cb.template add<Acceleration>(e, {4, 5, 6});
+		cb.commit();
+		for (auto tag: tags)
+			CHECK_FALSE(wld.has(e, tag));
+		CHECK(wld.get<Position>(e).x == 1);
+		CHECK(wld.get<Acceleration>(e).z == 6);
+	}
+
+	SUBCASE("Removal observers retain preceding writes and multi-component membership") {
+		const auto e = wld.add();
+		wld.add<Position>(e, {1, 1, 1});
+		wld.add<Acceleration>(e, {9, 9, 9});
+		uint32_t delHits = 0;
+		float removedValue = 0;
+		float accompanyingValue = 0;
+		(void)wld.observer()
+				.event(ecs::ObserverEvent::OnDel)
+				.all<Position>()
+				.all<Acceleration>()
+				.on_each([&](const Position& position, const Acceleration& acceleration) {
+					++delHits;
+					removedValue = position.x;
+					accompanyingValue = acceleration.x;
+				})
+				.entity();
+		cb.template set<Position>(e, {2, 2, 2});
+		cb.template del<Position>(e);
+		cb.template del<Acceleration>(e);
+		cb.template add<Rotation>(e, {3, 4, 5, 6});
+		cb.commit();
+		CHECK(delHits == 1);
+		CHECK(removedValue == 2);
+		CHECK(accompanyingValue == 9);
+		CHECK_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.get<Rotation>(e).w == 6);
+	}
+
+	SUBCASE("Set observers retain membership before other component groups replay") {
+		const auto e = wld.add();
+		wld.add<Position>(e, {1, 1, 1});
+		wld.add<Acceleration>(e, {9, 9, 9});
+		uint32_t setHits = 0;
+		(void)wld.observer()
+				.event(ecs::ObserverEvent::OnSet)
+				.all<Position>()
+				.on_each([&](const Position& position) {
+					++setHits;
+					CHECK(position.x == 2);
+					CHECK(wld.has<Acceleration>(e));
+					CHECK_FALSE(wld.has<Rotation>(e));
+				})
+				.entity();
+		cb.template set<Position>(e, {2, 2, 2});
+		cb.template del<Acceleration>(e);
+		cb.template add<Rotation>(e, {3, 4, 5, 6});
+		cb.commit();
+		CHECK(setHits == 1);
+		CHECK_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.get<Rotation>(e).w == 6);
+	}
+
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+	SUBCASE("Removal hooks retain preceding writes before other component groups replay") {
+		static uint32_t delHits;
+		delHits = 0;
+		const auto& item = wld.add<Position>();
+		ecs::ComponentCache::hooks(item).func_del =
+				[](const ecs::World& world, const ecs::ComponentCacheItem&, ecs::Entity e) {
+					++delHits;
+					CHECK(world.get<Position>(e).x == 2);
+					CHECK(world.has<Acceleration>(e));
+					CHECK_FALSE(world.has<Rotation>(e));
+				};
+		const auto e = wld.add();
+		wld.add<Position>(e, {1, 1, 1});
+		wld.add<Acceleration>(e, {9, 9, 9});
+		cb.template set<Position>(e, {2, 2, 2});
+		cb.template del<Position>(e);
+		cb.template del<Acceleration>(e);
+		cb.template add<Rotation>(e, {3, 4, 5, 6});
+		cb.commit();
+		CHECK(delHits == 1);
+		CHECK_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.get<Rotation>(e).w == 6);
+		ecs::ComponentCache::hooks(item).func_del = nullptr;
+	}
+#endif
+
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+	SUBCASE("A late removal hook retains grouped replay after two eligible component groups") {
+		static uint32_t delHits;
+		delHits = 0;
+		const auto& item = wld.add<Rotation>();
+		ecs::ComponentCache::hooks(item).func_del =
+				[](const ecs::World& world, const ecs::ComponentCacheItem&, ecs::Entity e) {
+					++delHits;
+					CHECK(world.get<Position>(e).x == 2);
+					CHECK_FALSE(world.has<Acceleration>(e));
+					CHECK(world.get<Rotation>(e).w == 6);
+				};
+		const auto direct = wld.add();
+		const auto e = wld.add();
+		const ecs::Entity entities[] = {direct, e};
+		for (auto entity: entities) {
+			wld.add<Position>(entity, {1, 1, 1});
+			wld.add<Acceleration>(entity, {9, 9, 9});
+			wld.add<Rotation>(entity, {1, 1, 1, 1});
+		}
+		wld.set<Position>(direct) = {2, 2, 2};
+		wld.del<Acceleration>(direct);
+		wld.set<Rotation>(direct) = {3, 4, 5, 6};
+		wld.del<Rotation>(direct);
+		CHECK(delHits == 1);
+		delHits = 0;
+		cb.template set<Rotation>(e, {3, 4, 5, 6});
+		cb.template del<Rotation>(e);
+		cb.template del<Acceleration>(e);
+		cb.template set<Position>(e, {2, 2, 2});
+		cb.commit();
+		CHECK(delHits == 1);
+		CHECK(wld.get<Position>(e).x == 2);
+		CHECK_FALSE(wld.has<Acceleration>(e));
+		CHECK_FALSE(wld.has<Rotation>(e));
+		ecs::ComponentCache::hooks(item).func_del = nullptr;
+	}
+#endif
+
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+	SUBCASE("Entity deletion follows a batched prefix and replays the remaining payload once") {
+		static uint32_t delHits;
+		delHits = 0;
+		const auto& item = wld.add<Rotation>();
+		ecs::ComponentCache::hooks(item).func_del =
+				[](const ecs::World& world, const ecs::ComponentCacheItem&, ecs::Entity e) {
+					++delHits;
+					CHECK(world.get<Position>(e).x == 2);
+					CHECK(world.get<Acceleration>(e).y == 5);
+					CHECK(world.get<Rotation>(e).w == 6);
+				};
+		const auto e = wld.add();
+		wld.add<Rotation>(e, {1, 1, 1, 1});
+		cb.template set<Rotation>(e, {3, 4, 5, 6});
+		cb.template add<Acceleration>(e, {4, 5, 6});
+		cb.template add<Position>(e, {2, 2, 2});
+		cb.del(e);
+		cb.commit();
+		CHECK_FALSE(wld.has(e));
+		CHECK(delHits == 1);
+		ecs::ComponentCache::hooks(item).func_del = nullptr;
+	}
+#endif
+
+	SUBCASE("A late protected component retains its preceding write after a batched prefix") {
+		wld.add(wld.add<Rotation>().entity, ecs::Requires);
+		const auto e = wld.add();
+		wld.add<Position>(e, {1, 1, 1});
+		wld.add<Acceleration>(e, {9, 9, 9});
+		wld.add<Rotation>(e, {1, 1, 1, 1});
+		cb.template set<Rotation>(e, {3, 4, 5, 6});
+		cb.template del<Rotation>(e);
+		cb.template del<Acceleration>(e);
+		cb.template set<Position>(e, {2, 2, 2});
+		cb.commit();
+		CHECK(wld.get<Position>(e).x == 2);
+		CHECK_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.has<Rotation>(e));
+		CHECK(wld.get<Rotation>(e).x == 3);
+		CHECK(wld.get<Rotation>(e).w == 6);
+	}
+
+	SUBCASE("Required components keep their preceding value beside other structural changes") {
+		wld.add(wld.add<Position>().entity, ecs::Requires);
+		const auto e = wld.add();
+		wld.add<Position>(e, {1, 1, 1});
+		wld.add<Acceleration>(e, {9, 9, 9});
+		cb.template set<Position>(e, {2, 2, 2});
+		cb.template del<Position>(e);
+		cb.template del<Acceleration>(e);
+		cb.template add<Rotation>(e, {3, 4, 5, 6});
+		cb.commit();
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.get<Position>(e).x == 2);
+		CHECK_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.get<Rotation>(e).w == 6);
+	}
+
+	SUBCASE("Sparse lifetime changes coexist with table additions and removals") {
+		for (uint32_t mode = 0; mode < 4; ++mode) {
+			CAPTURE(mode);
+			ecs::World sparseWorld;
+			if ((mode & 2) != 0) {
+				(void)sparseWorld.add<Position>();
+				(void)sparseWorld.add<Acceleration>();
+			}
+			const auto component = sparseWorld.add<PositionSparse>().entity;
+			if ((mode & 1) != 0)
+				sparseWorld.add(component, ecs::DontFragment);
+			(void)sparseWorld.add<Position>();
+			(void)sparseWorld.add<Acceleration>();
+			CmdBuffer sparseBuffer(sparseWorld);
+			const auto e = sparseWorld.add();
+			sparseWorld.add<PositionSparse>(e, {1, 1, 1});
+			sparseWorld.add<Position>(e, {9, 9, 9});
+			sparseBuffer.template del<PositionSparse>(e);
+			sparseBuffer.template add<Acceleration>(e, {3, 4, 5});
+			sparseBuffer.template add<PositionSparse>(e, {2, 2, 2});
+			sparseBuffer.template del<Position>(e);
+			sparseBuffer.commit();
+			CHECK(sparseWorld.get<PositionSparse>(e).x == 2);
+			CHECK(sparseWorld.get<Acceleration>(e).z == 5);
+			CHECK_FALSE(sparseWorld.has<Position>(e));
+		}
 	}
 }
 

@@ -3108,7 +3108,7 @@ See [Hierarchies](#hierarchies) and [Exclusivity](#exclusivity).
 ## Delayed execution
 Sometimes you need to delay executing a part of the code for later. This can be achieved via command buffers.
 
-Command buffer is a container used to record commands in the order in which they were requested at a later point in time.
+A command buffer records requests for later execution. Commit applies the merging rules below. It does not replay every request as a sequential `World` call.
 
 Typically you use them when there is a need to perform structural changes (adding or removing an entity or component, copying an entity, or instantiating a prefab) while iterating queries.
 
@@ -3168,6 +3168,8 @@ world.add<YourComponent>();
 
 Relationship payloads use the same add/set data ops as components. `cb.add(entity, pair, value)` and `cb.set(entity, pair, value)` queue a write on the owner for that exact pair, matching `World::add(entity, pair, value)`. Structural `cb.add(entity, pair)` still attaches the pair without a payload. `cb.add<T>(pair, value)` writes component `T` on the pair record itself.
 
+Payload arguments are standalone C++ values, including types with a SoA layout. The command buffer serializes those values when recording and restores them into the component's storage layout at commit. Sparse payload construction remains in the sparse store; chunk transitions do not construct sparse data in table storage.
+
 ### Command Merging rules
 Before applying any operations to the world, the command buffer performs operation merging and cancellation to remove redundant or meaningless actions.
 
@@ -3181,15 +3183,32 @@ Before applying any operations to the world, the command buffer performs operati
 | `del(e)` on an existing entity | Entity removed normally |
 
 #### Component Merging
-| Sequence | Result |
+For each entity and component, a group containing a delete is reduced **in recorded order**, starting from membership at commit time. A delete ends the preceding component lifetime and discards its payload; a later add starts a new lifetime. Add/set-only groups still merge using the last recorded payload. Redundant deletes of an absent component within a merged group are skipped.
+
+| Sequence | Result (when removal is allowed) |
 |-----------|---------|
 | `add<T>(e)` + `set<T>(e, value)` | Collapsed into `add<T>(e, value)` |
 | `add<T>(e, value1)` + `set<T>(e, value2)` | Only the last value is used |
-| `add<T>(e)` + `del<T>(e)` | No effect — component never added |
-| `add<T>(e, value)` + `del<T>(e)` | No effect — component never added |
+| `add<T>(e)` + `del<T>(e)` | Component absent, whether initially present or absent |
+| `add<T>(e, value)` + `del<T>(e)` | Component absent, the discarded payload need not be written |
+| `del<T>(e)` + `add<T>(e, value)` | Component present with the new value |
+| `del<T>(e)` + `add<T>(e)` | Component present with normal fresh initialization |
 | `set<T>(e, value1)` + `set<T>(e, value2)` | Only the last value is used |
+| `set<T>(e, value)` + `del<T>(e)` | Component absent; observers/hooks retain preceding write visibility |
 
-Only the final state after all recorded operations is applied on commit. This means you can record commands freely, and the command buffer will merge your requests in such a way that the world update is always minimal and correct.
+For example, if `T` already holds `1`, `cb.del<T>(e); cb.add<T>(e, T{2}); cb.commit();` produces `2`, matching direct `World::del` followed by `World::add`. A bare re-add after an accepted deletion does not reuse an earlier payload. As with `World::set`, `set` requires a present component: after a successful removal, record an add before setting it again.
+
+Ordinary unobserved components apply only the surviving change: absent-to-absent groups do nothing, present-to-absent groups remove once, and present-to-present groups with a surviving payload reinitialize and write in place. A bare re-add also initializes in place when eligible; trivially default-constructed types receive no writes, as with normal default initialization. Intermediate writes and constructor calls may be omitted by reduction.
+
+A leading sequence of independent table-component groups on the same entity can share one `World::EntityBuilder` commit. The buffer checks that prefix before applying its final structural changes, moves the entity at most once for the prefix, then restores surviving payloads and reinitializes existing delete/re-add lifetimes. This reduces relocation of retained components as well as intermediate structural changes. The batch uses fixed inline storage up to the archetype component limit. The first group beyond that limit or with unsupported storage or behavior starts a suffix that uses the existing per-component path. Sparse or non-fragmenting storage, pairs, core ids, hooks, applicable observers, nontrivial destruction, and empty tags with custom constructors end the eligible prefix. World-wide dependency/combination policies or structural observers disable batching.
+
+Pairs, core ids, active hooks, and policy-sensitive groups retain ordered World replay. Components with nontrivial destruction and empty tags with custom constructors also retain replay. Worlds with `Requires` dependency or `CantCombine` policies, or any structural observers, conservatively use that replay path; an applicable `OnSet` observer also requires replay. This preserves required-component side effects, removal restrictions and observer/hook payload visibility, at the cost of the actual intermediate mutations. Entity creation/deletion cancellation remains as described above.
+
+These rules apply to both ST and MT buffers. In an MT buffer, recording order is the order in which calls acquire the buffer lock; competing threads do not have a predetermined order.
+
+Relationship operations retain their recorded order within each entity. Only consecutive requests for the same exact pair in that relationship sequence are merged; a request for another pair (including a wildcard) separates the groups.
+
+Commit still allocates surviving entity creations/copies/instances first, applies reduced component groups, then deletes entities. Reduction may omit intermediate writes, initialization and structural changes when they do not affect the retained ECS state or registered observers/hooks. Commit does not promise global replay of every `World` call across entities and components.
 
 ## Systems
 ### System basics
