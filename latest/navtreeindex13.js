@@ -1,5 +1,11 @@
 var NAVTREEINDEX13 =
 {
+"structgaia_1_1ecs_1_1detail_1_1PrefabChildEdge.html":[9,0,0,2,0,5],
+"structgaia_1_1ecs_1_1detail_1_1PrefabChildEdge.html#a2baa2b2b0666bbde84e201835fbb0b43":[9,0,0,2,0,5,0],
+"structgaia_1_1ecs_1_1detail_1_1PrefabChildEdge.html#abcc58adf641aca28f8adbf09cc573cf5":[9,0,0,2,0,5,1],
+"structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html":[9,0,0,2,0,6],
+"structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html#a11921432d6b61e2014370116522deabf":[9,0,0,2,0,6,5],
+"structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html#a87983181d8df11a1d39df9d18bee7a0a":[9,0,0,2,0,6,3],
 "structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html#a9d603d38a25afa32ed65af30c3370797":[9,0,0,2,0,6,0],
 "structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html#acba4f16f00b393b1399a315cc3db6408":[9,0,0,2,0,6,6],
 "structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html#ad1821db2a75b925a99183959401587b6":[9,0,0,2,0,6,4],
@@ -243,11 +249,5 @@ var NAVTREEINDEX13 =
 "structgaia_1_1mem_1_1data__view__policy__soa.html#adfc1c29e373cad49869355a0cc3593c9":[9,0,0,3,26,15],
 "structgaia_1_1mem_1_1data__view__policy__soa.html#aeb7f065b270de2475fafeb824e52a01b":[9,0,0,3,26,18],
 "structgaia_1_1mem_1_1data__view__policy__soa.html#af1e66a91cc019da8b8dd005e496b12db":[9,0,0,3,26,8],
-"structgaia_1_1mem_1_1data__view__policy__soa.html#afedb6968f3b0f928b428ac2f8df1eec0":[9,0,0,3,26,4],
-"structgaia_1_1mem_1_1data__view__policy__soa__erased.html":[9,0,0,3,27],
-"structgaia_1_1mem_1_1data__view__policy__soa__erased.html#a672c1d7eaef2d8afafd518f84f122e3b":[9,0,0,3,27,0],
-"structgaia_1_1mem_1_1data__view__policy__soa__erased.html#a9a56500e1f011bf44984e5d33b6a3605":[9,0,0,3,27,1],
-"structgaia_1_1mem_1_1data__view__policy__soa__get.html":[9,0,0,3,28],
-"structgaia_1_1mem_1_1data__view__policy__soa__get.html#a06943cca5fb5818613117c5fb0e740db":[9,0,0,3,28,7],
-"structgaia_1_1mem_1_1data__view__policy__soa__get.html#a08b23dc6ce7b567047b7dda569e682b6":[9,0,0,3,28,1]
+"structgaia_1_1mem_1_1data__view__policy__soa.html#afedb6968f3b0f928b428ac2f8df1eec0":[9,0,0,3,26,4]
 };

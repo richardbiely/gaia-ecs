@@ -144,6 +144,7 @@ Public Types</h2></td></tr>
 , <br />
 &#160;&#160;<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aa06582455bf05bd8cfad9ddf4127e7d59">HasPrefabTerms</a> = 0x80
 , <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aa5cd29e78d8ddc77a98f09c9e822a2a80">OrderGroups</a> = 0x100
+, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aaf409bc85d21b5276ca8f25ff752f9dbd">HasMatchTerms</a> = 0x200
 <br />
  }</td></tr>
 <tr class="memdesc:a5a19b18a83e14d043d91f0f854ef598a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Query maintenance and execution flags derived during compilation.  <a href="structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598a">More...</a><br /></td></tr>
@@ -481,6 +482,8 @@ struct <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">gaia::ecs
 <tr><td class="fieldname"><a id="a5a19b18a83e14d043d91f0f854ef598aa06582455bf05bd8cfad9ddf4127e7d59" name="a5a19b18a83e14d043d91f0f854ef598aa06582455bf05bd8cfad9ddf4127e7d59"></a>HasPrefabTerms&#160;</td><td class="fielddoc"><p>Query explicitly mentions Prefab and therefore bypasses automatic exclusion. </p>
 </td></tr>
 <tr><td class="fieldname"><a id="a5a19b18a83e14d043d91f0f854ef598aa5cd29e78d8ddc77a98f09c9e822a2a80" name="a5a19b18a83e14d043d91f0f854ef598aa5cd29e78d8ddc77a98f09c9e822a2a80"></a>OrderGroups&#160;</td><td class="fielddoc"><p>Grouped archetypes are ordered by group identifier during cache refresh. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="a5a19b18a83e14d043d91f0f854ef598aaf409bc85d21b5276ca8f25ff752f9dbd" name="a5a19b18a83e14d043d91f0f854ef598aaf409bc85d21b5276ca8f25ff752f9dbd"></a>HasMatchTerms&#160;</td><td class="fielddoc"><p>At least one term matches presence without accessing its payload. </p>
 </td></tr>
 </table>
 

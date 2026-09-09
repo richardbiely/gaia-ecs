@@ -39,7 +39,7 @@ var hierarchy =
       [ "gaia::ecs::Iter", "classgaia_1_1ecs_1_1Iter.html", null ]
     ] ],
     [ "gaia::ecs::QueryInfo::CleanUpTmpArchetypeMatches", "structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html", null ],
-    [ "gaia::ecs::detail::CommandBuffer< AccessContext >", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html", null ],
+    [ "gaia::ecs::detail::CommandBuffer< AccessContext, Optimize >", "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html", null ],
     [ "gaia::ecs::Component", "structgaia_1_1ecs_1_1Component.html", null ],
     [ "gaia::ecs::ComponentCursor", "structgaia_1_1ecs_1_1ComponentCursor.html", null ],
     [ "gaia::ecs::ComponentDesc", "structgaia_1_1ecs_1_1ComponentDesc.html", null ],

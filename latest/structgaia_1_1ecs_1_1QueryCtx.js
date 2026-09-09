@@ -55,7 +55,8 @@ var structgaia_1_1ecs_1_1QueryCtx =
       [ "HasVariableTerms", "structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aac9ee9a6ed8a0013fc0314f09cc856386", null ],
       [ "MatchPrefab", "structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aa215832865698b1b73c8f68e54605ff66", null ],
       [ "HasPrefabTerms", "structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aa06582455bf05bd8cfad9ddf4127e7d59", null ],
-      [ "OrderGroups", "structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aa5cd29e78d8ddc77a98f09c9e822a2a80", null ]
+      [ "OrderGroups", "structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aa5cd29e78d8ddc77a98f09c9e822a2a80", null ],
+      [ "HasMatchTerms", "structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aaf409bc85d21b5276ca8f25ff752f9dbd", null ]
     ] ],
     [ "equals_no_handle_assumption", "structgaia_1_1ecs_1_1QueryCtx.html#abbcce5017137595a7a0eafa578983f96", null ],
     [ "init", "structgaia_1_1ecs_1_1QueryCtx.html#af22f5a7d339ad8e72b4ffd4aa165756b", null ],

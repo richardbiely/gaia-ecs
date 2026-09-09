@@ -120,7 +120,16 @@ var menudata={children:[
 {text:"u",url:"functions_type_u.html#index_u"},
 {text:"v",url:"functions_type_v.html#index_v"}]},
 {text:"Enumerations",url:"functions_enum.html"},
-{text:"Enumerator",url:"functions_eval.html"},
+{text:"Enumerator",url:"functions_eval.html",children:[
+{text:"c",url:"functions_eval.html#index_c"},
+{text:"d",url:"functions_eval.html#index_d"},
+{text:"e",url:"functions_eval.html#index_e"},
+{text:"h",url:"functions_eval.html#index_h"},
+{text:"m",url:"functions_eval.html#index_m"},
+{text:"o",url:"functions_eval.html#index_o"},
+{text:"q",url:"functions_eval.html#index_q"},
+{text:"r",url:"functions_eval.html#index_r"},
+{text:"s",url:"functions_eval.html#index_s"}]},
 {text:"Related Symbols",url:"functions_rela.html"}]}]},
 {text:"Files",url:"files.html",children:[
 {text:"File List",url:"files.html"}]}]}

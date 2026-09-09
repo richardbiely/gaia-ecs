@@ -191,15 +191,15 @@ var NAVTREEINDEX =
 "classgaia_1_1cnt_1_1sringbuffer.html#a0cabb22652f0a7af690a331ba8e35938",
 "classgaia_1_1ecs_1_1Chunk.html#a86b5f4873ef794bfcd92a557292f82fc",
 "classgaia_1_1ecs_1_1World.html#a1bb9ce70535fc64f8f44c8a53e3c2223",
-"classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a03af1860a176d3fb9c7619c0d5d337c0",
-"classgaia_1_1mt_1_1ThreadPool.html#ad34530603ddff9f01e0a04236f7e736d",
-"index.html#data-layouts",
-"structgaia_1_1cnt_1_1fwd__llist.html#a7366cb78cde81927efb927d8640e163d",
-"structgaia_1_1cnt_1_1sringbuffer__iterator.html#adc8c9b76688a288c8a8a775514f21b48",
-"structgaia_1_1ecs_1_1DependsOn__.html",
-"structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html",
-"structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html#a9d603d38a25afa32ed65af30c3370797",
-"structgaia_1_1mem_1_1data__view__policy__soa__get.html#a1aa2860f84152a19319d1900bc2e7743"
+"classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a1dc32228f1bfa928c4ddfa4088da45f6",
+"classgaia_1_1mt_1_1ThreadPool.html#acf92b6607ea332bf40e6a2700a3223f4",
+"index.html#customization",
+"structgaia_1_1cnt_1_1fwd__llist.html#a5e6c0917470462a0ef9d57b443150628",
+"structgaia_1_1cnt_1_1sringbuffer__iterator.html#ac94d2dfd38b4614bdda3b19317b7eb0d",
+"structgaia_1_1ecs_1_1Delete__.html",
+"structgaia_1_1ecs_1_1QueryInfoCreationCtx.html",
+"structgaia_1_1ecs_1_1detail_1_1PrefabChildEdge.html",
+"structgaia_1_1mem_1_1data__view__policy__soa__erased.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

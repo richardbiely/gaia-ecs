@@ -1146,7 +1146,8 @@ Query</h3>
 <div class="line">    pos[i].z += vel[i].z * settings-&gt;dt;</div>
 <div class="line">  }</div>
 <div class="line">});</div>
-</div><!-- fragment --><p>Queries also expose scheduling access metadata. Positive query terms already describe component reads and writes (<code>all&lt;const T&gt;()</code>/<code>or_&lt;const T&gt;()</code> read, <code>all&lt;T&amp;&gt;()</code>/<code>or_&lt;T&amp;&gt;()</code> write). If the callback touches data outside the query shape, declare it explicitly with <code>reads(Entity)</code>, <code>writes(Entity)</code>, or the typed adapters <code>reads&lt;T&gt;()</code> / <code>writes&lt;T&gt;()</code>. Use <code>main_thread()</code> for callbacks that are not safe to run on worker threads even when component access would otherwise allow it. These declarations are metadata only: they do not change query matching, hashing, shared-cache identity, or cache invalidation.</p>
+</div><!-- fragment --><p><a class="anchor" id="query-access"></a></p>
+<p>Queries also expose scheduling access metadata. <code>all()</code>, <code>or_()</code>, and <code>any()</code> terms infer read access from value or const types and write access from mutable references. Optional terms declare access even when no matching entity currently has the component. If the callback touches data outside the query shape, declare it explicitly with <code>reads(Entity)</code>, <code>writes(Entity)</code>, or the typed adapters <code>reads&lt;T&gt;()</code> / <code>writes&lt;T&gt;()</code>. Use <code>main_thread()</code> for callbacks that are not safe to run on worker threads even when component access would otherwise allow it. The <code>reads()</code>, <code>writes()</code>, and <code>main_thread()</code> declarations only affect scheduling metadata. They do not change query matching, hashing, shared-cache identity, or cache invalidation.</p>
 <div class="fragment"><div class="line"><span class="keyword">auto</span> move = w.query()</div>
 <div class="line">  .all&lt;Position&amp;&gt;()</div>
 <div class="line">  .all&lt;const Velocity&gt;();</div>
@@ -1163,6 +1164,23 @@ Query</h3>
 <div class="line">  <span class="comment">// Add a dependency or keep one of the jobs on the serial path.</span></div>
 <div class="line">}</div>
 </div><!-- fragment --><p>Two queries conflict when both access the same id and at least one side writes it. Pair query terms are treated as matching/filtering metadata and do not imply component data access; if a pair id is used as an external scheduling key, declare it explicitly with <code>reads(pairEntity)</code> or <code>writes(pairEntity)</code>.</p>
+<p>Use <code>.no_access()</code> after an <code>all()</code>, <code>or_()</code>, or <code>any()</code> term to match a component without reading or writing its data. It sets only the preceding term's access to <code>QueryAccess::Match</code> and leaves matching unchanged. The term declares no data access, so it does not conflict with a writer of the component. System builders support the same modifier.</p>
+<div class="fragment"><div class="line"><span class="keyword">auto</span> move = w.query()</div>
+<div class="line">  .all&lt;Position&amp;&gt;() <span class="comment">// Read and write Position.</span></div>
+<div class="line">  .all&lt;const Selected&gt;().no_access() <span class="comment">// Only check whether Selected is present.</span></div>
+<div class="line">  .all&lt;<span class="keyword">const</span> Velocity&gt;(); <span class="comment">// Read Velocity.</span></div>
+<div class="line"> </div>
+<div class="line">move.each([](Position&amp; pos, <span class="keyword">const</span> Velocity&amp; vel) {</div>
+<div class="line">  pos.x += vel.x;</div>
+<div class="line">});</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">auto</span> selectedOrHighlighted = w.query()</div>
+<div class="line">  .or_&lt;Selected&gt;().no_access()</div>
+<div class="line">  .or_&lt;Highlighted&gt;().no_access();</div>
+</div><!-- fragment --><p>Apply the modifier while building the query, before calling <code>fetch()</code>, <code>count()</code>, <code>access()</code>, or any execution method. Calling it without a preceding term, after <code>no()</code>, or after compilation is invalid.</p>
+<p>You can also pass <code>QueryTermOptions{}.no_access()</code> to <code>all()</code>, <code>or_()</code>, or <code>any()</code>. This works with source and traversal settings on typed or entity-id terms. Using this option with <code>no()</code> is invalid.</p>
+<p>With <code>GAIA_ASSERT_ENABLED</code>, invalid modifier usage and attempts to access a presence-only term through callback arguments, iterator views, or <code>sort_by&lt;T&gt;()</code> trigger <code>GAIA_ASSERT</code>.</p>
+<p>The <a class="el" href="index.html#query-access">scheduling access declarations above</a> do not allow the query to expose a presence-only term's data. Direct <code>World</code> or <code>Chunk</code> access and structural changes remain the caller's responsibility and must follow the existing iteration and synchronization rules.</p>
 <p>Note, the first Query invocation of a cached query is always slower than the subsequent ones because internals of the Query need to be initialized.</p>
 <h3><a class="anchor" id="simple-query"></a>
 Simple query</h3>
@@ -1306,7 +1324,7 @@ Simple query</h3>
 <div class="line">GAIA_ASSERT(q.empty()); <span class="comment">// The matching entity is now excluded.</span></div>
 </div><!-- fragment --><h3><a class="anchor" id="query-traversal"></a>
 Query traversal</h3>
-<p>More advanced lookup settings are supported via <code>QueryTermOptions</code>. This includes source selection, traversal by relation (<code>ChildOf</code> by default), traversal filtering (<code>trav</code>, <code>trav_up</code>, <code>trav_parent</code>, <code>trav_self_parent</code>, <code>trav_down</code>, <code>trav_child</code>, <code>trav_self_down</code>, <code>trav_self_child</code>, <code>trav_depth</code>), and access type (read or write).</p>
+<p>More advanced lookup settings are supported via <code>QueryTermOptions</code>. This includes source selection, traversal by relation (<code>ChildOf</code> by default), traversal filtering (<code>trav</code>, <code>trav_up</code>, <code>trav_parent</code>, <code>trav_self_parent</code>, <code>trav_down</code>, <code>trav_child</code>, <code>trav_self_down</code>, <code>trav_self_child</code>, <code>trav_depth</code>), and access type (read, write, or presence-only).</p>
 <div class="fragment"><div class="line"><span class="keyword">struct </span>Position {};</div>
 <div class="line"><span class="keyword">struct </span>Level { <span class="keywordtype">int</span> value; };</div>
 <div class="line"> </div>
@@ -2618,10 +2636,10 @@ Shared data</h2>
 <h2><a class="anchor" id="delayed-execution"></a>
 Delayed execution</h2>
 <p>Sometimes you need to delay executing a part of the code for later. This can be achieved via command buffers.</p>
-<p>Command buffer is a container used to record commands in the order in which they were requested at a later point in time.</p>
+<p>A command buffer records requests for later execution. Optimizing buffers apply the merging rules below; plain buffers replay every request in recorded order.</p>
 <p>Typically you use them when there is a need to perform structural changes (adding or removing an entity or component, copying an entity, or instantiating a prefab) while iterating queries.</p>
 <p>Performing an unprotected structural change is undefined behavior and most likely crashes the program. However, using a command buffer you can collect all requests first and commit them when it is safe later.</p>
-<p>You can use either a command buffer provided by the iterator or one you created. There are two kinds of the command buffer - <code>ecs::CommandBufferST</code> that is not thread-safe and should only be used by one thread, and <code>ecs::CommandBufferMT</code> that is safe to access from multiple threads at once.</p>
+<p>You can use either a command buffer provided by the iterator or one you created. <code>ecs::CommandBufferST</code> and <code>ecs::CommandBufferMT</code> optimize recorded commands by merging and batching them. <code>ecs::CommandBufferPlainST</code> and <code>ecs::CommandBufferPlainMT</code> provide the same recording API and payload serialization, with no sorting, merging, cancellation or batching. ST buffers are for one thread; MT buffers serialize access with a spin lock. The choice is made by the buffer type, with no runtime mode switch. Iterator-provided buffers use the optimizing types.</p>
 <p>The command buffer provided by the iterator is committed in a safe manner when the world is not locked for structural changes, and is a recommended way for queuing commands.</p>
 <div class="fragment"><div class="line"><span class="comment">// Command buffer from the iterator. Commands are applied automatically when</span></div>
 <div class="line"><span class="comment">// the iteration is over in a safe manner (takes into account other threads</span></div>
@@ -2654,15 +2672,23 @@ Delayed execution</h2>
 <div class="line">});</div>
 <div class="line"><span class="comment">// Make the queued command happen</span></div>
 <div class="line">cb.commit();</div>
-</div><!-- fragment --><p>If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.</p>
+</div><!-- fragment --><p>To replay every request, construct a plain buffer and commit it at a safe point:</p>
+<div class="fragment"><div class="line">ecs::CommandBufferPlainST cb(w);</div>
+<div class="line">cb.del&lt;Position&gt;(e);</div>
+<div class="line">cb.add&lt;Position&gt;(e, Position{1, 2, 3});</div>
+<div class="line">cb.commit();</div>
+</div><!-- fragment --><p>Plain commit preserves order across components and entities. A copy sees source mutations recorded before that copy; creation followed by deletion still creates and deletes the entity, including the intermediate notifications. Each instantiate record calls <code>World::instantiate</code> separately. Requests must form a valid sequence of <code>World</code> operations: a deleted entity cannot be used afterwards, and <code>set</code> requires the component to be present. Temporary handles may only be used in the buffer and batch that created them. MT recording order is lock acquisition order; competing threads have no predetermined order.</p>
+<p>Plain buffers avoid reduction overhead but perform every recorded mutation. Optimizing buffers can eliminate repeated writes and combine eligible table-component changes into one entity move. Measure recording plus commit for the actual workload when choosing between them; command count, storage, observers and recording order affect the tradeoff.</p>
+<p>If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.</p>
 <p>&gt;<b>NOTE:<br  />
-</b> There is one situation to be wary about with command buffers. Function <code>add</code> accepting a component as template argument needs to make sure that the component is registered in the component cache. If it is not, it will be inserted. Registering a component is a structural change, so it is not safe while the world is locked for query or system iteration. As a result, when used from multiple threads, both CommandBufferST and CommandBufferMT are also subject to race conditions. To avoid both cases, make sure that component T has been registered in the world already. If you already added the component to some entity before, everything is fine. If you did not, call this before you run your system or query: </p><div class="fragment"><div class="line"><span class="comment">// Register the component YourComponent in the world</span></div>
+</b> There is one situation to be wary about with command buffers. Function <code>add</code> accepting a component as template argument needs to make sure that the component is registered in the component cache. If it is not, it will be inserted. Registering a component is a structural change, so it is not safe while the world is locked for query or system iteration. As a result, component registration must be completed before recording from multiple threads, for both optimizing and plain buffers. To avoid both cases, make sure that component T has been registered in the world already. If you already added the component to some entity before, everything is fine. If you did not, call this before you run your system or query: </p><div class="fragment"><div class="line"><span class="comment">// Register the component YourComponent in the world</span></div>
 <div class="line">world.add&lt;YourComponent&gt;();</div>
 </div><!-- fragment --><p> &gt;Technically, template versions of functions <code>set</code> and <code>del</code> experience a similar issue. However, calling neither <code>set</code> nor <code>del</code> makes sense without a previous call to <code>add</code>. Such attempts are undefined behaviors (and reported by triggering an assertion).</p>
 <p>Relationship payloads use the same add/set data ops as components. <code>cb.add(entity, pair, value)</code> and <code>cb.set(entity, pair, value)</code> queue a write on the owner for that exact pair, matching <code>World::add(entity, pair, value)</code>. Structural <code>cb.add(entity, pair)</code> still attaches the pair without a payload. <code>cb.add&lt;T&gt;(pair, value)</code> writes component <code>T</code> on the pair record itself.</p>
+<p>Payload arguments are standalone C++ values, including types with a SoA layout. The command buffer serializes those values when recording and restores them into the component's storage layout at commit. Sparse payload construction remains in the sparse store; chunk transitions do not construct sparse data in table storage.</p>
 <h3><a class="anchor" id="command-merging-rules"></a>
 Command Merging rules</h3>
-<p>Before applying any operations to the world, the command buffer performs operation merging and cancellation to remove redundant or meaningless actions.</p>
+<p>The following rules apply to <code>CommandBufferST</code> and <code>CommandBufferMT</code>. Plain buffers do not merge or cancel requests.</p>
 <h4><a class="anchor" id="entity-merging"></a>
 Entity Merging</h4>
 <table class="markdownTable">
@@ -2681,21 +2707,34 @@ Entity Merging</h4>
 </table>
 <h4><a class="anchor" id="component-merging"></a>
 Component Merging</h4>
+<p>For each entity and component, a group containing a delete is reduced <b>in recorded order</b>, starting from membership at commit time. A delete ends the preceding component lifetime and discards its payload; a later add starts a new lifetime. Add/set-only groups still merge using the last recorded payload. Redundant deletes of an absent component within a merged group are skipped.</p>
 <table class="markdownTable">
 <tr class="markdownTableHead">
-<th class="markdownTableHeadNone">Sequence   </th><th class="markdownTableHeadNone">Result    </th></tr>
+<th class="markdownTableHeadNone">Sequence   </th><th class="markdownTableHeadNone">Result (when removal is allowed)    </th></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><code>add&lt;T&gt;(e)</code> + <code>set&lt;T&gt;(e, value)</code>   </td><td class="markdownTableBodyNone">Collapsed into <code>add&lt;T&gt;(e, value)</code>    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>add&lt;T&gt;(e, value1)</code> + <code>set&lt;T&gt;(e, value2)</code>   </td><td class="markdownTableBodyNone">Only the last value is used    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>add&lt;T&gt;(e)</code> + <code>del&lt;T&gt;(e)</code>   </td><td class="markdownTableBodyNone">No effect — component never added    </td></tr>
+<td class="markdownTableBodyNone"><code>add&lt;T&gt;(e)</code> + <code>del&lt;T&gt;(e)</code>   </td><td class="markdownTableBodyNone">Component absent, whether initially present or absent    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><code>add&lt;T&gt;(e, value)</code> + <code>del&lt;T&gt;(e)</code>   </td><td class="markdownTableBodyNone">No effect — component never added    </td></tr>
+<td class="markdownTableBodyNone"><code>add&lt;T&gt;(e, value)</code> + <code>del&lt;T&gt;(e)</code>   </td><td class="markdownTableBodyNone">Component absent, the discarded payload need not be written    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>set&lt;T&gt;(e, value1)</code> + <code>set&lt;T&gt;(e, value2)</code>   </td><td class="markdownTableBodyNone">Only the last value is used   </td></tr>
+<td class="markdownTableBodyNone"><code>del&lt;T&gt;(e)</code> + <code>add&lt;T&gt;(e, value)</code>   </td><td class="markdownTableBodyNone">Component present with the new value    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>del&lt;T&gt;(e)</code> + <code>add&lt;T&gt;(e)</code>   </td><td class="markdownTableBodyNone">Component present with normal fresh initialization    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><code>set&lt;T&gt;(e, value1)</code> + <code>set&lt;T&gt;(e, value2)</code>   </td><td class="markdownTableBodyNone">Only the last value is used    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>set&lt;T&gt;(e, value)</code> + <code>del&lt;T&gt;(e)</code>   </td><td class="markdownTableBodyNone">Component absent; observers/hooks retain preceding write visibility   </td></tr>
 </table>
-<p>Only the final state after all recorded operations is applied on commit. This means you can record commands freely, and the command buffer will merge your requests in such a way that the world update is always minimal and correct.</p>
+<p>For example, if <code>T</code> already holds <code>1</code>, <code>cb.del&lt;T&gt;(e); cb.add&lt;T&gt;(e, T{2}); cb.commit();</code> produces <code>2</code>, matching direct <code>World::del</code> followed by <code>World::add</code>. A bare re-add after an accepted deletion does not reuse an earlier payload. As with <code>World::set</code>, <code>set</code> requires a present component: after a successful removal, record an add before setting it again.</p>
+<p>Ordinary unobserved components apply only the surviving change: absent-to-absent groups do nothing, present-to-absent groups remove once, and present-to-present groups with a surviving payload reinitialize and write in place. A bare re-add also initializes in place when eligible; trivially default-constructed types receive no writes, as with normal default initialization. Intermediate writes and constructor calls may be omitted by reduction.</p>
+<p>A leading sequence of independent table-component groups on the same entity can share one <code>World::EntityBuilder</code> commit. The buffer checks that prefix before applying its final structural changes, moves the entity at most once for the prefix, then restores surviving payloads and reinitializes existing delete/re-add lifetimes. This reduces relocation of retained components as well as intermediate structural changes. The batch uses fixed inline storage up to the archetype component limit. The first group beyond that limit or with unsupported storage or behavior starts a suffix that uses the existing per-component path. Sparse or non-fragmenting storage, pairs, core ids, hooks, applicable observers, nontrivial destruction, and empty tags with custom constructors end the eligible prefix. World-wide dependency/combination policies or structural observers disable batching.</p>
+<p>Pairs, core ids, active hooks, and policy-sensitive groups retain ordered World replay. Components with nontrivial destruction and empty tags with custom constructors also retain replay. Worlds with <code>Requires</code> dependency or <code>CantCombine</code> policies, or any structural observers, conservatively use that replay path; an applicable <code>OnSet</code> observer also requires replay. This preserves required-component side effects, removal restrictions and observer/hook payload visibility, at the cost of the actual intermediate mutations. Entity creation/deletion cancellation remains as described above.</p>
+<p>These rules apply to both ST and MT buffers. In an MT buffer, recording order is the order in which calls acquire the buffer lock; competing threads do not have a predetermined order.</p>
+<p>Relationship operations retain their recorded order within each entity. Only consecutive requests for the same exact pair in that relationship sequence are merged; a request for another pair (including a wildcard) separates the groups.</p>
+<p>Commit still allocates surviving entity creations/copies/instances first, applies reduced component groups, then deletes entities. Reduction may omit intermediate writes, initialization and structural changes when they do not affect the retained ECS state or registered observers/hooks. Commit does not promise global replay of every <code>World</code> call across entities and components.</p>
 <h2><a class="anchor" id="systems"></a>
 Systems</h2>
 <h3><a class="anchor" id="system-basics"></a>

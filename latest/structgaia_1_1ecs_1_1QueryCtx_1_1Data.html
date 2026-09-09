@@ -132,6 +132,9 @@ Classes</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
+<tr class="memitem:ad32624f73fd6fce58590a90780fb7f7d" id="r_ad32624f73fd6fce58590a90780fb7f7d"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ad32624f73fd6fce58590a90780fb7f7d">has_match_terms</a> () const</td></tr>
+<tr class="memdesc:ad32624f73fd6fce58590a90780fb7f7d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether any term declares presence-only access.  <br /></td></tr>
+<tr class="separator:ad32624f73fd6fce58590a90780fb7f7d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7300e8b64fdeba7aed0136921b05de39" id="r_a7300e8b64fdeba7aed0136921b05de39"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a7300e8b64fdeba7aed0136921b05de39">ids_view</a> () const</td></tr>
 <tr class="memdesc:a7300e8b64fdeba7aed0136921b05de39"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns authored query ids in canonical execution order.  <br /></td></tr>
 <tr class="separator:a7300e8b64fdeba7aed0136921b05de39"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -147,6 +150,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a6ecb5e19b3d226717f28d40e4c53c4fd" id="r_a6ecb5e19b3d226717f28d40e4c53c4fd"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a6ecb5e19b3d226717f28d40e4c53c4fd">lookup_terms_view</a> () const</td></tr>
 <tr class="memdesc:a6ecb5e19b3d226717f28d40e4c53c4fd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns canonicalized lookup terms used by shared query deduplication.  <br /></td></tr>
 <tr class="separator:a6ecb5e19b3d226717f28d40e4c53c4fd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5ba742b855eae0df9429ffaf6f0a301e" id="r_a5ba742b855eae0df9429ffaf6f0a301e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a5ba742b855eae0df9429ffaf6f0a301e">uses_term_access_identity</a> () const</td></tr>
+<tr class="memdesc:a5ba742b855eae0df9429ffaf6f0a301e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether canonical term access and field order define query identity.  <br /></td></tr>
+<tr class="separator:a5ba742b855eae0df9429ffaf6f0a301e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a62a3118c1768965e93020580b5cba984" id="r_a62a3118c1768965e93020580b5cba984"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a62a3118c1768965e93020580b5cba984">lookup_terms_view_mut</a> ()</td></tr>
 <tr class="memdesc:a62a3118c1768965e93020580b5cba984"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns mutable canonicalized lookup terms used by shared query deduplication.  <br /></td></tr>
 <tr class="separator:a62a3118c1768965e93020580b5cba984"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -717,6 +723,34 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>canReuseDynamicCache<
 
 </div>
 </div>
+<a id="ad32624f73fd6fce58590a90780fb7f7d" name="ad32624f73fd6fce58590a90780fb7f7d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad32624f73fd6fce58590a90780fb7f7d">&#9670;&#160;</a></span>has_match_terms()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryCtx::Data::has_match_terms </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether any term declares presence-only access. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when the query contains QueryAccess::Match. </dd></dl>
+
+</div>
+</div>
 <a id="a4a9286cba3119a5f77e6422ebc53067e" name="a4a9286cba3119a5f77e6422ebc53067e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a4a9286cba3119a5f77e6422ebc53067e">&#9670;&#160;</a></span>has_sort_payload()</h2>
 
@@ -1155,6 +1189,34 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>canReuseDynamicCache<
 
 <p>Returns whether reusable dynamic-cache checks use a traversed source closure snapshot. </p>
 <dl class="section return"><dt>Returns</dt><dd>True when a traversed-source snapshot validates this dynamic cache. </dd></dl>
+
+</div>
+</div>
+<a id="a5ba742b855eae0df9429ffaf6f0a301e" name="a5ba742b855eae0df9429ffaf6f0a301e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5ba742b855eae0df9429ffaf6f0a301e">&#9670;&#160;</a></span>uses_term_access_identity()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryCtx::Data::uses_term_access_identity </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether canonical term access and field order define query identity. </p>
+<dl class="section return"><dt>Returns</dt><dd>True for presence-only or optional query terms. </dd></dl>
 
 </div>
 </div>

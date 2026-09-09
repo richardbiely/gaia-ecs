@@ -122,23 +122,25 @@ $(document).ready(function(){initNavTree('command__buffer__fwd_8h_source.html','
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span>    <span class="keyword">class </span>World;</div>
 <div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span> </div>
 <div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span>    <span class="keyword">namespace </span>detail {</div>
-<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> AccessContext&gt;</div>
+<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> AccessContext, <span class="keywordtype">bool</span> Optimize = true&gt;</div>
 <div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span>      <span class="keyword">class </span>CommandBuffer;</div>
 <div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span>    }</div>
 <div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span>    <span class="keyword">struct </span>AccessContextST;</div>
 <div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span>    <span class="keyword">struct </span>AccessContextMT;</div>
 <div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span>    <span class="keyword">using </span>CommandBufferST = detail::CommandBuffer&lt;AccessContextST&gt;;</div>
 <div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span>    <span class="keyword">using </span>CommandBufferMT = detail::CommandBuffer&lt;AccessContextMT&gt;;</div>
-<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span> </div>
-<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>    CommandBufferST* cmd_buffer_st_create(World&amp; world);</div>
-<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>    <span class="keywordtype">void</span> cmd_buffer_destroy(CommandBufferST&amp; cmdBuffer);</div>
-<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span>    <span class="keywordtype">void</span> cmd_buffer_commit(CommandBufferST&amp; cmdBuffer);</div>
-<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span> </div>
-<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>    CommandBufferMT* cmd_buffer_mt_create(World&amp; world);</div>
-<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>    <span class="keywordtype">void</span> cmd_buffer_destroy(CommandBufferMT&amp; cmdBuffer);</div>
-<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span>    <span class="keywordtype">void</span> cmd_buffer_commit(CommandBufferMT&amp; cmdBuffer);</div>
-<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>  } <span class="comment">// namespace ecs</span></div>
-<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>} <span class="comment">// namespace gaia</span></div>
+<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span>    <span class="keyword">using </span>CommandBufferPlainST = detail::CommandBuffer&lt;AccessContextST, false&gt;;</div>
+<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>    <span class="keyword">using </span>CommandBufferPlainMT = detail::CommandBuffer&lt;AccessContextMT, false&gt;;</div>
+<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span> </div>
+<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span>    CommandBufferST* cmd_buffer_st_create(World&amp; world);</div>
+<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>    <span class="keywordtype">void</span> cmd_buffer_destroy(CommandBufferST&amp; cmdBuffer);</div>
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>    <span class="keywordtype">void</span> cmd_buffer_commit(CommandBufferST&amp; cmdBuffer);</div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span> </div>
+<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span>    CommandBufferMT* cmd_buffer_mt_create(World&amp; world);</div>
+<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>    <span class="keywordtype">void</span> cmd_buffer_destroy(CommandBufferMT&amp; cmdBuffer);</div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>    <span class="keywordtype">void</span> cmd_buffer_commit(CommandBufferMT&amp; cmdBuffer);</div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>} <span class="comment">// namespace gaia</span></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

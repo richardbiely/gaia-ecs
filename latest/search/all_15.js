@@ -33,5 +33,6 @@ var searchData=
   ['uses_5fnon_5fdirect_5fis_5fmatching_30',['uses_non_direct_is_matching',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a76347c20a982a706185351de78f0cca0',1,'gaia::ecs::detail::QueryImpl']]],
   ['uses_5fpotential_5finherited_5fid_5fmatching_31',['uses_potential_inherited_id_matching',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ab1ceb0a442ca47a564f9cd65273428a7',1,'gaia::ecs::detail::QueryImpl']]],
   ['uses_5fsemantic_5fis_5fmatching_32',['uses_semantic_is_matching',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a3d172a73869aa6ae8c6a9eb81efdd61d',1,'gaia::ecs::detail::QueryImpl']]],
-  ['uses_5fsrc_5ftrav_5fsnapshot_33',['uses_src_trav_snapshot',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a44fef2e67cfb4f3bc18d719c0f219686',1,'gaia::ecs::QueryCtx::Data']]]
+  ['uses_5fsrc_5ftrav_5fsnapshot_33',['uses_src_trav_snapshot',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a44fef2e67cfb4f3bc18d719c0f219686',1,'gaia::ecs::QueryCtx::Data']]],
+  ['uses_5fterm_5faccess_5fidentity_34',['uses_term_access_identity',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a5ba742b855eae0df9429ffaf6f0a301e',1,'gaia::ecs::QueryCtx::Data']]]
 ];

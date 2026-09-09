@@ -292,6 +292,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>destroy</b> ()</td></
 <tr class="memitem:a59a4b01c0b837c7663b154b4d3ea9e47" id="r_a59a4b01c0b837c7663b154b4d3ea9e47"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a59a4b01c0b837c7663b154b4d3ea9e47">in</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1QueryTermOptions.html">QueryTermOptions</a> options=<a class="el" href="structgaia_1_1ecs_1_1QueryTermOptions.html">QueryTermOptions</a>{})</td></tr>
 <tr class="memdesc:a59a4b01c0b837c7663b154b4d3ea9e47"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds an inherited <code>in(entity)</code> requirement.  <br /></td></tr>
 <tr class="separator:a59a4b01c0b837c7663b154b4d3ea9e47"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7bb625f42bd06424b135c925f974212b" id="r_a7bb625f42bd06424b135c925f974212b"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a7bb625f42bd06424b135c925f974212b">no_access</a> ()</td></tr>
+<tr class="memdesc:a7bb625f42bd06424b135c925f974212b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Makes the preceding <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a50c530c703d95463e2a09c11ceac6c58" title="Adds a required typed term.">all()</a>, <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a0f7f8dac68bd251feb3181fae8690acd" title="Adds an OR typed term.">or_()</a>, or <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a44aceb299d8832301d7637fd7e0e2a0e" title="Adds an optional typed term.">any()</a> term presence-only. Call while building the query, before its first execution or fetch. Later terms keep their own access. Scans pending builder commands once and updates the term in place without growing the command buffer.  <br /></td></tr>
+<tr class="separator:a7bb625f42bd06424b135c925f974212b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac95afbb703fe6505908d75ec844e54b9" id="r_ac95afbb703fe6505908d75ec844e54b9"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ac95afbb703fe6505908d75ec844e54b9">all</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="structgaia_1_1ecs_1_1QueryTermOptions.html">QueryTermOptions</a> &amp;options=<a class="el" href="structgaia_1_1ecs_1_1QueryTermOptions.html">QueryTermOptions</a>{})</td></tr>
 <tr class="memdesc:ac95afbb703fe6505908d75ec844e54b9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a required entity or pair term.  <br /></td></tr>
 <tr class="separator:ac95afbb703fe6505908d75ec844e54b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -4233,6 +4236,34 @@ template&lt;typename T &gt; </div>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>Self reference. </dd></dl>
+
+</div>
+</div>
+<a id="a7bb625f42bd06424b135c925f974212b" name="a7bb625f42bd06424b135c925f974212b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7bb625f42bd06424b135c925f974212b">&#9670;&#160;</a></span>no_access()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp; gaia::ecs::detail::QueryImpl::no_access </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Makes the preceding <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a50c530c703d95463e2a09c11ceac6c58" title="Adds a required typed term.">all()</a>, <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a0f7f8dac68bd251feb3181fae8690acd" title="Adds an OR typed term.">or_()</a>, or <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a44aceb299d8832301d7637fd7e0e2a0e" title="Adds an optional typed term.">any()</a> term presence-only. Call while building the query, before its first execution or fetch. Later terms keep their own access. Scans pending builder commands once and updates the term in place without growing the command buffer. </p>
 <dl class="section return"><dt>Returns</dt><dd>Self reference. </dd></dl>
 
 </div>

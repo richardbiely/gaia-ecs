@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Gaia-ECS: gaia::ecs::detail::CommandBuffer&lt; AccessContext &gt; Class Template Reference</title>
+<title>Gaia-ECS: gaia::ecs::detail::CommandBuffer&lt; AccessContext, Optimize &gt; Class Template Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -110,7 +110,7 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1detail_1_1CommandB
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer-members.html">List of all members</a>  </div>
-  <div class="headertitle"><div class="title">gaia::ecs::detail::CommandBuffer&lt; AccessContext &gt; Class Template Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
+  <div class="headertitle"><div class="title">gaia::ecs::detail::CommandBuffer&lt; AccessContext, Optimize &gt; Class Template Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
 </div><!--header-->
 <div class="contents">
 
@@ -121,122 +121,123 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1detail_1_1CommandB
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:aa5a1814020b795414f5d8a3ef799366a" id="r_aa5a1814020b795414f5d8a3ef799366a"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#aa5a1814020b795414f5d8a3ef799366a">CommandBuffer</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world)</td></tr>
-<tr class="memdesc:aa5a1814020b795414f5d8a3ef799366a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a command buffer bound to <em>world</em>.  <br /></td></tr>
-<tr class="separator:aa5a1814020b795414f5d8a3ef799366a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a50349e544cca36fad6dfdb30ba34fad5" id="r_a50349e544cca36fad6dfdb30ba34fad5"><td class="memItemLeft" align="right" valign="top"><a id="a50349e544cca36fad6dfdb30ba34fad5" name="a50349e544cca36fad6dfdb30ba34fad5"></a>
+<tr class="memitem:a70bbbb4a7c593902a4545634f5ee232a" id="r_a70bbbb4a7c593902a4545634f5ee232a"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a70bbbb4a7c593902a4545634f5ee232a">CommandBuffer</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world)</td></tr>
+<tr class="memdesc:a70bbbb4a7c593902a4545634f5ee232a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a command buffer bound to <em>world</em>.  <br /></td></tr>
+<tr class="separator:a70bbbb4a7c593902a4545634f5ee232a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6abece33d87928677b79fee2d6a3dbc9" id="r_a6abece33d87928677b79fee2d6a3dbc9"><td class="memItemLeft" align="right" valign="top"><a id="a6abece33d87928677b79fee2d6a3dbc9" name="a6abece33d87928677b79fee2d6a3dbc9"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>CommandBuffer</b> (<a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">CommandBuffer</a> &amp;&amp;)=delete</td></tr>
-<tr class="separator:a50349e544cca36fad6dfdb30ba34fad5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aec439fdae2824fb8c5fe93ce910e2d7e" id="r_aec439fdae2824fb8c5fe93ce910e2d7e"><td class="memItemLeft" align="right" valign="top"><a id="aec439fdae2824fb8c5fe93ce910e2d7e" name="aec439fdae2824fb8c5fe93ce910e2d7e"></a>
+<tr class="separator:a6abece33d87928677b79fee2d6a3dbc9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a13b575d3e376ceb435b6369303fc8921" id="r_a13b575d3e376ceb435b6369303fc8921"><td class="memItemLeft" align="right" valign="top"><a id="a13b575d3e376ceb435b6369303fc8921" name="a13b575d3e376ceb435b6369303fc8921"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>CommandBuffer</b> (const <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">CommandBuffer</a> &amp;)=delete</td></tr>
-<tr class="separator:aec439fdae2824fb8c5fe93ce910e2d7e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acb8082f3eadab0f919c3052613274132" id="r_acb8082f3eadab0f919c3052613274132"><td class="memItemLeft" align="right" valign="top"><a id="acb8082f3eadab0f919c3052613274132" name="acb8082f3eadab0f919c3052613274132"></a>
+<tr class="separator:a13b575d3e376ceb435b6369303fc8921"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa60b3114bb84aee1b0bad6abc89f58e2" id="r_aa60b3114bb84aee1b0bad6abc89f58e2"><td class="memItemLeft" align="right" valign="top"><a id="aa60b3114bb84aee1b0bad6abc89f58e2" name="aa60b3114bb84aee1b0bad6abc89f58e2"></a>
 <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">CommandBuffer</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (<a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">CommandBuffer</a> &amp;&amp;)=delete</td></tr>
-<tr class="separator:acb8082f3eadab0f919c3052613274132"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad2fdf5bb6e82f7c79ce799b562db5d1e" id="r_ad2fdf5bb6e82f7c79ce799b562db5d1e"><td class="memItemLeft" align="right" valign="top"><a id="ad2fdf5bb6e82f7c79ce799b562db5d1e" name="ad2fdf5bb6e82f7c79ce799b562db5d1e"></a>
+<tr class="separator:aa60b3114bb84aee1b0bad6abc89f58e2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6900b4b775ee3655087767cd2fb51448" id="r_a6900b4b775ee3655087767cd2fb51448"><td class="memItemLeft" align="right" valign="top"><a id="a6900b4b775ee3655087767cd2fb51448" name="a6900b4b775ee3655087767cd2fb51448"></a>
 <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">CommandBuffer</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">CommandBuffer</a> &amp;)=delete</td></tr>
-<tr class="separator:ad2fdf5bb6e82f7c79ce799b562db5d1e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad7082c1724ca36b180d0f659fc12fb17" id="r_ad7082c1724ca36b180d0f659fc12fb17"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ad7082c1724ca36b180d0f659fc12fb17">add</a> ()</td></tr>
-<tr class="memdesc:ad7082c1724ca36b180d0f659fc12fb17"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a new entity to be created.  <br /></td></tr>
-<tr class="separator:ad7082c1724ca36b180d0f659fc12fb17"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac7e10dcac2560c331d13f92fdbfe0821" id="r_ac7e10dcac2560c331d13f92fdbfe0821"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ac7e10dcac2560c331d13f92fdbfe0821">copy</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entityFrom)</td></tr>
-<tr class="memdesc:ac7e10dcac2560c331d13f92fdbfe0821"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a new entity to be created by cloning an already existing entity.  <br /></td></tr>
-<tr class="separator:ac7e10dcac2560c331d13f92fdbfe0821"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a97877dec21eeef53607ec2a145ddc875" id="r_a97877dec21eeef53607ec2a145ddc875"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a97877dec21eeef53607ec2a145ddc875">instantiate</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity)</td></tr>
-<tr class="memdesc:a97877dec21eeef53607ec2a145ddc875"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a prefab to be instantiated as a normal entity. Commit replays through <a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689" title="Instantiates a prefab as a normal entity. The instance copies the prefab&#39;s direct data,...">World::instantiate</a>, including Prefab removal, the direct Pair(Is, prefab) edge, skipped names, OnInstantiate policies, and recursive prefab children. Non-prefab sources fall back to copy. Exact pair records are a valid source.  <br /></td></tr>
-<tr class="separator:a97877dec21eeef53607ec2a145ddc875"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a21eda0e9e51655a1da910516f77a704a" id="r_a21eda0e9e51655a1da910516f77a704a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a21eda0e9e51655a1da910516f77a704a">instantiate</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance)</td></tr>
-<tr class="memdesc:a21eda0e9e51655a1da910516f77a704a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a prefab to be instantiated as a normal entity parented under <em>parentInstance</em>. Commit replays through <a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689" title="Instantiates a prefab as a normal entity. The instance copies the prefab&#39;s direct data,...">World::instantiate</a>. Pair(Parent, parentInstance) is attached to the spawned root. Non-prefab sources fall back to a parented copy. Exact pair records are a valid source.  <br /></td></tr>
-<tr class="separator:a21eda0e9e51655a1da910516f77a704a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a32a657332bb5f4d1bc7b2cb1dbadeac1" id="r_a32a657332bb5f4d1bc7b2cb1dbadeac1"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a32a657332bb5f4d1bc7b2cb1dbadeac1">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, uint32_t count)</td></tr>
-<tr class="memdesc:a32a657332bb5f4d1bc7b2cb1dbadeac1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests <em>count</em> prefab instantiations. Commit groups matching records and replays them through <a class="el" href="classgaia_1_1ecs_1_1World.html#aaa988e2f9dc10937ae00ca17d6e1f7e6" title="Instantiates count copies of a prefab as normal root entities. Each instance copies the prefab&#39;s dire...">World::instantiate_n</a>.  <br /></td></tr>
-<tr class="separator:a32a657332bb5f4d1bc7b2cb1dbadeac1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a23d9812b38b5f5378802529beea1de86" id="r_a23d9812b38b5f5378802529beea1de86"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a23d9812b38b5f5378802529beea1de86">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance, uint32_t count)</td></tr>
-<tr class="memdesc:a23d9812b38b5f5378802529beea1de86"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests <em>count</em> prefab instantiations parented under <em>parentInstance</em>.  <br /></td></tr>
-<tr class="separator:a23d9812b38b5f5378802529beea1de86"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8520514262f5dc67e7c89fcbfee8fbdb" id="r_a8520514262f5dc67e7c89fcbfee8fbdb"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
-<tr class="memitem:a8520514262f5dc67e7c89fcbfee8fbdb"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a8520514262f5dc67e7c89fcbfee8fbdb">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, uint32_t count, Func func)</td></tr>
-<tr class="memdesc:a8520514262f5dc67e7c89fcbfee8fbdb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests <em>count</em> prefab instantiations and records per-instance commands. The callback runs immediately while recording and receives temporary entity handles, matching add and copy. <a class="el" href="classgaia_1_1ecs_1_1CopyIter.html" title="Iterator used when copying entities.">CopyIter</a> callbacks are World-only.  <br /></td></tr>
-<tr class="separator:a8520514262f5dc67e7c89fcbfee8fbdb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0da44c0483d55125d72982734d0875df" id="r_a0da44c0483d55125d72982734d0875df"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
-<tr class="memitem:a0da44c0483d55125d72982734d0875df"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a0da44c0483d55125d72982734d0875df">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance, uint32_t count, Func func)</td></tr>
-<tr class="memdesc:a0da44c0483d55125d72982734d0875df"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests <em>count</em> prefab instantiations parented under <em>parentInstance</em> and records per-instance commands. The callback runs immediately while recording and receives temporary entity handles, matching add and copy. <a class="el" href="classgaia_1_1ecs_1_1CopyIter.html" title="Iterator used when copying entities.">CopyIter</a> callbacks are World-only.  <br /></td></tr>
-<tr class="separator:a0da44c0483d55125d72982734d0875df"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a03af1860a176d3fb9c7619c0d5d337c0" id="r_a03af1860a176d3fb9c7619c0d5d337c0"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a03af1860a176d3fb9c7619c0d5d337c0"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a03af1860a176d3fb9c7619c0d5d337c0">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
-<tr class="memdesc:a03af1860a176d3fb9c7619c0d5d337c0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a component <em>T</em> to be added to <em>entity</em>.  <br /></td></tr>
-<tr class="separator:a03af1860a176d3fb9c7619c0d5d337c0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a01a59c16ea0a57aef920b2549bea46a4" id="r_a01a59c16ea0a57aef920b2549bea46a4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a01a59c16ea0a57aef920b2549bea46a4">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> other)</td></tr>
-<tr class="memdesc:a01a59c16ea0a57aef920b2549bea46a4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests an entity <em>other</em> to be added to entity <em>entity</em>.  <br /></td></tr>
-<tr class="separator:a01a59c16ea0a57aef920b2549bea46a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6dd8ec4aae2d21ce5354bd82cea0d99f" id="r_a6dd8ec4aae2d21ce5354bd82cea0d99f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a6dd8ec4aae2d21ce5354bd82cea0d99f">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>)</td></tr>
-<tr class="memdesc:a6dd8ec4aae2d21ce5354bd82cea0d99f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a relationship pair to be added to entity <em>entity</em>.  <br /></td></tr>
-<tr class="separator:a6dd8ec4aae2d21ce5354bd82cea0d99f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7ca1cb87cfb074f706870f5fbfe45970" id="r_a7ca1cb87cfb074f706870f5fbfe45970"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a7ca1cb87cfb074f706870f5fbfe45970"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7ca1cb87cfb074f706870f5fbfe45970">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object, T &amp;&amp;value)</td></tr>
-<tr class="memdesc:a7ca1cb87cfb074f706870f5fbfe45970"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a component identified by <em>object</em> to be added to <em>entity</em>. Also sets its value.  <br /></td></tr>
-<tr class="separator:a7ca1cb87cfb074f706870f5fbfe45970"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0f79ad6b9a5b7f89b9beee7ab10c8a33" id="r_a0f79ad6b9a5b7f89b9beee7ab10c8a33"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a0f79ad6b9a5b7f89b9beee7ab10c8a33"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a0f79ad6b9a5b7f89b9beee7ab10c8a33">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>, T &amp;&amp;value)</td></tr>
-<tr class="memdesc:a0f79ad6b9a5b7f89b9beee7ab10c8a33"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a relationship pair to be added to <em>entity</em>. Also sets its payload.  <br /></td></tr>
-<tr class="separator:a0f79ad6b9a5b7f89b9beee7ab10c8a33"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aaad838857370b6ff135d71c38ff3e5a3" id="r_aaad838857370b6ff135d71c38ff3e5a3"><td class="memTemplParams" colspan="2">template&lt;typename T , std::enable_if_t&lt;!<a class="el" href="structgaia_1_1ecs_1_1is__pair.html">is_pair</a>&lt; std::remove_cv_t&lt; std::remove_reference_t&lt; T &gt; &gt; &gt;::value, int &gt;  = 0&gt; </td></tr>
-<tr class="memitem:aaad838857370b6ff135d71c38ff3e5a3"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#aaad838857370b6ff135d71c38ff3e5a3">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, T &amp;&amp;value)</td></tr>
-<tr class="memdesc:aaad838857370b6ff135d71c38ff3e5a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a component <em>T</em> to be added to entity. Also sets its value.  <br /></td></tr>
-<tr class="separator:aaad838857370b6ff135d71c38ff3e5a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad3553ec0e683738e595fa0894bd3be50" id="r_ad3553ec0e683738e595fa0894bd3be50"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:ad3553ec0e683738e595fa0894bd3be50"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ad3553ec0e683738e595fa0894bd3be50">set</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, T &amp;&amp;value)</td></tr>
-<tr class="memdesc:ad3553ec0e683738e595fa0894bd3be50"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests component data to be set to given values for a given entity.  <br /></td></tr>
-<tr class="separator:ad3553ec0e683738e595fa0894bd3be50"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a87b4db76bf3917e1d6d4123961d9b681" id="r_a87b4db76bf3917e1d6d4123961d9b681"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a87b4db76bf3917e1d6d4123961d9b681"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a87b4db76bf3917e1d6d4123961d9b681">set</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object, T &amp;&amp;value)</td></tr>
-<tr class="memdesc:a87b4db76bf3917e1d6d4123961d9b681"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests component data identified by <em>object</em> to be set on <em>entity</em>.  <br /></td></tr>
-<tr class="separator:a87b4db76bf3917e1d6d4123961d9b681"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa6a306459396ecc9bd190293ad3e57b1" id="r_aa6a306459396ecc9bd190293ad3e57b1"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:aa6a306459396ecc9bd190293ad3e57b1"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#aa6a306459396ecc9bd190293ad3e57b1">set</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>, T &amp;&amp;value)</td></tr>
-<tr class="memdesc:aa6a306459396ecc9bd190293ad3e57b1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests relationship payload identified by <em>pair</em> to be set on <em>entity</em>.  <br /></td></tr>
-<tr class="separator:aa6a306459396ecc9bd190293ad3e57b1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3e59265a3b6b69a8ae40311bd75bfbcf" id="r_a3e59265a3b6b69a8ae40311bd75bfbcf"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a3e59265a3b6b69a8ae40311bd75bfbcf">del</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
-<tr class="memdesc:a3e59265a3b6b69a8ae40311bd75bfbcf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests an existing <em>entity</em> to be removed.  <br /></td></tr>
-<tr class="separator:a3e59265a3b6b69a8ae40311bd75bfbcf"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac7eedd3e028580614093c1319358a410" id="r_ac7eedd3e028580614093c1319358a410"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:ac7eedd3e028580614093c1319358a410"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ac7eedd3e028580614093c1319358a410">del</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
-<tr class="memdesc:ac7eedd3e028580614093c1319358a410"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests removal of component <em>T</em> from <em>entity</em>.  <br /></td></tr>
-<tr class="separator:ac7eedd3e028580614093c1319358a410"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad4e8bf7b832dc14d12ca321492ad824d" id="r_ad4e8bf7b832dc14d12ca321492ad824d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ad4e8bf7b832dc14d12ca321492ad824d">del</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
-<tr class="memdesc:ad4e8bf7b832dc14d12ca321492ad824d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests removal of entity <em>object</em> from entity <em>entity</em>.  <br /></td></tr>
-<tr class="separator:ad4e8bf7b832dc14d12ca321492ad824d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad73e3d38578a6013daf2ec4607738424" id="r_ad73e3d38578a6013daf2ec4607738424"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ad73e3d38578a6013daf2ec4607738424">del</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>)</td></tr>
-<tr class="memdesc:ad73e3d38578a6013daf2ec4607738424"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests removal of a relationship pair from entity <em>entity</em>.  <br /></td></tr>
-<tr class="separator:ad73e3d38578a6013daf2ec4607738424"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7031a0a1fc0707d1e0c9249c0af3dd24" id="r_a7031a0a1fc0707d1e0c9249c0af3dd24"><td class="memItemLeft" align="right" valign="top"><a id="a7031a0a1fc0707d1e0c9249c0af3dd24" name="a7031a0a1fc0707d1e0c9249c0af3dd24"></a>
+<tr class="separator:a6900b4b775ee3655087767cd2fb51448"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa43caa0ab5f9f1e14ab6dc72d2330e6f" id="r_aa43caa0ab5f9f1e14ab6dc72d2330e6f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#aa43caa0ab5f9f1e14ab6dc72d2330e6f">add</a> ()</td></tr>
+<tr class="memdesc:aa43caa0ab5f9f1e14ab6dc72d2330e6f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a new entity to be created.  <br /></td></tr>
+<tr class="separator:aa43caa0ab5f9f1e14ab6dc72d2330e6f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a32b55cd2db5da22dafaf8fc473b80f29" id="r_a32b55cd2db5da22dafaf8fc473b80f29"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a32b55cd2db5da22dafaf8fc473b80f29">copy</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entityFrom)</td></tr>
+<tr class="memdesc:a32b55cd2db5da22dafaf8fc473b80f29"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a new entity to be created by cloning an already existing entity.  <br /></td></tr>
+<tr class="separator:a32b55cd2db5da22dafaf8fc473b80f29"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a709f42a6cd19582d8bd3e2e7a706a7e7" id="r_a709f42a6cd19582d8bd3e2e7a706a7e7"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a709f42a6cd19582d8bd3e2e7a706a7e7">instantiate</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity)</td></tr>
+<tr class="memdesc:a709f42a6cd19582d8bd3e2e7a706a7e7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a prefab to be instantiated as a normal entity. Commit replays through <a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689" title="Instantiates a prefab as a normal entity. The instance copies the prefab&#39;s direct data,...">World::instantiate</a>, including Prefab removal, the direct Pair(Is, prefab) edge, skipped names, OnInstantiate policies, and recursive prefab children. Non-prefab sources fall back to copy. Exact pair records are a valid source.  <br /></td></tr>
+<tr class="separator:a709f42a6cd19582d8bd3e2e7a706a7e7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a29bd175c5defb9af68e2851d8a3db058" id="r_a29bd175c5defb9af68e2851d8a3db058"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a29bd175c5defb9af68e2851d8a3db058">instantiate</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance)</td></tr>
+<tr class="memdesc:a29bd175c5defb9af68e2851d8a3db058"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a prefab to be instantiated as a normal entity parented under <em>parentInstance</em>. Commit replays through <a class="el" href="classgaia_1_1ecs_1_1World.html#ade94b4eb23ba6988d7963ff8e1cba689" title="Instantiates a prefab as a normal entity. The instance copies the prefab&#39;s direct data,...">World::instantiate</a>. Pair(Parent, parentInstance) is attached to the spawned root. Non-prefab sources fall back to a parented copy. Exact pair records are a valid source.  <br /></td></tr>
+<tr class="separator:a29bd175c5defb9af68e2851d8a3db058"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a63220e31d8d6fc7a0e516f0a63fe6f46" id="r_a63220e31d8d6fc7a0e516f0a63fe6f46"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a63220e31d8d6fc7a0e516f0a63fe6f46">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, uint32_t count)</td></tr>
+<tr class="memdesc:a63220e31d8d6fc7a0e516f0a63fe6f46"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests <em>count</em> prefab instantiations. Optimizing buffers group matching records through <a class="el" href="classgaia_1_1ecs_1_1World.html#aaa988e2f9dc10937ae00ca17d6e1f7e6" title="Instantiates count copies of a prefab as normal root entities. Each instance copies the prefab&#39;s dire...">World::instantiate_n</a>; plain buffers replay each instance.  <br /></td></tr>
+<tr class="separator:a63220e31d8d6fc7a0e516f0a63fe6f46"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:addde04f19268cb1ef1cf6f8584120a5a" id="r_addde04f19268cb1ef1cf6f8584120a5a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#addde04f19268cb1ef1cf6f8584120a5a">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance, uint32_t count)</td></tr>
+<tr class="memdesc:addde04f19268cb1ef1cf6f8584120a5a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests <em>count</em> prefab instantiations parented under <em>parentInstance</em>.  <br /></td></tr>
+<tr class="separator:addde04f19268cb1ef1cf6f8584120a5a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1dc32228f1bfa928c4ddfa4088da45f6" id="r_a1dc32228f1bfa928c4ddfa4088da45f6"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
+<tr class="memitem:a1dc32228f1bfa928c4ddfa4088da45f6"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a1dc32228f1bfa928c4ddfa4088da45f6">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, uint32_t count, Func func)</td></tr>
+<tr class="memdesc:a1dc32228f1bfa928c4ddfa4088da45f6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests <em>count</em> prefab instantiations and records per-instance commands. The callback runs immediately while recording and receives temporary entity handles, matching add and copy. <a class="el" href="classgaia_1_1ecs_1_1CopyIter.html" title="Iterator used when copying entities.">CopyIter</a> callbacks are World-only.  <br /></td></tr>
+<tr class="separator:a1dc32228f1bfa928c4ddfa4088da45f6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a71543671229e8294c56b61338f90ff2d" id="r_a71543671229e8294c56b61338f90ff2d"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
+<tr class="memitem:a71543671229e8294c56b61338f90ff2d"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a71543671229e8294c56b61338f90ff2d">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance, uint32_t count, Func func)</td></tr>
+<tr class="memdesc:a71543671229e8294c56b61338f90ff2d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests <em>count</em> prefab instantiations parented under <em>parentInstance</em> and records per-instance commands. The callback runs immediately while recording and receives temporary entity handles, matching add and copy. <a class="el" href="classgaia_1_1ecs_1_1CopyIter.html" title="Iterator used when copying entities.">CopyIter</a> callbacks are World-only.  <br /></td></tr>
+<tr class="separator:a71543671229e8294c56b61338f90ff2d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a46a31502cc25a62bf67292b135f928a3" id="r_a46a31502cc25a62bf67292b135f928a3"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a46a31502cc25a62bf67292b135f928a3"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a46a31502cc25a62bf67292b135f928a3">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:a46a31502cc25a62bf67292b135f928a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a component <em>T</em> to be added to <em>entity</em>.  <br /></td></tr>
+<tr class="separator:a46a31502cc25a62bf67292b135f928a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a718e2c8afa7c65d9de4a337c49e0b011" id="r_a718e2c8afa7c65d9de4a337c49e0b011"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a718e2c8afa7c65d9de4a337c49e0b011">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> other)</td></tr>
+<tr class="memdesc:a718e2c8afa7c65d9de4a337c49e0b011"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests an entity <em>other</em> to be added to entity <em>entity</em>.  <br /></td></tr>
+<tr class="separator:a718e2c8afa7c65d9de4a337c49e0b011"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a424fbccb76a5d2b1ee308c5a82dd7d50" id="r_a424fbccb76a5d2b1ee308c5a82dd7d50"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a424fbccb76a5d2b1ee308c5a82dd7d50">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>)</td></tr>
+<tr class="memdesc:a424fbccb76a5d2b1ee308c5a82dd7d50"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a relationship pair to be added to entity <em>entity</em>.  <br /></td></tr>
+<tr class="separator:a424fbccb76a5d2b1ee308c5a82dd7d50"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adbdbbb12a7638cb78a29ca95b32ef55e" id="r_adbdbbb12a7638cb78a29ca95b32ef55e"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:adbdbbb12a7638cb78a29ca95b32ef55e"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#adbdbbb12a7638cb78a29ca95b32ef55e">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object, T &amp;&amp;value)</td></tr>
+<tr class="memdesc:adbdbbb12a7638cb78a29ca95b32ef55e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a component identified by <em>object</em> to be added to <em>entity</em>. Also sets its value.  <br /></td></tr>
+<tr class="separator:adbdbbb12a7638cb78a29ca95b32ef55e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a81ff4e3673dc16980fa3775365da6975" id="r_a81ff4e3673dc16980fa3775365da6975"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a81ff4e3673dc16980fa3775365da6975"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a81ff4e3673dc16980fa3775365da6975">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>, T &amp;&amp;value)</td></tr>
+<tr class="memdesc:a81ff4e3673dc16980fa3775365da6975"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a relationship pair to be added to <em>entity</em>. Also sets its payload.  <br /></td></tr>
+<tr class="separator:a81ff4e3673dc16980fa3775365da6975"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8893d38a24c8e4dbe7efe0bdbe684812" id="r_a8893d38a24c8e4dbe7efe0bdbe684812"><td class="memTemplParams" colspan="2">template&lt;typename T , std::enable_if_t&lt;!<a class="el" href="structgaia_1_1ecs_1_1is__pair.html">is_pair</a>&lt; std::remove_cv_t&lt; std::remove_reference_t&lt; T &gt; &gt; &gt;::value, int &gt;  = 0&gt; </td></tr>
+<tr class="memitem:a8893d38a24c8e4dbe7efe0bdbe684812"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a8893d38a24c8e4dbe7efe0bdbe684812">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, T &amp;&amp;value)</td></tr>
+<tr class="memdesc:a8893d38a24c8e4dbe7efe0bdbe684812"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a component <em>T</em> to be added to entity. Also sets its value.  <br /></td></tr>
+<tr class="separator:a8893d38a24c8e4dbe7efe0bdbe684812"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8ac5bd9271cece9411c23a3f75236a5a" id="r_a8ac5bd9271cece9411c23a3f75236a5a"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a8ac5bd9271cece9411c23a3f75236a5a"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a8ac5bd9271cece9411c23a3f75236a5a">set</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, T &amp;&amp;value)</td></tr>
+<tr class="memdesc:a8ac5bd9271cece9411c23a3f75236a5a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests component data to be set to given values for a given entity.  <br /></td></tr>
+<tr class="separator:a8ac5bd9271cece9411c23a3f75236a5a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a356a557fbe3752099d4a1abe6b71b8a5" id="r_a356a557fbe3752099d4a1abe6b71b8a5"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a356a557fbe3752099d4a1abe6b71b8a5"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a356a557fbe3752099d4a1abe6b71b8a5">set</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object, T &amp;&amp;value)</td></tr>
+<tr class="memdesc:a356a557fbe3752099d4a1abe6b71b8a5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests component data identified by <em>object</em> to be set on <em>entity</em>.  <br /></td></tr>
+<tr class="separator:a356a557fbe3752099d4a1abe6b71b8a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5d89dbbc708f552aada61060be3f0644" id="r_a5d89dbbc708f552aada61060be3f0644"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a5d89dbbc708f552aada61060be3f0644"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a5d89dbbc708f552aada61060be3f0644">set</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>, T &amp;&amp;value)</td></tr>
+<tr class="memdesc:a5d89dbbc708f552aada61060be3f0644"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests relationship payload identified by <em>pair</em> to be set on <em>entity</em>.  <br /></td></tr>
+<tr class="separator:a5d89dbbc708f552aada61060be3f0644"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a26b8c93c2eea8fcf964bad120da98eb4" id="r_a26b8c93c2eea8fcf964bad120da98eb4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a26b8c93c2eea8fcf964bad120da98eb4">del</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:a26b8c93c2eea8fcf964bad120da98eb4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests an existing <em>entity</em> to be removed.  <br /></td></tr>
+<tr class="separator:a26b8c93c2eea8fcf964bad120da98eb4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9008f6c1deb2a067d1efd8e445b20c3c" id="r_a9008f6c1deb2a067d1efd8e445b20c3c"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a9008f6c1deb2a067d1efd8e445b20c3c"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a9008f6c1deb2a067d1efd8e445b20c3c">del</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:a9008f6c1deb2a067d1efd8e445b20c3c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests removal of component <em>T</em> from <em>entity</em>.  <br /></td></tr>
+<tr class="separator:a9008f6c1deb2a067d1efd8e445b20c3c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2fde6e2153178a856071e00ea47717c6" id="r_a2fde6e2153178a856071e00ea47717c6"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a2fde6e2153178a856071e00ea47717c6">del</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
+<tr class="memdesc:a2fde6e2153178a856071e00ea47717c6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests removal of entity <em>object</em> from entity <em>entity</em>.  <br /></td></tr>
+<tr class="separator:a2fde6e2153178a856071e00ea47717c6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a19a1b69df502604ef410b95bd9c01558" id="r_a19a1b69df502604ef410b95bd9c01558"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a19a1b69df502604ef410b95bd9c01558">del</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>)</td></tr>
+<tr class="memdesc:a19a1b69df502604ef410b95bd9c01558"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests removal of a relationship pair from entity <em>entity</em>.  <br /></td></tr>
+<tr class="separator:a19a1b69df502604ef410b95bd9c01558"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae09c25e0d46adb42274641baf36e2a9a" id="r_ae09c25e0d46adb42274641baf36e2a9a"><td class="memItemLeft" align="right" valign="top"><a id="ae09c25e0d46adb42274641baf36e2a9a" name="ae09c25e0d46adb42274641baf36e2a9a"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>commit</b> ()</td></tr>
-<tr class="memdesc:a7031a0a1fc0707d1e0c9249c0af3dd24"><td class="mdescLeft">&#160;</td><td class="mdescRight">Commits all queued changes. <a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> create, copy, and instantiate records are allocated first, then component operations are merged and replayed, then entity deletions are applied. <br /></td></tr>
-<tr class="separator:a7031a0a1fc0707d1e0c9249c0af3dd24"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memdesc:ae09c25e0d46adb42274641baf36e2a9a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Commits all queued changes. Plain buffers replay every request in recorded order, including entity creation and deletion. In optimizing buffers, entity create, copy, and instantiate records are allocated first, then component operations are merged and replayed, then entity deletions are applied. <a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> groups containing a delete reduce in recorded order from initial membership. Independent table-component groups can share one entity-builder commit before payload replay. Observable or policy-sensitive groups replay through <a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a>. Groups with only adds and sets merge using the last payload. Relationship operations retain their order per entity and merge only consecutive requests for the same pair. Optimizing commit does not promise global replay order across entities and components. <br /></td></tr>
+<tr class="separator:ae09c25e0d46adb42274641baf36e2a9a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><div class="compoundTemplParams">template&lt;typename AccessContext&gt;<br />
-class gaia::ecs::detail::CommandBuffer&lt; AccessContext &gt;</div><p>Buffer for deferred execution of some operations on entities. </p>
+<div class="textblock"><div class="compoundTemplParams">template&lt;typename AccessContext, bool Optimize&gt;<br />
+class gaia::ecs::detail::CommandBuffer&lt; AccessContext, Optimize &gt;</div><p>Buffer for deferred execution of some operations on entities. </p>
 <p>Adding, removing, copying, or instantiating entities inside World::each can result in changes of archetypes or chunk structure. This would lead to an undefined behavior. Therefore, such operations have to be executed after the loop is done. </p><dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">AccessContext</td><td>Access guard. <a class="el" href="structgaia_1_1ecs_1_1AccessContextST.html" title="Single-threaded command-buffer access guard. Locking is a no-op.">AccessContextST</a> for single-threaded recording, <a class="el" href="structgaia_1_1ecs_1_1AccessContextMT.html" title="Multi-threaded command-buffer access guard backed by a spin lock.">AccessContextMT</a> when multiple threads record into the same buffer. </td></tr>
+    <tr><td class="paramname">Optimize</td><td>Merge and batch operations when true; replay each request in recorded order when false. </td></tr>
   </table>
   </dd>
 </dl>
 </div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
-<a id="aa5a1814020b795414f5d8a3ef799366a" name="aa5a1814020b795414f5d8a3ef799366a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa5a1814020b795414f5d8a3ef799366a">&#9670;&#160;</a></span>CommandBuffer()</h2>
+<a id="a70bbbb4a7c593902a4545634f5ee232a" name="a70bbbb4a7c593902a4545634f5ee232a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a70bbbb4a7c593902a4545634f5ee232a">&#9670;&#160;</a></span>CommandBuffer()</h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::CommandBuffer </td>
+          <td class="memname"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::CommandBuffer </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td>
           <td class="paramname"><em>world</em></td><td>)</td>
@@ -261,19 +262,19 @@ template&lt;typename AccessContext &gt; </div>
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
-<a id="ad7082c1724ca36b180d0f659fc12fb17" name="ad7082c1724ca36b180d0f659fc12fb17"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad7082c1724ca36b180d0f659fc12fb17">&#9670;&#160;</a></span>add() <span class="overload">[1/7]</span></h2>
+<a id="aa43caa0ab5f9f1e14ab6dc72d2330e6f" name="aa43caa0ab5f9f1e14ab6dc72d2330e6f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa43caa0ab5f9f1e14ab6dc72d2330e6f">&#9670;&#160;</a></span>add() <span class="overload">[1/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::add </td>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::add </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -287,17 +288,17 @@ template&lt;typename AccessContext &gt; </div>
 </div><div class="memdoc">
 
 <p>Requests a new entity to be created. </p>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> that will be created. The id is not usable right away. It will be filled with proper data after <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7031a0a1fc0707d1e0c9249c0af3dd24" title="Commits all queued changes. Entity create, copy, and instantiate records are allocated first,...">commit()</a>. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> that will be created. The id is not usable right away. It will be filled with proper data after <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ae09c25e0d46adb42274641baf36e2a9a" title="Commits all queued changes. Plain buffers replay every request in recorded order, including entity cr...">commit()</a>. </dd></dl>
 
 </div>
 </div>
-<a id="a03af1860a176d3fb9c7619c0d5d337c0" name="a03af1860a176d3fb9c7619c0d5d337c0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a03af1860a176d3fb9c7619c0d5d337c0">&#9670;&#160;</a></span>add() <span class="overload">[2/7]</span></h2>
+<a id="a46a31502cc25a62bf67292b135f928a3" name="a46a31502cc25a62bf67292b135f928a3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a46a31502cc25a62bf67292b135f928a3">&#9670;&#160;</a></span>add() <span class="overload">[2/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <div class="memtemplate">
 template&lt;typename T &gt; </div>
 <table class="mlabels">
@@ -305,7 +306,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::add </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::add </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em></td><td>)</td>
@@ -336,19 +337,19 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="a6dd8ec4aae2d21ce5354bd82cea0d99f" name="a6dd8ec4aae2d21ce5354bd82cea0d99f"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6dd8ec4aae2d21ce5354bd82cea0d99f">&#9670;&#160;</a></span>add() <span class="overload">[3/7]</span></h2>
+<a id="a424fbccb76a5d2b1ee308c5a82dd7d50" name="a424fbccb76a5d2b1ee308c5a82dd7d50"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a424fbccb76a5d2b1ee308c5a82dd7d50">&#9670;&#160;</a></span>add() <span class="overload">[3/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::add </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::add </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em>, </td>
@@ -383,13 +384,13 @@ template&lt;typename AccessContext &gt; </div>
 
 </div>
 </div>
-<a id="a0f79ad6b9a5b7f89b9beee7ab10c8a33" name="a0f79ad6b9a5b7f89b9beee7ab10c8a33"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a0f79ad6b9a5b7f89b9beee7ab10c8a33">&#9670;&#160;</a></span>add() <span class="overload">[4/7]</span></h2>
+<a id="a81ff4e3673dc16980fa3775365da6975" name="a81ff4e3673dc16980fa3775365da6975"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a81ff4e3673dc16980fa3775365da6975">&#9670;&#160;</a></span>add() <span class="overload">[4/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <div class="memtemplate">
 template&lt;typename T &gt; </div>
 <table class="mlabels">
@@ -397,7 +398,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::add </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::add </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em>, </td>
@@ -446,13 +447,13 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="a7ca1cb87cfb074f706870f5fbfe45970" name="a7ca1cb87cfb074f706870f5fbfe45970"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a7ca1cb87cfb074f706870f5fbfe45970">&#9670;&#160;</a></span>add() <span class="overload">[5/7]</span></h2>
+<a id="adbdbbb12a7638cb78a29ca95b32ef55e" name="adbdbbb12a7638cb78a29ca95b32ef55e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#adbdbbb12a7638cb78a29ca95b32ef55e">&#9670;&#160;</a></span>add() <span class="overload">[5/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <div class="memtemplate">
 template&lt;typename T &gt; </div>
 <table class="mlabels">
@@ -460,7 +461,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::add </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::add </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em>, </td>
@@ -509,19 +510,19 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="a01a59c16ea0a57aef920b2549bea46a4" name="a01a59c16ea0a57aef920b2549bea46a4"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a01a59c16ea0a57aef920b2549bea46a4">&#9670;&#160;</a></span>add() <span class="overload">[6/7]</span></h2>
+<a id="a718e2c8afa7c65d9de4a337c49e0b011" name="a718e2c8afa7c65d9de4a337c49e0b011"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a718e2c8afa7c65d9de4a337c49e0b011">&#9670;&#160;</a></span>add() <span class="overload">[6/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::add </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::add </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em>, </td>
@@ -556,13 +557,13 @@ template&lt;typename AccessContext &gt; </div>
 
 </div>
 </div>
-<a id="aaad838857370b6ff135d71c38ff3e5a3" name="aaad838857370b6ff135d71c38ff3e5a3"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aaad838857370b6ff135d71c38ff3e5a3">&#9670;&#160;</a></span>add() <span class="overload">[7/7]</span></h2>
+<a id="a8893d38a24c8e4dbe7efe0bdbe684812" name="a8893d38a24c8e4dbe7efe0bdbe684812"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8893d38a24c8e4dbe7efe0bdbe684812">&#9670;&#160;</a></span>add() <span class="overload">[7/7]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <div class="memtemplate">
 template&lt;typename T , std::enable_if_t&lt;!<a class="el" href="structgaia_1_1ecs_1_1is__pair.html">is_pair</a>&lt; std::remove_cv_t&lt; std::remove_reference_t&lt; T &gt; &gt; &gt;::value, int &gt;  = 0&gt; </div>
 <table class="mlabels">
@@ -570,7 +571,7 @@ template&lt;typename T , std::enable_if_t&lt;!<a class="el" href="structgaia_1_1
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::add </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::add </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em>, </td>
@@ -612,19 +613,19 @@ template&lt;typename T , std::enable_if_t&lt;!<a class="el" href="structgaia_1_1
 
 </div>
 </div>
-<a id="ac7e10dcac2560c331d13f92fdbfe0821" name="ac7e10dcac2560c331d13f92fdbfe0821"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac7e10dcac2560c331d13f92fdbfe0821">&#9670;&#160;</a></span>copy()</h2>
+<a id="a32b55cd2db5da22dafaf8fc473b80f29" name="a32b55cd2db5da22dafaf8fc473b80f29"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a32b55cd2db5da22dafaf8fc473b80f29">&#9670;&#160;</a></span>copy()</h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::copy </td>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::copy </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entityFrom</em></td><td>)</td>
@@ -645,23 +646,23 @@ template&lt;typename AccessContext &gt; </div>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> that will be created. The id is not usable right away. It will be filled with proper data after <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7031a0a1fc0707d1e0c9249c0af3dd24" title="Commits all queued changes. Entity create, copy, and instantiate records are allocated first,...">commit()</a>. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> that will be created. The id is not usable right away. It will be filled with proper data after <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ae09c25e0d46adb42274641baf36e2a9a" title="Commits all queued changes. Plain buffers replay every request in recorded order, including entity cr...">commit()</a>. </dd></dl>
 
 </div>
 </div>
-<a id="a3e59265a3b6b69a8ae40311bd75bfbcf" name="a3e59265a3b6b69a8ae40311bd75bfbcf"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3e59265a3b6b69a8ae40311bd75bfbcf">&#9670;&#160;</a></span>del() <span class="overload">[1/4]</span></h2>
+<a id="a26b8c93c2eea8fcf964bad120da98eb4" name="a26b8c93c2eea8fcf964bad120da98eb4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a26b8c93c2eea8fcf964bad120da98eb4">&#9670;&#160;</a></span>del() <span class="overload">[1/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::del </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::del </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em></td><td>)</td>
@@ -685,13 +686,13 @@ template&lt;typename AccessContext &gt; </div>
 
 </div>
 </div>
-<a id="ac7eedd3e028580614093c1319358a410" name="ac7eedd3e028580614093c1319358a410"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac7eedd3e028580614093c1319358a410">&#9670;&#160;</a></span>del() <span class="overload">[2/4]</span></h2>
+<a id="a9008f6c1deb2a067d1efd8e445b20c3c" name="a9008f6c1deb2a067d1efd8e445b20c3c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9008f6c1deb2a067d1efd8e445b20c3c">&#9670;&#160;</a></span>del() <span class="overload">[2/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <div class="memtemplate">
 template&lt;typename T &gt; </div>
 <table class="mlabels">
@@ -699,7 +700,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::del </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::del </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em></td><td>)</td>
@@ -730,19 +731,19 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="ad73e3d38578a6013daf2ec4607738424" name="ad73e3d38578a6013daf2ec4607738424"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad73e3d38578a6013daf2ec4607738424">&#9670;&#160;</a></span>del() <span class="overload">[3/4]</span></h2>
+<a id="a19a1b69df502604ef410b95bd9c01558" name="a19a1b69df502604ef410b95bd9c01558"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a19a1b69df502604ef410b95bd9c01558">&#9670;&#160;</a></span>del() <span class="overload">[3/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::del </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::del </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em>, </td>
@@ -777,19 +778,19 @@ template&lt;typename AccessContext &gt; </div>
 
 </div>
 </div>
-<a id="ad4e8bf7b832dc14d12ca321492ad824d" name="ad4e8bf7b832dc14d12ca321492ad824d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad4e8bf7b832dc14d12ca321492ad824d">&#9670;&#160;</a></span>del() <span class="overload">[4/4]</span></h2>
+<a id="a2fde6e2153178a856071e00ea47717c6" name="a2fde6e2153178a856071e00ea47717c6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2fde6e2153178a856071e00ea47717c6">&#9670;&#160;</a></span>del() <span class="overload">[4/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::del </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::del </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em>, </td>
@@ -824,19 +825,19 @@ template&lt;typename AccessContext &gt; </div>
 
 </div>
 </div>
-<a id="a97877dec21eeef53607ec2a145ddc875" name="a97877dec21eeef53607ec2a145ddc875"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a97877dec21eeef53607ec2a145ddc875">&#9670;&#160;</a></span>instantiate() <span class="overload">[1/2]</span></h2>
+<a id="a709f42a6cd19582d8bd3e2e7a706a7e7" name="a709f42a6cd19582d8bd3e2e7a706a7e7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a709f42a6cd19582d8bd3e2e7a706a7e7">&#9670;&#160;</a></span>instantiate() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::instantiate </td>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::instantiate </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>prefabEntity</em></td><td>)</td>
@@ -857,24 +858,24 @@ template&lt;typename AccessContext &gt; </div>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>Temporary entity filled with the spawned root instance after <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7031a0a1fc0707d1e0c9249c0af3dd24" title="Commits all queued changes. Entity create, copy, and instantiate records are allocated first,...">commit()</a>. </dd></dl>
-<dl class="section warning"><dt>Warning</dt><dd>The returned entity is not usable until <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7031a0a1fc0707d1e0c9249c0af3dd24" title="Commits all queued changes. Entity create, copy, and instantiate records are allocated first,...">commit()</a>. Prefab children are not exposed as temporaries; look them up with <a class="el" href="classgaia_1_1ecs_1_1World.html#a4f47590a3c8922f351043b8a6c87913f" title="Finds the entity inside instanceRoot that was instantiated from prefabEntity. The lookup checks insta...">World::find_prefab_instance</a> after commit. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>Temporary entity filled with the spawned root instance after <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ae09c25e0d46adb42274641baf36e2a9a" title="Commits all queued changes. Plain buffers replay every request in recorded order, including entity cr...">commit()</a>. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>The returned entity is not usable until <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ae09c25e0d46adb42274641baf36e2a9a" title="Commits all queued changes. Plain buffers replay every request in recorded order, including entity cr...">commit()</a>. Prefab children are not exposed as temporaries; look them up with <a class="el" href="classgaia_1_1ecs_1_1World.html#a4f47590a3c8922f351043b8a6c87913f" title="Finds the entity inside instanceRoot that was instantiated from prefabEntity. The lookup checks insta...">World::find_prefab_instance</a> after commit. </dd></dl>
 
 </div>
 </div>
-<a id="a21eda0e9e51655a1da910516f77a704a" name="a21eda0e9e51655a1da910516f77a704a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a21eda0e9e51655a1da910516f77a704a">&#9670;&#160;</a></span>instantiate() <span class="overload">[2/2]</span></h2>
+<a id="a29bd175c5defb9af68e2851d8a3db058" name="a29bd175c5defb9af68e2851d8a3db058"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a29bd175c5defb9af68e2851d8a3db058">&#9670;&#160;</a></span>instantiate() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::instantiate </td>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::instantiate </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>prefabEntity</em>, </td>
@@ -906,24 +907,24 @@ template&lt;typename AccessContext &gt; </div>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>Temporary entity filled with the spawned root instance after <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7031a0a1fc0707d1e0c9249c0af3dd24" title="Commits all queued changes. Entity create, copy, and instantiate records are allocated first,...">commit()</a>. </dd></dl>
-<dl class="section warning"><dt>Warning</dt><dd>The returned entity is not usable until <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a7031a0a1fc0707d1e0c9249c0af3dd24" title="Commits all queued changes. Entity create, copy, and instantiate records are allocated first,...">commit()</a>. Prefab children are not exposed as temporaries; look them up with <a class="el" href="classgaia_1_1ecs_1_1World.html#a4f47590a3c8922f351043b8a6c87913f" title="Finds the entity inside instanceRoot that was instantiated from prefabEntity. The lookup checks insta...">World::find_prefab_instance</a> after commit. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>Temporary entity filled with the spawned root instance after <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ae09c25e0d46adb42274641baf36e2a9a" title="Commits all queued changes. Plain buffers replay every request in recorded order, including entity cr...">commit()</a>. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>The returned entity is not usable until <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ae09c25e0d46adb42274641baf36e2a9a" title="Commits all queued changes. Plain buffers replay every request in recorded order, including entity cr...">commit()</a>. Prefab children are not exposed as temporaries; look them up with <a class="el" href="classgaia_1_1ecs_1_1World.html#a4f47590a3c8922f351043b8a6c87913f" title="Finds the entity inside instanceRoot that was instantiated from prefabEntity. The lookup checks insta...">World::find_prefab_instance</a> after commit. </dd></dl>
 
 </div>
 </div>
-<a id="a23d9812b38b5f5378802529beea1de86" name="a23d9812b38b5f5378802529beea1de86"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a23d9812b38b5f5378802529beea1de86">&#9670;&#160;</a></span>instantiate_n() <span class="overload">[1/4]</span></h2>
+<a id="addde04f19268cb1ef1cf6f8584120a5a" name="addde04f19268cb1ef1cf6f8584120a5a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#addde04f19268cb1ef1cf6f8584120a5a">&#9670;&#160;</a></span>instantiate_n() <span class="overload">[1/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::instantiate_n </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::instantiate_n </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>prefabEntity</em>, </td>
@@ -965,13 +966,13 @@ template&lt;typename AccessContext &gt; </div>
 
 </div>
 </div>
-<a id="a0da44c0483d55125d72982734d0875df" name="a0da44c0483d55125d72982734d0875df"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a0da44c0483d55125d72982734d0875df">&#9670;&#160;</a></span>instantiate_n() <span class="overload">[2/4]</span></h2>
+<a id="a71543671229e8294c56b61338f90ff2d" name="a71543671229e8294c56b61338f90ff2d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a71543671229e8294c56b61338f90ff2d">&#9670;&#160;</a></span>instantiate_n() <span class="overload">[2/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <div class="memtemplate">
 template&lt;typename Func &gt; </div>
 <table class="mlabels">
@@ -979,7 +980,7 @@ template&lt;typename Func &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::instantiate_n </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::instantiate_n </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>prefabEntity</em>, </td>
@@ -1034,19 +1035,19 @@ template&lt;typename Func &gt; </div>
 
 </div>
 </div>
-<a id="a32a657332bb5f4d1bc7b2cb1dbadeac1" name="a32a657332bb5f4d1bc7b2cb1dbadeac1"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a32a657332bb5f4d1bc7b2cb1dbadeac1">&#9670;&#160;</a></span>instantiate_n() <span class="overload">[3/4]</span></h2>
+<a id="a63220e31d8d6fc7a0e516f0a63fe6f46" name="a63220e31d8d6fc7a0e516f0a63fe6f46"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a63220e31d8d6fc7a0e516f0a63fe6f46">&#9670;&#160;</a></span>instantiate_n() <span class="overload">[3/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::instantiate_n </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::instantiate_n </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>prefabEntity</em>, </td>
@@ -1070,7 +1071,7 @@ template&lt;typename AccessContext &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Requests <em>count</em> prefab instantiations. Commit groups matching records and replays them through <a class="el" href="classgaia_1_1ecs_1_1World.html#aaa988e2f9dc10937ae00ca17d6e1f7e6" title="Instantiates count copies of a prefab as normal root entities. Each instance copies the prefab&#39;s dire...">World::instantiate_n</a>. </p>
+<p>Requests <em>count</em> prefab instantiations. Optimizing buffers group matching records through <a class="el" href="classgaia_1_1ecs_1_1World.html#aaa988e2f9dc10937ae00ca17d6e1f7e6" title="Instantiates count copies of a prefab as normal root entities. Each instance copies the prefab&#39;s dire...">World::instantiate_n</a>; plain buffers replay each instance. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">prefabEntity</td><td>Prefab entity to instantiate. </td></tr>
@@ -1081,13 +1082,13 @@ template&lt;typename AccessContext &gt; </div>
 
 </div>
 </div>
-<a id="a8520514262f5dc67e7c89fcbfee8fbdb" name="a8520514262f5dc67e7c89fcbfee8fbdb"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a8520514262f5dc67e7c89fcbfee8fbdb">&#9670;&#160;</a></span>instantiate_n() <span class="overload">[4/4]</span></h2>
+<a id="a1dc32228f1bfa928c4ddfa4088da45f6" name="a1dc32228f1bfa928c4ddfa4088da45f6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1dc32228f1bfa928c4ddfa4088da45f6">&#9670;&#160;</a></span>instantiate_n() <span class="overload">[4/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <div class="memtemplate">
 template&lt;typename Func &gt; </div>
 <table class="mlabels">
@@ -1095,7 +1096,7 @@ template&lt;typename Func &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::instantiate_n </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::instantiate_n </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>prefabEntity</em>, </td>
@@ -1143,13 +1144,13 @@ template&lt;typename Func &gt; </div>
 
 </div>
 </div>
-<a id="aa6a306459396ecc9bd190293ad3e57b1" name="aa6a306459396ecc9bd190293ad3e57b1"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa6a306459396ecc9bd190293ad3e57b1">&#9670;&#160;</a></span>set() <span class="overload">[1/3]</span></h2>
+<a id="a5d89dbbc708f552aada61060be3f0644" name="a5d89dbbc708f552aada61060be3f0644"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5d89dbbc708f552aada61060be3f0644">&#9670;&#160;</a></span>set() <span class="overload">[1/3]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <div class="memtemplate">
 template&lt;typename T &gt; </div>
 <table class="mlabels">
@@ -1157,7 +1158,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::set </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::set </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em>, </td>
@@ -1206,13 +1207,13 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="a87b4db76bf3917e1d6d4123961d9b681" name="a87b4db76bf3917e1d6d4123961d9b681"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a87b4db76bf3917e1d6d4123961d9b681">&#9670;&#160;</a></span>set() <span class="overload">[2/3]</span></h2>
+<a id="a356a557fbe3752099d4a1abe6b71b8a5" name="a356a557fbe3752099d4a1abe6b71b8a5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a356a557fbe3752099d4a1abe6b71b8a5">&#9670;&#160;</a></span>set() <span class="overload">[2/3]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <div class="memtemplate">
 template&lt;typename T &gt; </div>
 <table class="mlabels">
@@ -1220,7 +1221,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::set </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::set </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em>, </td>
@@ -1269,13 +1270,13 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="ad3553ec0e683738e595fa0894bd3be50" name="ad3553ec0e683738e595fa0894bd3be50"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad3553ec0e683738e595fa0894bd3be50">&#9670;&#160;</a></span>set() <span class="overload">[3/3]</span></h2>
+<a id="a8ac5bd9271cece9411c23a3f75236a5a" name="a8ac5bd9271cece9411c23a3f75236a5a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8ac5bd9271cece9411c23a3f75236a5a">&#9670;&#160;</a></span>set() <span class="overload">[3/3]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename AccessContext &gt; </div>
+template&lt;typename AccessContext , bool Optimize&gt; </div>
 <div class="memtemplate">
 template&lt;typename T &gt; </div>
 <table class="mlabels">
@@ -1283,7 +1284,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::set </td>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext, Optimize &gt;::set </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em>, </td>

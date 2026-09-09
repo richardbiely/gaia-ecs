@@ -156,6 +156,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a2038dde541e2c209dfaa975301feb133" id="r_a2038dde541e2c209dfaa975301feb133"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1QueryTermOptions.html">QueryTermOptions</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryTermOptions.html#a2038dde541e2c209dfaa975301feb133">trav_depth</a> (uint8_t maxDepth)</td></tr>
 <tr class="memdesc:a2038dde541e2c209dfaa975301feb133"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the maximum traversal distance.  <br /></td></tr>
 <tr class="separator:a2038dde541e2c209dfaa975301feb133"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a30c25b3dfb1050ba5720e87b7fca14ba" id="r_a30c25b3dfb1050ba5720e87b7fca14ba"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1QueryTermOptions.html">QueryTermOptions</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryTermOptions.html#a30c25b3dfb1050ba5720e87b7fca14ba">no_access</a> ()</td></tr>
+<tr class="memdesc:a30c25b3dfb1050ba5720e87b7fca14ba"><td class="mdescLeft">&#160;</td><td class="mdescRight">Matches an all(), or_(), or any() term without accessing its payload.  <br /></td></tr>
+<tr class="separator:a30c25b3dfb1050ba5720e87b7fca14ba"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7c480d82230004e1c0c7ec38ec36084f" id="r_a7c480d82230004e1c0c7ec38ec36084f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1QueryTermOptions.html">QueryTermOptions</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryTermOptions.html#a7c480d82230004e1c0c7ec38ec36084f">read</a> ()</td></tr>
 <tr class="memdesc:a7c480d82230004e1c0c7ec38ec36084f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests read-only access to the term.  <br /></td></tr>
 <tr class="separator:a7c480d82230004e1c0c7ec38ec36084f"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -258,6 +261,34 @@ static constexpr uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>T
 </div><div class="memdoc">
 
 <p>Allows direct and inherited matches for the term. Same helper name as <code><a class="el" href="structgaia_1_1ecs_1_1EntityIdOptions.html#a095618650902151d83c375e6d5578185" title="Allows direct and inherited matches. After the direct type, appends OnInstantiate(Inherit) ids from I...">EntityIdOptions::in()</a></code>. </p>
+<dl class="section return"><dt>Returns</dt><dd>This options object. </dd></dl>
+
+</div>
+</div>
+<a id="a30c25b3dfb1050ba5720e87b7fca14ba" name="a30c25b3dfb1050ba5720e87b7fca14ba"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a30c25b3dfb1050ba5720e87b7fca14ba">&#9670;&#160;</a></span>no_access()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1ecs_1_1QueryTermOptions.html">QueryTermOptions</a> &amp; gaia::ecs::QueryTermOptions::no_access </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Matches an all(), or_(), or any() term without accessing its payload. </p>
 <dl class="section return"><dt>Returns</dt><dd>This options object. </dd></dl>
 
 </div>
