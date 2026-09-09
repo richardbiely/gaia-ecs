@@ -168,11 +168,12 @@ namespace gaia {
 					// This will be used to determine what kind of access the user wants for a given component.
 					const uint16_t isReadWrite = uint16_t(item.access == QueryAccess::Write);
 					ctxData.readWriteMask |= (isReadWrite << ctxData.idsCnt);
+					ctxData.flags |= uint16_t(item.access == QueryAccess::Match) * QueryCtx::QueryFlags::HasMatchTerms;
 
 					ctxData.ids[ctxData.idsCnt] = item.id;
-					ctxData.terms[ctxData.idsCnt] = {item.id,				item.entSrc,		item.entTrav,
-																					 item.travKind, item.travDepth, item.matchKind,
-																					 nullptr,				item.op,				(uint8_t)ctxData.idsCnt};
+					ctxData.terms[ctxData.idsCnt] = {
+							item.id,				item.entSrc, item.entTrav, item.travKind,						item.travDepth,
+							item.matchKind, nullptr,		 item.op,			 (uint8_t)ctxData.idsCnt, item.access};
 					++ctxData.idsCnt;
 				}
 			};
@@ -837,7 +838,7 @@ namespace gaia {
 					return QueryAccess::None;
 				}
 
-				//! Returns access requested by positive non-pair query terms for an id.
+				//! Returns access requested by required, OR, or optional non-pair terms for an id.
 				//! \param data Compiled query data.
 				//! \param entity Component/entity id to inspect.
 				//! \return Access inferred from query terms, or None when no data access is declared by the query shape.
@@ -849,10 +850,12 @@ namespace gaia {
 					const auto terms = data.terms_view();
 					GAIA_FOR((uint32_t)terms.size()) {
 						const auto& term = terms[i];
-						if (term.id != entity || (term.op != QueryOpKind::All && term.op != QueryOpKind::Or))
+						if (term.id != entity ||
+								(term.op != QueryOpKind::All && term.op != QueryOpKind::Or && term.op != QueryOpKind::Any) ||
+								term.access == QueryAccess::Match)
 							continue;
 
-						if ((data.readWriteMask & (uint16_t(1) << i)) != 0)
+						if (term.access == QueryAccess::Write)
 							return QueryAccess::Write;
 						access = QueryAccess::Read;
 					}
@@ -890,8 +893,14 @@ namespace gaia {
 						const QueryAccessSet& rightAccess) {
 					const auto terms = leftData.terms_view();
 					GAIA_FOR((uint32_t)terms.size()) {
-						const auto id = terms[i].id;
-						const auto access = term_access(leftData, id);
+						const auto& term = terms[i];
+						const auto id = term.id;
+						if (id == EntityBad || id.pair() ||
+								(term.op != QueryOpKind::All && term.op != QueryOpKind::Or && term.op != QueryOpKind::Any) ||
+								term.access == QueryAccess::Match)
+							continue;
+						// This term's access is already known. Duplicate ids are still checked individually.
+						const auto access = term.access == QueryAccess::Write ? QueryAccess::Write : QueryAccess::Read;
 						if (access_conflicts(access, effective_access(rightData, rightAccess, id)))
 							return true;
 					}
@@ -1210,8 +1219,7 @@ namespace gaia {
 				GAIA_NODISCARD bool conflicts_with(QueryImpl& other) {
 					const auto& leftData = fetch().ctx().data;
 					const auto& rightData = other.fetch().ctx().data;
-					return conflicts_one_way(leftData, m_access, rightData, other.m_access) ||
-								 conflicts_one_way(rightData, other.m_access, leftData, m_access);
+					return conflicts_one_way(leftData, m_access, rightData, other.m_access);
 				}
 
 				//! Returns whether this query can run concurrently with another query based on declared scheduling metadata.
@@ -1522,18 +1530,27 @@ namespace gaia {
 				}
 
 				void add_inter(QueryInput item) {
-					// When excluding or using ANY terms make sure the access type is None.
-					GAIA_ASSERT((item.op != QueryOpKind::Not && item.op != QueryOpKind::Any) || item.access == QueryAccess::None);
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(
+							item.access != QueryAccess::Match || item.op == QueryOpKind::All || item.op == QueryOpKind::Or ||
+							item.op == QueryOpKind::Any);
+					// Exclusions have no payload access.
+					GAIA_ASSERT(item.op != QueryOpKind::Not || item.access == QueryAccess::None);
+#endif
 
 					QueryCmd_AddItem cmd{item};
 					add_cmd(cmd);
 				}
 
 				GAIA_NODISCARD static QueryAccess normalize_access(QueryOpKind op, Entity entity, QueryAccess access) {
-					if (op == QueryOpKind::Not || op == QueryOpKind::Any || entity.pair())
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(
+							access != QueryAccess::Match || op == QueryOpKind::All || op == QueryOpKind::Or || op == QueryOpKind::Any);
+#endif
+					if (op == QueryOpKind::Not || (entity.pair() && access != QueryAccess::Match))
 						return QueryAccess::None;
 
-					// Non-pair ALL/OR terms default to Read access when unspecified.
+					// Required, OR, and optional non-pair terms default to Read access when unspecified.
 					if (access == QueryAccess::None)
 						return QueryAccess::Read;
 
@@ -1565,7 +1582,7 @@ namespace gaia {
 
 					// Determine the access type
 					QueryAccess access = QueryAccess::None;
-					if (op != QueryOpKind::Not && op != QueryOpKind::Any) {
+					if (op != QueryOpKind::Not) {
 						constexpr auto isReadWrite = core::is_mut_v<T>;
 						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
@@ -1589,14 +1606,10 @@ namespace gaia {
 						e = desc.entity;
 					}
 
-					QueryAccess access = QueryAccess::None;
-					if (op != QueryOpKind::Not && op != QueryOpKind::Any) {
-						if (options.access != QueryAccess::None)
-							access = options.access;
-						else {
-							constexpr auto isReadWrite = core::is_mut_v<T>;
-							access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
-						}
+					QueryAccess access = options.access;
+					if (op != QueryOpKind::Not && access == QueryAccess::None) {
+						constexpr auto isReadWrite = core::is_mut_v<T>;
+						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
 
 					add_inter(
@@ -1617,7 +1630,7 @@ namespace gaia {
 
 					// Determine the access type
 					QueryAccess access = QueryAccess::None;
-					if (op != QueryOpKind::Not && op != QueryOpKind::Any) {
+					if (op != QueryOpKind::Not) {
 						constexpr auto isReadWrite = core::is_mut_v<UO_Rel> || core::is_mut_v<UO_Tgt>;
 						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
@@ -2403,6 +2416,9 @@ namespace gaia {
 					//! \param it Iterator prepared for the current query batch.
 					void operator()(Iter& it) {
 						it.ctx(pSelf->ctx());
+#if GAIA_ASSERT_ENABLED
+						it.set_query_access(&pSelf->fetch().ctx().data);
+#endif
 						func(it);
 					}
 				};
@@ -3812,6 +3828,9 @@ namespace gaia {
 
 					Iter it;
 					it.init_query_state(queryInfo.world(), constraints, false);
+#if GAIA_ASSERT_ENABLED
+					it.set_query_access(&queryInfo.ctx().data);
+#endif
 
 					//! Direct dense plans already encode expensive process gates. When no cached archetype can require
 					//! prefab filtering and no depth-order barrier cache can prune, only deletion state remains dynamic.
@@ -3909,10 +3928,17 @@ namespace gaia {
 					void* pFunc;
 					void* pCtx;
 					void (*invoke)(void*, Iter&);
+#if GAIA_ASSERT_ENABLED
+					//! Access metadata used only to validate callback payload requests.
+					const QueryCtx::Data* pQueryAccess = nullptr;
+#endif
 
 					void operator()(Iter& it) const {
 						GAIA_PROF_SCOPE(query_func);
 						it.ctx(pCtx);
+#if GAIA_ASSERT_ENABLED
+						it.set_query_access(pQueryAccess);
+#endif
 						invoke(pFunc, it);
 					}
 				};
@@ -3983,6 +4009,9 @@ namespace gaia {
 						QueryInfo& queryInfo, const QueryPlan& plan, QueryExecType execType, void* pFunc,
 						void (*invoke)(void*, Iter&), Constraints constraints) {
 					RuntimeIterCallback cb{pFunc, m_ctx, invoke};
+#if GAIA_ASSERT_ENABLED
+					cb.pQueryAccess = &queryInfo.ctx().data;
+#endif
 
 					if (plan.mode == QueryPlanMode::EntitySeed) {
 						each_direct_iter_inter(queryInfo, constraints, cb);
@@ -4860,6 +4889,9 @@ namespace gaia {
 						const auto& chunks = pArchetype->chunks();
 						Iter it;
 						it.init_query_state(queryInfo.world(), constraints, false);
+#if GAIA_ASSERT_ENABLED
+						it.set_query_access(&queryInfo.ctx().data);
+#endif
 						it.set_archetype(pArchetype);
 
 						if (!hasEntityFilters) {
@@ -5156,6 +5188,9 @@ namespace gaia {
 						const auto& chunks = pArchetype->chunks();
 						Iter it;
 						it.init_query_state(queryInfo.world(), constraints, false);
+#if GAIA_ASSERT_ENABLED
+						it.set_query_access(&queryInfo.ctx().data);
+#endif
 						it.set_archetype(pArchetype);
 
 						if (!hasEntityFilters) {
@@ -5215,6 +5250,9 @@ namespace gaia {
 					GAIA_ASSERT(ec.pArchetype != nullptr);
 					GAIA_ASSERT(ec.pChunk != nullptr);
 					GAIA_ASSERT(ec.row < ec.pChunk->size());
+#if GAIA_ASSERT_ENABLED
+					it.set_query_access(&queryInfo.ctx().data);
+#endif
 
 					if (ec.pArchetype != pLastArchetype) {
 						GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
@@ -5928,6 +5966,54 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Makes the preceding all(), or_(), or any() term presence-only.
+				//! Call while building the query, before its first execution or fetch. Later terms keep their own access.
+				//! Scans pending builder commands once and updates the term in place without growing the command buffer.
+				//! \return Self reference.
+				QueryImpl& no_access() {
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(m_storage.m_identity.serId != QueryIdBad && "no_access() requires a pending query term");
+#endif
+					auto& buffer = m_storage.ser_buffer();
+					const auto end = buffer.bytes();
+					const uint32_t commandSizes[] = {ser::bytes(QueryCmd_AddItem{}),	ser::bytes(QueryCmd_AddFilter{}),
+																					 ser::bytes(QueryCmd_SortBy{}),		ser::bytes(QueryCmd_GroupBy{}),
+																					 ser::bytes(QueryCmd_GroupDep{}), ser::bytes(QueryCmd_MatchPrefab{})};
+#if GAIA_ASSERT_ENABLED
+					static_assert(
+							sizeof(commandSizes) / sizeof(commandSizes[0]) ==
+									sizeof(CommandBufferRead) / sizeof(CommandBufferRead[0]),
+							"Every query command needs a serialized size");
+#endif
+					uint32_t termOffset = BadIndex;
+					buffer.seek(0);
+					while (buffer.tell() < end) {
+						QueryCmdType id{};
+						bool invalidatesHash = false;
+						ser::load(buffer, id);
+						ser::load(buffer, invalidatesHash);
+						(void)invalidatesHash;
+						if (id == QueryCmdType::ADD_ITEM)
+							termOffset = buffer.tell();
+						buffer.skip(commandSizes[id]);
+					}
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(termOffset != BadIndex && "no_access() requires a preceding all(), or_(), or any() term");
+#endif
+					buffer.seek(termOffset);
+					QueryCmd_AddItem cmd{};
+					ser::load(buffer, cmd);
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(
+							cmd.item.op == QueryOpKind::All || cmd.item.op == QueryOpKind::Or || cmd.item.op == QueryOpKind::Any);
+#endif
+					cmd.item.access = QueryAccess::Match;
+					buffer.seek(termOffset);
+					ser::save(buffer, cmd);
+					buffer.seek(end);
+					return *this;
+				}
+
 				//! Adds a required entity or pair term.
 				//! \param entity Required entity or pair id.
 				//! \param options Term options.
@@ -6329,6 +6415,10 @@ namespace gaia {
 				//! \see each(Func, QueryExecType)
 				template <typename Func>
 				GAIA_NODISCARD SchedJob job(Func func, QueryExecType execType) {
+#if GAIA_ASSERT_ENABLED
+					if constexpr (!detail::is_query_iter_callback_v<Func>)
+						validate_typed_access<Func>();
+#endif
 					if constexpr (detail::is_query_iter_callback_v<Func>) {
 						switch (execType) {
 							case QueryExecType::Parallel:
@@ -6358,6 +6448,13 @@ namespace gaia {
 
 					return add_query_task_job(GAIA_MOV(func), execType);
 				}
+
+#if GAIA_ASSERT_ENABLED
+				//! Validates typed payload declarations before deferred jobs can return for empty matches.
+				//! \tparam Func Typed query callback.
+				template <typename Func>
+				void validate_typed_access();
+#endif
 
 				//! Iterates query matches using the default execution mode.
 				//! Each callback receives a contiguous chunk window. DontFragment / sparse entity-filter
@@ -6464,6 +6561,9 @@ namespace gaia {
 							[&](Iter& it) {
 								GAIA_PROF_SCOPE(query_func_a);
 								it.ctx(m_ctx);
+#if GAIA_ASSERT_ENABLED
+								it.set_query_access(&queryInfo.ctx().data);
+#endif
 								func(it);
 							},
 							constraints);

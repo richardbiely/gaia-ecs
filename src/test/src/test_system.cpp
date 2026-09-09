@@ -462,6 +462,56 @@ TEST_CASE("Query - access declarations describe scheduling conflicts") {
 	CHECK_FALSE(mainOnly.can_run_parallel(readPosA));
 }
 
+TEST_CASE("Query - scheduling conflicts are symmetric across effective access sources") {
+	TestWorld twld;
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto otherTarget = wld.add();
+	const auto resource = ecs::Pair(relation, target);
+	const auto otherResource = ecs::Pair(relation, otherTarget);
+	const auto check = [](ecs::Query& left, ecs::Query& right, bool expected) {
+		CHECK(left.conflicts_with(right) == expected);
+		CHECK(right.conflicts_with(left) == expected);
+	};
+
+	auto pairRead = wld.query().reads(resource);
+	auto pairWrite = wld.query().writes(resource);
+	auto otherPairWrite = wld.query().writes(otherResource);
+	auto pairMatch = wld.query().all(resource).no_access();
+	check(pairRead, pairWrite, true);
+	check(pairRead, otherPairWrite, false);
+	check(pairMatch, pairWrite, false);
+
+	auto termRead = wld.query().all<const Position>();
+	auto termWrite = wld.query().all<Position&>();
+	auto customRead = wld.query().reads<Position>();
+	auto customWrite = wld.query().writes<Position>();
+	check(customRead, termWrite, true);
+	check(customWrite, termRead, true);
+	check(customRead, termRead, false);
+	check(pairRead, customWrite, false);
+
+	auto duplicateAccess =
+			wld.query().all<const Position>().reads<Position>().reads<Position>().writes<Position>().writes<Position>();
+	CHECK(duplicateAccess.custom_reads().size() == 1);
+	CHECK(duplicateAccess.custom_writes().size() == 1);
+	check(duplicateAccess, termRead, true);
+	check(duplicateAccess, customRead, true);
+
+	auto match = wld.query().all<Position>().no_access();
+	auto matchRead = wld.query().all<Position>().no_access().reads<Position>();
+	auto matchReadWrite = wld.query().all<Position>().no_access().reads<Position>().writes<Position>();
+	check(match, duplicateAccess, false);
+	check(matchRead, customWrite, true);
+	check(matchRead, termRead, false);
+	check(matchReadWrite, termRead, true);
+
+	auto empty = wld.query();
+	check(empty, pairWrite, false);
+	check(empty, duplicateAccess, false);
+	check(empty, matchReadWrite, false);
+}
+
 TEST_CASE("System - access declarations are stored on the underlying query") {
 	TestWorld twld;
 
@@ -475,6 +525,403 @@ TEST_CASE("System - access declarations are stored on the underlying query") {
 	CHECK(data.query.main_thread_required());
 	CHECK(data.query.access(data.query.custom_reads()[0]) == ecs::QueryAccess::Read);
 	CHECK(data.query.access(data.query.custom_writes()[0]) == ecs::QueryAccess::Write);
+}
+
+TEST_CASE("Query - presence-only terms preserve matching and sorted payload access") {
+	TestWorld twld;
+	const auto position = wld.add<Position>().entity;
+	const auto acceleration = wld.add<Acceleration>().entity;
+	const auto matched = wld.add();
+	wld.add<Position>(matched, {1, 0, 0});
+	wld.add<Acceleration>(matched, {10, 0, 0});
+	const auto missing = wld.add();
+	wld.add<Position>(missing, {2, 0, 0});
+
+	for (const bool cached: {false, true}) {
+		auto q = (cached ? wld.query() : wld.uquery()).all<Acceleration&>().no_access().all<Position&>();
+		CHECK(q.count() == 1);
+		CHECK(q.access(acceleration) == ecs::QueryAccess::None);
+		CHECK(q.access(position) == ecs::QueryAccess::Write);
+		q.each([&](ecs::Iter& it) {
+			auto entities = it.view<ecs::Entity>();
+			auto pos = it.view_mut<Position>(1);
+			GAIA_EACH(it) {
+				CHECK(entities[i] == matched);
+				pos[i].x += 1;
+			}
+		});
+		q.each([](Position& pos) {
+			pos.x += 1;
+		});
+	}
+	CHECK(wld.get<Position>(matched).x == 5);
+	CHECK(wld.get<Position>(missing).x == 2);
+	CHECK(wld.get<Acceleration>(matched).x == 10);
+}
+
+TEST_CASE("Query - no_access changes only the preceding term") {
+	TestWorld twld;
+	const auto position = wld.add<Position>().entity;
+	const auto acceleration = wld.add<Acceleration>().entity;
+	const auto scale = wld.add<Scale>().entity;
+	const auto entity = wld.add();
+	wld.add<Position>(entity, {1, 0, 0});
+	wld.add<Acceleration>(entity, {2, 0, 0});
+	wld.add<Scale>(entity, {3, 0, 0});
+
+	auto q = wld.query().all<Position&>().all<const Acceleration>().no_access().all<Scale>();
+	CHECK(q.count() == 1);
+	CHECK(q.access(position) == ecs::QueryAccess::Write);
+	CHECK(q.access(acceleration) == ecs::QueryAccess::None);
+	CHECK(q.access(scale) == ecs::QueryAccess::Read);
+	q.each([](Position& pos, const Scale& scl) {
+		pos.x += scl.x;
+	});
+	CHECK(wld.get<Position>(entity).x == 4);
+	CHECK(wld.get<Acceleration>(entity).x == 2);
+}
+
+TEST_CASE("Query - no_access preserves interleaved metadata and later terms") {
+	TestWorld twld;
+	const auto position = wld.add<Position>().entity;
+	const auto acceleration = wld.add<Acceleration>().entity;
+	const auto scale = wld.add<Scale>().entity;
+	auto q = wld.query()
+							 .all<Position&>()
+							 .all<Acceleration>()
+							 .changed<Position>()
+							 .match_prefab()
+							 .group_dep(ecs::ChildOf)
+							 .group_by(ecs::ChildOf)
+							 .sort_by<Position>([](const ecs::World&, const void* lhs, const void* rhs) {
+								 const auto x = static_cast<const Position*>(lhs)->x;
+								 const auto y = static_cast<const Position*>(rhs)->x;
+								 return (x > y) - (x < y);
+							 })
+							 .no_access()
+							 .all<Scale>();
+	CHECK(q.access(position) == ecs::QueryAccess::Write);
+	CHECK(q.access(acceleration) == ecs::QueryAccess::None);
+	CHECK(q.access(scale) == ecs::QueryAccess::Read);
+	const auto& data = q.fetch().ctx().data;
+	CHECK(data.sortBy == position);
+	CHECK(data.groupBy == ecs::ChildOf);
+	CHECK(core::has(data.changed_view(), position));
+	CHECK(core::has(data.group_deps_view(), ecs::ChildOf));
+	CHECK((data.flags & ecs::QueryCtx::QueryFlags::MatchPrefab) != 0);
+}
+
+TEST_CASE("Query - presence-only options and shared cache preserve term access") {
+	TestWorld twld;
+	const auto position = wld.add<Position>().entity;
+	const auto acceleration = wld.add<Acceleration>().entity;
+	const auto entity = wld.add();
+	wld.add<Position>(entity, {1, 0, 0});
+	wld.add<Acceleration>(entity, {2, 0, 0});
+
+	auto qMatch = wld.query().scope(ecs::QueryCacheScope::Shared).all<Acceleration>().no_access().all<Position>();
+	auto qTyped = wld.query()
+										.scope(ecs::QueryCacheScope::Shared)
+										.all<Acceleration>(ecs::QueryTermOptions{}.no_access())
+										.all<Position>();
+	auto qEntity = wld.query()
+										 .scope(ecs::QueryCacheScope::Shared)
+										 .all(acceleration, ecs::QueryTermOptions{}.no_access())
+										 .all(position);
+	auto qNoAccess =
+			wld.query().scope(ecs::QueryCacheScope::Shared).all<Acceleration>().no_access().no_access().all<Position>();
+	auto qReversed = wld.query().scope(ecs::QueryCacheScope::Shared).all<Position>().all<Acceleration>().no_access();
+	auto qRead = wld.query().scope(ecs::QueryCacheScope::Shared).all<Acceleration>().all<Position>();
+
+	CHECK(qMatch.count() == 1);
+	CHECK(qTyped.count() == 1);
+	CHECK(qEntity.count() == 1);
+	CHECK(qNoAccess.count() == 1);
+	CHECK(qReversed.count() == 1);
+	CHECK(qRead.count() == 1);
+	CHECK(qMatch.id() == qTyped.id());
+	CHECK(qMatch.id() == qEntity.id());
+	CHECK(qMatch.id() == qNoAccess.id());
+	CHECK(qMatch.id() != qRead.id());
+	CHECK(qMatch.id() != qReversed.id());
+	CHECK(qMatch.access(acceleration) == ecs::QueryAccess::None);
+	CHECK(qTyped.access(acceleration) == ecs::QueryAccess::None);
+	CHECK(qEntity.access(acceleration) == ecs::QueryAccess::None);
+	CHECK(qRead.access(acceleration) == ecs::QueryAccess::Read);
+
+	qMatch.each([](ecs::Iter& it) {
+		auto pos = it.view<Position>(1);
+		GAIA_EACH(it) CHECK(pos[i].x == 1);
+	});
+	qReversed.each([](ecs::Iter& it) {
+		auto pos = it.view<Position>(0);
+		GAIA_EACH(it) CHECK(pos[i].x == 1);
+	});
+
+	auto qWrite = wld.query().scope(ecs::QueryCacheScope::Shared).all<Acceleration>().no_access().all<Position&>();
+	CHECK(qWrite.count() == 1);
+	auto qWriteAgain = wld.query().scope(ecs::QueryCacheScope::Shared).all<Acceleration&>().no_access().all<Position&>();
+	CHECK(qWriteAgain.count() == 1);
+	CHECK(qWrite.id() == qWriteAgain.id());
+	CHECK(qWriteAgain.access(acceleration) == ecs::QueryAccess::None);
+	CHECK(qWriteAgain.access(position) == ecs::QueryAccess::Write);
+	CHECK_FALSE(qWriteAgain.can_run_parallel(qRead));
+}
+
+TEST_CASE("Query - presence-only or terms retain matching and explicit scheduling declarations") {
+	TestWorld twld;
+	const auto acceleration = wld.add<Acceleration>().entity;
+	const auto scale = wld.add<Scale>().entity;
+	const auto accelerated = wld.add();
+	wld.add<Position>(accelerated, {1, 0, 0});
+	wld.add<Acceleration>(accelerated, {2, 0, 0});
+	const auto scaled = wld.add();
+	wld.add<Position>(scaled, {3, 0, 0});
+	wld.add<Scale>(scaled, {4, 0, 0});
+	const auto missing = wld.add();
+	wld.add<Position>(missing, {5, 0, 0});
+
+	auto q = wld.query().all<Position>().or_<Acceleration&>().no_access().or_<Scale>().no_access();
+	auto writer = wld.query().all<Acceleration&>().all<Scale&>();
+	CHECK(q.count() == 2);
+	CHECK(q.access(acceleration) == ecs::QueryAccess::None);
+	CHECK(q.access(scale) == ecs::QueryAccess::None);
+	CHECK(q.can_run_parallel(writer));
+	CHECK(writer.can_run_parallel(q));
+
+	auto qMixed = wld.query().all<Position>().or_<Acceleration>().no_access().or_<Scale>();
+	auto accelerationWriter = wld.query().all<Acceleration&>();
+	auto scaleWriter = wld.query().all<Scale&>();
+	CHECK(qMixed.count() == 2);
+	CHECK(qMixed.access(acceleration) == ecs::QueryAccess::None);
+	CHECK(qMixed.access(scale) == ecs::QueryAccess::Read);
+	CHECK(qMixed.can_run_parallel(accelerationWriter));
+	CHECK_FALSE(qMixed.can_run_parallel(scaleWriter));
+
+	q.reads<Acceleration>();
+	CHECK(q.access(acceleration) == ecs::QueryAccess::Read);
+	CHECK_FALSE(q.can_run_parallel(writer));
+	CHECK_FALSE(writer.can_run_parallel(q));
+	q.writes<Scale>();
+	CHECK(q.access(scale) == ecs::QueryAccess::Write);
+	CHECK(q.count() == 2);
+
+	wld.del<Acceleration>(accelerated);
+	CHECK(q.count() == 1);
+	q.each([&](ecs::Entity entity) {
+		CHECK(entity == scaled);
+	});
+}
+
+TEST_CASE("Query - optional no_access terms preserve rows and scheduling metadata") {
+	TestWorld twld;
+	const auto position = wld.add<Position>().entity;
+	const auto scale = wld.add<Scale>().entity;
+	const auto present = wld.add();
+	wld.add<Position>(present, {1, 0, 0});
+	wld.add<Scale>(present, {2, 0, 0});
+	const auto absent = wld.add();
+	wld.add<Scale>(absent, {3, 0, 0});
+
+	auto q = wld.query().scope(ecs::QueryCacheScope::Shared).all<Scale>().any<Position>().no_access();
+	auto options =
+			wld.query().scope(ecs::QueryCacheScope::Shared).all<Scale>().any<Position>(ecs::QueryTermOptions{}.no_access());
+	auto entity =
+			wld.query().scope(ecs::QueryCacheScope::Shared).all(scale).any(position, ecs::QueryTermOptions{}.no_access());
+	auto input = wld.query()
+									 .scope(ecs::QueryCacheScope::Shared)
+									 .all(scale)
+									 .add({ecs::QueryOpKind::Any, ecs::QueryAccess::Match, position});
+	auto ordinary = wld.query().scope(ecs::QueryCacheScope::Shared).all<Scale>().any<Position>();
+	auto uncached = wld.uquery().all(scale).any(position).no_access();
+	CHECK(q.count() == 2);
+	CHECK(options.count() == 2);
+	CHECK(entity.count() == 2);
+	CHECK(input.count() == 2);
+	CHECK(ordinary.count() == 2);
+	CHECK(uncached.count() == 2);
+	CHECK(q.id() == options.id());
+	CHECK(q.id() == entity.id());
+	CHECK(q.id() == input.id());
+	CHECK(q.id() != ordinary.id());
+	CHECK(q.access(position) == ecs::QueryAccess::None);
+	CHECK(q.access(scale) == ecs::QueryAccess::Read);
+	CHECK(ordinary.access(position) == ecs::QueryAccess::Read);
+	CHECK(uncached.access(position) == ecs::QueryAccess::None);
+
+	uint32_t withPosition = 0;
+	uint32_t withoutPosition = 0;
+	q.each([&](ecs::Iter& it) {
+		if (it.has<Position>())
+			withPosition += it.size();
+		else
+			withoutPosition += it.size();
+	});
+	CHECK(withPosition == 1);
+	CHECK(withoutPosition == 1);
+
+	auto writer = wld.query().all<Position&>();
+	CHECK_FALSE(ordinary.can_run_parallel(writer));
+	CHECK_FALSE(writer.can_run_parallel(ordinary));
+	CHECK(q.can_run_parallel(writer));
+	CHECK(writer.can_run_parallel(q));
+	q.reads<Position>();
+	CHECK(q.access(position) == ecs::QueryAccess::Read);
+	CHECK_FALSE(q.can_run_parallel(writer));
+	CHECK_FALSE(writer.can_run_parallel(q));
+	q.writes<Position>();
+	CHECK(q.access(position) == ecs::QueryAccess::Write);
+	auto reader = wld.query().all<const Position>();
+	CHECK_FALSE(q.can_run_parallel(reader));
+	CHECK_FALSE(reader.can_run_parallel(q));
+
+	uint32_t systemRows = 0;
+	auto system = wld.system().all<Scale>().any<Position>().no_access().on_each([&](const Scale&) {
+		++systemRows;
+	});
+	system.exec();
+	CHECK(systemRows == 2);
+	wld.del<Position>(present);
+	CHECK(q.count() == 2);
+}
+
+TEST_CASE("Query - optional payload terms infer read and write scheduling access") {
+	TestWorld twld;
+	const auto position = wld.add<Position>().entity;
+	const auto scale = wld.add<Scale>().entity;
+	const auto present = wld.add();
+	wld.add<Position>(present, {1, 0, 0});
+	wld.add<Scale>(present, {2, 0, 0});
+	const auto absent = wld.add();
+	wld.add<Scale>(absent, {3, 0, 0});
+
+	auto read = wld.query().scope(ecs::QueryCacheScope::Shared).all<Scale>().any<Position>();
+	auto readConst = wld.query().scope(ecs::QueryCacheScope::Shared).all<Scale>().any<const Position>();
+	auto write = wld.query().scope(ecs::QueryCacheScope::Shared).all<Scale>().any<Position&>();
+	auto readOptions =
+			wld.query().scope(ecs::QueryCacheScope::Shared).all<Scale>().any<Position&>(ecs::QueryTermOptions{}.read());
+	auto writeOptions =
+			wld.query().scope(ecs::QueryCacheScope::Shared).all<Scale>().any<const Position>(ecs::QueryTermOptions{}.write());
+	auto readEntity = wld.query().scope(ecs::QueryCacheScope::Shared).all(scale).any(position);
+	auto readInput = wld.query()
+											 .scope(ecs::QueryCacheScope::Shared)
+											 .all(scale)
+											 .add({ecs::QueryOpKind::Any, ecs::QueryAccess::Read, position});
+	auto writeEntity =
+			wld.query().scope(ecs::QueryCacheScope::Shared).all(scale).any(position, ecs::QueryTermOptions{}.write());
+	auto writeInput = wld.query()
+												.scope(ecs::QueryCacheScope::Shared)
+												.all(scale)
+												.add({ecs::QueryOpKind::Any, ecs::QueryAccess::Write, position});
+	for (auto* query: {&read, &readConst, &readOptions, &readEntity, &readInput}) {
+		CHECK(query->count() == 2);
+		CHECK(query->access(position) == ecs::QueryAccess::Read);
+		CHECK(query->id() == read.id());
+		CHECK_FALSE(query->conflicts_with(read));
+		CHECK_FALSE(read.conflicts_with(*query));
+	}
+	for (auto* query: {&write, &writeOptions, &writeEntity, &writeInput}) {
+		CHECK(query->count() == 2);
+		CHECK(query->access(position) == ecs::QueryAccess::Write);
+		CHECK(query->id() == write.id());
+		CHECK(query->id() != read.id());
+		CHECK(query->conflicts_with(read));
+		CHECK(read.conflicts_with(*query));
+		CHECK(query->conflicts_with(write));
+		CHECK(write.conflicts_with(*query));
+	}
+
+	float readValue = 0;
+	uint32_t missingRows = 0;
+	read.each([&](ecs::Iter& it) {
+		if (!it.has<Position>()) {
+			missingRows += it.size();
+			return;
+		}
+		auto values = it.view<Position>(1);
+		GAIA_EACH(it) readValue += values[i].x;
+	});
+	CHECK(readValue == 1);
+	CHECK(missingRows == 1);
+	write.each([](ecs::Iter& it) {
+		if (!it.has<Position>())
+			return;
+		auto values = it.view_mut<Position>(1);
+		GAIA_EACH(it) values[i].x += 4;
+	});
+	CHECK(wld.get<Position>(present).x == 5);
+	CHECK_FALSE(wld.has<Position>(absent));
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto resource = ecs::Pair(relation, target);
+	auto pairTerm = wld.query().all<Scale>().any(resource, ecs::QueryTermOptions{}.write());
+	auto pairWriter = wld.query().writes(resource);
+	CHECK(pairTerm.access(resource) == ecs::QueryAccess::None);
+	CHECK_FALSE(pairTerm.conflicts_with(pairWriter));
+	CHECK_FALSE(pairWriter.conflicts_with(pairTerm));
+}
+
+TEST_CASE("Query - optional shared cache preserves access after term reordering") {
+	for (const bool optionalFirst: {false, true}) {
+		TestWorld twld;
+		const auto position = wld.add<Position>().entity;
+		const auto scale = wld.add<Scale>().entity;
+		const auto entity = wld.add();
+		wld.add<Position>(entity, {1, 0, 0});
+		wld.add<Scale>(entity, {2, 0, 0});
+		auto requiredWrite = wld.query().scope(ecs::QueryCacheScope::Shared).all<Scale&>().any<Position>();
+		auto optionalWrite = wld.query().scope(ecs::QueryCacheScope::Shared).any<Position&>().all<Scale>();
+		if (optionalFirst) {
+			CHECK(optionalWrite.count() == 1);
+			CHECK(requiredWrite.count() == 1);
+		} else {
+			CHECK(requiredWrite.count() == 1);
+			CHECK(optionalWrite.count() == 1);
+		}
+		CHECK(requiredWrite.id() != optionalWrite.id());
+		CHECK(requiredWrite.access(scale) == ecs::QueryAccess::Write);
+		CHECK(requiredWrite.access(position) == ecs::QueryAccess::Read);
+		CHECK(optionalWrite.access(scale) == ecs::QueryAccess::Read);
+		CHECK(optionalWrite.access(position) == ecs::QueryAccess::Write);
+		optionalWrite.each([](ecs::Iter& it) {
+			auto values = it.view_mut<Position>(0);
+			GAIA_EACH(it) values[i].x += 3;
+		});
+		requiredWrite.each([](ecs::Iter& it) {
+			auto values = it.view_mut<Scale>(0);
+			GAIA_EACH(it) values[i].x += 4;
+		});
+		CHECK(wld.get<Position>(entity).x == 4);
+		CHECK(wld.get<Scale>(entity).x == 6);
+	}
+}
+
+TEST_CASE("System - presence-only terms remove payload scheduling conflicts") {
+	TestWorld twld;
+	const auto position = wld.add<Position>().entity;
+	const auto acceleration = wld.add<Acceleration>().entity;
+	const auto entity = wld.add();
+	wld.add<Position>(entity, {1, 0, 0});
+	wld.add<Acceleration>(entity, {2, 0, 0});
+
+	auto filtered = wld.system().all<Position&>().all<const Acceleration>().no_access().on_each([](Position& pos) {
+		pos.x += 1;
+	});
+	auto writer = wld.system().all<Acceleration&>().on_each([](Acceleration& acc) {
+		acc.x += 1;
+	});
+	auto& matchQuery = wld.acc_mut(filtered.entity()).smut<ecs::System_>().query;
+	auto& writerQuery = wld.acc_mut(writer.entity()).smut<ecs::System_>().query;
+	CHECK(matchQuery.access(acceleration) == ecs::QueryAccess::None);
+	CHECK(matchQuery.access(position) == ecs::QueryAccess::Write);
+	CHECK(matchQuery.can_run_parallel(writerQuery));
+	CHECK(writerQuery.can_run_parallel(matchQuery));
+
+	filtered.exec();
+	writer.exec();
+	CHECK(wld.get<Position>(entity).x == 2);
+	CHECK(wld.get<Acceleration>(entity).x == 3);
 }
 
 TEST_CASE("System - dependency depth-first postorder") {

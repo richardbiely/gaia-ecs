@@ -867,6 +867,91 @@ TEST_CASE("ECS - System update wires parallel job dependencies from query access
 	CHECK(accelReads == EntityCount);
 }
 
+TEST_CASE("ECS - Presence-only system terms omit payload dependency edges") {
+	for (const bool presenceOnly: {false, true}) {
+		TestWorld twld;
+		ExternalSchedProbe probe;
+		wld.set_sched(probe.sched());
+		const auto entity = wld.add();
+		wld.add<Position>(entity, {1, 0, 0});
+		wld.add<Acceleration>(entity, {2, 0, 0});
+
+		auto reader = wld.system().all<Position&>().all<const Acceleration>().mode(ecs::QueryExecType::Parallel);
+		if (presenceOnly)
+			reader.no_access();
+		reader.on_each([](Position& position) {
+			position.x += 1;
+		});
+
+		wld.system().all<Acceleration&>().mode(ecs::QueryExecType::Parallel).on_each([](Acceleration& acceleration) {
+			acceleration.x += 1;
+		});
+
+		wld.update();
+		CHECK(probe.addParallelCalls == 2);
+		CHECK(probe.submitCalls == 2);
+		CHECK(probe.depCalls == (presenceOnly ? 0 : 1));
+		CHECK(wld.get<Position>(entity).x == 2);
+		CHECK(wld.get<Acceleration>(entity).x == 3);
+	}
+}
+
+TEST_CASE("ECS - Optional system payload access determines dependency edges") {
+	for (const auto access: {ecs::QueryAccess::Read, ecs::QueryAccess::Write, ecs::QueryAccess::Match}) {
+		TestWorld twld;
+		ExternalSchedProbe probe;
+		wld.set_sched(probe.sched());
+		const auto present = wld.add();
+		wld.add<Position>(present, {1, 0, 0});
+		wld.add<Acceleration>(present, {2, 0, 0});
+		const auto absent = wld.add();
+		wld.add<Position>(absent, {3, 0, 0});
+
+		uint32_t rows = 0;
+		float readValue = 0;
+		auto optional = wld.system().all<Position&>().mode(ecs::QueryExecType::Parallel);
+		if (access == ecs::QueryAccess::Write)
+			optional.any<Acceleration&>();
+		else
+			optional.any<const Acceleration>();
+		if (access == ecs::QueryAccess::Match)
+			optional.no_access();
+		optional.on_each([&](ecs::Iter& it) {
+			rows += it.size();
+			auto positions = it.view_mut<Position>();
+			GAIA_EACH(it) positions[i].x += 1;
+			if (access == ecs::QueryAccess::Match || !it.has<Acceleration>())
+				return;
+			if (access == ecs::QueryAccess::Write) {
+				auto values = it.view_mut<Acceleration>();
+				GAIA_EACH(it) values[i].x += 2;
+			} else {
+				auto values = it.view<Acceleration>();
+				GAIA_EACH(it) readValue += values[i].x;
+			}
+		});
+		wld.system().all<Acceleration&>().mode(ecs::QueryExecType::Parallel).on_each([](Acceleration& value) {
+			value.x += 1;
+		});
+
+		wld.update();
+		CHECK(probe.addParallelCalls == 2);
+		CHECK(probe.submitCalls == 2);
+		CHECK(probe.waitCalls == 2);
+		CHECK(probe.depCalls == (access == ecs::QueryAccess::Match ? 0 : 1));
+		if (access != ecs::QueryAccess::Match) {
+			CHECK(probe.depFirst[0].value[0] == 1);
+			CHECK(probe.depSecond[0].value[0] == 2);
+		}
+		CHECK(rows == 2);
+		CHECK(readValue == (access == ecs::QueryAccess::Read ? 2 : 0));
+		CHECK(wld.get<Position>(present).x == 2);
+		CHECK(wld.get<Position>(absent).x == 4);
+		CHECK(wld.get<Acceleration>(present).x == (access == ecs::QueryAccess::Write ? 5 : 3));
+		CHECK_FALSE(wld.has<Acceleration>(absent));
+	}
+}
+
 TEST_CASE("ECS - System update wires custom access dependencies") {
 	TestWorld twld;
 	ExternalSchedProbe probe;

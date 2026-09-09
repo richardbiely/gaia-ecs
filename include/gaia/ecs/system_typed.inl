@@ -18,8 +18,8 @@ namespace gaia {
 					detail::typed_query_term_entity<T>(m_world), detail::typed_query_term_options<T>(QueryOpKind::All, options));
 		}
 
-		//! Adds a typed any-of term to the underlying system query.
-		//! \tparam T Component, entity type, or pair type participating in the any-of set.
+		//! Adds a typed optional term to the underlying system query.
+		//! \tparam T Optional component, entity type, or pair type.
 		//! \param options Query-term options applied after Gaia-ECS derives typed defaults.
 		//! \return Self reference.
 		//! \see SystemBuilder::any(Entity, const QueryTermOptions&)
@@ -63,8 +63,8 @@ namespace gaia {
 			return all<T>(QueryTermOptions{});
 		}
 
-		//! Adds a typed any-of term with default query-term options.
-		//! \tparam T Component, entity type, or pair type participating in the any-of set.
+		//! Adds a typed optional term with default query-term options.
+		//! \tparam T Optional component, entity type, or pair type.
 		//! \return Self reference.
 		//! \see SystemBuilder::any(const QueryTermOptions&)
 		template <typename T>

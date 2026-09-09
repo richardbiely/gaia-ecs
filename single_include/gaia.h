@@ -41693,7 +41693,9 @@ namespace gaia {
 			//! Read-only component access.
 			Read,
 			//! Mutable component access.
-			Write
+			Write,
+			//! Match the term without accessing its payload.
+			Match
 		};
 		//! Flags derived from query input parsing.
 		enum class QueryInputFlags : uint8_t {
@@ -42220,6 +42222,13 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Matches an all(), or_(), or any() term without accessing its payload.
+			//! \return This options object.
+			QueryTermOptions& no_access() {
+				access = QueryAccess::Match;
+				return *this;
+			}
+
 			//! Requests read-only access to the term.
 			//! \return This options object.
 			QueryTermOptions& read() {
@@ -42334,6 +42343,8 @@ namespace gaia {
 			QueryOpKind op;
 			//! Stable execution field index matching the user-defined query field order.
 			uint8_t fieldIndex = 0;
+			//! Authored payload access, retained when query identity is canonicalized.
+			QueryAccess access = QueryAccess::None;
 
 			//! Compares the matching identity of two compiled terms.
 			//! \param other Term to compare.
@@ -42500,6 +42511,8 @@ namespace gaia {
 				HasPrefabTerms = 0x80,
 				//! Grouped archetypes are ordered by group identifier during cache refresh.
 				OrderGroups = 0x100,
+				//! At least one term matches presence without accessing its payload.
+				HasMatchTerms = 0x200,
 			};
 
 			//! Strategy used to maintain cached archetype matches.
@@ -42773,6 +42786,12 @@ namespace gaia {
 				//! Cold canonical shared-query identity payload.
 				LookupIdentity lookupIdentity;
 
+				//! Returns whether any term declares presence-only access.
+				//! \return True when the query contains QueryAccess::Match.
+				GAIA_NODISCARD bool has_match_terms() const {
+					return (flags & QueryFlags::HasMatchTerms) != 0;
+				}
+
 				//! Returns authored query ids in canonical execution order.
 				//! \return Read-only view over valid ids entries.
 				GAIA_NODISCARD std::span<const Entity> ids_view() const {
@@ -42801,6 +42820,12 @@ namespace gaia {
 				//! \return Read-only canonical term view.
 				GAIA_NODISCARD std::span<const QueryTerm> lookup_terms_view() const {
 					return {lookupIdentity.lookupTerms.data(), idsCnt};
+				}
+
+				//! Returns whether canonical term access and field order define query identity.
+				//! \return True for presence-only or optional query terms.
+				GAIA_NODISCARD bool uses_term_access_identity() const {
+					return has_match_terms() || (idsCnt != 0 && lookup_terms_view().back().op == QueryOpKind::Any);
 				}
 
 				//! Returns mutable canonicalized lookup terms used by shared query deduplication.
@@ -42955,6 +42980,15 @@ namespace gaia {
 						}
 					}
 
+					if (uses_term_access_identity() || other.uses_term_access_identity()) {
+						const auto left = lookup_terms_view();
+						const auto right = other.lookup_terms_view();
+						GAIA_FOR((uint32_t)left.size()) {
+							if (left[i].access != right[i].access || left[i].fieldIndex != right[i].fieldIndex)
+								return false;
+						}
+					}
+
 					{
 						const auto left = changed_lookup_view();
 						const auto right = other.changed_lookup_view();
@@ -42980,13 +43014,18 @@ namespace gaia {
 				//! \return Combined hash of canonical terms, filters, grouping dependencies, and identity flags.
 				GAIA_NODISCARD QueryLookupHash::Type hash_lookup_key_payload() const {
 					QueryLookupHash::Type payloadHash = 0;
+					const bool useTermAccess = uses_term_access_identity();
 
 					// Ids & ops
 					{
 						QueryLookupHash::Type hash = 0;
 
 						for (const auto& pair: lookup_terms_view()) {
-							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
+							const auto op = (QueryLookupHash::Type)pair.op;
+							const auto access = !useTermAccess ? op
+																								 : (op | ((QueryLookupHash::Type)pair.access << 8) |
+																										((QueryLookupHash::Type)pair.fieldIndex << 16));
+							hash = core::hash_combine(hash, access);
 							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
 							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.src.value());
 							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.entTrav.value());
@@ -42995,7 +43034,7 @@ namespace gaia {
 							hash = core::hash_combine(hash, (QueryLookupHash::Type)(uint8_t)pair.matchKind);
 						}
 						hash = core::hash_combine(hash, (QueryLookupHash::Type)idsCnt);
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)readWriteMask);
+						hash = core::hash_combine(hash, (QueryLookupHash::Type)(!useTermAccess ? readWriteMask : 0));
 						hash = core::hash_combine(hash, (QueryLookupHash::Type)cacheSrcTrav);
 
 						const bool matchPrefab = (flags & QueryFlags::MatchPrefab) != 0;
@@ -43072,7 +43111,9 @@ namespace gaia {
 						return false;
 					if (groupDepCnt != other.groupDepCnt)
 						return false;
-					if (readWriteMask != other.readWriteMask)
+					if (has_match_terms() != other.has_match_terms())
+						return false;
+					if (!uses_term_access_identity() && readWriteMask != other.readWriteMask)
 						return false;
 					if (cacheSrcTrav != other.cacheSrcTrav)
 						return false;
@@ -43120,6 +43161,14 @@ namespace gaia {
 
 			//! Rebuilds derived masks, dependency metadata, and cache policy after authored terms change.
 			void refresh() {
+#if GAIA_ASSERT_ENABLED
+				// Sorting reads component values even when the callback does not.
+				if (data.has_match_terms() && data.sortByFunc != nullptr) {
+					GAIA_FOR(data.idsCnt) {
+						GAIA_ASSERT(data.terms[i].access != QueryAccess::Match || data.terms[i].id != data.sortBy);
+					}
+				}
+#endif
 				const auto mask0_old = data.as_mask_0;
 				const auto mask1_old = data.as_mask_1;
 				const auto isComplex_old = data.flags & QueryFlags::Complex;
@@ -44684,6 +44733,10 @@ namespace gaia {
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
 				const uint8_t* m_pCompIndices = nullptr;
+#if GAIA_ASSERT_ENABLED
+				//! Query access declarations used only to validate payload access in assertion-enabled builds.
+				const QueryCtx::Data* m_pQueryAccess = nullptr;
+#endif
 				//! Optional inherited term data view for exact semantic self-source terms.
 				InheritedTermDataView m_inheritedData;
 				//! Optional per-term ids used by one-row direct iterators when a term resolves semantically.
@@ -44781,6 +44834,70 @@ namespace gaia {
 				void set_comp_indices(const uint8_t* pCompIndices) {
 					m_pCompIndices = pCompIndices;
 				}
+
+#if GAIA_ASSERT_ENABLED
+				//! Binds query access declarations without adding state to assertion-disabled iterators.
+				//! \param pQueryAccess Compiled query access metadata, or nullptr outside query execution.
+				void set_query_access(const QueryCtx::Data* pQueryAccess) {
+					m_pQueryAccess = pQueryAccess;
+				}
+
+				//! Rejects payload access through an explicitly presence-only query field.
+				//! \param termIdx Authored query field index.
+				//! \param fallbackId Typed payload id used by unmapped inherited accessors.
+				void assert_term_access(uint32_t termIdx, Entity fallbackId = EntityBad) const {
+					if (m_pQueryAccess == nullptr || !m_pQueryAccess->has_match_terms())
+						return;
+
+					GAIA_FOR(m_pQueryAccess->idsCnt) {
+						if (m_pQueryAccess->terms[i].fieldIndex == termIdx) {
+							GAIA_ASSERT(
+									m_pQueryAccess->terms[i].access != QueryAccess::Match &&
+									"Presence-only terms have no payload access");
+							return;
+						}
+					}
+					if (fallbackId != EntityBad)
+						assert_term_access(fallbackId);
+				}
+
+				//! Tests whether an entity-resolved payload is excluded by presence-only query terms.
+				//! \param data Compiled query access metadata.
+				//! \param component Component entity or exact relationship pair to access.
+				//! \param selfSourceOnly True when access resolves only from the iterated entity.
+				//! \return True unless only presence-only positive terms match the requested payload.
+				GAIA_NODISCARD static bool
+				allows_term_access(const QueryCtx::Data& data, Entity component, bool selfSourceOnly = true) {
+					if (!data.has_match_terms())
+						return true;
+
+					bool matchOnly = false;
+					GAIA_FOR(data.idsCnt) {
+						const auto& term = data.terms[i];
+						if (term.op == QueryOpKind::Not || (selfSourceOnly && !query_term_maps_to_current_archetype(term)))
+							continue;
+
+						const bool matches =
+								term.id == component ||
+								(term.id.pair() && component.pair() && (is_wildcard(term.id.id()) || term.id.id() == component.id()) &&
+								 (is_wildcard(term.id.gen()) || term.id.gen() == component.gen()));
+						if (!matches)
+							continue;
+						if (term.access != QueryAccess::Match)
+							return true;
+						matchOnly = true;
+					}
+					return !matchOnly;
+				}
+
+				//! Rejects payload access to explicitly presence-only terms resolved from the iterated entity.
+				//! \param component Component entity or exact relationship pair to access.
+				void assert_term_access(Entity component) const {
+					GAIA_ASSERT(
+							(m_pQueryAccess == nullptr || allows_term_access(*m_pQueryAccess, component)) &&
+							"Presence-only terms have no payload access");
+				}
+#endif
 
 				void set_inherited_data(InheritedTermDataView inheritedData) {
 					m_inheritedData = inheritedData;
@@ -44893,6 +45010,9 @@ namespace gaia {
 
 				template <typename U>
 				GAIA_NODISCARD auto entity_view_set(Entity termId, bool writeIm) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(termId);
+#endif
 					return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), writeIm);
 				}
 
@@ -44904,6 +45024,9 @@ namespace gaia {
 
 				template <typename U>
 				GAIA_NODISCARD auto entity_soa_view_set(Entity termId, bool writeIm) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(termId);
+#endif
 					return SoATermViewSet<U>{nullptr, 0, entity_snapshot(), world(), termId, 0, size(), writeIm};
 				}
 
@@ -45016,6 +45139,9 @@ namespace gaia {
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return True when every row exposes mutable payload storage.
 				GAIA_NODISCARD bool owns_raw_component(Entity component) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(component);
+#endif
 					const auto* pEntities = entity_snapshot();
 					GAIA_FOR(size()) {
 						if (!world_mut_raw(*world(), pEntities[i], component).valid())
@@ -45026,6 +45152,9 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD RawTermViewGet raw_term_view(uint32_t termIdx) const {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(termIdx);
+#endif
 					if (m_pCompIndices == nullptr || m_pChunk == nullptr)
 						return {};
 
@@ -45056,6 +45185,9 @@ namespace gaia {
 				//! \return True when the term and field support direct iterator access.
 				GAIA_NODISCARD bool raw_term_field_info(
 						uint32_t termIdx, uint32_t fieldIdx, uint8_t& compIdx, const ComponentCacheItem*& pItem) const {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(termIdx);
+#endif
 					if (m_pCompIndices == nullptr || m_pChunk == nullptr || size() == 0)
 						return false;
 
@@ -45115,6 +45247,9 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD RawTermViewSet raw_term_view_mut(uint32_t termIdx, bool trackWrite) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(termIdx);
+#endif
 					if (m_pCompIndices == nullptr || m_pChunk == nullptr)
 						return {};
 
@@ -45147,6 +45282,9 @@ namespace gaia {
 				//! \param trackWrite True to finish writes after the iterator callback.
 				//! \return Entity-resolved mutable view, or an empty view when unsupported.
 				GAIA_NODISCARD RawTermViewSetEntity raw_term_view_any_mut(Entity component, bool trackWrite) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(component);
+#endif
 					if (component == EntityBad || m_pChunk == nullptr || size() == 0)
 						return {};
 
@@ -45227,6 +45365,9 @@ namespace gaia {
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return Entity-resolved raw view. Rows return invalid payloads when unsupported.
 				GAIA_NODISCARD RawTermViewGetEntity view_raw_any(Entity component) const {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(component);
+#endif
 					if (component == EntityBad || m_pChunk == nullptr || size() == 0)
 						return {};
 
@@ -45261,6 +45402,9 @@ namespace gaia {
 				//! Marks a raw iterator term written through sview_raw_mut(termIdx) as modified.
 				//! \param termIdx Query term index.
 				void modify_raw(uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(termIdx);
+#endif
 					if (m_pCompIndices == nullptr || m_pChunk == nullptr)
 						return;
 
@@ -45285,6 +45429,9 @@ namespace gaia {
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return True when the component was eligible and tracked.
 				GAIA_NODISCARD bool modify_raw(Entity component) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(component);
+#endif
 					if (component == EntityBad || m_pChunk == nullptr || size() == 0 || !owns_raw_component(component))
 						return false;
 
@@ -45435,6 +45582,9 @@ namespace gaia {
 				//! If \a TriggerHooks is true, also triggers the component's set hooks.
 				template <typename T, bool TriggerHooks>
 				void modify() {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(ChunkIterTypedOps::template term_desc<T>(*this).termId);
+#endif
 					m_pChunk->template modify<T, TriggerHooks>();
 				}
 
@@ -45888,6 +46038,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view_any(const ChunkIterImpl& self) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				if constexpr (std::is_same_v<U, Entity> || mem::is_soa_layout_v<U>)
 					return self.m_pChunk->template view<T>(self.from(), self.to());
@@ -45912,6 +46065,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view_any(ChunkIterImpl& self, uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(termIdx, ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 
 				if constexpr (mem::is_soa_layout_v<U>) {
@@ -45972,6 +46128,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view(const ChunkIterImpl& self) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				if constexpr (std::is_same_v<U, Entity>)
 					return self.m_pChunk->template view<T>(self.from(), self.to());
@@ -45986,6 +46145,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view(const ChunkIterImpl& self, uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(termIdx, ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				const auto compIdx = self.m_pCompIndices[termIdx];
 				GAIA_ASSERT(compIdx != 0xFF);
@@ -46001,6 +46163,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view_any_mut(ChunkIterImpl& self) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 				if constexpr (mem::is_soa_layout_v<U>) {
@@ -46041,6 +46206,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view_mut(ChunkIterImpl& self) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 				const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
@@ -46064,6 +46232,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view_mut(ChunkIterImpl& self, uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(termIdx, ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 				const auto compIdx = self.m_pCompIndices[termIdx];
@@ -46085,6 +46256,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view_any_mut(ChunkIterImpl& self, uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(termIdx, ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 
 				if constexpr (mem::is_soa_layout_v<U>) {
@@ -46140,6 +46314,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::sview_any_mut(ChunkIterImpl& self) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 				if constexpr (mem::is_soa_layout_v<U>)
@@ -46164,6 +46341,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::sview_mut(ChunkIterImpl& self) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 				if constexpr (mem::is_soa_layout_v<U>) {
@@ -46177,6 +46357,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::sview_mut(ChunkIterImpl& self, uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(termIdx, ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 				const auto compIdx = self.m_pCompIndices[termIdx];
@@ -46193,6 +46376,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::sview_any_mut(ChunkIterImpl& self, uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(termIdx, ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 
 				if constexpr (mem::is_soa_layout_v<U>) {
@@ -55463,11 +55649,12 @@ namespace gaia {
 					// This will be used to determine what kind of access the user wants for a given component.
 					const uint16_t isReadWrite = uint16_t(item.access == QueryAccess::Write);
 					ctxData.readWriteMask |= (isReadWrite << ctxData.idsCnt);
+					ctxData.flags |= uint16_t(item.access == QueryAccess::Match) * QueryCtx::QueryFlags::HasMatchTerms;
 
 					ctxData.ids[ctxData.idsCnt] = item.id;
-					ctxData.terms[ctxData.idsCnt] = {item.id,				item.entSrc,		item.entTrav,
-																					 item.travKind, item.travDepth, item.matchKind,
-																					 nullptr,				item.op,				(uint8_t)ctxData.idsCnt};
+					ctxData.terms[ctxData.idsCnt] = {
+							item.id,				item.entSrc, item.entTrav, item.travKind,						item.travDepth,
+							item.matchKind, nullptr,		 item.op,			 (uint8_t)ctxData.idsCnt, item.access};
 					++ctxData.idsCnt;
 				}
 			};
@@ -56132,7 +56319,7 @@ namespace gaia {
 					return QueryAccess::None;
 				}
 
-				//! Returns access requested by positive non-pair query terms for an id.
+				//! Returns access requested by required, OR, or optional non-pair terms for an id.
 				//! \param data Compiled query data.
 				//! \param entity Component/entity id to inspect.
 				//! \return Access inferred from query terms, or None when no data access is declared by the query shape.
@@ -56144,10 +56331,12 @@ namespace gaia {
 					const auto terms = data.terms_view();
 					GAIA_FOR((uint32_t)terms.size()) {
 						const auto& term = terms[i];
-						if (term.id != entity || (term.op != QueryOpKind::All && term.op != QueryOpKind::Or))
+						if (term.id != entity ||
+								(term.op != QueryOpKind::All && term.op != QueryOpKind::Or && term.op != QueryOpKind::Any) ||
+								term.access == QueryAccess::Match)
 							continue;
 
-						if ((data.readWriteMask & (uint16_t(1) << i)) != 0)
+						if (term.access == QueryAccess::Write)
 							return QueryAccess::Write;
 						access = QueryAccess::Read;
 					}
@@ -56185,8 +56374,14 @@ namespace gaia {
 						const QueryAccessSet& rightAccess) {
 					const auto terms = leftData.terms_view();
 					GAIA_FOR((uint32_t)terms.size()) {
-						const auto id = terms[i].id;
-						const auto access = term_access(leftData, id);
+						const auto& term = terms[i];
+						const auto id = term.id;
+						if (id == EntityBad || id.pair() ||
+								(term.op != QueryOpKind::All && term.op != QueryOpKind::Or && term.op != QueryOpKind::Any) ||
+								term.access == QueryAccess::Match)
+							continue;
+						// This term's access is already known. Duplicate ids are still checked individually.
+						const auto access = term.access == QueryAccess::Write ? QueryAccess::Write : QueryAccess::Read;
 						if (access_conflicts(access, effective_access(rightData, rightAccess, id)))
 							return true;
 					}
@@ -56505,8 +56700,7 @@ namespace gaia {
 				GAIA_NODISCARD bool conflicts_with(QueryImpl& other) {
 					const auto& leftData = fetch().ctx().data;
 					const auto& rightData = other.fetch().ctx().data;
-					return conflicts_one_way(leftData, m_access, rightData, other.m_access) ||
-								 conflicts_one_way(rightData, other.m_access, leftData, m_access);
+					return conflicts_one_way(leftData, m_access, rightData, other.m_access);
 				}
 
 				//! Returns whether this query can run concurrently with another query based on declared scheduling metadata.
@@ -56817,18 +57011,28 @@ namespace gaia {
 				}
 
 				void add_inter(QueryInput item) {
-					// When excluding or using ANY terms make sure the access type is None.
-					GAIA_ASSERT((item.op != QueryOpKind::Not && item.op != QueryOpKind::Any) || item.access == QueryAccess::None);
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(
+							item.access != QueryAccess::Match || item.op == QueryOpKind::All || item.op == QueryOpKind::Or ||
+							item.op == QueryOpKind::Any);
+					// Exclusions have no payload access.
+					GAIA_ASSERT(item.op != QueryOpKind::Not || item.access == QueryAccess::None);
+#endif
 
 					QueryCmd_AddItem cmd{item};
 					add_cmd(cmd);
 				}
 
 				GAIA_NODISCARD static QueryAccess normalize_access(QueryOpKind op, Entity entity, QueryAccess access) {
-					if (op == QueryOpKind::Not || op == QueryOpKind::Any || entity.pair())
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(
+							access != QueryAccess::Match || op == QueryOpKind::All || op == QueryOpKind::Or ||
+							op == QueryOpKind::Any);
+#endif
+					if (op == QueryOpKind::Not || (entity.pair() && access != QueryAccess::Match))
 						return QueryAccess::None;
 
-					// Non-pair ALL/OR terms default to Read access when unspecified.
+					// Required, OR, and optional non-pair terms default to Read access when unspecified.
 					if (access == QueryAccess::None)
 						return QueryAccess::Read;
 
@@ -56860,7 +57064,7 @@ namespace gaia {
 
 					// Determine the access type
 					QueryAccess access = QueryAccess::None;
-					if (op != QueryOpKind::Not && op != QueryOpKind::Any) {
+					if (op != QueryOpKind::Not) {
 						constexpr auto isReadWrite = core::is_mut_v<T>;
 						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
@@ -56884,14 +57088,10 @@ namespace gaia {
 						e = desc.entity;
 					}
 
-					QueryAccess access = QueryAccess::None;
-					if (op != QueryOpKind::Not && op != QueryOpKind::Any) {
-						if (options.access != QueryAccess::None)
-							access = options.access;
-						else {
-							constexpr auto isReadWrite = core::is_mut_v<T>;
-							access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
-						}
+					QueryAccess access = options.access;
+					if (op != QueryOpKind::Not && access == QueryAccess::None) {
+						constexpr auto isReadWrite = core::is_mut_v<T>;
+						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
 
 					add_inter(
@@ -56912,7 +57112,7 @@ namespace gaia {
 
 					// Determine the access type
 					QueryAccess access = QueryAccess::None;
-					if (op != QueryOpKind::Not && op != QueryOpKind::Any) {
+					if (op != QueryOpKind::Not) {
 						constexpr auto isReadWrite = core::is_mut_v<UO_Rel> || core::is_mut_v<UO_Tgt>;
 						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
@@ -57698,6 +57898,9 @@ namespace gaia {
 					//! \param it Iterator prepared for the current query batch.
 					void operator()(Iter& it) {
 						it.ctx(pSelf->ctx());
+#if GAIA_ASSERT_ENABLED
+						it.set_query_access(&pSelf->fetch().ctx().data);
+#endif
 						func(it);
 					}
 				};
@@ -59107,6 +59310,9 @@ namespace gaia {
 
 					Iter it;
 					it.init_query_state(queryInfo.world(), constraints, false);
+#if GAIA_ASSERT_ENABLED
+					it.set_query_access(&queryInfo.ctx().data);
+#endif
 
 					//! Direct dense plans already encode expensive process gates. When no cached archetype can require
 					//! prefab filtering and no depth-order barrier cache can prune, only deletion state remains dynamic.
@@ -59204,10 +59410,17 @@ namespace gaia {
 					void* pFunc;
 					void* pCtx;
 					void (*invoke)(void*, Iter&);
+#if GAIA_ASSERT_ENABLED
+					//! Access metadata used only to validate callback payload requests.
+					const QueryCtx::Data* pQueryAccess = nullptr;
+#endif
 
 					void operator()(Iter& it) const {
 						GAIA_PROF_SCOPE(query_func);
 						it.ctx(pCtx);
+#if GAIA_ASSERT_ENABLED
+						it.set_query_access(pQueryAccess);
+#endif
 						invoke(pFunc, it);
 					}
 				};
@@ -59278,6 +59491,9 @@ namespace gaia {
 						QueryInfo& queryInfo, const QueryPlan& plan, QueryExecType execType, void* pFunc,
 						void (*invoke)(void*, Iter&), Constraints constraints) {
 					RuntimeIterCallback cb{pFunc, m_ctx, invoke};
+#if GAIA_ASSERT_ENABLED
+					cb.pQueryAccess = &queryInfo.ctx().data;
+#endif
 
 					if (plan.mode == QueryPlanMode::EntitySeed) {
 						each_direct_iter_inter(queryInfo, constraints, cb);
@@ -60155,6 +60371,9 @@ namespace gaia {
 						const auto& chunks = pArchetype->chunks();
 						Iter it;
 						it.init_query_state(queryInfo.world(), constraints, false);
+#if GAIA_ASSERT_ENABLED
+						it.set_query_access(&queryInfo.ctx().data);
+#endif
 						it.set_archetype(pArchetype);
 
 						if (!hasEntityFilters) {
@@ -60451,6 +60670,9 @@ namespace gaia {
 						const auto& chunks = pArchetype->chunks();
 						Iter it;
 						it.init_query_state(queryInfo.world(), constraints, false);
+#if GAIA_ASSERT_ENABLED
+						it.set_query_access(&queryInfo.ctx().data);
+#endif
 						it.set_archetype(pArchetype);
 
 						if (!hasEntityFilters) {
@@ -60510,6 +60732,9 @@ namespace gaia {
 					GAIA_ASSERT(ec.pArchetype != nullptr);
 					GAIA_ASSERT(ec.pChunk != nullptr);
 					GAIA_ASSERT(ec.row < ec.pChunk->size());
+#if GAIA_ASSERT_ENABLED
+					it.set_query_access(&queryInfo.ctx().data);
+#endif
 
 					if (ec.pArchetype != pLastArchetype) {
 						GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
@@ -61223,6 +61448,54 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Makes the preceding all(), or_(), or any() term presence-only.
+				//! Call while building the query, before its first execution or fetch. Later terms keep their own access.
+				//! Scans pending builder commands once and updates the term in place without growing the command buffer.
+				//! \return Self reference.
+				QueryImpl& no_access() {
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(m_storage.m_identity.serId != QueryIdBad && "no_access() requires a pending query term");
+#endif
+					auto& buffer = m_storage.ser_buffer();
+					const auto end = buffer.bytes();
+					const uint32_t commandSizes[] = {ser::bytes(QueryCmd_AddItem{}),	ser::bytes(QueryCmd_AddFilter{}),
+																					 ser::bytes(QueryCmd_SortBy{}),		ser::bytes(QueryCmd_GroupBy{}),
+																					 ser::bytes(QueryCmd_GroupDep{}), ser::bytes(QueryCmd_MatchPrefab{})};
+#if GAIA_ASSERT_ENABLED
+					static_assert(
+							sizeof(commandSizes) / sizeof(commandSizes[0]) ==
+									sizeof(CommandBufferRead) / sizeof(CommandBufferRead[0]),
+							"Every query command needs a serialized size");
+#endif
+					uint32_t termOffset = BadIndex;
+					buffer.seek(0);
+					while (buffer.tell() < end) {
+						QueryCmdType id{};
+						bool invalidatesHash = false;
+						ser::load(buffer, id);
+						ser::load(buffer, invalidatesHash);
+						(void)invalidatesHash;
+						if (id == QueryCmdType::ADD_ITEM)
+							termOffset = buffer.tell();
+						buffer.skip(commandSizes[id]);
+					}
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(termOffset != BadIndex && "no_access() requires a preceding all(), or_(), or any() term");
+#endif
+					buffer.seek(termOffset);
+					QueryCmd_AddItem cmd{};
+					ser::load(buffer, cmd);
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(
+							cmd.item.op == QueryOpKind::All || cmd.item.op == QueryOpKind::Or || cmd.item.op == QueryOpKind::Any);
+#endif
+					cmd.item.access = QueryAccess::Match;
+					buffer.seek(termOffset);
+					ser::save(buffer, cmd);
+					buffer.seek(end);
+					return *this;
+				}
+
 				//! Adds a required entity or pair term.
 				//! \param entity Required entity or pair id.
 				//! \param options Term options.
@@ -61624,6 +61897,10 @@ namespace gaia {
 				//! \see each(Func, QueryExecType)
 				template <typename Func>
 				GAIA_NODISCARD SchedJob job(Func func, QueryExecType execType) {
+#if GAIA_ASSERT_ENABLED
+					if constexpr (!detail::is_query_iter_callback_v<Func>)
+						validate_typed_access<Func>();
+#endif
 					if constexpr (detail::is_query_iter_callback_v<Func>) {
 						switch (execType) {
 							case QueryExecType::Parallel:
@@ -61653,6 +61930,13 @@ namespace gaia {
 
 					return add_query_task_job(GAIA_MOV(func), execType);
 				}
+
+#if GAIA_ASSERT_ENABLED
+				//! Validates typed payload declarations before deferred jobs can return for empty matches.
+				//! \tparam Func Typed query callback.
+				template <typename Func>
+				void validate_typed_access();
+#endif
 
 				//! Iterates query matches using the default execution mode.
 				//! Each callback receives a contiguous chunk window. DontFragment / sparse entity-filter
@@ -61759,6 +62043,9 @@ namespace gaia {
 							[&](Iter& it) {
 								GAIA_PROF_SCOPE(query_func_a);
 								it.ctx(m_ctx);
+#if GAIA_ASSERT_ENABLED
+								it.set_query_access(&queryInfo.ctx().data);
+#endif
 								func(it);
 							},
 							constraints);
@@ -62457,7 +62744,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD inline QueryTermOptions typed_query_term_options(QueryOpKind op, QueryTermOptions options) {
-				if (op != QueryOpKind::Not && op != QueryOpKind::Any && options.access == QueryAccess::None) {
+				if (op != QueryOpKind::Not && options.access == QueryAccess::None) {
 					constexpr auto isReadWrite = core::is_mut_v<T>;
 					options.access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 				}
@@ -62745,6 +63032,9 @@ namespace gaia {
 				bool hasSparseArgs = false;
 				state.argCount = argCount;
 				GAIA_FOR(argCount) {
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(ChunkIterImpl::allows_term_access(queryInfo.ctx().data, pMetas[i].termId, false));
+#endif
 					state.argIds[i] = pMetas[i].termId;
 					state.writeFlags[i] = pMetas[i].isWrite;
 					if (pMetas[i].isWrite) {
@@ -63040,6 +63330,9 @@ namespace gaia {
 					std::span<const BfsChunkRun> runs, const TypedQueryExecState& state) {
 				Iter it;
 				it.init_query_state(&world, constraints, false);
+#if GAIA_ASSERT_ENABLED
+				it.set_query_access(&queryInfo.ctx().data);
+#endif
 				const Archetype* pLastArchetype = nullptr;
 				uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 				Entity termIds[ChunkHeader::MAX_COMPONENTS];
@@ -63070,6 +63363,9 @@ namespace gaia {
 				auto& walkData = ensure_each_walk_data();
 				Iter it;
 				it.init_query_state(&world, constraints, false);
+#if GAIA_ASSERT_ENABLED
+				it.set_query_access(&queryInfo.ctx().data);
+#endif
 				if (!walkData.cachedRuns.empty()) {
 					const auto& runs = walkData.cachedRuns;
 					const Archetype* pLastArchetype = nullptr;
@@ -63971,6 +64267,9 @@ namespace gaia {
 				lock(*m_storage.world());
 				Iter it;
 				it.init_query_state(queryInfo.world(), Constraints::EnabledOnly, false);
+#if GAIA_ASSERT_ENABLED
+				it.set_query_access(&queryInfo.ctx().data);
+#endif
 				const Archetype* pLastArchetype = nullptr;
 				for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
 					const auto* pArchetype = cacheView[i];
@@ -64020,6 +64319,9 @@ namespace gaia {
 				lock(*m_storage.world());
 				Iter it;
 				it.init_query_state(queryInfo.world(), Constraints::EnabledOnly, false);
+#if GAIA_ASSERT_ENABLED
+				it.set_query_access(&queryInfo.ctx().data);
+#endif
 				const Archetype* pLastArchetype = nullptr;
 
 				for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
@@ -64091,6 +64393,20 @@ namespace gaia {
 					run_query_on_chunks<ExecType, IterModeEnabled>(queryInfo, cb);
 				}
 			}
+
+#if GAIA_ASSERT_ENABLED
+			template <typename Func>
+			inline void QueryImpl::validate_typed_access() {
+				using InputArgs = decltype(core::func_args(&Func::operator()));
+
+				auto& queryInfo = fetch();
+				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
+				const auto argCount = init_typed_query_arg_metas(metas, *queryInfo.world(), InputArgs{});
+				GAIA_FOR(argCount) {
+					GAIA_ASSERT(ChunkIterImpl::allows_term_access(queryInfo.ctx().data, metas[i].termId, false));
+				}
+			}
+#endif
 
 			template <QueryExecType ExecType, typename Func>
 			inline void QueryImpl::each_typed_inter(QueryInfo& queryInfo, Func func) {
@@ -64310,6 +64626,9 @@ namespace gaia {
 							if (state.canUseDirectChunkEval) {
 								Iter it;
 								it.init_query_state(&world, constraints, false);
+#if GAIA_ASSERT_ENABLED
+								it.set_query_access(&queryInfo.ctx().data);
+#endif
 								const Archetype* pLastArchetype = nullptr;
 								for (const auto& run: runs) {
 									if (run.pArchetype != pLastArchetype) {
@@ -64324,6 +64643,9 @@ namespace gaia {
 							} else {
 								Iter it;
 								it.init_query_state(&world, constraints, false);
+#if GAIA_ASSERT_ENABLED
+								it.set_query_access(&queryInfo.ctx().data);
+#endif
 								const Archetype* pLastArchetype = nullptr;
 								uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 								Entity termIds[ChunkHeader::MAX_COMPONENTS];
@@ -64430,6 +64752,9 @@ namespace gaia {
 				const DirectChunkArgEvalDesc desc{meta.termId, meta.isEntity, meta.isPair, meta.usesSparseStorage};
 				Iter it;
 				it.init_query_state(queryInfo.world(), constraints, false);
+#if GAIA_ASSERT_ENABLED
+				it.set_query_access(&queryInfo.ctx().data);
+#endif
 				const bool canUseDirectChunkEval = !UseFilters && !queryInfo.has_entity_filter_terms() &&
 																					 can_use_direct_chunk_term_eval_descs(world, queryInfo, &desc, 1) &&
 																					 can_use_direct_chunk_iteration_fastpath(queryInfo);
@@ -64493,6 +64818,15 @@ namespace gaia {
 
 			template <typename Container>
 			inline void QueryImpl::arr(Container& outArray, Constraints constraints) {
+#if GAIA_ASSERT_ENABLED
+				{
+					auto& queryInfo = fetch();
+					GAIA_ASSERT(
+							ChunkIterImpl::allows_term_access(
+									queryInfo.ctx().data, typed_query_arg_meta<typename Container::value_type>(*queryInfo.world()).termId,
+									false));
+				}
+#endif
 				const auto entCnt = count(constraints);
 				if (entCnt == 0)
 					return;
@@ -82981,6 +83315,9 @@ namespace gaia {
 
 		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets, ObserverEvent reportedEvent) {
 			const auto& queryInfo = query.fetch();
+	#if GAIA_ASSERT_ENABLED
+			iter.set_query_access(&queryInfo.ctx().data);
+	#endif
 
 	#if GAIA_PROFILER_CPU
 			const auto name = entity_name(*queryInfo.world(), entity);
@@ -83925,8 +84262,8 @@ namespace gaia {
 				return *this;
 			}
 
-			//! Adds an any-of term to the system query.
-			//! \param entity Entity or pair id participating in the current any-of set.
+			//! Adds an optional term to the system query.
+			//! \param entity Optional entity or pair id.
 			//! \param options Query-term options such as source, access mode, or traversal.
 			//! \return Self reference.
 			SystemBuilder& any(Entity entity, const QueryTermOptions& options = {}) {
@@ -83979,8 +84316,8 @@ namespace gaia {
 			template <typename T>
 			SystemBuilder& all(const QueryTermOptions& options);
 
-			//! Adds an any-of component or pair term to the system query.
-			//! \tparam T Component, entity type, or pair type participating in the any-of set.
+			//! Adds an optional component or pair term to the system query.
+			//! \tparam T Optional component, entity type, or pair type.
 			//! \param options Query-term options such as source, access mode, or traversal.
 			//! \return Self reference.
 			template <typename T>
@@ -84008,8 +84345,8 @@ namespace gaia {
 			template <typename T>
 			SystemBuilder& all();
 
-			//! Adds an any-of component or pair term to the system query.
-			//! \tparam T Component, entity type, or pair type participating in the any-of set.
+			//! Adds an optional component or pair term to the system query.
+			//! \tparam T Optional component, entity type, or pair type.
 			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& any();
@@ -84232,6 +84569,15 @@ namespace gaia {
 
 			//! \name System access declarations
 			//! \{
+			//! Makes the preceding all(), or_(), or any() term presence-only.
+			//! Call before the system query is first executed or fetched. Later terms keep their own access.
+			//! \return Self reference.
+			SystemBuilder& no_access() {
+				validate();
+				data().query.no_access();
+				return *this;
+			}
+
 			//! Declares an additional id read by this system callback.
 			//! A plain Gaia entity may be used as a resource key for shared context or other application-owned state.
 			//! \param entity Component/entity id read by user code.
@@ -84363,8 +84709,8 @@ namespace gaia {
 					detail::typed_query_term_entity<T>(m_world), detail::typed_query_term_options<T>(QueryOpKind::All, options));
 		}
 
-		//! Adds a typed any-of term to the underlying system query.
-		//! \tparam T Component, entity type, or pair type participating in the any-of set.
+		//! Adds a typed optional term to the underlying system query.
+		//! \tparam T Optional component, entity type, or pair type.
 		//! \param options Query-term options applied after Gaia-ECS derives typed defaults.
 		//! \return Self reference.
 		//! \see SystemBuilder::any(Entity, const QueryTermOptions&)
@@ -84408,8 +84754,8 @@ namespace gaia {
 			return all<T>(QueryTermOptions{});
 		}
 
-		//! Adds a typed any-of term with default query-term options.
-		//! \tparam T Component, entity type, or pair type participating in the any-of set.
+		//! Adds a typed optional term with default query-term options.
+		//! \tparam T Optional component, entity type, or pair type.
 		//! \return Self reference.
 		//! \see SystemBuilder::any(const QueryTermOptions&)
 		template <typename T>

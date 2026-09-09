@@ -36,7 +36,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD inline QueryTermOptions typed_query_term_options(QueryOpKind op, QueryTermOptions options) {
-				if (op != QueryOpKind::Not && op != QueryOpKind::Any && options.access == QueryAccess::None) {
+				if (op != QueryOpKind::Not && options.access == QueryAccess::None) {
 					constexpr auto isReadWrite = core::is_mut_v<T>;
 					options.access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 				}

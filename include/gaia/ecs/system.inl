@@ -253,8 +253,8 @@ namespace gaia {
 				return *this;
 			}
 
-			//! Adds an any-of term to the system query.
-			//! \param entity Entity or pair id participating in the current any-of set.
+			//! Adds an optional term to the system query.
+			//! \param entity Optional entity or pair id.
 			//! \param options Query-term options such as source, access mode, or traversal.
 			//! \return Self reference.
 			SystemBuilder& any(Entity entity, const QueryTermOptions& options = {}) {
@@ -307,8 +307,8 @@ namespace gaia {
 			template <typename T>
 			SystemBuilder& all(const QueryTermOptions& options);
 
-			//! Adds an any-of component or pair term to the system query.
-			//! \tparam T Component, entity type, or pair type participating in the any-of set.
+			//! Adds an optional component or pair term to the system query.
+			//! \tparam T Optional component, entity type, or pair type.
 			//! \param options Query-term options such as source, access mode, or traversal.
 			//! \return Self reference.
 			template <typename T>
@@ -336,8 +336,8 @@ namespace gaia {
 			template <typename T>
 			SystemBuilder& all();
 
-			//! Adds an any-of component or pair term to the system query.
-			//! \tparam T Component, entity type, or pair type participating in the any-of set.
+			//! Adds an optional component or pair term to the system query.
+			//! \tparam T Optional component, entity type, or pair type.
 			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& any();
@@ -560,6 +560,15 @@ namespace gaia {
 
 			//! \name System access declarations
 			//! \{
+			//! Makes the preceding all(), or_(), or any() term presence-only.
+			//! Call before the system query is first executed or fetched. Later terms keep their own access.
+			//! \return Self reference.
+			SystemBuilder& no_access() {
+				validate();
+				data().query.no_access();
+				return *this;
+			}
+
 			//! Declares an additional id read by this system callback.
 			//! A plain Gaia entity may be used as a resource key for shared context or other application-owned state.
 			//! \param entity Component/entity id read by user code.

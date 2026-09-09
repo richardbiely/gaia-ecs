@@ -1283,7 +1283,9 @@ q.each([](ecs::Iter& it) {
 });
 ```
 
-Queries also expose scheduling access metadata. Positive query terms already describe component reads and writes (`all<const T>()`/`or_<const T>()` read, `all<T&>()`/`or_<T&>()` write). If the callback touches data outside the query shape, declare it explicitly with `reads(Entity)`, `writes(Entity)`, or the typed adapters `reads<T>()` / `writes<T>()`. Use `main_thread()` for callbacks that are not safe to run on worker threads even when component access would otherwise allow it. These declarations are metadata only: they do not change query matching, hashing, shared-cache identity, or cache invalidation.
+<a id="query-access"></a>
+
+Queries also expose scheduling access metadata. `all()`, `or_()`, and `any()` terms infer read access from value or const types and write access from mutable references. Optional terms declare access even when no matching entity currently has the component. If the callback touches data outside the query shape, declare it explicitly with `reads(Entity)`, `writes(Entity)`, or the typed adapters `reads<T>()` / `writes<T>()`. Use `main_thread()` for callbacks that are not safe to run on worker threads even when component access would otherwise allow it. The `reads()`, `writes()`, and `main_thread()` declarations only affect scheduling metadata. They do not change query matching, hashing, shared-cache identity, or cache invalidation.
 
 ```cpp
 auto move = w.query()
@@ -1304,6 +1306,31 @@ if (!move.can_run_parallel(bounds)) {
 ```
 
 Two queries conflict when both access the same id and at least one side writes it. Pair query terms are treated as matching/filtering metadata and do not imply component data access; if a pair id is used as an external scheduling key, declare it explicitly with `reads(pairEntity)` or `writes(pairEntity)`.
+
+Use `.no_access()` after an `all()`, `or_()`, or `any()` term to match a component without reading or writing its data. It sets only the preceding term's access to `QueryAccess::Match` and leaves matching unchanged. The term declares no data access, so it does not conflict with a writer of the component. System builders support the same modifier.
+
+```cpp
+auto move = w.query()
+  .all<Position&>() // Read and write Position.
+  .all<const Selected>().no_access() // Only check whether Selected is present.
+  .all<const Velocity>(); // Read Velocity.
+
+move.each([](Position& pos, const Velocity& vel) {
+  pos.x += vel.x;
+});
+
+auto selectedOrHighlighted = w.query()
+  .or_<Selected>().no_access()
+  .or_<Highlighted>().no_access();
+```
+
+Apply the modifier while building the query, before calling `fetch()`, `count()`, `access()`, or any execution method. Calling it without a preceding term, after `no()`, or after compilation is invalid.
+
+You can also pass `QueryTermOptions{}.no_access()` to `all()`, `or_()`, or `any()`. This works with source and traversal settings on typed or entity-id terms. Using this option with `no()` is invalid.
+
+With `GAIA_ASSERT_ENABLED`, invalid modifier usage and attempts to access a presence-only term through callback arguments, iterator views, or `sort_by<T>()` trigger `GAIA_ASSERT`.
+
+The [scheduling access declarations above](#query-access) do not allow the query to expose a presence-only term's data. Direct `World` or `Chunk` access and structural changes remain the caller's responsibility and must follow the existing iteration and synchronization rules.
 
 Note, the first Query invocation of a cached query is always slower than the subsequent ones because internals of the Query need to be initialized.
 
@@ -1473,7 +1500,7 @@ GAIA_ASSERT(q.empty()); // The matching entity is now excluded.
 
 ### Query traversal
 
-More advanced lookup settings are supported via `QueryTermOptions`. This includes source selection, traversal by relation (`ChildOf` by default), traversal filtering (`trav`, `trav_up`, `trav_parent`, `trav_self_parent`, `trav_down`, `trav_child`, `trav_self_down`, `trav_self_child`, `trav_depth`), and access type (read or write).
+More advanced lookup settings are supported via `QueryTermOptions`. This includes source selection, traversal by relation (`ChildOf` by default), traversal filtering (`trav`, `trav_up`, `trav_parent`, `trav_self_parent`, `trav_down`, `trav_child`, `trav_self_down`, `trav_self_child`, `trav_depth`), and access type (read, write, or presence-only).
 
 ```cpp
 struct Position {};

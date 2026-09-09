@@ -1,4 +1,8 @@
 *build*
+cachegrind*
+valgrind*
+artifact*
+*pycache*
 !include/gaia/ecs/query_builder_typed.inl
 !vm/**/build_*.sh
 !vm/**/build.sh
@@ -6,14 +10,11 @@
 *.db
 ninja
 out
-cachegrind*
-valgrind*
 tmp
-*pycache*
+.DS_Store
 .vs
 .cache
 CMakeCache.txt
 CMakeSettings.json
 CMakeFiles
 CMakeUserPresets.json
-.DS_Store

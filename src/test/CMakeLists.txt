@@ -114,3 +114,20 @@ target_link_libraries(${PROJ_NAME_ARENA_LOCK} PRIVATE Threads::Threads)
 target_include_directories(${PROJ_NAME_ARENA_LOCK} PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_compile_definitions(${PROJ_NAME_ARENA_LOCK} PRIVATE GAIA_ALLOC_ARENA_LOCK=1)
 add_test(NAME ${PROJ_NAME_ARENA_LOCK} COMMAND $<TARGET_FILE:${PROJ_NAME_ARENA_LOCK}>)
+
+add_executable(gaia_test_query_access_assert src/test_query_access_assert.cpp)
+target_link_libraries(gaia_test_query_access_assert PRIVATE Threads::Threads)
+target_include_directories(gaia_test_query_access_assert PRIVATE ${PROJECT_SOURCE_DIR}/include)
+add_test(NAME gaia_test_query_access_assert_valid COMMAND gaia_test_query_access_assert valid)
+foreach(scenario IN ITEMS
+	modifier-missing modifier-metadata modifier-not modifier-after-fetch
+	not-term typed-read typed-write empty-typed empty-parallel each-iter array empty-array
+	optional-typed optional-view optional-indexed optional-raw
+	view-read view-write view-indexed view-auto sview raw-indexed raw-entity raw-mutable
+	sparse sparse-indexed soa-field pair wildcard-pair inherited-index source-typed sort system-typed explicit-read explicit-write modify)
+	add_test(
+		NAME gaia_test_query_access_assert_${scenario}
+		COMMAND ${CMAKE_COMMAND}
+			"-DEXECUTABLE=$<TARGET_FILE:gaia_test_query_access_assert>" "-DSCENARIO=${scenario}"
+			-P "${CMAKE_CURRENT_SOURCE_DIR}/expect_query_access_assert.cmake")
+endforeach()

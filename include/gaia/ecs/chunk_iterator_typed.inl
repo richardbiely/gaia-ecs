@@ -22,6 +22,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view_any(const ChunkIterImpl& self) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				if constexpr (std::is_same_v<U, Entity> || mem::is_soa_layout_v<U>)
 					return self.m_pChunk->template view<T>(self.from(), self.to());
@@ -46,6 +49,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view_any(ChunkIterImpl& self, uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(termIdx, ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 
 				if constexpr (mem::is_soa_layout_v<U>) {
@@ -106,6 +112,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view(const ChunkIterImpl& self) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				if constexpr (std::is_same_v<U, Entity>)
 					return self.m_pChunk->template view<T>(self.from(), self.to());
@@ -120,6 +129,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view(const ChunkIterImpl& self, uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(termIdx, ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				const auto compIdx = self.m_pCompIndices[termIdx];
 				GAIA_ASSERT(compIdx != 0xFF);
@@ -135,6 +147,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view_any_mut(ChunkIterImpl& self) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 				if constexpr (mem::is_soa_layout_v<U>) {
@@ -175,6 +190,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view_mut(ChunkIterImpl& self) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 				const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
@@ -198,6 +216,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view_mut(ChunkIterImpl& self, uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(termIdx, ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 				const auto compIdx = self.m_pCompIndices[termIdx];
@@ -219,6 +240,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::view_any_mut(ChunkIterImpl& self, uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(termIdx, ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 
 				if constexpr (mem::is_soa_layout_v<U>) {
@@ -274,6 +298,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::sview_any_mut(ChunkIterImpl& self) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 				if constexpr (mem::is_soa_layout_v<U>)
@@ -298,6 +325,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::sview_mut(ChunkIterImpl& self) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 				if constexpr (mem::is_soa_layout_v<U>) {
@@ -311,6 +341,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::sview_mut(ChunkIterImpl& self, uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(termIdx, ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 				const auto compIdx = self.m_pCompIndices[termIdx];
@@ -327,6 +360,9 @@ namespace gaia {
 
 			template <typename T>
 			auto ChunkIterTypedOps::sview_any_mut(ChunkIterImpl& self, uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+				self.assert_term_access(termIdx, ChunkIterTypedOps::template term_desc<T>(self).termId);
+#endif
 				using U = typename actual_type_t<T>::Type;
 
 				if constexpr (mem::is_soa_layout_v<U>) {

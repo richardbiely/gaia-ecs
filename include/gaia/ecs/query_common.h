@@ -100,7 +100,9 @@ namespace gaia {
 			//! Read-only component access.
 			Read,
 			//! Mutable component access.
-			Write
+			Write,
+			//! Match the term without accessing its payload.
+			Match
 		};
 		//! Flags derived from query input parsing.
 		enum class QueryInputFlags : uint8_t {
@@ -627,6 +629,13 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Matches an all(), or_(), or any() term without accessing its payload.
+			//! \return This options object.
+			QueryTermOptions& no_access() {
+				access = QueryAccess::Match;
+				return *this;
+			}
+
 			//! Requests read-only access to the term.
 			//! \return This options object.
 			QueryTermOptions& read() {
@@ -741,6 +750,8 @@ namespace gaia {
 			QueryOpKind op;
 			//! Stable execution field index matching the user-defined query field order.
 			uint8_t fieldIndex = 0;
+			//! Authored payload access, retained when query identity is canonicalized.
+			QueryAccess access = QueryAccess::None;
 
 			//! Compares the matching identity of two compiled terms.
 			//! \param other Term to compare.
@@ -907,6 +918,8 @@ namespace gaia {
 				HasPrefabTerms = 0x80,
 				//! Grouped archetypes are ordered by group identifier during cache refresh.
 				OrderGroups = 0x100,
+				//! At least one term matches presence without accessing its payload.
+				HasMatchTerms = 0x200,
 			};
 
 			//! Strategy used to maintain cached archetype matches.
@@ -1180,6 +1193,12 @@ namespace gaia {
 				//! Cold canonical shared-query identity payload.
 				LookupIdentity lookupIdentity;
 
+				//! Returns whether any term declares presence-only access.
+				//! \return True when the query contains QueryAccess::Match.
+				GAIA_NODISCARD bool has_match_terms() const {
+					return (flags & QueryFlags::HasMatchTerms) != 0;
+				}
+
 				//! Returns authored query ids in canonical execution order.
 				//! \return Read-only view over valid ids entries.
 				GAIA_NODISCARD std::span<const Entity> ids_view() const {
@@ -1208,6 +1227,12 @@ namespace gaia {
 				//! \return Read-only canonical term view.
 				GAIA_NODISCARD std::span<const QueryTerm> lookup_terms_view() const {
 					return {lookupIdentity.lookupTerms.data(), idsCnt};
+				}
+
+				//! Returns whether canonical term access and field order define query identity.
+				//! \return True for presence-only or optional query terms.
+				GAIA_NODISCARD bool uses_term_access_identity() const {
+					return has_match_terms() || (idsCnt != 0 && lookup_terms_view().back().op == QueryOpKind::Any);
 				}
 
 				//! Returns mutable canonicalized lookup terms used by shared query deduplication.
@@ -1362,6 +1387,15 @@ namespace gaia {
 						}
 					}
 
+					if (uses_term_access_identity() || other.uses_term_access_identity()) {
+						const auto left = lookup_terms_view();
+						const auto right = other.lookup_terms_view();
+						GAIA_FOR((uint32_t)left.size()) {
+							if (left[i].access != right[i].access || left[i].fieldIndex != right[i].fieldIndex)
+								return false;
+						}
+					}
+
 					{
 						const auto left = changed_lookup_view();
 						const auto right = other.changed_lookup_view();
@@ -1387,13 +1421,18 @@ namespace gaia {
 				//! \return Combined hash of canonical terms, filters, grouping dependencies, and identity flags.
 				GAIA_NODISCARD QueryLookupHash::Type hash_lookup_key_payload() const {
 					QueryLookupHash::Type payloadHash = 0;
+					const bool useTermAccess = uses_term_access_identity();
 
 					// Ids & ops
 					{
 						QueryLookupHash::Type hash = 0;
 
 						for (const auto& pair: lookup_terms_view()) {
-							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
+							const auto op = (QueryLookupHash::Type)pair.op;
+							const auto access = !useTermAccess ? op
+																								 : (op | ((QueryLookupHash::Type)pair.access << 8) |
+																										((QueryLookupHash::Type)pair.fieldIndex << 16));
+							hash = core::hash_combine(hash, access);
 							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
 							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.src.value());
 							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.entTrav.value());
@@ -1402,7 +1441,7 @@ namespace gaia {
 							hash = core::hash_combine(hash, (QueryLookupHash::Type)(uint8_t)pair.matchKind);
 						}
 						hash = core::hash_combine(hash, (QueryLookupHash::Type)idsCnt);
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)readWriteMask);
+						hash = core::hash_combine(hash, (QueryLookupHash::Type)(!useTermAccess ? readWriteMask : 0));
 						hash = core::hash_combine(hash, (QueryLookupHash::Type)cacheSrcTrav);
 
 						const bool matchPrefab = (flags & QueryFlags::MatchPrefab) != 0;
@@ -1479,7 +1518,9 @@ namespace gaia {
 						return false;
 					if (groupDepCnt != other.groupDepCnt)
 						return false;
-					if (readWriteMask != other.readWriteMask)
+					if (has_match_terms() != other.has_match_terms())
+						return false;
+					if (!uses_term_access_identity() && readWriteMask != other.readWriteMask)
 						return false;
 					if (cacheSrcTrav != other.cacheSrcTrav)
 						return false;
@@ -1527,6 +1568,14 @@ namespace gaia {
 
 			//! Rebuilds derived masks, dependency metadata, and cache policy after authored terms change.
 			void refresh() {
+#if GAIA_ASSERT_ENABLED
+				// Sorting reads component values even when the callback does not.
+				if (data.has_match_terms() && data.sortByFunc != nullptr) {
+					GAIA_FOR(data.idsCnt) {
+						GAIA_ASSERT(data.terms[i].access != QueryAccess::Match || data.terms[i].id != data.sortBy);
+					}
+				}
+#endif
 				const auto mask0_old = data.as_mask_0;
 				const auto mask1_old = data.as_mask_1;
 				const auto isComplex_old = data.flags & QueryFlags::Complex;

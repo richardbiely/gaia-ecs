@@ -43,6 +43,9 @@ namespace gaia {
 
 		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets, ObserverEvent reportedEvent) {
 			const auto& queryInfo = query.fetch();
+	#if GAIA_ASSERT_ENABLED
+			iter.set_query_access(&queryInfo.ctx().data);
+	#endif
 
 	#if GAIA_PROFILER_CPU
 			const auto name = entity_name(*queryInfo.world(), entity);
@@ -91,10 +94,10 @@ namespace gaia {
 							auto compIdx = world_component_index_comp_idx(*pWorld, *ec.pArchetype, queryId);
 							if (compIdx == BadIndex || compIdx == ComponentIndexBad)
 								compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
-							cachedIndices[i] = (compIdx != BadIndex && compIdx != ComponentIndexBad &&
-																	compIdx < ec.pArchetype->ids_view().size())
-																						 ? (uint8_t)compIdx
-																						 : (uint8_t)0xFF;
+							cachedIndices[i] =
+									(compIdx != BadIndex && compIdx != ComponentIndexBad && compIdx < ec.pArchetype->ids_view().size())
+											? (uint8_t)compIdx
+											: (uint8_t)0xFF;
 						}
 					}
 				}

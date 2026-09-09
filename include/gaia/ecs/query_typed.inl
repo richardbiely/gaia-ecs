@@ -13,6 +13,9 @@ namespace gaia {
 				bool hasSparseArgs = false;
 				state.argCount = argCount;
 				GAIA_FOR(argCount) {
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(ChunkIterImpl::allows_term_access(queryInfo.ctx().data, pMetas[i].termId, false));
+#endif
 					state.argIds[i] = pMetas[i].termId;
 					state.writeFlags[i] = pMetas[i].isWrite;
 					if (pMetas[i].isWrite) {
@@ -308,6 +311,9 @@ namespace gaia {
 					std::span<const BfsChunkRun> runs, const TypedQueryExecState& state) {
 				Iter it;
 				it.init_query_state(&world, constraints, false);
+#if GAIA_ASSERT_ENABLED
+				it.set_query_access(&queryInfo.ctx().data);
+#endif
 				const Archetype* pLastArchetype = nullptr;
 				uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 				Entity termIds[ChunkHeader::MAX_COMPONENTS];
@@ -338,6 +344,9 @@ namespace gaia {
 				auto& walkData = ensure_each_walk_data();
 				Iter it;
 				it.init_query_state(&world, constraints, false);
+#if GAIA_ASSERT_ENABLED
+				it.set_query_access(&queryInfo.ctx().data);
+#endif
 				if (!walkData.cachedRuns.empty()) {
 					const auto& runs = walkData.cachedRuns;
 					const Archetype* pLastArchetype = nullptr;
@@ -1239,6 +1248,9 @@ namespace gaia {
 				lock(*m_storage.world());
 				Iter it;
 				it.init_query_state(queryInfo.world(), Constraints::EnabledOnly, false);
+#if GAIA_ASSERT_ENABLED
+				it.set_query_access(&queryInfo.ctx().data);
+#endif
 				const Archetype* pLastArchetype = nullptr;
 				for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
 					const auto* pArchetype = cacheView[i];
@@ -1288,6 +1300,9 @@ namespace gaia {
 				lock(*m_storage.world());
 				Iter it;
 				it.init_query_state(queryInfo.world(), Constraints::EnabledOnly, false);
+#if GAIA_ASSERT_ENABLED
+				it.set_query_access(&queryInfo.ctx().data);
+#endif
 				const Archetype* pLastArchetype = nullptr;
 
 				for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
@@ -1359,6 +1374,20 @@ namespace gaia {
 					run_query_on_chunks<ExecType, IterModeEnabled>(queryInfo, cb);
 				}
 			}
+
+#if GAIA_ASSERT_ENABLED
+			template <typename Func>
+			inline void QueryImpl::validate_typed_access() {
+				using InputArgs = decltype(core::func_args(&Func::operator()));
+
+				auto& queryInfo = fetch();
+				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
+				const auto argCount = init_typed_query_arg_metas(metas, *queryInfo.world(), InputArgs{});
+				GAIA_FOR(argCount) {
+					GAIA_ASSERT(ChunkIterImpl::allows_term_access(queryInfo.ctx().data, metas[i].termId, false));
+				}
+			}
+#endif
 
 			template <QueryExecType ExecType, typename Func>
 			inline void QueryImpl::each_typed_inter(QueryInfo& queryInfo, Func func) {
@@ -1578,6 +1607,9 @@ namespace gaia {
 							if (state.canUseDirectChunkEval) {
 								Iter it;
 								it.init_query_state(&world, constraints, false);
+#if GAIA_ASSERT_ENABLED
+								it.set_query_access(&queryInfo.ctx().data);
+#endif
 								const Archetype* pLastArchetype = nullptr;
 								for (const auto& run: runs) {
 									if (run.pArchetype != pLastArchetype) {
@@ -1592,6 +1624,9 @@ namespace gaia {
 							} else {
 								Iter it;
 								it.init_query_state(&world, constraints, false);
+#if GAIA_ASSERT_ENABLED
+								it.set_query_access(&queryInfo.ctx().data);
+#endif
 								const Archetype* pLastArchetype = nullptr;
 								uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 								Entity termIds[ChunkHeader::MAX_COMPONENTS];
@@ -1698,6 +1733,9 @@ namespace gaia {
 				const DirectChunkArgEvalDesc desc{meta.termId, meta.isEntity, meta.isPair, meta.usesSparseStorage};
 				Iter it;
 				it.init_query_state(queryInfo.world(), constraints, false);
+#if GAIA_ASSERT_ENABLED
+				it.set_query_access(&queryInfo.ctx().data);
+#endif
 				const bool canUseDirectChunkEval = !UseFilters && !queryInfo.has_entity_filter_terms() &&
 																					 can_use_direct_chunk_term_eval_descs(world, queryInfo, &desc, 1) &&
 																					 can_use_direct_chunk_iteration_fastpath(queryInfo);
@@ -1761,6 +1799,15 @@ namespace gaia {
 
 			template <typename Container>
 			inline void QueryImpl::arr(Container& outArray, Constraints constraints) {
+#if GAIA_ASSERT_ENABLED
+				{
+					auto& queryInfo = fetch();
+					GAIA_ASSERT(
+							ChunkIterImpl::allows_term_access(
+									queryInfo.ctx().data, typed_query_arg_meta<typename Container::value_type>(*queryInfo.world()).termId,
+									false));
+				}
+#endif
 				const auto entCnt = count(constraints);
 				if (entCnt == 0)
 					return;

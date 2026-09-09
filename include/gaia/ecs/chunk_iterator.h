@@ -1059,6 +1059,10 @@ namespace gaia {
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
 				const uint8_t* m_pCompIndices = nullptr;
+#if GAIA_ASSERT_ENABLED
+				//! Query access declarations used only to validate payload access in assertion-enabled builds.
+				const QueryCtx::Data* m_pQueryAccess = nullptr;
+#endif
 				//! Optional inherited term data view for exact semantic self-source terms.
 				InheritedTermDataView m_inheritedData;
 				//! Optional per-term ids used by one-row direct iterators when a term resolves semantically.
@@ -1156,6 +1160,70 @@ namespace gaia {
 				void set_comp_indices(const uint8_t* pCompIndices) {
 					m_pCompIndices = pCompIndices;
 				}
+
+#if GAIA_ASSERT_ENABLED
+				//! Binds query access declarations without adding state to assertion-disabled iterators.
+				//! \param pQueryAccess Compiled query access metadata, or nullptr outside query execution.
+				void set_query_access(const QueryCtx::Data* pQueryAccess) {
+					m_pQueryAccess = pQueryAccess;
+				}
+
+				//! Rejects payload access through an explicitly presence-only query field.
+				//! \param termIdx Authored query field index.
+				//! \param fallbackId Typed payload id used by unmapped inherited accessors.
+				void assert_term_access(uint32_t termIdx, Entity fallbackId = EntityBad) const {
+					if (m_pQueryAccess == nullptr || !m_pQueryAccess->has_match_terms())
+						return;
+
+					GAIA_FOR(m_pQueryAccess->idsCnt) {
+						if (m_pQueryAccess->terms[i].fieldIndex == termIdx) {
+							GAIA_ASSERT(
+									m_pQueryAccess->terms[i].access != QueryAccess::Match &&
+									"Presence-only terms have no payload access");
+							return;
+						}
+					}
+					if (fallbackId != EntityBad)
+						assert_term_access(fallbackId);
+				}
+
+				//! Tests whether an entity-resolved payload is excluded by presence-only query terms.
+				//! \param data Compiled query access metadata.
+				//! \param component Component entity or exact relationship pair to access.
+				//! \param selfSourceOnly True when access resolves only from the iterated entity.
+				//! \return True unless only presence-only positive terms match the requested payload.
+				GAIA_NODISCARD static bool
+				allows_term_access(const QueryCtx::Data& data, Entity component, bool selfSourceOnly = true) {
+					if (!data.has_match_terms())
+						return true;
+
+					bool matchOnly = false;
+					GAIA_FOR(data.idsCnt) {
+						const auto& term = data.terms[i];
+						if (term.op == QueryOpKind::Not || (selfSourceOnly && !query_term_maps_to_current_archetype(term)))
+							continue;
+
+						const bool matches =
+								term.id == component ||
+								(term.id.pair() && component.pair() && (is_wildcard(term.id.id()) || term.id.id() == component.id()) &&
+								 (is_wildcard(term.id.gen()) || term.id.gen() == component.gen()));
+						if (!matches)
+							continue;
+						if (term.access != QueryAccess::Match)
+							return true;
+						matchOnly = true;
+					}
+					return !matchOnly;
+				}
+
+				//! Rejects payload access to explicitly presence-only terms resolved from the iterated entity.
+				//! \param component Component entity or exact relationship pair to access.
+				void assert_term_access(Entity component) const {
+					GAIA_ASSERT(
+							(m_pQueryAccess == nullptr || allows_term_access(*m_pQueryAccess, component)) &&
+							"Presence-only terms have no payload access");
+				}
+#endif
 
 				void set_inherited_data(InheritedTermDataView inheritedData) {
 					m_inheritedData = inheritedData;
@@ -1268,6 +1336,9 @@ namespace gaia {
 
 				template <typename U>
 				GAIA_NODISCARD auto entity_view_set(Entity termId, bool writeIm) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(termId);
+#endif
 					return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), writeIm);
 				}
 
@@ -1279,6 +1350,9 @@ namespace gaia {
 
 				template <typename U>
 				GAIA_NODISCARD auto entity_soa_view_set(Entity termId, bool writeIm) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(termId);
+#endif
 					return SoATermViewSet<U>{nullptr, 0, entity_snapshot(), world(), termId, 0, size(), writeIm};
 				}
 
@@ -1391,6 +1465,9 @@ namespace gaia {
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return True when every row exposes mutable payload storage.
 				GAIA_NODISCARD bool owns_raw_component(Entity component) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(component);
+#endif
 					const auto* pEntities = entity_snapshot();
 					GAIA_FOR(size()) {
 						if (!world_mut_raw(*world(), pEntities[i], component).valid())
@@ -1401,6 +1478,9 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD RawTermViewGet raw_term_view(uint32_t termIdx) const {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(termIdx);
+#endif
 					if (m_pCompIndices == nullptr || m_pChunk == nullptr)
 						return {};
 
@@ -1431,6 +1511,9 @@ namespace gaia {
 				//! \return True when the term and field support direct iterator access.
 				GAIA_NODISCARD bool raw_term_field_info(
 						uint32_t termIdx, uint32_t fieldIdx, uint8_t& compIdx, const ComponentCacheItem*& pItem) const {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(termIdx);
+#endif
 					if (m_pCompIndices == nullptr || m_pChunk == nullptr || size() == 0)
 						return false;
 
@@ -1444,8 +1527,7 @@ namespace gaia {
 
 					const auto& rec = recs[compIdx];
 					pItem = rec.pItem;
-					return pItem != nullptr &&
-								 rec.comp.storage_type() == DataStorageType::Table && rec.comp.soa() != 0 &&
+					return pItem != nullptr && rec.comp.storage_type() == DataStorageType::Table && rec.comp.soa() != 0 &&
 								 fieldIdx < rec.comp.soa() && pItem->soaSizes[fieldIdx] != 0;
 				}
 
@@ -1491,6 +1573,9 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD RawTermViewSet raw_term_view_mut(uint32_t termIdx, bool trackWrite) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(termIdx);
+#endif
 					if (m_pCompIndices == nullptr || m_pChunk == nullptr)
 						return {};
 
@@ -1523,6 +1608,9 @@ namespace gaia {
 				//! \param trackWrite True to finish writes after the iterator callback.
 				//! \return Entity-resolved mutable view, or an empty view when unsupported.
 				GAIA_NODISCARD RawTermViewSetEntity raw_term_view_any_mut(Entity component, bool trackWrite) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(component);
+#endif
 					if (component == EntityBad || m_pChunk == nullptr || size() == 0)
 						return {};
 
@@ -1603,6 +1691,9 @@ namespace gaia {
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return Entity-resolved raw view. Rows return invalid payloads when unsupported.
 				GAIA_NODISCARD RawTermViewGetEntity view_raw_any(Entity component) const {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(component);
+#endif
 					if (component == EntityBad || m_pChunk == nullptr || size() == 0)
 						return {};
 
@@ -1637,6 +1728,9 @@ namespace gaia {
 				//! Marks a raw iterator term written through sview_raw_mut(termIdx) as modified.
 				//! \param termIdx Query term index.
 				void modify_raw(uint32_t termIdx) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(termIdx);
+#endif
 					if (m_pCompIndices == nullptr || m_pChunk == nullptr)
 						return;
 
@@ -1661,6 +1755,9 @@ namespace gaia {
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return True when the component was eligible and tracked.
 				GAIA_NODISCARD bool modify_raw(Entity component) {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(component);
+#endif
 					if (component == EntityBad || m_pChunk == nullptr || size() == 0 || !owns_raw_component(component))
 						return false;
 
@@ -1811,6 +1908,9 @@ namespace gaia {
 				//! If \a TriggerHooks is true, also triggers the component's set hooks.
 				template <typename T, bool TriggerHooks>
 				void modify() {
+#if GAIA_ASSERT_ENABLED
+					assert_term_access(ChunkIterTypedOps::template term_desc<T>(*this).termId);
+#endif
 					m_pChunk->template modify<T, TriggerHooks>();
 				}
 
