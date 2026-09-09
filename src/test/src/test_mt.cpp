@@ -896,6 +896,40 @@ TEST_CASE("ECS - Presence-only system terms omit payload dependency edges") {
 	}
 }
 
+TEST_CASE("ECS - Pair payload defaults determine scheduler dependency edges") {
+	for (const uint32_t mode: {0U, 1U, 2U}) {
+		TestWorld twld;
+		ExternalSchedProbe probe;
+		wld.set_sched(probe.sched());
+		const auto relation = mode == 0 ? wld.add<Empty>().entity : wld.add<Position>().entity;
+		const auto target = wld.add();
+		const auto pair = ecs::Pair(relation, target);
+		const auto entity = wld.add();
+		wld.add(entity, pair);
+		uint32_t readRows = 0;
+		uint32_t writeRows = 0;
+		auto read = wld.system().all(pair).mode(ecs::QueryExecType::Parallel);
+		if (mode == 2)
+			read.no_access();
+		read.on_each([&](ecs::Iter& it) {
+			readRows += it.size();
+		});
+		wld.system()
+				.all(pair, ecs::QueryTermOptions{}.write())
+				.mode(ecs::QueryExecType::Parallel)
+				.on_each([&](ecs::Iter& it) {
+					writeRows += it.size();
+				});
+		wld.update();
+		CHECK(probe.addParallelCalls == 2);
+		CHECK(probe.submitCalls == 2);
+		CHECK(probe.waitCalls == 2);
+		CHECK(probe.depCalls == (mode == 1 ? 1 : 0));
+		CHECK(readRows == 1);
+		CHECK(writeRows == 1);
+	}
+}
+
 TEST_CASE("ECS - Optional system payload access determines dependency edges") {
 	for (const auto access: {ecs::QueryAccess::Read, ecs::QueryAccess::Write, ecs::QueryAccess::Match}) {
 		TestWorld twld;

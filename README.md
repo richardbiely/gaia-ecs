@@ -1285,7 +1285,7 @@ q.each([](ecs::Iter& it) {
 
 <a id="query-access"></a>
 
-Queries also expose scheduling access metadata. `all()`, `or_()`, and `any()` terms infer read access from value or const types and write access from mutable references. Optional terms declare access even when no matching entity currently has the component. If the callback touches data outside the query shape, declare it explicitly with `reads(Entity)`, `writes(Entity)`, or the typed adapters `reads<T>()` / `writes<T>()`. Use `main_thread()` for callbacks that are not safe to run on worker threads even when component access would otherwise allow it. The `reads()`, `writes()`, and `main_thread()` declarations only affect scheduling metadata. They do not change query matching, hashing, shared-cache identity, or cache invalidation.
+Queries also expose scheduling access metadata. `all()`, `or_()`, and `any()` terms with payload infer read access from value or const types and write access from mutable references. Optional terms declare access even when no matching entity currently has the component. If the callback touches data outside the query shape, declare it explicitly with `reads(Entity)`, `writes(Entity)`, or the typed adapters `reads<T>()` / `writes<T>()`. Use `main_thread()` for callbacks that are not safe to run on worker threads even when component access would otherwise allow it. The `reads()`, `writes()`, and `main_thread()` declarations only affect scheduling metadata. They do not change query matching, hashing, shared-cache identity, or cache invalidation.
 
 ```cpp
 auto move = w.query()
@@ -1305,23 +1305,26 @@ if (!move.can_run_parallel(bounds)) {
 }
 ```
 
-Two queries conflict when both access the same id and at least one side writes it. Pair query terms are treated as matching/filtering metadata and do not imply component data access; if a pair id is used as an external scheduling key, declare it explicitly with `reads(pairEntity)` or `writes(pairEntity)`.
+Two queries conflict when both access the same component or pair and at least one side writes it. Empty tags, entity IDs used as tags, and exact pairs without payload automatically use presence-only access. Pairs with payload infer read/write access like components. Wildcard and variable pairs keep their declared access because unresolved endpoints may carry data. Their scheduling conflicts include any overlapping pair access.
 
 Use `.no_access()` after an `all()`, `or_()`, or `any()` term to match a component without reading or writing its data. It sets only the preceding term's access to `QueryAccess::Match` and leaves matching unchanged. The term declares no data access, so it does not conflict with a writer of the component. System builders support the same modifier.
 
 ```cpp
 auto move = w.query()
   .all<Position&>() // Read and write Position.
-  .all<const Selected>().no_access() // Only check whether Selected is present.
+  .all<const Acceleration>().no_access() // Require Acceleration without reading its data.
   .all<const Velocity>(); // Read Velocity.
 
 move.each([](Position& pos, const Velocity& vel) {
   pos.x += vel.x;
 });
 
+struct Selected {};
+struct Highlighted {};
+
 auto selectedOrHighlighted = w.query()
-  .or_<Selected>().no_access()
-  .or_<Highlighted>().no_access();
+  .or_<Selected>() // Empty tags automatically use presence-only access.
+  .or_<Highlighted>();
 ```
 
 Apply the modifier while building the query, before calling `fetch()`, `count()`, `access()`, or any execution method. Calling it without a preceding term, after `no()`, or after compilation is invalid.

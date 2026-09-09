@@ -121,6 +121,7 @@ target_include_directories(gaia_test_query_access_assert PRIVATE ${PROJECT_SOURC
 add_test(NAME gaia_test_query_access_assert_valid COMMAND gaia_test_query_access_assert valid)
 foreach(scenario IN ITEMS
 	modifier-missing modifier-metadata modifier-not modifier-after-fetch
+	auto-tag-indexed auto-tag-raw auto-entity-raw auto-pair-indexed auto-pair-raw
 	not-term typed-read typed-write empty-typed empty-parallel each-iter array empty-array
 	optional-typed optional-view optional-indexed optional-raw
 	view-read view-write view-indexed view-auto sview raw-indexed raw-entity raw-mutable

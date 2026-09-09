@@ -683,6 +683,8 @@ namespace gaia {
 			uint8_t readCnt = 0;
 			//! Number of valid entries in writes.
 			uint8_t writeCnt = 0;
+			//! At least one custom scheduling id has wildcard or variable pair endpoints.
+			bool hasPairPatterns = false;
 
 			//! Returns the explicitly declared read ids.
 			//! \return Read-only span over explicit read ids.
@@ -703,8 +705,11 @@ namespace gaia {
 					return;
 
 				GAIA_ASSERT(readCnt < MAX_ITEMS_IN_QUERY);
-				if (readCnt < MAX_ITEMS_IN_QUERY)
+				if (readCnt < MAX_ITEMS_IN_QUERY) {
 					reads[readCnt++] = entity;
+					hasPairPatterns |= entity.pair() && (is_wildcard(entity) || is_variable((EntityId)entity.id()) ||
+																							 is_variable((EntityId)entity.gen()));
+				}
 			}
 
 			//! Declares that an id is written.
@@ -714,8 +719,11 @@ namespace gaia {
 					return;
 
 				GAIA_ASSERT(writeCnt < MAX_ITEMS_IN_QUERY);
-				if (writeCnt < MAX_ITEMS_IN_QUERY)
+				if (writeCnt < MAX_ITEMS_IN_QUERY) {
 					writes[writeCnt++] = entity;
+					hasPairPatterns |= entity.pair() && (is_wildcard(entity) || is_variable((EntityId)entity.id()) ||
+																							 is_variable((EntityId)entity.gen()));
+				}
 			}
 
 			//! Returns explicitly declared access for an id.
@@ -750,7 +758,7 @@ namespace gaia {
 			QueryOpKind op;
 			//! Stable execution field index matching the user-defined query field order.
 			uint8_t fieldIndex = 0;
-			//! Authored payload access, retained when query identity is canonicalized.
+			//! Resolved payload access, retained when query identity is canonicalized.
 			QueryAccess access = QueryAccess::None;
 
 			//! Compares the matching identity of two compiled terms.
@@ -920,6 +928,8 @@ namespace gaia {
 				OrderGroups = 0x100,
 				//! At least one term matches presence without accessing its payload.
 				HasMatchTerms = 0x200,
+				//! At least one query term is a relationship pair.
+				HasPairTerms = 0x400,
 			};
 
 			//! Strategy used to maintain cached archetype matches.
@@ -1230,9 +1240,10 @@ namespace gaia {
 				}
 
 				//! Returns whether canonical term access and field order define query identity.
-				//! \return True for presence-only or optional query terms.
+				//! \return True for presence-only, pair, or optional query terms.
 				GAIA_NODISCARD bool uses_term_access_identity() const {
-					return has_match_terms() || (idsCnt != 0 && lookup_terms_view().back().op == QueryOpKind::Any);
+					return (flags & (QueryFlags::HasMatchTerms | QueryFlags::HasPairTerms)) != 0 ||
+								 (idsCnt != 0 && lookup_terms_view().back().op == QueryOpKind::Any);
 				}
 
 				//! Returns mutable canonicalized lookup terms used by shared query deduplication.

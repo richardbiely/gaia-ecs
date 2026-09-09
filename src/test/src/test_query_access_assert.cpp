@@ -27,6 +27,8 @@ struct Payload {
 	int value;
 };
 
+struct Marker {};
+
 struct SparsePayload {
 	GAIA_STORAGE(Sparse);
 	int value;
@@ -53,6 +55,51 @@ int main(int argc, char** argv) {
 	const auto target = world.add();
 	const auto pair = ecs::Pair(payload, target);
 	world.add(entity, pair);
+
+	if (is("auto-tag-indexed") || is("auto-tag-raw") || is("auto-entity-raw") || is("auto-pair-indexed") ||
+			is("auto-pair-raw") || is("valid")) {
+		const auto marker = world.add<Marker>().entity;
+		const auto emptyPair = ecs::Pair(marker, target);
+		world.add<Marker>(entity);
+		world.add(entity, target);
+		world.add(entity, emptyPair);
+		auto presenceQuery = world.query();
+		if (is("valid")) {
+			presenceQuery.all<Marker>().all(target).all(emptyPair);
+			if (presenceQuery.count() != 1 || presenceQuery.fetch().ctx().data.readWriteMask != 0)
+				return 3;
+			for (const auto& term: presenceQuery.fetch().ctx().data.terms_view()) {
+				if (term.access != ecs::QueryAccess::Match || presenceQuery.access(term.id) != ecs::QueryAccess::None)
+					return 3;
+			}
+			unsigned count = 0;
+			presenceQuery.each([&](ecs::Iter& it) {
+				if (it.has<Marker>() && it.has(target) && it.has(emptyPair))
+					count += it.size();
+			});
+			if (count != 1)
+				return 3;
+		} else {
+			const auto id = is("auto-entity-raw")													 ? target
+											: is("auto-tag-indexed") || is("auto-tag-raw") ? marker
+																																		 : emptyPair;
+			if (is("auto-tag-indexed"))
+				presenceQuery.all<Marker>();
+			else
+				presenceQuery.add({ecs::QueryOpKind::All, ecs::QueryAccess::None, id});
+			if (presenceQuery.count() != 1 || presenceQuery.fetch().ctx().data.terms[0].access != ecs::QueryAccess::Match)
+				return 3;
+			assertionExpected = true;
+			presenceQuery.each([&](ecs::Iter& it) {
+				if (is("auto-tag-indexed") || is("auto-pair-indexed"))
+					(void)it.view_raw(0);
+				else
+					(void)it.view_raw_any(id);
+			});
+			assertionExpected = false;
+			return 0;
+		}
+	}
 
 	if (is("modifier-missing") || is("modifier-metadata") || is("modifier-not") || is("modifier-after-fetch")) {
 		auto query = world.query();

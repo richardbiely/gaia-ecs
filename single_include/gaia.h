@@ -42276,6 +42276,8 @@ namespace gaia {
 			uint8_t readCnt = 0;
 			//! Number of valid entries in writes.
 			uint8_t writeCnt = 0;
+			//! At least one custom scheduling id has wildcard or variable pair endpoints.
+			bool hasPairPatterns = false;
 
 			//! Returns the explicitly declared read ids.
 			//! \return Read-only span over explicit read ids.
@@ -42296,8 +42298,11 @@ namespace gaia {
 					return;
 
 				GAIA_ASSERT(readCnt < MAX_ITEMS_IN_QUERY);
-				if (readCnt < MAX_ITEMS_IN_QUERY)
+				if (readCnt < MAX_ITEMS_IN_QUERY) {
 					reads[readCnt++] = entity;
+					hasPairPatterns |= entity.pair() && (is_wildcard(entity) || is_variable((EntityId)entity.id()) ||
+																							 is_variable((EntityId)entity.gen()));
+				}
 			}
 
 			//! Declares that an id is written.
@@ -42307,8 +42312,11 @@ namespace gaia {
 					return;
 
 				GAIA_ASSERT(writeCnt < MAX_ITEMS_IN_QUERY);
-				if (writeCnt < MAX_ITEMS_IN_QUERY)
+				if (writeCnt < MAX_ITEMS_IN_QUERY) {
 					writes[writeCnt++] = entity;
+					hasPairPatterns |= entity.pair() && (is_wildcard(entity) || is_variable((EntityId)entity.id()) ||
+																							 is_variable((EntityId)entity.gen()));
+				}
 			}
 
 			//! Returns explicitly declared access for an id.
@@ -42343,7 +42351,7 @@ namespace gaia {
 			QueryOpKind op;
 			//! Stable execution field index matching the user-defined query field order.
 			uint8_t fieldIndex = 0;
-			//! Authored payload access, retained when query identity is canonicalized.
+			//! Resolved payload access, retained when query identity is canonicalized.
 			QueryAccess access = QueryAccess::None;
 
 			//! Compares the matching identity of two compiled terms.
@@ -42513,6 +42521,8 @@ namespace gaia {
 				OrderGroups = 0x100,
 				//! At least one term matches presence without accessing its payload.
 				HasMatchTerms = 0x200,
+				//! At least one query term is a relationship pair.
+				HasPairTerms = 0x400,
 			};
 
 			//! Strategy used to maintain cached archetype matches.
@@ -42823,9 +42833,10 @@ namespace gaia {
 				}
 
 				//! Returns whether canonical term access and field order define query identity.
-				//! \return True for presence-only or optional query terms.
+				//! \return True for presence-only, pair, or optional query terms.
 				GAIA_NODISCARD bool uses_term_access_identity() const {
-					return has_match_terms() || (idsCnt != 0 && lookup_terms_view().back().op == QueryOpKind::Any);
+					return (flags & (QueryFlags::HasMatchTerms | QueryFlags::HasPairTerms)) != 0 ||
+								 (idsCnt != 0 && lookup_terms_view().back().op == QueryOpKind::Any);
 				}
 
 				//! Returns mutable canonicalized lookup terms used by shared query deduplication.
@@ -55645,16 +55656,32 @@ namespace gaia {
 					}
 #endif
 
+					auto access = item.access;
+					if (item.op != QueryOpKind::Not && access != QueryAccess::Match) {
+						// Resolve payload-free ids once, before access metadata is cached.
+						// Wildcard and variable endpoints may resolve to data-bearing components later.
+						const auto id = item.id;
+						if (!is_wildcard(id.id()) && !is_variable((EntityId)id.id()) &&
+								(!id.pair() || (!is_wildcard(id.gen()) && !is_variable((EntityId)id.gen())))) {
+							const auto* pItem = id.pair() ? ctx.cc->find_pair_payload(id) : ctx.cc->find(id);
+							if (pItem == nullptr || pItem->comp.size() == 0)
+								access = QueryAccess::Match;
+						}
+						if (access == QueryAccess::None)
+							access = QueryAccess::Read;
+					}
+
 					// Build the read-write mask.
 					// This will be used to determine what kind of access the user wants for a given component.
-					const uint16_t isReadWrite = uint16_t(item.access == QueryAccess::Write);
+					const uint16_t isReadWrite = uint16_t(access == QueryAccess::Write);
 					ctxData.readWriteMask |= (isReadWrite << ctxData.idsCnt);
-					ctxData.flags |= uint16_t(item.access == QueryAccess::Match) * QueryCtx::QueryFlags::HasMatchTerms;
+					ctxData.flags |= uint16_t(access == QueryAccess::Match) * QueryCtx::QueryFlags::HasMatchTerms;
+					ctxData.flags |= uint16_t(item.id.pair()) * QueryCtx::QueryFlags::HasPairTerms;
 
 					ctxData.ids[ctxData.idsCnt] = item.id;
 					ctxData.terms[ctxData.idsCnt] = {
 							item.id,				item.entSrc, item.entTrav, item.travKind,						item.travDepth,
-							item.matchKind, nullptr,		 item.op,			 (uint8_t)ctxData.idsCnt, item.access};
+							item.matchKind, nullptr,		 item.op,			 (uint8_t)ctxData.idsCnt, access};
 					++ctxData.idsCnt;
 				}
 			};
@@ -56319,19 +56346,38 @@ namespace gaia {
 					return QueryAccess::None;
 				}
 
-				//! Returns access requested by required, OR, or optional non-pair terms for an id.
+				//! Returns whether two scheduling ids can refer to the same component or pair column.
+				//! \param left First component id or pair pattern.
+				//! \param right Second component id or pair pattern.
+				//! \return True for equal ids or overlapping pair patterns, treating variables as unbound.
+				GAIA_NODISCARD static bool access_ids_overlap(Entity left, Entity right) {
+					if (left == right)
+						return true;
+					if (!left.pair() || !right.pair())
+						return false;
+					const auto endpointOverlaps = [](EntityId a, EntityId b) {
+						return a == b || is_wildcard(a) || is_wildcard(b) || is_variable(a) || is_variable(b);
+					};
+					return endpointOverlaps((EntityId)left.id(), (EntityId)right.id()) &&
+								 endpointOverlaps((EntityId)left.gen(), (EntityId)right.gen());
+				}
+
+				//! Returns access requested by required, OR, or optional terms for an id or pair pattern.
+				//! \tparam MatchPairs Whether wildcard and variable pairs may overlap other pair ids.
 				//! \param data Compiled query data.
 				//! \param entity Component/entity id to inspect.
 				//! \return Access inferred from query terms, or None when no data access is declared by the query shape.
-				GAIA_NODISCARD static QueryAccess term_access(const QueryCtx::Data& data, Entity entity) {
-					if (entity == EntityBad || entity.pair())
+				template <bool MatchPairs>
+				GAIA_NODISCARD GAIA_FORCEINLINE static QueryAccess term_access(const QueryCtx::Data& data, Entity entity) {
+					if (entity == EntityBad)
 						return QueryAccess::None;
 
 					QueryAccess access = QueryAccess::None;
 					const auto terms = data.terms_view();
 					GAIA_FOR((uint32_t)terms.size()) {
 						const auto& term = terms[i];
-						if (term.id != entity ||
+						const bool matches = MatchPairs ? access_ids_overlap(term.id, entity) : term.id == entity;
+						if (!matches ||
 								(term.op != QueryOpKind::All && term.op != QueryOpKind::Or && term.op != QueryOpKind::Any) ||
 								term.access == QueryAccess::Match)
 							continue;
@@ -56345,13 +56391,34 @@ namespace gaia {
 				}
 
 				//! Returns effective access from query terms plus explicit user declarations.
+				//! \tparam MatchPairs Whether wildcard and variable pairs may overlap other pair ids.
 				//! \param data Compiled query data.
 				//! \param accessSet Explicit user access declarations.
 				//! \param entity Component/entity id to inspect.
 				//! \return Effective access mode.
-				GAIA_NODISCARD static QueryAccess
+				template <bool MatchPairs>
+				GAIA_NODISCARD GAIA_FORCEINLINE static QueryAccess
 				effective_access(const QueryCtx::Data& data, const QueryAccessSet& accessSet, Entity entity) {
-					return merge_access(term_access(data, entity), accessSet.access(entity));
+					const auto access = term_access<MatchPairs>(data, entity);
+					if constexpr (!MatchPairs)
+						return merge_access(access, accessSet.access(entity));
+					else {
+						if (!entity.pair())
+							return merge_access(access, accessSet.access(entity));
+						if (access == QueryAccess::Write)
+							return access;
+						for (const auto id: accessSet.writes_view()) {
+							if (access_ids_overlap(id, entity))
+								return QueryAccess::Write;
+						}
+						if (access == QueryAccess::Read)
+							return access;
+						for (const auto id: accessSet.reads_view()) {
+							if (access_ids_overlap(id, entity))
+								return QueryAccess::Read;
+						}
+						return QueryAccess::None;
+					}
 				}
 
 				//! Returns whether two access modes conflict.
@@ -56364,11 +56431,13 @@ namespace gaia {
 				}
 
 				//! Checks one access set against another query's effective access declarations.
+				//! \tparam MatchPairs Whether wildcard and variable pairs may overlap other pair ids.
 				//! \param leftData Compiled query data for the left query.
 				//! \param leftAccess Explicit access set for the left query.
 				//! \param rightData Compiled query data for the right query.
 				//! \param rightAccess Explicit access set for the right query.
 				//! \return True when any access on the left conflicts with the right query.
+				template <bool MatchPairs>
 				GAIA_NODISCARD static bool conflicts_one_way(
 						const QueryCtx::Data& leftData, const QueryAccessSet& leftAccess, const QueryCtx::Data& rightData,
 						const QueryAccessSet& rightAccess) {
@@ -56376,22 +56445,22 @@ namespace gaia {
 					GAIA_FOR((uint32_t)terms.size()) {
 						const auto& term = terms[i];
 						const auto id = term.id;
-						if (id == EntityBad || id.pair() ||
+						if (id == EntityBad ||
 								(term.op != QueryOpKind::All && term.op != QueryOpKind::Or && term.op != QueryOpKind::Any) ||
 								term.access == QueryAccess::Match)
 							continue;
 						// This term's access is already known. Duplicate ids are still checked individually.
 						const auto access = term.access == QueryAccess::Write ? QueryAccess::Write : QueryAccess::Read;
-						if (access_conflicts(access, effective_access(rightData, rightAccess, id)))
+						if (access_conflicts(access, effective_access<MatchPairs>(rightData, rightAccess, id)))
 							return true;
 					}
 
 					for (const auto id: leftAccess.reads_view()) {
-						if (access_conflicts(QueryAccess::Read, effective_access(rightData, rightAccess, id)))
+						if (access_conflicts(QueryAccess::Read, effective_access<MatchPairs>(rightData, rightAccess, id)))
 							return true;
 					}
 					for (const auto id: leftAccess.writes_view()) {
-						if (access_conflicts(QueryAccess::Write, effective_access(rightData, rightAccess, id)))
+						if (access_conflicts(QueryAccess::Write, effective_access<MatchPairs>(rightData, rightAccess, id)))
 							return true;
 					}
 
@@ -56681,13 +56750,14 @@ namespace gaia {
 
 				//! Returns the effective read/write access for an id.
 				//!
-				//! Effective access combines positive query terms and explicit reads()/writes() declarations. Pair query terms
-				//! do not imply data access. Use explicit reads(Entity) or writes(Entity) when a pair id is a custom scheduling
-				//! key.
+				//! Effective access combines payload-bearing query terms and explicit reads()/writes() declarations.
+				//! Pair patterns overlap when their fixed endpoints agree. Wildcards and variables match any endpoint.
 				//! \param entity Component/entity id to inspect.
 				//! \return Effective access mode for the id.
 				GAIA_NODISCARD QueryAccess access(Entity entity) {
-					return effective_access(fetch().ctx().data, m_access, entity);
+					const auto& data = fetch().ctx().data;
+					return entity.pair() ? effective_access<true>(data, m_access, entity)
+															 : effective_access<false>(data, m_access, entity);
 				}
 
 				//! Returns whether this query conflicts with another query's effective access declarations.
@@ -56700,7 +56770,12 @@ namespace gaia {
 				GAIA_NODISCARD bool conflicts_with(QueryImpl& other) {
 					const auto& leftData = fetch().ctx().data;
 					const auto& rightData = other.fetch().ctx().data;
-					return conflicts_one_way(leftData, m_access, rightData, other.m_access);
+					// Select pair-pattern matching once, keeping the exact-id loops free of its extra work.
+					const auto patternFlags = QueryCtx::DependencyHasWildcardTerms | QueryCtx::DependencyHasVariableTerms;
+					if (((leftData.deps.flags | rightData.deps.flags) & patternFlags) != 0 || m_access.hasPairPatterns ||
+							other.m_access.hasPairPatterns)
+						return conflicts_one_way<true>(leftData, m_access, rightData, other.m_access);
+					return conflicts_one_way<false>(leftData, m_access, rightData, other.m_access);
 				}
 
 				//! Returns whether this query can run concurrently with another query based on declared scheduling metadata.
@@ -57023,16 +57098,16 @@ namespace gaia {
 					add_cmd(cmd);
 				}
 
-				GAIA_NODISCARD static QueryAccess normalize_access(QueryOpKind op, Entity entity, QueryAccess access) {
+				GAIA_NODISCARD static QueryAccess normalize_access(QueryOpKind op, QueryAccess access) {
 #if GAIA_ASSERT_ENABLED
 					GAIA_ASSERT(
 							access != QueryAccess::Match || op == QueryOpKind::All || op == QueryOpKind::Or ||
 							op == QueryOpKind::Any);
 #endif
-					if (op == QueryOpKind::Not || (entity.pair() && access != QueryAccess::Match))
+					if (op == QueryOpKind::Not)
 						return QueryAccess::None;
 
-					// Required, OR, and optional non-pair terms default to Read access when unspecified.
+					// Payload-free terms are normalized to Match when the query is compiled.
 					if (access == QueryAccess::None)
 						return QueryAccess::Read;
 
@@ -57040,7 +57115,7 @@ namespace gaia {
 				}
 
 				void add_entity_term(QueryOpKind op, Entity entity, const QueryTermOptions& options) {
-					const auto access = normalize_access(op, entity, options.access);
+					const auto access = normalize_access(op, options.access);
 					add(
 							{op, access, entity, options.entSrc, options.entTrav, options.travKind, options.travDepth,
 							 options.matchKind});
@@ -57095,7 +57170,7 @@ namespace gaia {
 					}
 
 					add_inter(
-							{op, normalize_access(op, e, access), e, options.entSrc, options.entTrav, options.travKind,
+							{op, normalize_access(op, access), e, options.entSrc, options.entTrav, options.travKind,
 							 options.travDepth, options.matchKind});
 				}
 

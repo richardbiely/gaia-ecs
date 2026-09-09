@@ -512,6 +512,141 @@ TEST_CASE("Query - scheduling conflicts are symmetric across effective access so
 	check(empty, matchReadWrite, false);
 }
 
+TEST_CASE("Query - exact zero-payload terms default to matching only") {
+	struct OtherTag {};
+	using TagPair = ecs::pair<Empty, OtherTag>;
+	TestWorld twld;
+	const auto tag = wld.add<Empty>().entity;
+	const auto otherTag = wld.add<OtherTag>().entity;
+	const auto position = wld.add<Position>().entity;
+	const auto bare = wld.add();
+	const auto target = wld.add();
+	const auto tagPair = ecs::Pair(tag, otherTag);
+	const auto barePair = ecs::Pair(bare, target);
+	const auto present = wld.add();
+	wld.add<Position>(present, {1, 0, 0});
+	wld.add<Empty>(present);
+	wld.add(present, tagPair);
+	wld.add(present, bare);
+	wld.add(present, barePair);
+	const auto absent = wld.add();
+	wld.add<Position>(absent, {2, 0, 0});
+
+	auto typed = wld.query().scope(ecs::QueryCacheScope::Shared).all<Empty&>();
+	auto options = wld.query().scope(ecs::QueryCacheScope::Shared).all<Empty>(ecs::QueryTermOptions{}.write());
+	auto explicitMatch = wld.query().scope(ecs::QueryCacheScope::Shared).all<Empty>().no_access();
+	auto raw = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::Write, bare});
+	auto parsed = wld.query().add("%e", tag.value());
+	auto typedPair = wld.query().all<TagPair&>();
+	auto parsedPair = wld.query().add("(%e, %e)", bare.value(), target.value());
+	auto orTerms = wld.query().all<Position>().or_<Empty&>().or_(barePair, ecs::QueryTermOptions{}.write());
+	auto optional = wld.query().all<Position>().any<Empty&>().any(tagPair, ecs::QueryTermOptions{}.write());
+	for (auto* query: {&typed, &options, &explicitMatch, &raw, &parsed, &typedPair, &parsedPair, &orTerms})
+		CHECK(query->count() == 1);
+	CHECK(optional.count() == 2);
+	CHECK(typed.id() == options.id());
+	CHECK(typed.id() == explicitMatch.id());
+	CHECK(typed.access(tag) == ecs::QueryAccess::None);
+	CHECK(raw.access(bare) == ecs::QueryAccess::None);
+	CHECK(parsed.access(tag) == ecs::QueryAccess::None);
+	CHECK(typedPair.access(tagPair) == ecs::QueryAccess::None);
+	CHECK(parsedPair.access(barePair) == ecs::QueryAccess::None);
+	CHECK(orTerms.access(tag) == ecs::QueryAccess::None);
+	CHECK(orTerms.access(barePair) == ecs::QueryAccess::None);
+	CHECK(optional.access(tag) == ecs::QueryAccess::None);
+	CHECK(optional.access(tagPair) == ecs::QueryAccess::None);
+	CHECK(orTerms.access(position) == ecs::QueryAccess::Read);
+	auto payloadWrite = wld.query().all<Position&>();
+	CHECK(payloadWrite.access(position) == ecs::QueryAccess::Write);
+
+	auto customWriter = wld.query().writes<Empty>();
+	CHECK(customWriter.access(tag) == ecs::QueryAccess::Write);
+	CHECK_FALSE(typed.conflicts_with(customWriter));
+	CHECK_FALSE(customWriter.conflicts_with(typed));
+	typed.reads<Empty>();
+	CHECK(typed.access(tag) == ecs::QueryAccess::Read);
+	CHECK(typed.conflicts_with(customWriter));
+	CHECK(customWriter.conflicts_with(typed));
+}
+
+TEST_CASE("Query - data pair access follows payload and pair overlap") {
+	using RelationPair = ecs::pair<Position, Something>;
+	using TargetPair = ecs::pair<Empty, Position>;
+	TestWorld twld;
+	const auto position = wld.add<Position>().entity;
+	const auto something = wld.add<Something>().entity;
+	const auto tag = wld.add<Empty>().entity;
+	const auto target = wld.add();
+	const auto relationPair = ecs::Pair(position, something);
+	const auto targetPair = ecs::Pair(tag, position);
+	const auto otherPair = ecs::Pair(position, target);
+	const auto present = wld.add();
+	wld.add<RelationPair>(present, {1, 2, 3});
+	wld.add<TargetPair>(present, {4, 5, 6});
+	CHECK(wld.comp_cache().find_pair_payload(relationPair)->entity == position);
+	CHECK(wld.comp_cache().find_pair_payload(targetPair)->entity == position);
+	const auto check = [](ecs::Query& left, ecs::Query& right, bool expected) {
+		CHECK(left.conflicts_with(right) == expected);
+		CHECK(right.conflicts_with(left) == expected);
+	};
+
+	auto read = wld.query().all<RelationPair>();
+	auto write = wld.query().all<RelationPair&>();
+	auto targetWrite = wld.query().any<TargetPair&>();
+	auto otherWrite = wld.query().all(otherPair, ecs::QueryTermOptions{}.write());
+	auto rawWrite = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::Write, targetPair});
+	auto parsed = wld.query().add("(%e, %e)", position.value(), something.value());
+	auto match = wld.query().all<RelationPair&>().no_access();
+	CHECK(read.count() == 1);
+	CHECK(write.count() == 1);
+	CHECK(read.access(relationPair) == ecs::QueryAccess::Read);
+	CHECK(write.access(relationPair) == ecs::QueryAccess::Write);
+	CHECK(targetWrite.access(targetPair) == ecs::QueryAccess::Write);
+	CHECK(rawWrite.access(targetPair) == ecs::QueryAccess::Write);
+	CHECK(parsed.access(relationPair) == ecs::QueryAccess::Read);
+	CHECK(match.access(relationPair) == ecs::QueryAccess::None);
+	check(read, parsed, false);
+	check(read, write, true);
+	check(write, otherWrite, false);
+	check(write, targetWrite, false);
+	check(match, write, false);
+
+	const auto relationWildcard = ecs::Pair(position, ecs::All);
+	const auto targetWildcard = ecs::Pair(ecs::All, something);
+	const auto tagWildcard = ecs::Pair(tag, ecs::All);
+	const auto variablePair = ecs::Pair(position, ecs::Var0);
+	auto wildcardRead = wld.query().all(relationWildcard);
+	auto wildcardWrite = wld.query().all(targetWildcard, ecs::QueryTermOptions{}.write());
+	auto unknownPayload = wld.query().all(tagWildcard);
+	auto variableRead = wld.query().all(variablePair);
+	CHECK(wildcardRead.access(relationWildcard) == ecs::QueryAccess::Read);
+	CHECK(wildcardWrite.access(targetWildcard) == ecs::QueryAccess::Write);
+	CHECK(unknownPayload.access(tagWildcard) == ecs::QueryAccess::Read);
+	CHECK(variableRead.access(variablePair) == ecs::QueryAccess::Read);
+	check(wildcardRead, write, true);
+	check(wildcardWrite, read, true);
+	check(wildcardRead, wildcardWrite, true);
+	check(wildcardWrite, otherWrite, false);
+	check(variableRead, write, true);
+	check(unknownPayload, targetWrite, true);
+
+	auto customExactRead = wld.query().reads(relationPair);
+	auto customExactWrite = wld.query().writes(relationPair);
+	auto customOtherWrite = wld.query().writes(targetPair);
+	auto customWildcardRead = wld.query().reads(relationWildcard);
+	auto customVariableRead = wld.query().reads(variablePair);
+	auto customWildcardWrite = wld.query().writes(targetWildcard);
+	for (auto* query: {&customWildcardRead, &customVariableRead}) {
+		check(*query, customExactWrite, true);
+		check(*query, write, true);
+		check(*query, customOtherWrite, false);
+		check(*query, targetWrite, false);
+	}
+	check(customWildcardWrite, customExactRead, true);
+	check(customWildcardWrite, read, true);
+	check(customWildcardWrite, otherWrite, false);
+}
+
 TEST_CASE("System - access declarations are stored on the underlying query") {
 	TestWorld twld;
 
@@ -893,6 +1028,44 @@ TEST_CASE("Query - optional shared cache preserves access after term reordering"
 			GAIA_EACH(it) values[i].x += 4;
 		});
 		CHECK(wld.get<Position>(entity).x == 4);
+		CHECK(wld.get<Scale>(entity).x == 6);
+	}
+}
+
+TEST_CASE("Query - pair shared cache preserves access after term reordering") {
+	using PairPayload = ecs::pair<Position, Empty>;
+	for (const bool pairFirst: {false, true}) {
+		TestWorld twld;
+		const auto position = wld.add<Position>().entity;
+		const auto tag = wld.add<Empty>().entity;
+		const auto scale = wld.add<Scale>().entity;
+		const auto pair = ecs::Pair(position, tag);
+		const auto entity = wld.add();
+		wld.add<PairPayload>(entity, {1, 0, 0});
+		wld.add<Scale>(entity, {2, 0, 0});
+		auto scaleWrite = wld.query().scope(ecs::QueryCacheScope::Shared).all<Scale&>().all<PairPayload>();
+		auto pairWrite = wld.query().scope(ecs::QueryCacheScope::Shared).all<PairPayload&>().all<Scale>();
+		if (pairFirst) {
+			CHECK(pairWrite.count() == 1);
+			CHECK(scaleWrite.count() == 1);
+		} else {
+			CHECK(scaleWrite.count() == 1);
+			CHECK(pairWrite.count() == 1);
+		}
+		CHECK(scaleWrite.id() != pairWrite.id());
+		CHECK(scaleWrite.access(scale) == ecs::QueryAccess::Write);
+		CHECK(scaleWrite.access(pair) == ecs::QueryAccess::Read);
+		CHECK(pairWrite.access(scale) == ecs::QueryAccess::Read);
+		CHECK(pairWrite.access(pair) == ecs::QueryAccess::Write);
+		pairWrite.each([](ecs::Iter& it) {
+			auto values = it.view_mut<PairPayload>(0);
+			GAIA_EACH(it) values[i].x += 3;
+		});
+		scaleWrite.each([](ecs::Iter& it) {
+			auto values = it.view_mut<Scale>(0);
+			GAIA_EACH(it) values[i].x += 4;
+		});
+		CHECK(wld.get<PairPayload>(entity).x == 4);
 		CHECK(wld.get<Scale>(entity).x == 6);
 	}
 }
