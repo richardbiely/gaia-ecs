@@ -4965,6 +4965,13 @@ Parameter | Description
 **GAIA_USE_SANITIZER** | Applies the specified set of [sanitizers](#sanitizers)
 **GAIA_FUNC_WRAPPER_SMALLBLOCK** | Uses `SmallBlockAllocator` for `SmallFunc` and `MoveFunc` callables that are too large for their inline buffer. Enabled by default. Set to `0` to allocate those larger callables with the platform heap instead.
 **GAIA_ALLOC_ARENA_LOCK** | Process-wide spinlock on alloc/free/flush of `mem::SmallBlockAllocator`, `ecs::ChunkAllocator`, and `mem::PagedAllocator`. Off by default (`0`). Set to `1` to allow independent Worlds to mutate concurrently. With the lock off, assert builds abort if two threads enter an allocator at once. See [Worlds, threads, and allocation arenas](#worlds-threads-and-allocation-arenas).
+**GAIA_FORCE_DEBUG** | Forces `GAIA_DEBUG` and Gaia asserts on even in optimized configurations
+**GAIA_DISABLE_ASSERTS** | Disables all Gaia asserts even in Debug builds
+
+### Asserts
+Gaia asserts when asserts are enabled. Debug builds enable them by default. Optimized builds strip them unless you set `GAIA_FORCE_DEBUG`. Keep asserts enabled while developing. Do not treat stripped asserts as missing bounds checks.
+
+Asserts catch contract misuse. They are not a Release error-handling path. Guarding every possible bad input on every call would be too expensive in hot paths. The better design is a contract of valid input. Gaia trusts that contract in optimized builds.
 
 ### Sanitizers
 Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>
