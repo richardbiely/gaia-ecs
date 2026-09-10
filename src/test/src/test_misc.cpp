@@ -1049,7 +1049,6 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(duplicate.comp.alig() == 4);
 		CHECK(duplicate.comp.soa() == 0);
 		CHECK(duplicate.hashLookup.hash == originalHash);
-		
 	}
 
 	SUBCASE("custom hash and soa metadata are preserved") {
@@ -1065,7 +1064,7 @@ TEST_CASE("Component cache - runtime registration") {
 				add_runtime_component(cc, entity, RuntimeCompName, 32, ecs::DataStorageType::Table, 8, 3, SoaSizes, customHash);
 
 		CHECK(item.entity == entity);
-		
+
 		CHECK(item.comp.soa() == 3);
 		CHECK(item.comp.size() == 32);
 		CHECK(item.comp.alig() == 8);
@@ -1726,7 +1725,6 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(typedSoa.func_swap != nullptr);
 	}
 
-	
 	SUBCASE("typed/runtime registration sync component record") {
 		TestWorld twld;
 
@@ -3267,7 +3265,6 @@ TEST_CASE("Erased pair access preserves compile-time target-owned payload metada
 		return;
 	CHECK(wld.get<PairType>(rawSource).x == doctest::Approx(6.0f));
 	CHECK(wld.get<PairType>(rawSource).y == doctest::Approx(7.0f));
-
 }
 
 TEST_CASE("Erased pair access preserves compile-time relation-owned payload metadata") {
@@ -3358,7 +3355,6 @@ TEST_CASE("Erased pair access preserves compile-time relation-owned payload meta
 			return;
 		CHECK(((const ErasedPairPayload*)raw[0].data)->x == doctest::Approx(4.0f));
 	});
-
 }
 
 TEST_CASE("Runtime pair payloads use target metadata across erased APIs") {
@@ -3748,7 +3744,6 @@ TEST_CASE("Runtime pair payloads use relation metadata across erased APIs") {
 	});
 	CHECK(wildcardRows == 2);
 	CHECK(setObserverCalls == 4);
-
 }
 
 TEST_CASE("Runtime pair SoA fields expose direct field views and cursors") {
@@ -3956,13 +3951,13 @@ TEST_CASE("Exact pair records - typed payload access") {
 #if GAIA_OBSERVERS_ENABLED && GAIA_ENABLE_HOOKS
 	uint32_t onSetHits = 0;
 	const auto onSetObserver = wld.observer()
-												.event(ecs::ObserverEvent::OnSet)
-												.all<Position>()
-												.on_each([&](ecs::Entity entity, const Position&) {
-													CHECK(entity == (ecs::Entity)pair);
-													++onSetHits;
-												})
-												.entity();
+																 .event(ecs::ObserverEvent::OnSet)
+																 .all<Position>()
+																 .on_each([&](ecs::Entity entity, const Position&) {
+																	 CHECK(entity == (ecs::Entity)pair);
+																	 ++onSetHits;
+																 })
+																 .entity();
 	(void)onSetObserver;
 #endif
 
@@ -4427,8 +4422,8 @@ TEST_CASE("Exact pair records - Entity-typed enable, modify, and add_n") {
 #if GAIA_OBSERVERS_ENABLED && GAIA_ENABLE_HOOKS
 	uint32_t onSetHits = 0;
 	wld.observer()
-			.event(ecs::ObserverEvent::OnSet)
-			.all<Position>()
+			.event(ecs::ObserverEvent::OnSet) //
+			.all<Position>() //
 			.on_each([&](ecs::Entity entity, const Position&) {
 				CHECK(entity == pairEntity);
 				++onSetHits;
@@ -4521,8 +4516,8 @@ TEST_CASE("Exact pair records - copy produces ordinary entities") {
 #if GAIA_OBSERVERS_ENABLED
 	uint32_t addHits = 0;
 	wld.observer()
-			.event(ecs::ObserverEvent::OnAdd)
-			.all<Position>()
+			.event(ecs::ObserverEvent::OnAdd) //
+			.all<Position>() //
 			.on_each([&](ecs::Entity entity, const Position&) {
 				CHECK_FALSE(entity.pair());
 				CHECK(entity != pairEntity);
@@ -4672,6 +4667,42 @@ TEST_CASE("Exact pair records - archetype-based creation") {
 		++created;
 	});
 	CHECK(created == 3);
+}
+
+TEST_CASE("Wildcard pair cleanup - deleting a target shared by many pairs keeps archetype lookup stable") {
+	TestWorld twld;
+
+	// Deleting targets of many exact pairs on one source must not use
+	// a stale m_entityToArchetypeMap iterator after calc_dst_archetype.
+	constexpr uint32_t N = 8;
+
+	const auto trust = wld.add();
+
+	const auto self = wld.add();
+	wld.add<Position>(self);
+
+	cnt::darray<ecs::Entity> targets;
+	targets.reserve(N);
+	GAIA_FOR(N) {
+		const auto target = wld.add();
+		wld.add<Position>(target);
+		wld.add(self, ecs::Pair(trust, target));
+		targets.push_back(target);
+	}
+
+	for (uint32_t i = 0; i < N; ++i)
+		CHECK(wld.has(self, ecs::Pair(trust, targets[i])));
+
+	for (uint32_t i = 0; i < N; ++i)
+		wld.del(targets[i]);
+
+	CHECK(wld.has<Position>(self));
+	CHECK_FALSE(wld.has(self, ecs::Pair(trust, ecs::All)));
+
+	for (uint32_t i = 0; i < N; ++i) {
+		CHECK_FALSE(wld.valid(targets[i]));
+		CHECK_FALSE(wld.has(self, ecs::Pair(trust, targets[i])));
+	}
 }
 
 TEST_CASE("ArchetypeGraph") {
@@ -4994,7 +5025,7 @@ TEST_CASE("Hooks") {
 		const auto& relationItem = wld.add<ErasedPairRelationTag>();
 		const auto& pairPayloadItem = wld.add<ErasedPairPayload>();
 		hook_trigger_cnt = 0;
-		ecs::ComponentCache::hooks(pairPayloadItem).func_add =
+		ecs::ComponentCache::hooks(pairPayloadItem).func_add = //
 				[](const ecs::World&, const ecs::ComponentCacheItem&, ecs::Entity) {
 					++hook_trigger_cnt;
 				};

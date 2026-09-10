@@ -80227,6 +80227,10 @@ namespace gaia {
 				if (it == m_entityToArchetypeMap.end())
 					return;
 
+				// Copy the reverse-index records. calc_dst_archetype can insert into
+				// m_entityToArchetypeMap and rehash, which invalidates "it".
+				const auto srcRecords = it->second;
+
 				// Invalidate the singleton status if necessary
 				if (!entity.pair()) {
 					auto& ec = fetch(entity);
@@ -80242,7 +80246,7 @@ namespace gaia {
 				cnt::set<EntityLookupKey> diffTermSet;
 				cnt::darray<Entity> diffTerms;
 				cnt::darray<Entity> diffTargets;
-				for (const auto& record: it->second) {
+				for (const auto& record: srcRecords) {
 					auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
 						continue;
@@ -80286,7 +80290,7 @@ namespace gaia {
 #endif
 
 				// Update archetypes of all affected entities
-				for (const auto& record: it->second) {
+				for (const auto& record: srcRecords) {
 					auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
 						continue;
@@ -80387,6 +80391,10 @@ namespace gaia {
 				if (it == m_entityToArchetypeMap.end())
 					return;
 
+				// Copy the reverse-index records. calc_dst_archetype can insert into
+				// m_entityToArchetypeMap and rehash, which invalidates `it`.
+				const auto srcRecords = it->second;
+
 				// Invalidate the singleton status if necessary
 				if (!entity.pair()) {
 					auto& ec = fetch(entity);
@@ -80402,7 +80410,7 @@ namespace gaia {
 				cnt::set<EntityLookupKey> diffTermSet;
 				cnt::darray<Entity> diffTerms;
 				cnt::darray<Entity> diffTargets;
-				for (const auto& record: it->second) {
+				for (const auto& record: srcRecords) {
 					auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
 						continue;
@@ -80448,7 +80456,7 @@ namespace gaia {
 																		EntitySpan{diffTargets.data(), diffTargets.size()});
 #endif
 
-				for (const auto& record: it->second) {
+				for (const auto& record: srcRecords) {
 					auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
 						continue;
