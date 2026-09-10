@@ -611,7 +611,11 @@ namespace gaia {
 	#define DO_PRAGMA(x) DO_PRAGMA_(x)
 	#define GAIA_CLANG_WARNING_PUSH() _Pragma("clang diagnostic push")
 	#define GAIA_CLANG_WARNING_POP() _Pragma("clang diagnostic pop")
-	#define GAIA_CLANG_WARNING_DISABLE(warningId) DO_PRAGMA(clang diagnostic ignored warningId)
+	// Ignore unknown warning groups first so version-specific disables stay
+	// portable under -Werror -Wunknown-warning-option (e.g. Clang 18 vs 21).
+	#define GAIA_CLANG_WARNING_DISABLE(warningId)                                                                        \
+		DO_PRAGMA(clang diagnostic ignored "-Wunknown-warning-option")                                                     \
+		DO_PRAGMA(clang diagnostic ignored warningId)
 	#define GAIA_CLANG_WARNING_ERROR(warningId) DO_PRAGMA(clang diagnostic error warningId)
 	#define GAIA_CLANG_WARNING_ALLOW(warningId) DO_PRAGMA(clang diagnostic warning warningId)
 #else

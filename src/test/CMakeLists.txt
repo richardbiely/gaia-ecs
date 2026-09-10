@@ -39,6 +39,11 @@ function(gaia_configure_test_target target_name)
 	if(MSVC)
 		target_compile_options(${target_name} PRIVATE /bigobj)
 	endif()
+	if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+		# doctest::Approx takes double. Clang 18 -Wdouble-promotion errors on
+		# Approx(float) at test call sites. Apple Clang 21 does not.
+		target_compile_options(${target_name} PRIVATE -Wno-double-promotion)
+	endif()
 endfunction()
 
 set(PROJ_NAME "gaia_test")

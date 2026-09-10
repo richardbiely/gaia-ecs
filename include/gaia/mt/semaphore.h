@@ -40,7 +40,7 @@ namespace gaia {
 				m_handle = dispatch_semaphore_create(count);
 				GAIA_ASSERT(m_handle != nullptr);
 #else
-				[[maybe_unused]] int ret = sem_init(&m_handle, 0, count);
+				[[maybe_unused]] int ret = sem_init(&m_handle, 0, (unsigned int)count);
 				GAIA_ASSERT(ret == 0);
 #endif
 			}

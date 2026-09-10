@@ -613,7 +613,11 @@ namespace gaia {
 	#define DO_PRAGMA(x) DO_PRAGMA_(x)
 	#define GAIA_CLANG_WARNING_PUSH() _Pragma("clang diagnostic push")
 	#define GAIA_CLANG_WARNING_POP() _Pragma("clang diagnostic pop")
-	#define GAIA_CLANG_WARNING_DISABLE(warningId) DO_PRAGMA(clang diagnostic ignored warningId)
+	// Ignore unknown warning groups first so version-specific disables stay
+	// portable under -Werror -Wunknown-warning-option (e.g. Clang 18 vs 21).
+	#define GAIA_CLANG_WARNING_DISABLE(warningId)                      \
+		DO_PRAGMA(clang diagnostic ignored "-Wunknown-warning-option") \
+		DO_PRAGMA(clang diagnostic ignored warningId)
 	#define GAIA_CLANG_WARNING_ERROR(warningId) DO_PRAGMA(clang diagnostic error warningId)
 	#define GAIA_CLANG_WARNING_ALLOW(warningId) DO_PRAGMA(clang diagnostic warning warningId)
 #else
@@ -15348,6 +15352,7 @@ GAIA_CLANG_WARNING_PUSH()
 GAIA_GCC_WARNING_PUSH()
 GAIA_CLANG_WARNING_DISABLE("-Wpadded")
 GAIA_CLANG_WARNING_DISABLE("-Wvariadic-macro-arguments-omitted")
+GAIA_CLANG_WARNING_DISABLE("-Wgnu-zero-variadic-macro-arguments")
 GAIA_CLANG_WARNING_DISABLE("-Wsign-conversion")
 GAIA_CLANG_WARNING_DISABLE("-Wconversion")
 GAIA_GCC_WARNING_DISABLE("-Wpadded")
@@ -22143,6 +22148,7 @@ GAIA_CLANG_WARNING_PUSH()
 GAIA_GCC_WARNING_PUSH()
 GAIA_CLANG_WARNING_DISABLE("-Wpadded")
 GAIA_CLANG_WARNING_DISABLE("-Wvariadic-macro-arguments-omitted")
+GAIA_CLANG_WARNING_DISABLE("-Wgnu-zero-variadic-macro-arguments")
 GAIA_CLANG_WARNING_DISABLE("-Wsign-conversion")
 GAIA_CLANG_WARNING_DISABLE("-Wconversion")
 GAIA_GCC_WARNING_DISABLE("-Wpadded")
@@ -29600,7 +29606,7 @@ namespace gaia {
 				m_handle = dispatch_semaphore_create(count);
 				GAIA_ASSERT(m_handle != nullptr);
 #else
-				[[maybe_unused]] int ret = sem_init(&m_handle, 0, count);
+				[[maybe_unused]] int ret = sem_init(&m_handle, 0, (unsigned int)count);
 				GAIA_ASSERT(ret == 0);
 #endif
 			}
@@ -51359,7 +51365,7 @@ namespace gaia {
 			};
 
 			struct QueryState {
-				enum DirtyFlags : uint8_t { Clean = 0x00, Seed = 0x01, Result = 0x02, All = Seed | Result };
+				enum DirtyFlags : uint8_t { Clean = 0x00, Seed = 0x01, Result = 0x02, AllDirty = Seed | Result };
 
 				//! Structural seed cache built without source/variable refinement.
 				cnt::set<const Archetype*> seedArchetypeSet;
@@ -51726,7 +51732,7 @@ namespace gaia {
 				//! True when cached result archetypes may be rejected by the default prefab filter.
 				uint8_t resultCacheMayNeedPrefabFilter = 0;
 				//! Dirty flags
-				uint8_t dirtyFlags = DirtyFlags::All;
+				uint8_t dirtyFlags = DirtyFlags::AllDirty;
 
 				//! Clears structural seed matches without touching dynamic input snapshots.
 				void clear_seed_cache() {
@@ -51764,7 +51770,7 @@ namespace gaia {
 					clear_cache();
 					dynamic.clear_input_snapshots();
 					lastArchetypeId = 0;
-					dirtyFlags = DirtyFlags::All;
+					dirtyFlags = DirtyFlags::AllDirty;
 				}
 
 				//! Marks structural seed matches stale, which also invalidates final results.
@@ -51779,7 +51785,7 @@ namespace gaia {
 
 				//! Marks every cache layer stale.
 				void invalidate_all() {
-					dirtyFlags = DirtyFlags::All;
+					dirtyFlags = DirtyFlags::AllDirty;
 				}
 
 				//! Returns true when structural seed matches must be rebuilt.

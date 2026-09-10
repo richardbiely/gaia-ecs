@@ -4895,6 +4895,8 @@ The project is [continuously tested](https://github.com/richardbiely/gaia-ecs/ac
 
 Unit testing is handled via [doctest](https://github.com/onqtam/doctest.git). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
 
+macOS Apple Clang does not compile Linux-only code such as POSIX semaphores. It also does not emit some Clang 18 diagnostics that GitHub coverage treats as errors. Run `make test-linux-clang` to compile the unit tests with Ubuntu Clang inside Docker.
+
 # Installation
 
 ## CMake

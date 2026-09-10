@@ -198,7 +198,7 @@ namespace gaia {
 			};
 
 			struct QueryState {
-				enum DirtyFlags : uint8_t { Clean = 0x00, Seed = 0x01, Result = 0x02, All = Seed | Result };
+				enum DirtyFlags : uint8_t { Clean = 0x00, Seed = 0x01, Result = 0x02, AllDirty = Seed | Result };
 
 				//! Structural seed cache built without source/variable refinement.
 				cnt::set<const Archetype*> seedArchetypeSet;
@@ -565,7 +565,7 @@ namespace gaia {
 				//! True when cached result archetypes may be rejected by the default prefab filter.
 				uint8_t resultCacheMayNeedPrefabFilter = 0;
 				//! Dirty flags
-				uint8_t dirtyFlags = DirtyFlags::All;
+				uint8_t dirtyFlags = DirtyFlags::AllDirty;
 
 				//! Clears structural seed matches without touching dynamic input snapshots.
 				void clear_seed_cache() {
@@ -603,7 +603,7 @@ namespace gaia {
 					clear_cache();
 					dynamic.clear_input_snapshots();
 					lastArchetypeId = 0;
-					dirtyFlags = DirtyFlags::All;
+					dirtyFlags = DirtyFlags::AllDirty;
 				}
 
 				//! Marks structural seed matches stale, which also invalidates final results.
@@ -618,7 +618,7 @@ namespace gaia {
 
 				//! Marks every cache layer stale.
 				void invalidate_all() {
-					dirtyFlags = DirtyFlags::All;
+					dirtyFlags = DirtyFlags::AllDirty;
 				}
 
 				//! Returns true when structural seed matches must be rebuilt.
