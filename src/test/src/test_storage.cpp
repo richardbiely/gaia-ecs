@@ -7,6 +7,17 @@ namespace {
 		uint32_t value = 0;
 	};
 
+	// Large enough to overwrite chunk header/records if constructed at offset 0.
+	struct SparseHeaderFill {
+		GAIA_STORAGE(Sparse);
+		static constexpr uint32_t Size = 512;
+		uint8_t bytes[Size];
+
+		SparseHeaderFill() {
+			GAIA_FOR(Size) bytes[i] = 0xAB;
+		}
+	};
+
 	template <uint32_t Idx, uint32_t Count>
 	void add_sparse_touch_probes(ecs::World& world, ecs::Entity entity) {
 		using Probe = SparseTouchProbe<Idx>;
@@ -212,6 +223,54 @@ TEST_CASE("Sparse DontFragment component and non-fragmenting relation storage") 
 	CHECK_FALSE(wld.has<PositionSparse>(e));
 	CHECK_FALSE(wld.has(e, compItem.entity));
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+
+TEST_CASE("Sparse storage - table transitions do not construct sparse payloads in chunk headers") {
+	auto expect_sparse_fill = [](const ecs::World& world, ecs::Entity entity) {
+		CHECK(world.valid(entity));
+		CHECK(world.has<SparseHeaderFill>(entity));
+		const auto& fill = world.get<SparseHeaderFill>(entity);
+		CHECK(fill.bytes[0] == 0xAB);
+		CHECK(fill.bytes[SparseHeaderFill::Size - 1] == 0xAB);
+	};
+
+	SUBCASE("Sparse first then later table extension") {
+		TestWorld twld;
+		(void)wld.add<SparseHeaderFill>();
+		(void)wld.add<Position>();
+		(void)wld.add<Acceleration>();
+		const auto e = wld.add();
+
+		wld.add<SparseHeaderFill>(e);
+		expect_sparse_fill(wld, e);
+
+		wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+		expect_sparse_fill(wld, e);
+		CHECK(wld.get<Position>(e).x == doctest::Approx(1.0f));
+		CHECK(wld.get<Position>(e).z == doctest::Approx(3.0f));
+
+		wld.add<Acceleration>(e, {4.0f, 5.0f, 6.0f});
+		expect_sparse_fill(wld, e);
+		CHECK(wld.get<Position>(e).y == doctest::Approx(2.0f));
+		CHECK(wld.get<Acceleration>(e).y == doctest::Approx(5.0f));
+	}
+
+	SUBCASE("Table components then sparse") {
+		TestWorld twld;
+		(void)wld.add<Position>();
+		(void)wld.add<Acceleration>();
+		(void)wld.add<SparseHeaderFill>();
+		const auto e = wld.add();
+
+		wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+		wld.add<Acceleration>(e, {4.0f, 5.0f, 6.0f});
+		wld.add<SparseHeaderFill>(e);
+
+		expect_sparse_fill(wld, e);
+		CHECK(wld.valid(e));
+		CHECK(wld.get<Position>(e).x == doctest::Approx(1.0f));
+		CHECK(wld.get<Acceleration>(e).z == doctest::Approx(6.0f));
+	}
 }
 
 TEST_CASE("Sparse DontFragment relationship payload stays outside archetype storage") {

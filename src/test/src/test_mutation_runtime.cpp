@@ -2592,8 +2592,7 @@ TEST_CASE("CommandBuffer") {
 	}
 }
 
-TEST_CASE_TEMPLATE(
-		"CommandBuffer - recorded component order", CmdBuffer, ecs::CommandBufferST, ecs::CommandBufferMT) {
+TEST_CASE_TEMPLATE("CommandBuffer - recorded component order", CmdBuffer, ecs::CommandBufferST, ecs::CommandBufferMT) {
 	TestWorld twld;
 	(void)wld.add<PositionNonTrivial>();
 	CmdBuffer cb(wld);
@@ -2712,7 +2711,7 @@ TEST_CASE_TEMPLATE(
 		CHECK(wld.has(e, marker));
 	}
 
-	SUBCASE("Bare re-add constructs empty tags at a valid address") {
+	SUBCASE("Bare re-add restores empty tags") {
 		(void)wld.add<CmdBufCtorTag>();
 		const auto e = wld.add();
 		wld.add<CmdBufCtorTag>(e);
@@ -2720,8 +2719,9 @@ TEST_CASE_TEMPLATE(
 		cb.template add<CmdBufCtorTag>(e);
 		CmdBufCtorTag::instance = nullptr;
 		cb.commit();
-		CHECK(CmdBufCtorTag::instance != nullptr);
 		CHECK(wld.has<CmdBufCtorTag>(e));
+		CHECK(wld.valid(e));
+		CHECK(CmdBufCtorTag::instance == nullptr);
 	}
 
 	SUBCASE("In-place replacement initializes fields omitted by a custom serializer") {
@@ -2743,7 +2743,7 @@ TEST_CASE_TEMPLATE(
 		delHits = 0;
 		removedValue = 0;
 		const auto& item = wld.add<PositionNonTrivial>();
-		ecs::ComponentCache::hooks(item).func_del =
+		ecs::ComponentCache::hooks(item).func_del = //
 				[](const ecs::World& world, const ecs::ComponentCacheItem&, ecs::Entity e) {
 					++delHits;
 					removedValue = world.get<PositionNonTrivial>(e).x;
@@ -2882,7 +2882,6 @@ TEST_CASE_TEMPLATE(
 			}
 		}
 	}
-
 }
 
 TEST_CASE("Sparse storage - chunk transitions construct payloads only in sparse store") {
@@ -3447,7 +3446,7 @@ TEST_CASE_TEMPLATE(
 		static uint32_t delHits;
 		delHits = 0;
 		const auto& item = wld.add<Position>();
-		ecs::ComponentCache::hooks(item).func_del =
+		ecs::ComponentCache::hooks(item).func_del = //
 				[](const ecs::World& world, const ecs::ComponentCacheItem&, ecs::Entity e) {
 					++delHits;
 					CHECK(world.get<Position>(e).x == 2);
@@ -3475,7 +3474,7 @@ TEST_CASE_TEMPLATE(
 		static uint32_t delHits;
 		delHits = 0;
 		const auto& item = wld.add<Rotation>();
-		ecs::ComponentCache::hooks(item).func_del =
+		ecs::ComponentCache::hooks(item).func_del = //
 				[](const ecs::World& world, const ecs::ComponentCacheItem&, ecs::Entity e) {
 					++delHits;
 					CHECK(world.get<Position>(e).x == 2);
@@ -3514,7 +3513,7 @@ TEST_CASE_TEMPLATE(
 		static uint32_t delHits;
 		delHits = 0;
 		const auto& item = wld.add<Rotation>();
-		ecs::ComponentCache::hooks(item).func_del =
+		ecs::ComponentCache::hooks(item).func_del = //
 				[](const ecs::World& world, const ecs::ComponentCacheItem&, ecs::Entity e) {
 					++delHits;
 					CHECK(world.get<Position>(e).x == 2);

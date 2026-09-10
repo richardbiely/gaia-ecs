@@ -38027,7 +38027,8 @@ namespace gaia {
 						++i;
 					} else {
 						const auto& rec = dstRecs[j];
-						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr && !component_uses_sparse_storage(rec.comp)) {
+						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr && //
+								component_uses_table_storage(rec.comp)) {
 							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
 							rec.pItem->func_ctor(pDst, dstCount);
 						}
@@ -38038,7 +38039,8 @@ namespace gaia {
 
 				for (; j < pDstChunk->m_header.cntEntities; ++j) {
 					const auto& rec = dstRecs[j];
-					if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr && !component_uses_sparse_storage(rec.comp)) {
+					if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr && //
+							component_uses_table_storage(rec.comp)) {
 						auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
 						rec.pItem->func_ctor(pDst, dstCount);
 					}
@@ -38110,7 +38112,8 @@ namespace gaia {
 						} else {
 							// No match with the old chunk. Construct the component
 							const auto& rec = dstRecs[j];
-							if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr && !component_uses_sparse_storage(rec.comp)) {
+							if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr && //
+									component_uses_table_storage(rec.comp)) {
 								auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
 								rec.pItem->func_ctor(pDst, 1);
 							}
@@ -38122,7 +38125,8 @@ namespace gaia {
 					// Initialize remaining destination columns.
 					for (; j < pDstChunk->m_header.cntEntities; ++j) {
 						const auto& rec = dstRecs[j];
-						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr && !component_uses_sparse_storage(rec.comp)) {
+						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr && //
+								component_uses_table_storage(rec.comp)) {
 							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
 							rec.pItem->func_ctor(pDst, 1);
 						}
@@ -38172,7 +38176,8 @@ namespace gaia {
 						} else {
 							// No match with the old chunk. Construct the component
 							const auto& rec = dstRecs[j];
-							if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr && !component_uses_sparse_storage(rec.comp)) {
+							if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr && //
+									component_uses_table_storage(rec.comp)) {
 								auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
 								rec.pItem->func_ctor(pDst, 1);
 							}
@@ -38184,7 +38189,8 @@ namespace gaia {
 					// Initialize remaining destination columns.
 					for (; j < pDstChunk->m_header.cntEntities; ++j) {
 						const auto& rec = dstRecs[j];
-						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr && !component_uses_sparse_storage(rec.comp)) {
+						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr && //
+								component_uses_table_storage(rec.comp)) {
 							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
 							rec.pItem->func_ctor(pDst, 1);
 						}
