@@ -148,6 +148,7 @@ var NAVTREE =
     [ "Installation", "index.html#installation", [
       [ "CMake", "index.html#cmake", [
         [ "Project settings", "index.html#project-settings", null ],
+        [ "Asserts", "index.html#asserts", null ],
         [ "Sanitizers", "index.html#sanitizers", null ],
         [ "Single-header", "index.html#single-header", null ]
       ] ],
@@ -193,13 +194,13 @@ var NAVTREEINDEX =
 "classgaia_1_1ecs_1_1World.html#a1bb9ce70535fc64f8f44c8a53e3c2223",
 "classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a1dc32228f1bfa928c4ddfa4088da45f6",
 "classgaia_1_1mt_1_1ThreadPool.html#acf92b6607ea332bf40e6a2700a3223f4",
-"index.html#customization",
-"structgaia_1_1cnt_1_1fwd__llist.html#a5e6c0917470462a0ef9d57b443150628",
-"structgaia_1_1cnt_1_1sringbuffer__iterator.html#ac94d2dfd38b4614bdda3b19317b7eb0d",
-"structgaia_1_1ecs_1_1Delete__.html",
-"structgaia_1_1ecs_1_1QueryIdentity.html#a8d0b35e64f83b2cfa9ec0607c1f4ee98",
-"structgaia_1_1ecs_1_1detail_1_1PendingSystemJob.html#a99568597c12c177606f416efe8843cde",
-"structgaia_1_1mem_1_1data__view__policy__soa.html#af1e66a91cc019da8b8dd005e496b12db"
+"index.html#create-or-delete-entity",
+"structgaia_1_1cnt_1_1fwd__llist.html#a45db67b14280103c1670c58296c30b8e",
+"structgaia_1_1cnt_1_1sringbuffer__iterator.html#ac30431b1e4adaab95e5ba39c8653653a",
+"structgaia_1_1ecs_1_1CursorResult_3_01void_01_4.html#ae89f6f21c523391fb7d08f37fc19aad5",
+"structgaia_1_1ecs_1_1QueryIdentity.html#a5793d60892c9e352d755c07fe5545c5e",
+"structgaia_1_1ecs_1_1detail_1_1PendingSystemJob.html#a5bf97548f10d1f3269b5e335bd94b3cd",
+"structgaia_1_1mem_1_1data__view__policy__soa.html#aeb7f065b270de2475fafeb824e52a01b"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

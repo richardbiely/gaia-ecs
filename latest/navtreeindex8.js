@@ -1,5 +1,6 @@
 var NAVTREEINDEX8 =
 {
+"index.html#create-or-delete-entity":[2,1,0],
 "index.html#customization":[2,12],
 "index.html#data-layouts":[2,7],
 "index.html#data-on-runtime-relationships":[2,9,9],
@@ -66,7 +67,7 @@ var NAVTREEINDEX8 =
 "index.html#runtime-components":[2,9],
 "index.html#runtime-serialization":[2,8,1],
 "index.html#safeentity":[2,1,14,0],
-"index.html#sanitizers":[4,0,1],
+"index.html#sanitizers":[4,0,2],
 "index.html#scheduler-adapters":[2,11,7],
 "index.html#schema-manifests-and-validated-edits":[2,9,3],
 "index.html#selecting-a-storage-mode":[2,1,4,0],
@@ -74,7 +75,7 @@ var NAVTREEINDEX8 =
 "index.html#set-or-get-component-value":[2,1,10],
 "index.html#shared-data":[2,4],
 "index.html#simple-query":[2,2,1],
-"index.html#single-header":[4,0,2],
+"index.html#single-header":[4,0,3],
 "index.html#sorting":[2,2,15],
 "index.html#storage-modes-and-non-fragmenting-membership":[2,1,4],
 "index.html#system-basics":[2,6,0],
@@ -248,6 +249,5 @@ var NAVTREEINDEX8 =
 "structgaia_1_1cnt_1_1darray__ilist__storage.html#ad71fa5f70c9b56dda0de3d2dcec08400":[9,0,0,0,10,0],
 "structgaia_1_1cnt_1_1fwd__llist.html":[9,0,0,0,12],
 "structgaia_1_1cnt_1_1fwd__llist.html#a1da5b19633cbed199058c896e6619884":[9,0,0,0,12,5],
-"structgaia_1_1cnt_1_1fwd__llist.html#a42c83b416835cde7c33102ae01a9d271":[9,0,0,0,12,9],
-"structgaia_1_1cnt_1_1fwd__llist.html#a45db67b14280103c1670c58296c30b8e":[9,0,0,0,12,2]
+"structgaia_1_1cnt_1_1fwd__llist.html#a42c83b416835cde7c33102ae01a9d271":[9,0,0,0,12,9]
 };

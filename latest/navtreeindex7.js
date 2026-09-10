@@ -173,8 +173,8 @@ var NAVTREEINDEX7 =
 "functions_rela.html":[9,3,6],
 "functions_s.html":[9,3,0,18],
 "functions_t.html":[9,3,0,19],
-"functions_type.html":[9,3,3],
 "functions_type.html":[9,3,3,0],
+"functions_type.html":[9,3,3],
 "functions_type_b.html":[9,3,3,1],
 "functions_type_c.html":[9,3,3,2],
 "functions_type_d.html":[9,3,3,3],
@@ -228,6 +228,7 @@ var NAVTREEINDEX7 =
 "index.html":[],
 "index.html#add-or-remove-component":[2,1,6],
 "index.html#archetype-lifespan":[2,1,15],
+"index.html#asserts":[4,0,1],
 "index.html#background-jobs":[2,11,5],
 "index.html#basic-operations":[2,1],
 "index.html#batched-creation":[2,1,13],
@@ -248,6 +249,5 @@ var NAVTREEINDEX7 =
 "index.html#constraints":[2,2,12],
 "index.html#containers":[2,10],
 "index.html#contributions":[7],
-"index.html#copy-entity":[2,1,11],
-"index.html#create-or-delete-entity":[2,1,0]
+"index.html#copy-entity":[2,1,11]
 };
