@@ -4017,6 +4017,7 @@ Compiler</h2>
 Dependencies</h2>
 <p><a href="https://cmake.org">CMake</a> 3.14 or later is required to prepare the build. Other tools are officially not supported at the moment. However, nothing stops you from placing <a class="el" href="index.html#single-header">gaia.h</a> into your project.</p>
 <p>Unit testing is handled via <a href="https://github.com/onqtam/doctest.git">doctest</a>. It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).</p>
+<p>macOS Apple Clang does not compile Linux-only code such as POSIX semaphores. It also does not emit some Clang 18 diagnostics that GitHub coverage treats as errors. Run <code>make test-linux-clang</code> to compile the unit tests with Ubuntu Clang inside Docker.</p>
 <h1><a class="anchor" id="installation"></a>
 Installation</h1>
 <h2><a class="anchor" id="cmake"></a>

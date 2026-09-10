@@ -122,9 +122,9 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryInfo_1_1Clea
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a53b4ef94eec06b29907b346c63b15727" id="r_a53b4ef94eec06b29907b346c63b15727"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html#a53b4ef94eec06b29907b346c63b15727">CleanUpTmpArchetypeMatches</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html#aaf12843cb59f21f8b88f102c7b7d1bdf">world</a>, bool <a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html#a5c8a084286187fb4576a2c1e610a678f">keepStamps</a>)</td></tr>
-<tr class="memdesc:a53b4ef94eec06b29907b346c63b15727"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a guard for an already acquired matching frame.  <br /></td></tr>
-<tr class="separator:a53b4ef94eec06b29907b346c63b15727"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a90a468e0520d2389aeb949cff0fa3fe7" id="r_a90a468e0520d2389aeb949cff0fa3fe7"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html#a90a468e0520d2389aeb949cff0fa3fe7">CleanUpTmpArchetypeMatches</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;w, bool keep)</td></tr>
+<tr class="memdesc:a90a468e0520d2389aeb949cff0fa3fe7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a guard for an already acquired matching frame.  <br /></td></tr>
+<tr class="separator:a90a468e0520d2389aeb949cff0fa3fe7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6edc21544c9c37754135095cd3f618f1" id="r_a6edc21544c9c37754135095cd3f618f1"><td class="memItemLeft" align="right" valign="top"><a id="a6edc21544c9c37754135095cd3f618f1" name="a6edc21544c9c37754135095cd3f618f1"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>CleanUpTmpArchetypeMatches</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html">CleanUpTmpArchetypeMatches</a> &amp;)=delete</td></tr>
 <tr class="separator:a6edc21544c9c37754135095cd3f618f1"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -152,8 +152,8 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>keepStamps</b></td></
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Scope guard that releases the world-owned temporary VM matching frame. </p>
 </div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
-<a id="a53b4ef94eec06b29907b346c63b15727" name="a53b4ef94eec06b29907b346c63b15727"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a53b4ef94eec06b29907b346c63b15727">&#9670;&#160;</a></span>CleanUpTmpArchetypeMatches()</h2>
+<a id="a90a468e0520d2389aeb949cff0fa3fe7" name="a90a468e0520d2389aeb949cff0fa3fe7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a90a468e0520d2389aeb949cff0fa3fe7">&#9670;&#160;</a></span>CleanUpTmpArchetypeMatches()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -165,13 +165,13 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>keepStamps</b></td></
           <td class="memname">gaia::ecs::QueryInfo::CleanUpTmpArchetypeMatches::CleanUpTmpArchetypeMatches </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td>
-          <td class="paramname"><em>world</em>, </td>
+          <td class="paramname"><em>w</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">bool&#160;</td>
-          <td class="paramname"><em>keepStamps</em>&#160;</td>
+          <td class="paramname"><em>keep</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -189,8 +189,8 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>keepStamps</b></td></
 <p>Creates a guard for an already acquired matching frame. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> owning the frame. </td></tr>
-    <tr><td class="paramname">keepStamps</td><td>Whether allocated dedup-stamp pages remain reusable. </td></tr>
+    <tr><td class="paramname">w</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> owning the frame. </td></tr>
+    <tr><td class="paramname">keep</td><td>Whether allocated dedup-stamp pages remain reusable. </td></tr>
   </table>
   </dd>
 </dl>

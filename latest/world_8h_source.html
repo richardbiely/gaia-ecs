@@ -236,8 +236,8 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>      <span class="keyword">static</span> <span class="keywordtype">void</span> func_void_with_entity([[maybe_unused]] <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) {}</div>
 <div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span> </div>
 <div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span>      <span class="keyword">using </span>EntityNameLookupKey = <a class="code hl_struct" href="structgaia_1_1core_1_1StringLookupKey.html">core::StringLookupKey&lt;256&gt;</a>;</div>
-<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span>      <span class="keyword">using </span>PairMap = <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::map&lt;EntityLookupKey, cnt::set&lt;EntityLookupKey&gt;</a>&gt;;</div>
-<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>      <span class="keyword">using </span>EntityArrayMap = <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::map&lt;EntityLookupKey, cnt::darray&lt;Entity&gt;</a>&gt;;</div>
+<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span>      <span class="keyword">using </span>PairMap = cnt::map&lt;EntityLookupKey, cnt::set&lt;EntityLookupKey&gt;&gt;;</div>
+<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>      <span class="keyword">using </span>EntityArrayMap = cnt::map&lt;EntityLookupKey, cnt::darray&lt;Entity&gt;&gt;;</div>
 <div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span> </div>
 <div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span>      <span class="keyword">using </span>NonFragmentingRelationStore = detail::NonFragmentingRelationStore;</div>
 <div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span>      <span class="keyword">using </span>SparseComponentStoreErased = detail::SparseComponentStoreErased;</div>
@@ -268,10 +268,10 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l00155" name="l00155"></a><span class="lineno">  155</span> </div>
 <div class="line"><a id="l00156" name="l00156"></a><span class="lineno">  156</span>      <span class="keyword">public</span>:</div>
 <div class="line"><a id="l00162" name="l00162"></a><span class="lineno">  162</span>        SetWriteProxyTyped(World&amp; world, Entity entity, Entity term, <span class="keyword">const</span> TValue&amp; value):</div>
-<div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span>            TValue(value), m_pWorld(&amp;world), m_entity(entity), m_term(term) {}</div>
+<div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span>          TValue(value), m_pWorld(&amp;world), m_entity(entity), m_term(term) {}</div>
 <div class="line"><a id="l00164" name="l00164"></a><span class="lineno">  164</span> </div>
 <div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>        SetWriteProxyTyped(World&amp; world, Entity entity, Entity term, TValue&amp;&amp; value):</div>
-<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span>            TValue(GAIA_MOV(value)), m_pWorld(&amp;world), m_entity(entity), m_term(term) {}</div>
+<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span>          TValue(GAIA_MOV(value)), m_pWorld(&amp;world), m_entity(entity), m_term(term) {}</div>
 <div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span> </div>
 <div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span>        SetWriteProxyTyped(<span class="keyword">const</span> SetWriteProxyTyped&amp;) = <span class="keyword">delete</span>;</div>
 <div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span>        SetWriteProxyTyped&amp; operator=(<span class="keyword">const</span> SetWriteProxyTyped&amp;) = <span class="keyword">delete</span>;</div>
@@ -1570,13 +1570,13 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l01823" name="l01823"></a><span class="lineno"> 1823</span> </div>
 <div class="foldopen" id="foldopen01826" data-start="{" data-end="}">
 <div class="line"><a id="l01826" name="l01826"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#ad2d441f25840da49f0f65ee6dc07bdc2"> 1826</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#ad2d441f25840da49f0f65ee6dc07bdc2">del_nonfragmenting_relation_source</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source) {</div>
-<div class="line"><a id="l01827" name="l01827"></a><span class="lineno"> 1827</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a> relations;</div>
+<div class="line"><a id="l01827" name="l01827"></a><span class="lineno"> 1827</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a> relations;</div>
 <div class="line"><a id="l01828" name="l01828"></a><span class="lineno"> 1828</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; it: m_nonFragmentingRelationsByRel) {</div>
 <div class="line"><a id="l01829" name="l01829"></a><span class="lineno"> 1829</span>          <span class="keyword">const</span> <span class="keyword">auto</span> relation = it.first.entity();</div>
 <div class="line"><a id="l01830" name="l01830"></a><span class="lineno"> 1830</span>          <span class="keywordflow">if</span> (it.second.target(source) != EntityBad)</div>
-<div class="line"><a id="l01831" name="l01831"></a><span class="lineno"> 1831</span>            relations.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(relation);</div>
+<div class="line"><a id="l01831" name="l01831"></a><span class="lineno"> 1831</span>            relations.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#aedbe48d997d5322d37ae60522bac9449">push_back</a>(relation);</div>
 <div class="line"><a id="l01832" name="l01832"></a><span class="lineno"> 1832</span>        }</div>
-<div class="line"><a id="l01833" name="l01833"></a><span class="lineno"> 1833</span>        <span class="keywordflow">if</span> (relations.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#af99589ac6b1e4e6ff20f89f6f8b2e3d2">empty</a>())</div>
+<div class="line"><a id="l01833" name="l01833"></a><span class="lineno"> 1833</span>        <span class="keywordflow">if</span> (relations.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#ad484d16336501853a8256c842ed77fb6">empty</a>())</div>
 <div class="line"><a id="l01834" name="l01834"></a><span class="lineno"> 1834</span>          <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l01835" name="l01835"></a><span class="lineno"> 1835</span> </div>
 <div class="line"><a id="l01836" name="l01836"></a><span class="lineno"> 1836</span>        <span class="keywordflow">for</span> (<span class="keyword">auto</span> relation: relations) {</div>
@@ -1593,14 +1593,14 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l01848" name="l01848"></a><span class="lineno"> 1848</span>        <span class="keywordflow">if</span> (!m_observers.has_on_del_observers())</div>
 <div class="line"><a id="l01849" name="l01849"></a><span class="lineno"> 1849</span>          <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l01850" name="l01850"></a><span class="lineno"> 1850</span> </div>
-<div class="line"><a id="l01851" name="l01851"></a><span class="lineno"> 1851</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a> pairs;</div>
+<div class="line"><a id="l01851" name="l01851"></a><span class="lineno"> 1851</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a> pairs;</div>
 <div class="line"><a id="l01852" name="l01852"></a><span class="lineno"> 1852</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; it: m_nonFragmentingRelationsByRel) {</div>
 <div class="line"><a id="l01853" name="l01853"></a><span class="lineno"> 1853</span>          <span class="keyword">const</span> <span class="keyword">auto</span> relation = it.first.entity();</div>
 <div class="line"><a id="l01854" name="l01854"></a><span class="lineno"> 1854</span>          <span class="keyword">const</span> <span class="keyword">auto</span> target = it.second.target(source);</div>
 <div class="line"><a id="l01855" name="l01855"></a><span class="lineno"> 1855</span>          <span class="keywordflow">if</span> (target != EntityBad)</div>
-<div class="line"><a id="l01856" name="l01856"></a><span class="lineno"> 1856</span>            pairs.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(<a class="code hl_class" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>(relation, target));</div>
+<div class="line"><a id="l01856" name="l01856"></a><span class="lineno"> 1856</span>            pairs.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#aedbe48d997d5322d37ae60522bac9449">push_back</a>(<a class="code hl_class" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>(relation, target));</div>
 <div class="line"><a id="l01857" name="l01857"></a><span class="lineno"> 1857</span>        }</div>
-<div class="line"><a id="l01858" name="l01858"></a><span class="lineno"> 1858</span>        <span class="keywordflow">if</span> (pairs.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#af99589ac6b1e4e6ff20f89f6f8b2e3d2">empty</a>())</div>
+<div class="line"><a id="l01858" name="l01858"></a><span class="lineno"> 1858</span>        <span class="keywordflow">if</span> (pairs.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#ad484d16336501853a8256c842ed77fb6">empty</a>())</div>
 <div class="line"><a id="l01859" name="l01859"></a><span class="lineno"> 1859</span>          <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l01860" name="l01860"></a><span class="lineno"> 1860</span> </div>
 <div class="line"><a id="l01861" name="l01861"></a><span class="lineno"> 1861</span>        <span class="keyword">const</span> <span class="keyword">auto</span>&amp; ec = fetch(source);</div>
@@ -1626,8 +1626,8 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l01882" name="l01882"></a><span class="lineno"> 1882</span>        <span class="keywordflow">if</span> (itStore == m_nonFragmentingRelationsByRel.end())</div>
 <div class="line"><a id="l01883" name="l01883"></a><span class="lineno"> 1883</span>          <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l01884" name="l01884"></a><span class="lineno"> 1884</span> </div>
-<div class="line"><a id="l01885" name="l01885"></a><span class="lineno"> 1885</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;EntityId&gt;</a> sourceIds;</div>
-<div class="line"><a id="l01886" name="l01886"></a><span class="lineno"> 1886</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a> pairSources;</div>
+<div class="line"><a id="l01885" name="l01885"></a><span class="lineno"> 1885</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;EntityId&gt;</a> sourceIds;</div>
+<div class="line"><a id="l01886" name="l01886"></a><span class="lineno"> 1886</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a> pairSources;</div>
 <div class="line"><a id="l01887" name="l01887"></a><span class="lineno"> 1887</span>        itStore-&gt;second.collect_source_ids(sourceIds);</div>
 <div class="line"><a id="l01888" name="l01888"></a><span class="lineno"> 1888</span>        itStore-&gt;second.collect_pair_sources(pairSources);</div>
 <div class="line"><a id="l01889" name="l01889"></a><span class="lineno"> 1889</span> </div>
@@ -2185,11 +2185,11 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l02493" name="l02493"></a><span class="lineno"> 2493</span>              <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l02494" name="l02494"></a><span class="lineno"> 2494</span> </div>
 <div class="line"><a id="l02495" name="l02495"></a><span class="lineno"> 2495</span>            <span class="keyword">const</span> <span class="keyword">auto</span> it = m_world.m_sparseComponentsByComp.find(EntityLookupKey(entity));</div>
-<div class="line"><a id="l02496" name="l02496"></a><span class="lineno"> 2496</span>            <span class="keywordflow">if</span> (it != m_world.m_sparseComponentsByComp.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>())</div>
+<div class="line"><a id="l02496" name="l02496"></a><span class="lineno"> 2496</span>            <span class="keywordflow">if</span> (it != m_world.m_sparseComponentsByComp.end())</div>
 <div class="line"><a id="l02497" name="l02497"></a><span class="lineno"> 2497</span>              it-&gt;second.func_del(it-&gt;second.pStore, m_entity);</div>
 <div class="line"><a id="l02498" name="l02498"></a><span class="lineno"> 2498</span>          }</div>
 <div class="line"><a id="l02499" name="l02499"></a><span class="lineno"> 2499</span> </div>
-<div class="line"><a id="l02500" name="l02500"></a><span class="lineno"> 2500</span>          tl_del_comps.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#abf08708c1514c2d803782dbc1d17aed3">clear</a>();</div>
+<div class="line"><a id="l02500" name="l02500"></a><span class="lineno"> 2500</span>          tl_del_comps.clear();</div>
 <div class="line"><a id="l02501" name="l02501"></a><span class="lineno"> 2501</span>        }</div>
 <div class="line"><a id="l02502" name="l02502"></a><span class="lineno"> 2502</span> </div>
 <div class="line"><a id="l02503" name="l02503"></a><span class="lineno"> 2503</span><span class="preprocessor">#if GAIA_OBSERVERS_ENABLED</span></div>
@@ -2639,11 +2639,11 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l03037" name="l03037"></a><span class="lineno"> 3037</span> </div>
 <div class="line"><a id="l03038" name="l03038"></a><span class="lineno"> 3038</span>          <span class="comment">// m_entity -&gt; {..., e}</span></div>
 <div class="line"><a id="l03039" name="l03039"></a><span class="lineno"> 3039</span>          <span class="keyword">auto</span>&amp; entity_to_e = m_world.m_entityToAsTargets[entityKey];</div>
-<div class="line"><a id="l03040" name="l03040"></a><span class="lineno"> 3040</span>          entity_to_e.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a4d258a776cfec1004aa55df08627a16a">insert</a>(eKey);</div>
+<div class="line"><a id="l03040" name="l03040"></a><span class="lineno"> 3040</span>          entity_to_e.insert(eKey);</div>
 <div class="line"><a id="l03041" name="l03041"></a><span class="lineno"> 3041</span>          m_world.m_entityToAsTargetsTravCache = {};</div>
 <div class="line"><a id="l03042" name="l03042"></a><span class="lineno"> 3042</span>          <span class="comment">// e -&gt; {..., m_entity}</span></div>
 <div class="line"><a id="l03043" name="l03043"></a><span class="lineno"> 3043</span>          <span class="keyword">auto</span>&amp; e_to_entity = m_world.m_entityToAsRelations[eKey];</div>
-<div class="line"><a id="l03044" name="l03044"></a><span class="lineno"> 3044</span>          e_to_entity.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a4d258a776cfec1004aa55df08627a16a">insert</a>(entityKey);</div>
+<div class="line"><a id="l03044" name="l03044"></a><span class="lineno"> 3044</span>          e_to_entity.insert(entityKey);</div>
 <div class="line"><a id="l03045" name="l03045"></a><span class="lineno"> 3045</span>          m_world.m_entityToAsRelationsTravCache = {};</div>
 <div class="line"><a id="l03046" name="l03046"></a><span class="lineno"> 3046</span> </div>
 <div class="line"><a id="l03047" name="l03047"></a><span class="lineno"> 3047</span>          <span class="comment">// Make sure the relation entity is registered as archetype so queries can find it</span></div>
@@ -2679,7 +2679,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l03082" name="l03082"></a><span class="lineno"> 3082</span> </div>
 <div class="line"><a id="l03085" name="l03085"></a><span class="lineno"> 3085</span>        <span class="keywordtype">void</span> finish_del_id(Entity entity) {</div>
 <div class="line"><a id="l03086" name="l03086"></a><span class="lineno"> 3086</span><span class="preprocessor">#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED</span></div>
-<div class="line"><a id="l03087" name="l03087"></a><span class="lineno"> 3087</span>          tl_del_comps.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(entity);</div>
+<div class="line"><a id="l03087" name="l03087"></a><span class="lineno"> 3087</span>          tl_del_comps.push_back(entity);</div>
 <div class="line"><a id="l03088" name="l03088"></a><span class="lineno"> 3088</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l03089" name="l03089"></a><span class="lineno"> 3089</span>        }</div>
 <div class="line"><a id="l03090" name="l03090"></a><span class="lineno"> 3090</span> </div>
@@ -2705,13 +2705,13 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l03114" name="l03114"></a><span class="lineno"> 3114</span> </div>
 <div class="line"><a id="l03117" name="l03117"></a><span class="lineno"> 3117</span>        <span class="keywordtype">void</span> del_nonfragmenting_component_id(Entity component) {</div>
 <div class="line"><a id="l03118" name="l03118"></a><span class="lineno"> 3118</span>          <span class="keyword">const</span> <span class="keyword">auto</span> it = m_world.m_sparseComponentsByComp.find(EntityLookupKey(component));</div>
-<div class="line"><a id="l03119" name="l03119"></a><span class="lineno"> 3119</span>          <span class="keywordflow">if</span> (it != m_world.m_sparseComponentsByComp.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>())</div>
+<div class="line"><a id="l03119" name="l03119"></a><span class="lineno"> 3119</span>          <span class="keywordflow">if</span> (it != m_world.m_sparseComponentsByComp.end())</div>
 <div class="line"><a id="l03120" name="l03120"></a><span class="lineno"> 3120</span>            it-&gt;second.func_del(it-&gt;second.pStore, m_entity);</div>
 <div class="line"><a id="l03121" name="l03121"></a><span class="lineno"> 3121</span>        }</div>
 <div class="line"><a id="l03122" name="l03122"></a><span class="lineno"> 3122</span> </div>
 <div class="line"><a id="l03125" name="l03125"></a><span class="lineno"> 3125</span>        <span class="keywordtype">void</span> del_sparse_pair_payload(Entity pair) {</div>
 <div class="line"><a id="l03126" name="l03126"></a><span class="lineno"> 3126</span>          <span class="keyword">const</span> <span class="keyword">auto</span> it = m_world.m_sparseComponentsByComp.find(EntityLookupKey(pair));</div>
-<div class="line"><a id="l03127" name="l03127"></a><span class="lineno"> 3127</span>          <span class="keywordflow">if</span> (it != m_world.m_sparseComponentsByComp.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>())</div>
+<div class="line"><a id="l03127" name="l03127"></a><span class="lineno"> 3127</span>          <span class="keywordflow">if</span> (it != m_world.m_sparseComponentsByComp.end())</div>
 <div class="line"><a id="l03128" name="l03128"></a><span class="lineno"> 3128</span>            it-&gt;second.func_del(it-&gt;second.pStore, m_entity);</div>
 <div class="line"><a id="l03129" name="l03129"></a><span class="lineno"> 3129</span>        }</div>
 <div class="line"><a id="l03130" name="l03130"></a><span class="lineno"> 3130</span> </div>
@@ -2968,7 +2968,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l03402" name="l03402"></a><span class="lineno"> 3402</span>            <span class="keywordflow">if</span> (targetFilter != All.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>() &amp;&amp; pair.gen() != targetFilter)</div>
 <div class="line"><a id="l03403" name="l03403"></a><span class="lineno"> 3403</span>              <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l03404" name="l03404"></a><span class="lineno"> 3404</span> </div>
-<div class="line"><a id="l03405" name="l03405"></a><span class="lineno"> 3405</span>            pairs.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(pair);</div>
+<div class="line"><a id="l03405" name="l03405"></a><span class="lineno"> 3405</span>            pairs.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#aedbe48d997d5322d37ae60522bac9449">push_back</a>(pair);</div>
 <div class="line"><a id="l03406" name="l03406"></a><span class="lineno"> 3406</span>          }</div>
 <div class="line"><a id="l03407" name="l03407"></a><span class="lineno"> 3407</span> </div>
 <div class="line"><a id="l03408" name="l03408"></a><span class="lineno"> 3408</span>          <span class="keywordflow">for</span> (<span class="keyword">auto</span> pair: pairs) {</div>
@@ -3128,13 +3128,13 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l03599" name="l03599"></a><span class="lineno"> 3599</span>          <span class="comment">// If the assert is hit it means the pointer to the name string was invalidated or became dangling.</span></div>
 <div class="line"><a id="l03600" name="l03600"></a><span class="lineno"> 3600</span>          <span class="comment">// That should not be possible for strings managed internally so the only other option is user-managed</span></div>
 <div class="line"><a id="l03601" name="l03601"></a><span class="lineno"> 3601</span>          <span class="comment">// strings are broken.</span></div>
-<div class="line"><a id="l03602" name="l03602"></a><span class="lineno"> 3602</span>          GAIA_ASSERT(it != m_world.m_nameToEntity.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>());</div>
-<div class="line"><a id="l03603" name="l03603"></a><span class="lineno"> 3603</span>          <span class="keywordflow">if</span> (it != m_world.m_nameToEntity.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>()) {</div>
+<div class="line"><a id="l03602" name="l03602"></a><span class="lineno"> 3602</span>          GAIA_ASSERT(it != m_world.m_nameToEntity.end());</div>
+<div class="line"><a id="l03603" name="l03603"></a><span class="lineno"> 3603</span>          <span class="keywordflow">if</span> (it != m_world.m_nameToEntity.end()) {</div>
 <div class="line"><a id="l03604" name="l03604"></a><span class="lineno"> 3604</span>            <span class="comment">// Release memory allocated for the string if we own it</span></div>
 <div class="line"><a id="l03605" name="l03605"></a><span class="lineno"> 3605</span>            <span class="keywordflow">if</span> (it-&gt;first.owned())</div>
 <div class="line"><a id="l03606" name="l03606"></a><span class="lineno"> 3606</span>              mem::mem_free((<span class="keywordtype">void</span>*)key.str());</div>
 <div class="line"><a id="l03607" name="l03607"></a><span class="lineno"> 3607</span> </div>
-<div class="line"><a id="l03608" name="l03608"></a><span class="lineno"> 3608</span>            m_world.m_nameToEntity.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">erase</a>(it);</div>
+<div class="line"><a id="l03608" name="l03608"></a><span class="lineno"> 3608</span>            m_world.m_nameToEntity.erase(it);</div>
 <div class="line"><a id="l03609" name="l03609"></a><span class="lineno"> 3609</span>          }</div>
 <div class="line"><a id="l03610" name="l03610"></a><span class="lineno"> 3610</span>        }</div>
 <div class="line"><a id="l03611" name="l03611"></a><span class="lineno"> 3611</span> </div>
@@ -3143,13 +3143,13 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l03616" name="l03616"></a><span class="lineno"> 3616</span>          <span class="comment">// If the assert is hit it means the pointer to the name string was invalidated or became dangling.</span></div>
 <div class="line"><a id="l03617" name="l03617"></a><span class="lineno"> 3617</span>          <span class="comment">// That should not be possible for strings managed internally so the only other option is user-managed</span></div>
 <div class="line"><a id="l03618" name="l03618"></a><span class="lineno"> 3618</span>          <span class="comment">// strings are broken.</span></div>
-<div class="line"><a id="l03619" name="l03619"></a><span class="lineno"> 3619</span>          GAIA_ASSERT(it != m_world.m_aliasToEntity.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>());</div>
-<div class="line"><a id="l03620" name="l03620"></a><span class="lineno"> 3620</span>          <span class="keywordflow">if</span> (it != m_world.m_aliasToEntity.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>()) {</div>
+<div class="line"><a id="l03619" name="l03619"></a><span class="lineno"> 3619</span>          GAIA_ASSERT(it != m_world.m_aliasToEntity.end());</div>
+<div class="line"><a id="l03620" name="l03620"></a><span class="lineno"> 3620</span>          <span class="keywordflow">if</span> (it != m_world.m_aliasToEntity.end()) {</div>
 <div class="line"><a id="l03621" name="l03621"></a><span class="lineno"> 3621</span>            <span class="comment">// Release memory allocated for the string if we own it</span></div>
 <div class="line"><a id="l03622" name="l03622"></a><span class="lineno"> 3622</span>            <span class="keywordflow">if</span> (it-&gt;first.owned())</div>
 <div class="line"><a id="l03623" name="l03623"></a><span class="lineno"> 3623</span>              mem::mem_free((<span class="keywordtype">void</span>*)key.str());</div>
 <div class="line"><a id="l03624" name="l03624"></a><span class="lineno"> 3624</span> </div>
-<div class="line"><a id="l03625" name="l03625"></a><span class="lineno"> 3625</span>            m_world.m_aliasToEntity.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">erase</a>(it);</div>
+<div class="line"><a id="l03625" name="l03625"></a><span class="lineno"> 3625</span>            m_world.m_aliasToEntity.erase(it);</div>
 <div class="line"><a id="l03626" name="l03626"></a><span class="lineno"> 3626</span>          }</div>
 <div class="line"><a id="l03627" name="l03627"></a><span class="lineno"> 3627</span>        }</div>
 <div class="line"><a id="l03628" name="l03628"></a><span class="lineno"> 3628</span> </div>
@@ -3183,7 +3183,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l03661" name="l03661"></a><span class="lineno"> 3661</span>          <span class="comment">// Make sure the name is unique. Ignore setting the same name twice on the same entity.</span></div>
 <div class="line"><a id="l03662" name="l03662"></a><span class="lineno"> 3662</span>          <span class="comment">// If it is not, there is nothing to do.</span></div>
 <div class="line"><a id="l03663" name="l03663"></a><span class="lineno"> 3663</span>          <span class="keyword">auto</span> it = m_world.m_nameToEntity.find(key);</div>
-<div class="line"><a id="l03664" name="l03664"></a><span class="lineno"> 3664</span>          <span class="keywordflow">if</span> (it == m_world.m_nameToEntity.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>()) {</div>
+<div class="line"><a id="l03664" name="l03664"></a><span class="lineno"> 3664</span>          <span class="keywordflow">if</span> (it == m_world.m_nameToEntity.end()) {</div>
 <div class="line"><a id="l03665" name="l03665"></a><span class="lineno"> 3665</span>            <span class="comment">// If we already had some name, remove the pair from the map first.</span></div>
 <div class="line"><a id="l03666" name="l03666"></a><span class="lineno"> 3666</span>            <span class="keywordflow">if</span> (m_targetNameKey.<a class="code hl_function" href="structgaia_1_1core_1_1StringLookupKey.html#aa43548043f21651021cad8d48375c7b0">str</a>() != <span class="keyword">nullptr</span>) {</div>
 <div class="line"><a id="l03667" name="l03667"></a><span class="lineno"> 3667</span>              del_name_inter(m_targetNameKey);</div>
@@ -3265,7 +3265,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l03748" name="l03748"></a><span class="lineno"> 3748</span>              alias, len == 0 ? (uint32_t)GAIA_STRLEN(alias, ComponentCacheItem::MaxNameLength) : len, IsOwned);</div>
 <div class="line"><a id="l03749" name="l03749"></a><span class="lineno"> 3749</span> </div>
 <div class="line"><a id="l03750" name="l03750"></a><span class="lineno"> 3750</span>          <span class="keyword">auto</span> it = m_world.m_aliasToEntity.find(key);</div>
-<div class="line"><a id="l03751" name="l03751"></a><span class="lineno"> 3751</span>          <span class="keywordflow">if</span> (it == m_world.m_aliasToEntity.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>()) {</div>
+<div class="line"><a id="l03751" name="l03751"></a><span class="lineno"> 3751</span>          <span class="keywordflow">if</span> (it == m_world.m_aliasToEntity.end()) {</div>
 <div class="line"><a id="l03752" name="l03752"></a><span class="lineno"> 3752</span>            <span class="comment">// If we already had some alias, remove the pair from the map first.</span></div>
 <div class="line"><a id="l03753" name="l03753"></a><span class="lineno"> 3753</span>            <span class="keywordflow">if</span> (m_targetAliasKey.<a class="code hl_function" href="structgaia_1_1core_1_1StringLookupKey.html#aa43548043f21651021cad8d48375c7b0">str</a>() != <span class="keyword">nullptr</span>) {</div>
 <div class="line"><a id="l03754" name="l03754"></a><span class="lineno"> 3754</span>              del_alias_inter(m_targetAliasKey);</div>
@@ -5637,8 +5637,8 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l06597" name="l06597"></a><span class="lineno"> 6597</span> </div>
 <div class="line"><a id="l06598" name="l06598"></a><span class="lineno"> 6598</span>        <span class="keyword">const</span> <span class="keyword">auto</span> planSize = (uint32_t)plan.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>();</div>
 <div class="line"><a id="l06599" name="l06599"></a><span class="lineno"> 6599</span>        GAIA_ASSERT(planSize &lt;= uint32_t(-1) / count);</div>
-<div class="line"><a id="l06600" name="l06600"></a><span class="lineno"> 6600</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a> spawned;</div>
-<div class="line"><a id="l06601" name="l06601"></a><span class="lineno"> 6601</span>        spawned.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#af6968a4f935d7a21fa486b558f9ce6df">resize</a>(planSize * count);</div>
+<div class="line"><a id="l06600" name="l06600"></a><span class="lineno"> 6600</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a> spawned;</div>
+<div class="line"><a id="l06601" name="l06601"></a><span class="lineno"> 6601</span>        spawned.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a8ee94360b132fc6645ad478281003dba">resize</a>(planSize * count);</div>
 <div class="line"><a id="l06602" name="l06602"></a><span class="lineno"> 6602</span> </div>
 <div class="line"><a id="l06603" name="l06603"></a><span class="lineno"> 6603</span>        uint32_t rootIdx = 0;</div>
 <div class="line"><a id="l06604" name="l06604"></a><span class="lineno"> 6604</span>        <span class="keyword">auto</span> collectRoot = [&amp;](<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> instance) {</div>
@@ -5679,7 +5679,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l06643" name="l06643"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a37e11cbe63800bf64486259c9de3f5d8"> 6643</a></span>      GAIA_NODISCARD uint32_t <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a37e11cbe63800bf64486259c9de3f5d8">sync</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity) {</div>
 <div class="line"><a id="l06644" name="l06644"></a><span class="lineno"> 6644</span>        GAIA_ASSERT(valid(prefabEntity));</div>
 <div class="line"><a id="l06645" name="l06645"></a><span class="lineno"> 6645</span> </div>
-<div class="line"><a id="l06646" name="l06646"></a><span class="lineno"> 6646</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::set&lt;EntityLookupKey&gt;</a> visited;</div>
+<div class="line"><a id="l06646" name="l06646"></a><span class="lineno"> 6646</span>        cnt::set&lt;EntityLookupKey&gt; visited;</div>
 <div class="line"><a id="l06647" name="l06647"></a><span class="lineno"> 6647</span>        <span class="keywordflow">return</span> sync_prefab_inter(prefabEntity, visited);</div>
 <div class="line"><a id="l06648" name="l06648"></a><span class="lineno"> 6648</span>      }</div>
 </div>
@@ -5696,15 +5696,15 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l06664" name="l06664"></a><span class="lineno"> 6664</span>        <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> found = EntityBad;</div>
 <div class="line"><a id="l06665" name="l06665"></a><span class="lineno"> 6665</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray_ext&lt;Entity, 64&gt;</a> children;</div>
 <div class="line"><a id="l06666" name="l06666"></a><span class="lineno"> 6666</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray_ext&lt;Entity, 32&gt;</a> queue;</div>
-<div class="line"><a id="l06667" name="l06667"></a><span class="lineno"> 6667</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::set&lt;EntityLookupKey&gt;</a> visited;</div>
+<div class="line"><a id="l06667" name="l06667"></a><span class="lineno"> 6667</span>        cnt::set&lt;EntityLookupKey&gt; visited;</div>
 <div class="line"><a id="l06668" name="l06668"></a><span class="lineno"> 6668</span>        queue.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(instanceRoot);</div>
-<div class="line"><a id="l06669" name="l06669"></a><span class="lineno"> 6669</span>        visited.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a4d258a776cfec1004aa55df08627a16a">insert</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(instanceRoot));</div>
+<div class="line"><a id="l06669" name="l06669"></a><span class="lineno"> 6669</span>        visited.insert(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(instanceRoot));</div>
 <div class="line"><a id="l06670" name="l06670"></a><span class="lineno"> 6670</span> </div>
 <div class="line"><a id="l06671" name="l06671"></a><span class="lineno"> 6671</span>        <span class="keywordflow">for</span> (uint32_t i = 0; i &lt; queue.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>() &amp;&amp; found == EntityBad; ++i) {</div>
 <div class="line"><a id="l06672" name="l06672"></a><span class="lineno"> 6672</span>          children.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#abf08708c1514c2d803782dbc1d17aed3">clear</a>();</div>
 <div class="line"><a id="l06673" name="l06673"></a><span class="lineno"> 6673</span>          <span class="keyword">auto</span> collectChild = [&amp;](<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> child) {</div>
 <div class="line"><a id="l06674" name="l06674"></a><span class="lineno"> 6674</span>            <span class="keyword">const</span> <span class="keyword">auto</span> key = <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(child);</div>
-<div class="line"><a id="l06675" name="l06675"></a><span class="lineno"> 6675</span>            <span class="keyword">const</span> <span class="keyword">auto</span> ins = visited.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a4d258a776cfec1004aa55df08627a16a">insert</a>(key);</div>
+<div class="line"><a id="l06675" name="l06675"></a><span class="lineno"> 6675</span>            <span class="keyword">const</span> <span class="keyword">auto</span> ins = visited.insert(key);</div>
 <div class="line"><a id="l06676" name="l06676"></a><span class="lineno"> 6676</span>            <span class="keywordflow">if</span> (!ins.second)</div>
 <div class="line"><a id="l06677" name="l06677"></a><span class="lineno"> 6677</span>              <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l06678" name="l06678"></a><span class="lineno"> 6678</span> </div>
@@ -6962,8 +6962,8 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 </div>
 <div class="line"><a id="l08176" name="l08176"></a><span class="lineno"> 8176</span> </div>
 <div class="foldopen" id="foldopen08182" data-start="{" data-end="}">
-<div class="line"><a id="l08182" name="l08182"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a715aba59218167cfe58af80f29ccb58e"> 8182</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a715aba59218167cfe58af80f29ccb58e">resolve</a>(<a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a>&amp; out, <span class="keyword">const</span> <span class="keywordtype">char</span>* name, uint32_t len = 0)<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l08183" name="l08183"></a><span class="lineno"> 8183</span>        out.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#abf08708c1514c2d803782dbc1d17aed3">clear</a>();</div>
+<div class="line"><a id="l08182" name="l08182"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a715aba59218167cfe58af80f29ccb58e"> 8182</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a715aba59218167cfe58af80f29ccb58e">resolve</a>(<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a>&amp; out, <span class="keyword">const</span> <span class="keywordtype">char</span>* name, uint32_t len = 0)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l08183" name="l08183"></a><span class="lineno"> 8183</span>        out.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a74ceba8209c397c3d16ddd73ea530cf1">clear</a>();</div>
 <div class="line"><a id="l08184" name="l08184"></a><span class="lineno"> 8184</span>        <span class="keywordflow">if</span> (name == <span class="keyword">nullptr</span> || name[0] == 0)</div>
 <div class="line"><a id="l08185" name="l08185"></a><span class="lineno"> 8185</span>          <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l08186" name="l08186"></a><span class="lineno"> 8186</span> </div>
@@ -6977,7 +6977,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l08194" name="l08194"></a><span class="lineno"> 8194</span>            <span class="keywordflow">if</span> (existing == entity)</div>
 <div class="line"><a id="l08195" name="l08195"></a><span class="lineno"> 8195</span>              <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l08196" name="l08196"></a><span class="lineno"> 8196</span>          }</div>
-<div class="line"><a id="l08197" name="l08197"></a><span class="lineno"> 8197</span>          out.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(entity);</div>
+<div class="line"><a id="l08197" name="l08197"></a><span class="lineno"> 8197</span>          out.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#aedbe48d997d5322d37ae60522bac9449">push_back</a>(entity);</div>
 <div class="line"><a id="l08198" name="l08198"></a><span class="lineno"> 8198</span>        };</div>
 <div class="line"><a id="l08199" name="l08199"></a><span class="lineno"> 8199</span> </div>
 <div class="line"><a id="l08200" name="l08200"></a><span class="lineno"> 8200</span>        push_unique(get_entity_inter(name, l));</div>
@@ -7096,7 +7096,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l08331" name="l08331"></a><span class="lineno"> 8331</span>      <span class="comment">//----------------------------------------------------------------------</span></div>
 <div class="line"><a id="l08332" name="l08332"></a><span class="lineno"> 8332</span> </div>
 <div class="foldopen" id="foldopen08337" data-start="{" data-end="}">
-<div class="line"><a id="l08337" name="l08337"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a411338e31f15fd629ecb429f5435c8f1"> 8337</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::set&lt;EntityLookupKey&gt;</a>* <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a411338e31f15fd629ecb429f5435c8f1">relations</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> target)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l08337" name="l08337"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a411338e31f15fd629ecb429f5435c8f1"> 8337</a></span>      GAIA_NODISCARD <span class="keyword">const</span> cnt::set&lt;EntityLookupKey&gt;* <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a411338e31f15fd629ecb429f5435c8f1">relations</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> target)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l08338" name="l08338"></a><span class="lineno"> 8338</span>        <span class="keywordflow">return</span> m_pairLookup.relations(target);</div>
 <div class="line"><a id="l08339" name="l08339"></a><span class="lineno"> 8339</span>      }</div>
 </div>
@@ -7189,7 +7189,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 </div>
 <div class="line"><a id="l08437" name="l08437"></a><span class="lineno"> 8437</span> </div>
 <div class="foldopen" id="foldopen08442" data-start="{" data-end="}">
-<div class="line"><a id="l08442" name="l08442"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a5a90f6ee29879dc71c3d7641cab27165"> 8442</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a5a90f6ee29879dc71c3d7641cab27165">as_relations_trav_cache</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> target)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l08442" name="l08442"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a5a90f6ee29879dc71c3d7641cab27165"> 8442</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a5a90f6ee29879dc71c3d7641cab27165">as_relations_trav_cache</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> target)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l08443" name="l08443"></a><span class="lineno"> 8443</span>        <span class="keyword">const</span> <span class="keyword">auto</span> key = <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(target);</div>
 <div class="line"><a id="l08444" name="l08444"></a><span class="lineno"> 8444</span>        <span class="keyword">const</span> <span class="keyword">auto</span> itCache = m_entityToAsRelationsTravCache.find(key);</div>
 <div class="line"><a id="l08445" name="l08445"></a><span class="lineno"> 8445</span>        <span class="keywordflow">if</span> (itCache != m_entityToAsRelationsTravCache.end())</div>
@@ -7210,7 +7210,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l08461" name="l08461"></a><span class="lineno"> 8461</span>          stack.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a02e3b1a34d0065fe75d3c22df8cab83b">pop_back</a>();</div>
 <div class="line"><a id="l08462" name="l08462"></a><span class="lineno"> 8462</span> </div>
 <div class="line"><a id="l08463" name="l08463"></a><span class="lineno"> 8463</span>          <span class="keyword">const</span> <span class="keyword">auto</span> relation = relationKey.entity();</div>
-<div class="line"><a id="l08464" name="l08464"></a><span class="lineno"> 8464</span>          cache.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(relation);</div>
+<div class="line"><a id="l08464" name="l08464"></a><span class="lineno"> 8464</span>          cache.push_back(relation);</div>
 <div class="line"><a id="l08465" name="l08465"></a><span class="lineno"> 8465</span> </div>
 <div class="line"><a id="l08466" name="l08466"></a><span class="lineno"> 8466</span>          <span class="keyword">const</span> <span class="keyword">auto</span> itChild = m_entityToAsRelations.find(relationKey);</div>
 <div class="line"><a id="l08467" name="l08467"></a><span class="lineno"> 8467</span>          <span class="keywordflow">if</span> (itChild == m_entityToAsRelations.end())</div>
@@ -7225,7 +7225,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 </div>
 <div class="line"><a id="l08476" name="l08476"></a><span class="lineno"> 8476</span> </div>
 <div class="foldopen" id="foldopen08481" data-start="{" data-end="}">
-<div class="line"><a id="l08481" name="l08481"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a772ce90286449f1635100f1b0cde5e83"> 8481</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a772ce90286449f1635100f1b0cde5e83">as_targets_trav_cache</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l08481" name="l08481"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a772ce90286449f1635100f1b0cde5e83"> 8481</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a772ce90286449f1635100f1b0cde5e83">as_targets_trav_cache</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l08482" name="l08482"></a><span class="lineno"> 8482</span>        <span class="keyword">const</span> <span class="keyword">auto</span> key = <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(relation);</div>
 <div class="line"><a id="l08483" name="l08483"></a><span class="lineno"> 8483</span>        <span class="keyword">const</span> <span class="keyword">auto</span> itCache = m_entityToAsTargetsTravCache.find(key);</div>
 <div class="line"><a id="l08484" name="l08484"></a><span class="lineno"> 8484</span>        <span class="keywordflow">if</span> (itCache != m_entityToAsTargetsTravCache.end())</div>
@@ -7261,7 +7261,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 </div>
 <div class="line"><a id="l08515" name="l08515"></a><span class="lineno"> 8515</span> </div>
 <div class="foldopen" id="foldopen08521" data-start="{" data-end="}">
-<div class="line"><a id="l08521" name="l08521"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a1bb9ce70535fc64f8f44c8a53e3c2223"> 8521</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a1bb9ce70535fc64f8f44c8a53e3c2223">targets_trav_cache</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation, <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l08521" name="l08521"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a1bb9ce70535fc64f8f44c8a53e3c2223"> 8521</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a1bb9ce70535fc64f8f44c8a53e3c2223">targets_trav_cache</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation, <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l08522" name="l08522"></a><span class="lineno"> 8522</span>        <span class="keyword">const</span> <span class="keyword">auto</span> key = <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(<a class="code hl_class" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>(relation, source));</div>
 <div class="line"><a id="l08523" name="l08523"></a><span class="lineno"> 8523</span>        <span class="keyword">const</span> <span class="keyword">auto</span> itCache = m_targetsTravCache.find(key);</div>
 <div class="line"><a id="l08524" name="l08524"></a><span class="lineno"> 8524</span>        <span class="keywordflow">if</span> (itCache != m_targetsTravCache.end())</div>
@@ -7287,7 +7287,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 </div>
 <div class="line"><a id="l08544" name="l08544"></a><span class="lineno"> 8544</span> </div>
 <div class="foldopen" id="foldopen08549" data-start="{" data-end="}">
-<div class="line"><a id="l08549" name="l08549"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a5c1a734a5b62a131335bfc9cb25da752"> 8549</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a5c1a734a5b62a131335bfc9cb25da752">targets_all_cache</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l08549" name="l08549"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a5c1a734a5b62a131335bfc9cb25da752"> 8549</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a5c1a734a5b62a131335bfc9cb25da752">targets_all_cache</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l08550" name="l08550"></a><span class="lineno"> 8550</span>        <span class="keyword">const</span> <span class="keyword">auto</span> key = <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(source);</div>
 <div class="line"><a id="l08551" name="l08551"></a><span class="lineno"> 8551</span>        <span class="keyword">const</span> <span class="keyword">auto</span> itCache = m_targetsAllCache.find(key);</div>
 <div class="line"><a id="l08552" name="l08552"></a><span class="lineno"> 8552</span>        <span class="keywordflow">if</span> (itCache != m_targetsAllCache.end())</div>
@@ -7326,7 +7326,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 </div>
 <div class="line"><a id="l08585" name="l08585"></a><span class="lineno"> 8585</span> </div>
 <div class="foldopen" id="foldopen08590" data-start="{" data-end="}">
-<div class="line"><a id="l08590" name="l08590"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a1382f980c1d3f3097ed48e32d6d36e16"> 8590</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a1382f980c1d3f3097ed48e32d6d36e16">sources_all_cache</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> target)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l08590" name="l08590"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a1382f980c1d3f3097ed48e32d6d36e16"> 8590</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a1382f980c1d3f3097ed48e32d6d36e16">sources_all_cache</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> target)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l08591" name="l08591"></a><span class="lineno"> 8591</span>        <span class="keyword">const</span> <span class="keyword">auto</span> key = <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(target);</div>
 <div class="line"><a id="l08592" name="l08592"></a><span class="lineno"> 8592</span>        <span class="keyword">const</span> <span class="keyword">auto</span> itCache = m_sourcesAllCache.find(key);</div>
 <div class="line"><a id="l08593" name="l08593"></a><span class="lineno"> 8593</span>        <span class="keywordflow">if</span> (itCache != m_sourcesAllCache.end())</div>
@@ -7421,7 +7421,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 </div>
 <div class="line"><a id="l08691" name="l08691"></a><span class="lineno"> 8691</span> </div>
 <div class="foldopen" id="foldopen08697" data-start="{" data-end="}">
-<div class="line"><a id="l08697" name="l08697"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a75533062ef41a0449199fb6db99e7ea5"> 8697</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a75533062ef41a0449199fb6db99e7ea5">sources_bfs_trav_cache</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation, <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> rootTarget)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l08697" name="l08697"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a75533062ef41a0449199fb6db99e7ea5"> 8697</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a75533062ef41a0449199fb6db99e7ea5">sources_bfs_trav_cache</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation, <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> rootTarget)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l08698" name="l08698"></a><span class="lineno"> 8698</span>        <span class="keyword">const</span> <span class="keyword">auto</span> key = <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(<a class="code hl_class" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a>(relation, rootTarget));</div>
 <div class="line"><a id="l08699" name="l08699"></a><span class="lineno"> 8699</span>        <span class="keyword">const</span> <span class="keyword">auto</span> itCache = m_srcBfsTravCache.find(key);</div>
 <div class="line"><a id="l08700" name="l08700"></a><span class="lineno"> 8700</span>        <span class="keywordflow">if</span> (itCache != m_srcBfsTravCache.end())</div>
@@ -7436,8 +7436,8 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l08709" name="l08709"></a><span class="lineno"> 8709</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray_ext&lt;Entity, 32&gt;</a> queue;</div>
 <div class="line"><a id="l08710" name="l08710"></a><span class="lineno"> 8710</span>        queue.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(rootTarget);</div>
 <div class="line"><a id="l08711" name="l08711"></a><span class="lineno"> 8711</span> </div>
-<div class="line"><a id="l08712" name="l08712"></a><span class="lineno"> 8712</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::set&lt;EntityLookupKey&gt;</a> visited;</div>
-<div class="line"><a id="l08713" name="l08713"></a><span class="lineno"> 8713</span>        visited.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a4d258a776cfec1004aa55df08627a16a">insert</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(rootTarget));</div>
+<div class="line"><a id="l08712" name="l08712"></a><span class="lineno"> 8712</span>        cnt::set&lt;EntityLookupKey&gt; visited;</div>
+<div class="line"><a id="l08713" name="l08713"></a><span class="lineno"> 8713</span>        visited.insert(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(rootTarget));</div>
 <div class="line"><a id="l08714" name="l08714"></a><span class="lineno"> 8714</span> </div>
 <div class="line"><a id="l08715" name="l08715"></a><span class="lineno"> 8715</span>        <span class="keywordflow">for</span> (uint32_t i = 0; i &lt; queue.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>(); ++i) {</div>
 <div class="line"><a id="l08716" name="l08716"></a><span class="lineno"> 8716</span>          <span class="keyword">const</span> <span class="keyword">auto</span> currTarget = queue[i];</div>
@@ -7445,7 +7445,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l08718" name="l08718"></a><span class="lineno"> 8718</span>          children.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#abf08708c1514c2d803782dbc1d17aed3">clear</a>();</div>
 <div class="line"><a id="l08719" name="l08719"></a><span class="lineno"> 8719</span>          sources(relation, currTarget, [&amp;](<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source) {</div>
 <div class="line"><a id="l08720" name="l08720"></a><span class="lineno"> 8720</span>            <span class="keyword">const</span> <span class="keyword">auto</span> keySource = <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(source);</div>
-<div class="line"><a id="l08721" name="l08721"></a><span class="lineno"> 8721</span>            <span class="keyword">const</span> <span class="keyword">auto</span>&amp; ins = visited.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a4d258a776cfec1004aa55df08627a16a">insert</a>(keySource);</div>
+<div class="line"><a id="l08721" name="l08721"></a><span class="lineno"> 8721</span>            <span class="keyword">const</span> <span class="keyword">auto</span>&amp; ins = visited.insert(keySource);</div>
 <div class="line"><a id="l08722" name="l08722"></a><span class="lineno"> 8722</span>            <span class="keywordflow">if</span> (!ins.second)</div>
 <div class="line"><a id="l08723" name="l08723"></a><span class="lineno"> 8723</span>              <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l08724" name="l08724"></a><span class="lineno"> 8724</span> </div>
@@ -7528,7 +7528,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l08809" name="l08809"></a><span class="lineno"> 8809</span>      <span class="comment">//----------------------------------------------------------------------</span></div>
 <div class="line"><a id="l08810" name="l08810"></a><span class="lineno"> 8810</span> </div>
 <div class="foldopen" id="foldopen08815" data-start="{" data-end="}">
-<div class="line"><a id="l08815" name="l08815"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a15447ad9aaa47367e4044187ca146d70"> 8815</a></span>      GAIA_NODISCARD <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::set&lt;EntityLookupKey&gt;</a>* <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a15447ad9aaa47367e4044187ca146d70">targets</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l08815" name="l08815"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a15447ad9aaa47367e4044187ca146d70"> 8815</a></span>      GAIA_NODISCARD <span class="keyword">const</span> cnt::set&lt;EntityLookupKey&gt;* <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a15447ad9aaa47367e4044187ca146d70">targets</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l08816" name="l08816"></a><span class="lineno"> 8816</span>        <span class="keywordflow">return</span> m_pairLookup.targets(relation);</div>
 <div class="line"><a id="l08817" name="l08817"></a><span class="lineno"> 8817</span>      }</div>
 </div>
@@ -8110,13 +8110,13 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 </div>
 <div class="line"><a id="l09440" name="l09440"></a><span class="lineno"> 9440</span> </div>
 <div class="foldopen" id="foldopen09444" data-start="{" data-end="}">
-<div class="line"><a id="l09444" name="l09444"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a7dc93f769e7e28aa290f7daaeea0e46f"> 9444</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a7dc93f769e7e28aa290f7daaeea0e46f">collect_direct_term_entities</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> term, <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a>&amp; out)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l09444" name="l09444"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a7dc93f769e7e28aa290f7daaeea0e46f"> 9444</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a7dc93f769e7e28aa290f7daaeea0e46f">collect_direct_term_entities</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> term, <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a>&amp; out)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l09445" name="l09445"></a><span class="lineno"> 9445</span>        collect_direct_term_entities_inter(term, out, <span class="keyword">true</span>);</div>
 <div class="line"><a id="l09446" name="l09446"></a><span class="lineno"> 9446</span>      }</div>
 </div>
 <div class="line"><a id="l09447" name="l09447"></a><span class="lineno"> 9447</span> </div>
 <div class="foldopen" id="foldopen09451" data-start="{" data-end="}">
-<div class="line"><a id="l09451" name="l09451"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#adc67e3a608877bb3288510bb189897a3"> 9451</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#adc67e3a608877bb3288510bb189897a3">collect_direct_term_entities_direct</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> term, <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Entity&gt;</a>&amp; out)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l09451" name="l09451"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#adc67e3a608877bb3288510bb189897a3"> 9451</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#adc67e3a608877bb3288510bb189897a3">collect_direct_term_entities_direct</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> term, <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Entity&gt;</a>&amp; out)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l09452" name="l09452"></a><span class="lineno"> 9452</span>        collect_direct_term_entities_inter(term, out, <span class="keyword">false</span>);</div>
 <div class="line"><a id="l09453" name="l09453"></a><span class="lineno"> 9453</span>      }</div>
 </div>
@@ -8150,8 +8150,8 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l09491" name="l09491"></a><span class="lineno"> 9491</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray_ext&lt;Entity, 32&gt;</a> queue;</div>
 <div class="line"><a id="l09492" name="l09492"></a><span class="lineno"> 9492</span>        queue.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(rootTarget);</div>
 <div class="line"><a id="l09493" name="l09493"></a><span class="lineno"> 9493</span> </div>
-<div class="line"><a id="l09494" name="l09494"></a><span class="lineno"> 9494</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::set&lt;EntityLookupKey&gt;</a> visited;</div>
-<div class="line"><a id="l09495" name="l09495"></a><span class="lineno"> 9495</span>        visited.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a4d258a776cfec1004aa55df08627a16a">insert</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(rootTarget));</div>
+<div class="line"><a id="l09494" name="l09494"></a><span class="lineno"> 9494</span>        cnt::set&lt;EntityLookupKey&gt; visited;</div>
+<div class="line"><a id="l09495" name="l09495"></a><span class="lineno"> 9495</span>        visited.insert(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(rootTarget));</div>
 <div class="line"><a id="l09496" name="l09496"></a><span class="lineno"> 9496</span> </div>
 <div class="line"><a id="l09497" name="l09497"></a><span class="lineno"> 9497</span>        <span class="keywordflow">for</span> (uint32_t i = 0; i &lt; queue.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>(); ++i) {</div>
 <div class="line"><a id="l09498" name="l09498"></a><span class="lineno"> 9498</span>          <span class="keyword">const</span> <span class="keyword">auto</span> currTarget = queue[i];</div>
@@ -8159,7 +8159,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l09500" name="l09500"></a><span class="lineno"> 9500</span>          children.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#abf08708c1514c2d803782dbc1d17aed3">clear</a>();</div>
 <div class="line"><a id="l09501" name="l09501"></a><span class="lineno"> 9501</span>          sources(relation, currTarget, [&amp;](<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source) {</div>
 <div class="line"><a id="l09502" name="l09502"></a><span class="lineno"> 9502</span>            <span class="keyword">const</span> <span class="keyword">auto</span> key = <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(source);</div>
-<div class="line"><a id="l09503" name="l09503"></a><span class="lineno"> 9503</span>            <span class="keyword">const</span> <span class="keyword">auto</span> ins = visited.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a4d258a776cfec1004aa55df08627a16a">insert</a>(key);</div>
+<div class="line"><a id="l09503" name="l09503"></a><span class="lineno"> 9503</span>            <span class="keyword">const</span> <span class="keyword">auto</span> ins = visited.insert(key);</div>
 <div class="line"><a id="l09504" name="l09504"></a><span class="lineno"> 9504</span>            <span class="keywordflow">if</span> (!ins.second)</div>
 <div class="line"><a id="l09505" name="l09505"></a><span class="lineno"> 9505</span>              <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l09506" name="l09506"></a><span class="lineno"> 9506</span> </div>
@@ -8200,8 +8200,8 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l09546" name="l09546"></a><span class="lineno"> 9546</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray_ext&lt;Entity, 32&gt;</a> queue;</div>
 <div class="line"><a id="l09547" name="l09547"></a><span class="lineno"> 9547</span>        queue.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(rootTarget);</div>
 <div class="line"><a id="l09548" name="l09548"></a><span class="lineno"> 9548</span> </div>
-<div class="line"><a id="l09549" name="l09549"></a><span class="lineno"> 9549</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::set&lt;EntityLookupKey&gt;</a> visited;</div>
-<div class="line"><a id="l09550" name="l09550"></a><span class="lineno"> 9550</span>        visited.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a4d258a776cfec1004aa55df08627a16a">insert</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(rootTarget));</div>
+<div class="line"><a id="l09549" name="l09549"></a><span class="lineno"> 9549</span>        cnt::set&lt;EntityLookupKey&gt; visited;</div>
+<div class="line"><a id="l09550" name="l09550"></a><span class="lineno"> 9550</span>        visited.insert(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(rootTarget));</div>
 <div class="line"><a id="l09551" name="l09551"></a><span class="lineno"> 9551</span> </div>
 <div class="line"><a id="l09552" name="l09552"></a><span class="lineno"> 9552</span>        <span class="keywordflow">for</span> (uint32_t i = 0; i &lt; queue.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>(); ++i) {</div>
 <div class="line"><a id="l09553" name="l09553"></a><span class="lineno"> 9553</span>          <span class="keyword">const</span> <span class="keyword">auto</span> currTarget = queue[i];</div>
@@ -8209,7 +8209,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l09555" name="l09555"></a><span class="lineno"> 9555</span>          children.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#abf08708c1514c2d803782dbc1d17aed3">clear</a>();</div>
 <div class="line"><a id="l09556" name="l09556"></a><span class="lineno"> 9556</span>          sources(relation, currTarget, [&amp;](<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source) {</div>
 <div class="line"><a id="l09557" name="l09557"></a><span class="lineno"> 9557</span>            <span class="keyword">const</span> <span class="keyword">auto</span> key = <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(source);</div>
-<div class="line"><a id="l09558" name="l09558"></a><span class="lineno"> 9558</span>            <span class="keyword">const</span> <span class="keyword">auto</span> ins = visited.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a4d258a776cfec1004aa55df08627a16a">insert</a>(key);</div>
+<div class="line"><a id="l09558" name="l09558"></a><span class="lineno"> 9558</span>            <span class="keyword">const</span> <span class="keyword">auto</span> ins = visited.insert(key);</div>
 <div class="line"><a id="l09559" name="l09559"></a><span class="lineno"> 9559</span>            <span class="keywordflow">if</span> (!ins.second)</div>
 <div class="line"><a id="l09560" name="l09560"></a><span class="lineno"> 9560</span>              <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l09561" name="l09561"></a><span class="lineno"> 9561</span> </div>
@@ -8993,19 +8993,19 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l10469" name="l10469"></a><span class="lineno">10469</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l10470" name="l10470"></a><span class="lineno">10470</span> </div>
 <div class="line"><a id="l10474" name="l10474"></a><span class="lineno">10474</span>      <span class="keywordtype">void</span> save_component_layout(<a class="code hl_struct" href="structgaia_1_1ser_1_1serializer.html">ser::serializer</a>&amp; s, uint32_t lastCoreComponentId)<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l10475" name="l10475"></a><span class="lineno">10475</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;const ComponentCacheItem*&gt;</a> components;</div>
-<div class="line"><a id="l10476" name="l10476"></a><span class="lineno">10476</span>        components.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a7319a1cb45a6cf2578629937b27d00d5">reserve</a>((uint32_t)m_compCache.m_compByEntityId.size());</div>
+<div class="line"><a id="l10475" name="l10475"></a><span class="lineno">10475</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;const ComponentCacheItem*&gt;</a> components;</div>
+<div class="line"><a id="l10476" name="l10476"></a><span class="lineno">10476</span>        components.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a66378b206615bdbf10f6f621edeeb20e">reserve</a>((uint32_t)m_compCache.m_compByEntityId.size());</div>
 <div class="line"><a id="l10477" name="l10477"></a><span class="lineno">10477</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; [entityId, pItem]: m_compCache.m_compByEntityId) {</div>
 <div class="line"><a id="l10478" name="l10478"></a><span class="lineno">10478</span>          <span class="keywordflow">if</span> (entityId &gt; lastCoreComponentId) {</div>
 <div class="line"><a id="l10479" name="l10479"></a><span class="lineno">10479</span>            GAIA_ASSERT(pItem != <span class="keyword">nullptr</span>);</div>
-<div class="line"><a id="l10480" name="l10480"></a><span class="lineno">10480</span>            components.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(pItem);</div>
+<div class="line"><a id="l10480" name="l10480"></a><span class="lineno">10480</span>            components.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#aedbe48d997d5322d37ae60522bac9449">push_back</a>(pItem);</div>
 <div class="line"><a id="l10481" name="l10481"></a><span class="lineno">10481</span>          }</div>
 <div class="line"><a id="l10482" name="l10482"></a><span class="lineno">10482</span>        }</div>
 <div class="line"><a id="l10483" name="l10483"></a><span class="lineno">10483</span>        core::sort(components, [](<span class="keyword">const</span> ComponentCacheItem* pLeft, <span class="keyword">const</span> ComponentCacheItem* pRight) {</div>
 <div class="line"><a id="l10484" name="l10484"></a><span class="lineno">10484</span>          <span class="keywordflow">return</span> pLeft-&gt;entity.id() &lt; pRight-&gt;entity.id();</div>
 <div class="line"><a id="l10485" name="l10485"></a><span class="lineno">10485</span>        });</div>
 <div class="line"><a id="l10486" name="l10486"></a><span class="lineno">10486</span> </div>
-<div class="line"><a id="l10487" name="l10487"></a><span class="lineno">10487</span>        s.<a class="code hl_function" href="structgaia_1_1ser_1_1serializer.html#aa188ed25784e52c79c634bb9f10ed796">save</a>((uint32_t)components.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>());</div>
+<div class="line"><a id="l10487" name="l10487"></a><span class="lineno">10487</span>        s.<a class="code hl_function" href="structgaia_1_1ser_1_1serializer.html#aa188ed25784e52c79c634bb9f10ed796">save</a>((uint32_t)components.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>());</div>
 <div class="line"><a id="l10488" name="l10488"></a><span class="lineno">10488</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>* pItem: components) {</div>
 <div class="line"><a id="l10489" name="l10489"></a><span class="lineno">10489</span>          <span class="keyword">const</span> <span class="keyword">auto</span> symbol = pItem-&gt;symbol_name();</div>
 <div class="line"><a id="l10490" name="l10490"></a><span class="lineno">10490</span>          s.<a class="code hl_function" href="structgaia_1_1ser_1_1serializer.html#aa188ed25784e52c79c634bb9f10ed796">save</a>(pItem-&gt;entity.val);</div>
@@ -9076,10 +9076,10 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l10562" name="l10562"></a><span class="lineno">10562</span>        }</div>
 <div class="line"><a id="l10563" name="l10563"></a><span class="lineno">10563</span> </div>
 <div class="line"><a id="l10564" name="l10564"></a><span class="lineno">10564</span>        cnt::darray&lt;Entity&gt; components;</div>
-<div class="line"><a id="l10565" name="l10565"></a><span class="lineno">10565</span>        components.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a7319a1cb45a6cf2578629937b27d00d5">reserve</a>((uint32_t)m_sparseComponentsByComp.size());</div>
+<div class="line"><a id="l10565" name="l10565"></a><span class="lineno">10565</span>        components.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a66378b206615bdbf10f6f621edeeb20e">reserve</a>((uint32_t)m_sparseComponentsByComp.size());</div>
 <div class="line"><a id="l10566" name="l10566"></a><span class="lineno">10566</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; [compKey, store]: m_sparseComponentsByComp) {</div>
 <div class="line"><a id="l10567" name="l10567"></a><span class="lineno">10567</span>          <span class="keywordflow">if</span> (store.func_count(store.pStore) != 0)</div>
-<div class="line"><a id="l10568" name="l10568"></a><span class="lineno">10568</span>            components.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(compKey.entity());</div>
+<div class="line"><a id="l10568" name="l10568"></a><span class="lineno">10568</span>            components.push_back(compKey.entity());</div>
 <div class="line"><a id="l10569" name="l10569"></a><span class="lineno">10569</span>        }</div>
 <div class="line"><a id="l10570" name="l10570"></a><span class="lineno">10570</span>        core::sort(components, [](Entity left, Entity right) {</div>
 <div class="line"><a id="l10571" name="l10571"></a><span class="lineno">10571</span>          <span class="keywordflow">return</span> left.value() &lt; right.value();</div>
@@ -9543,7 +9543,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l11093" name="l11093"></a><span class="lineno">11093</span>          <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; ec: m_recs.entities) {</div>
 <div class="line"><a id="l11094" name="l11094"></a><span class="lineno">11094</span>            <span class="keywordflow">if</span> ((ec.flags &amp; EntityContainerFlags::Load) == 0)</div>
 <div class="line"><a id="l11095" name="l11095"></a><span class="lineno">11095</span>              <span class="keywordflow">continue</span>;</div>
-<div class="line"><a id="l11096" name="l11096"></a><span class="lineno">11096</span>            ec.flags &amp;= ~EntityContainerFlags::Load; <span class="comment">// Clear the load flag</span></div>
+<div class="line"><a id="l11096" name="l11096"></a><span class="lineno">11096</span>            ec.flags &amp;= (EntityContainerFlagsType)(~(EntityContainerFlagsType)EntityContainerFlags::Load); <span class="comment">// Clear the load flag</span></div>
 <div class="line"><a id="l11097" name="l11097"></a><span class="lineno">11097</span> </div>
 <div class="line"><a id="l11098" name="l11098"></a><span class="lineno">11098</span>            <span class="keyword">const</span> <span class="keyword">auto</span> archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); <span class="comment">// Decode the archetype idx</span></div>
 <div class="line"><a id="l11099" name="l11099"></a><span class="lineno">11099</span>            ec.pArchetype = m_archetypes[archetypeIdx];</div>
@@ -9561,7 +9561,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l11111" name="l11111"></a><span class="lineno">11111</span>              <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l11112" name="l11112"></a><span class="lineno">11112</span> </div>
 <div class="line"><a id="l11113" name="l11113"></a><span class="lineno">11113</span>            GAIA_ASSERT((ec.flags &amp; EntityContainerFlags::Load) != 0);</div>
-<div class="line"><a id="l11114" name="l11114"></a><span class="lineno">11114</span>            ec.flags &amp;= ~EntityContainerFlags::Load; <span class="comment">// Clear the load flag</span></div>
+<div class="line"><a id="l11114" name="l11114"></a><span class="lineno">11114</span>            ec.flags &amp;= (EntityContainerFlagsType)(~(EntityContainerFlagsType)EntityContainerFlags::Load); <span class="comment">// Clear the load flag</span></div>
 <div class="line"><a id="l11115" name="l11115"></a><span class="lineno">11115</span> </div>
 <div class="line"><a id="l11116" name="l11116"></a><span class="lineno">11116</span>            <span class="keyword">const</span> <span class="keyword">auto</span> archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); <span class="comment">// Decode the archetype idx</span></div>
 <div class="line"><a id="l11117" name="l11117"></a><span class="lineno">11117</span>            ec.pArchetype = m_archetypes[archetypeIdx];</div>
@@ -14007,8 +14007,8 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l16099" name="l16099"></a><span class="lineno">16099</span> </div>
 <div class="foldopen" id="foldopen16103" data-start="{" data-end="};">
 <div class="line"><a id="l16103" name="l16103"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a8508e415c773be8243636601be0ef18c">16103</a></span>    <span class="keyword">inline</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryMatchScratch.html">QueryMatchScratch</a>&amp; query_match_scratch_acquire(<a class="code hl_class" href="classgaia_1_1ecs_1_1World.html">World</a>&amp; world) {</div>
-<div class="line"><a id="l16104" name="l16104"></a><span class="lineno">16104</span>      <span class="keywordflow">if</span> (world.m_queryMatchScratchDepth == world.m_queryMatchScratchStack.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>())</div>
-<div class="line"><a id="l16105" name="l16105"></a><span class="lineno">16105</span>        world.m_queryMatchScratchStack.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(<span class="keyword">new</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryMatchScratch.html">QueryMatchScratch</a>());</div>
+<div class="line"><a id="l16104" name="l16104"></a><span class="lineno">16104</span>      <span class="keywordflow">if</span> (world.m_queryMatchScratchDepth == world.m_queryMatchScratchStack.size())</div>
+<div class="line"><a id="l16105" name="l16105"></a><span class="lineno">16105</span>        world.m_queryMatchScratchStack.push_back(<span class="keyword">new</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryMatchScratch.html">QueryMatchScratch</a>());</div>
 <div class="line"><a id="l16106" name="l16106"></a><span class="lineno">16106</span> </div>
 <div class="line"><a id="l16107" name="l16107"></a><span class="lineno">16107</span>      <span class="keyword">auto</span>&amp; scratch = *world.m_queryMatchScratchStack[world.m_queryMatchScratchDepth++];</div>
 <div class="line"><a id="l16108" name="l16108"></a><span class="lineno">16108</span>      scratch.clear_temporary_matches();</div>
@@ -14258,10 +14258,10 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="foldopen" id="foldopen16507" data-start="{" data-end="};">
 <div class="line"><a id="l16507" name="l16507"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#a6e643163a2026c31ac421613ff26cf62">16507</a></span>    <span class="keyword">inline</span> uint32_t world_component_index_bucket_size(<span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1World.html">World</a>&amp; world, <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> term) {</div>
 <div class="line"><a id="l16508" name="l16508"></a><span class="lineno">16508</span>      <span class="keyword">const</span> <span class="keyword">auto</span> it = world.m_entityToArchetypeMap.find(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(term));</div>
-<div class="line"><a id="l16509" name="l16509"></a><span class="lineno">16509</span>      <span class="keywordflow">if</span> (it == world.m_entityToArchetypeMap.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>())</div>
+<div class="line"><a id="l16509" name="l16509"></a><span class="lineno">16509</span>      <span class="keywordflow">if</span> (it == world.m_entityToArchetypeMap.end())</div>
 <div class="line"><a id="l16510" name="l16510"></a><span class="lineno">16510</span>        <span class="keywordflow">return</span> 0;</div>
 <div class="line"><a id="l16511" name="l16511"></a><span class="lineno">16511</span> </div>
-<div class="line"><a id="l16512" name="l16512"></a><span class="lineno">16512</span>      <span class="keywordflow">return</span> (uint32_t)it-&gt;second.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>();</div>
+<div class="line"><a id="l16512" name="l16512"></a><span class="lineno">16512</span>      <span class="keywordflow">return</span> (uint32_t)it-&gt;second.size();</div>
 <div class="line"><a id="l16513" name="l16513"></a><span class="lineno">16513</span>    }</div>
 </div>
 <div class="line"><a id="l16514" name="l16514"></a><span class="lineno">16514</span> </div>
@@ -14271,7 +14271,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l16522" name="l16522"></a><span class="lineno">16522</span>        <span class="keywordflow">return</span> BadIndex;</div>
 <div class="line"><a id="l16523" name="l16523"></a><span class="lineno">16523</span> </div>
 <div class="line"><a id="l16524" name="l16524"></a><span class="lineno">16524</span>      <span class="keyword">const</span> <span class="keyword">auto</span> it = world.m_entityToArchetypeMap.find(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(term));</div>
-<div class="line"><a id="l16525" name="l16525"></a><span class="lineno">16525</span>      <span class="keywordflow">if</span> (it == world.m_entityToArchetypeMap.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>())</div>
+<div class="line"><a id="l16525" name="l16525"></a><span class="lineno">16525</span>      <span class="keywordflow">if</span> (it == world.m_entityToArchetypeMap.end())</div>
 <div class="line"><a id="l16526" name="l16526"></a><span class="lineno">16526</span>        <span class="keywordflow">return</span> BadIndex;</div>
 <div class="line"><a id="l16527" name="l16527"></a><span class="lineno">16527</span> </div>
 <div class="line"><a id="l16528" name="l16528"></a><span class="lineno">16528</span>      <span class="keyword">const</span> <span class="keyword">auto</span> idx = core::get_index_if(it-&gt;second, [&amp;](<span class="keyword">const</span> <span class="keyword">auto</span>&amp; entry) {</div>
@@ -14287,7 +14287,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="foldopen" id="foldopen16542" data-start="{" data-end="};">
 <div class="line"><a id="l16542" name="l16542"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1World.html#ad3947c650d4d916d9630b9651044e43e">16542</a></span>    <span class="keyword">inline</span> uint32_t world_component_index_match_count(<span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1World.html">World</a>&amp; world, <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a>&amp; archetype, <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> term) {</div>
 <div class="line"><a id="l16543" name="l16543"></a><span class="lineno">16543</span>      <span class="keyword">const</span> <span class="keyword">auto</span> it = world.m_entityToArchetypeMap.find(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(term));</div>
-<div class="line"><a id="l16544" name="l16544"></a><span class="lineno">16544</span>      <span class="keywordflow">if</span> (it == world.m_entityToArchetypeMap.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>())</div>
+<div class="line"><a id="l16544" name="l16544"></a><span class="lineno">16544</span>      <span class="keywordflow">if</span> (it == world.m_entityToArchetypeMap.end())</div>
 <div class="line"><a id="l16545" name="l16545"></a><span class="lineno">16545</span>        <span class="keywordflow">return</span> 0;</div>
 <div class="line"><a id="l16546" name="l16546"></a><span class="lineno">16546</span> </div>
 <div class="line"><a id="l16547" name="l16547"></a><span class="lineno">16547</span>      <span class="keyword">const</span> <span class="keyword">auto</span> idx = core::get_index_if(it-&gt;second, [&amp;](<span class="keyword">const</span> <span class="keyword">auto</span>&amp; entry) {</div>
@@ -14753,7 +14753,7 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="line"><a id="l17095" name="l17095"></a><span class="lineno">17095</span> </div>
 <div class="line"><a id="l17096" name="l17096"></a><span class="lineno">17096</span>      <span class="keyword">const</span> <span class="keyword">auto</span> key = <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(entity);</div>
 <div class="line"><a id="l17097" name="l17097"></a><span class="lineno">17097</span>      <span class="keyword">auto</span> it = world.m_srcEntityVersions.find(key);</div>
-<div class="line"><a id="l17098" name="l17098"></a><span class="lineno">17098</span>      <span class="keywordflow">if</span> (it != world.m_srcEntityVersions.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>())</div>
+<div class="line"><a id="l17098" name="l17098"></a><span class="lineno">17098</span>      <span class="keywordflow">if</span> (it != world.m_srcEntityVersions.end())</div>
 <div class="line"><a id="l17099" name="l17099"></a><span class="lineno">17099</span>        <span class="keywordflow">return</span> it-&gt;second;</div>
 <div class="line"><a id="l17100" name="l17100"></a><span class="lineno">17100</span> </div>
 <div class="line"><a id="l17101" name="l17101"></a><span class="lineno">17101</span>      it = world.m_srcEntityVersions.try_emplace(key, 1).first;</div>
@@ -14788,16 +14788,19 @@ $(document).ready(function(){initNavTree('world_8h_source.html',''); initResizab
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html">gaia::cnt::darr_ext</a></div><div class="ttdoc">Array of elements of type.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:31</div></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_a02e3b1a34d0065fe75d3c22df8cab83b"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#a02e3b1a34d0065fe75d3c22df8cab83b">gaia::cnt::darr_ext::pop_back</a></div><div class="ttdeci">void pop_back() noexcept</div><div class="ttdoc">Removes the last element.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:397</div></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_a0aad625ff8fb437840b8edf2ffa69c7b"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">gaia::cnt::darr_ext::size</a></div><div class="ttdeci">GAIA_NODISCARD size_type size() const noexcept</div><div class="ttdoc">Returns the number of elements.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:558</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_a4d258a776cfec1004aa55df08627a16a"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#a4d258a776cfec1004aa55df08627a16a">gaia::cnt::darr_ext::insert</a></div><div class="ttdeci">iterator insert(iterator pos, const T &amp;arg)</div><div class="ttdoc">Insert the element to the position given by iterator pos.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:411</div></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_a7319a1cb45a6cf2578629937b27d00d5"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#a7319a1cb45a6cf2578629937b27d00d5">gaia::cnt::darr_ext::reserve</a></div><div class="ttdeci">void reserve(size_type cap)</div><div class="ttdoc">Ensures storage for at least the requested number of elements.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:266</div></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_a93e5cfe9333763112c16b1e36f4060ed"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">gaia::cnt::darr_ext::push_back</a></div><div class="ttdeci">void push_back(const T &amp;arg)</div><div class="ttdoc">Appends an element.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:357</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_a9d7ee71e00a6229f312df783b4f57ae1"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">gaia::cnt::darr_ext::end</a></div><div class="ttdeci">GAIA_NODISCARD auto end() noexcept</div><div class="ttdoc">Returns an iterator one past the last element.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:646</div></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_abf08708c1514c2d803782dbc1d17aed3"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#abf08708c1514c2d803782dbc1d17aed3">gaia::cnt::darr_ext::clear</a></div><div class="ttdeci">void clear() noexcept</div><div class="ttdoc">Removes all elements.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:515</div></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_acf0cf26dfd22edeba0eada331827ee35"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#acf0cf26dfd22edeba0eada331827ee35">gaia::cnt::darr_ext::back</a></div><div class="ttdeci">GAIA_NODISCARD decltype(auto) back() noexcept</div><div class="ttdoc">Accesses the last element.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:596</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_ae18962943b0b2421300621d5009f08a3"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">gaia::cnt::darr_ext::erase</a></div><div class="ttdeci">iterator erase(iterator pos) noexcept</div><div class="ttdoc">Removes the element at pos.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:466</div></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_af25718f1d439b9d7c4271ab74e24b951"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#af25718f1d439b9d7c4271ab74e24b951">gaia::cnt::darr_ext::data</a></div><div class="ttdeci">GAIA_NODISCARD pointer data() noexcept</div><div class="ttdoc">Returns a pointer to the element storage.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:236</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_af6968a4f935d7a21fa486b558f9ce6df"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#af6968a4f935d7a21fa486b558f9ce6df">gaia::cnt::darr_ext::resize</a></div><div class="ttdeci">void resize(size_type count)</div><div class="ttdoc">Changes the number of elements.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:288</div></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_af99589ac6b1e4e6ff20f89f6f8b2e3d2"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#af99589ac6b1e4e6ff20f89f6f8b2e3d2">gaia::cnt::darr_ext::empty</a></div><div class="ttdeci">GAIA_NODISCARD bool empty() const noexcept</div><div class="ttdoc">Checks whether the container has no elements.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:564</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:28</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_a66378b206615bdbf10f6f621edeeb20e"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#a66378b206615bdbf10f6f621edeeb20e">gaia::cnt::darr::reserve</a></div><div class="ttdeci">void reserve(size_type cap)</div><div class="ttdoc">Ensures storage for at least the requested number of elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:208</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_a69f6838ce66038a9aac1cfe8a72a22e7"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">gaia::cnt::darr::size</a></div><div class="ttdeci">GAIA_NODISCARD size_type size() const noexcept</div><div class="ttdoc">Returns the number of elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:489</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_a74ceba8209c397c3d16ddd73ea530cf1"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#a74ceba8209c397c3d16ddd73ea530cf1">gaia::cnt::darr::clear</a></div><div class="ttdeci">void clear() noexcept</div><div class="ttdoc">Removes all elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:453</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_a8ee94360b132fc6645ad478281003dba"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#a8ee94360b132fc6645ad478281003dba">gaia::cnt::darr::resize</a></div><div class="ttdeci">void resize(size_type count)</div><div class="ttdoc">Changes the number of elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:225</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_ad484d16336501853a8256c842ed77fb6"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#ad484d16336501853a8256c842ed77fb6">gaia::cnt::darr::empty</a></div><div class="ttdeci">GAIA_NODISCARD bool empty() const noexcept</div><div class="ttdoc">Checks whether the container has no elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:495</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_aedbe48d997d5322d37ae60522bac9449"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#aedbe48d997d5322d37ae60522bac9449">gaia::cnt::darr::push_back</a></div><div class="ttdeci">void push_back(const T &amp;arg)</div><div class="ttdoc">Appends an element.</div><div class="ttdef"><b>Definition</b> darray_impl.h:300</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1ArchetypeBase_html_ac2462d26735249bc19d806466b9300c7"><div class="ttname"><a href="classgaia_1_1ecs_1_1ArchetypeBase.html#ac2462d26735249bc19d806466b9300c7">gaia::ecs::ArchetypeBase::id</a></div><div class="ttdeci">GAIA_NODISCARD ArchetypeId id() const</div><div class="ttdoc">Archetype id used to address the archetype in the world list.</div><div class="ttdef"><b>Definition</b> archetype.h:72</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1Archetype_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1Archetype.html">gaia::ecs::Archetype</a></div><div class="ttdoc">Fixed-shape group of chunks storing entities that share the same component layout....</div><div class="ttdef"><b>Definition</b> archetype.h:97</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1Archetype_html_a14807b43d347ee9e36c9b3b362b5e5af"><div class="ttname"><a href="classgaia_1_1ecs_1_1Archetype.html#a14807b43d347ee9e36c9b3b362b5e5af">gaia::ecs::Archetype::ids_view</a></div><div class="ttdeci">GAIA_NODISCARD EntitySpan ids_view() const</div><div class="ttdoc">Span over the component and entity identifiers defining the archetype shape.</div><div class="ttdef"><b>Definition</b> archetype.h:807</div></div>

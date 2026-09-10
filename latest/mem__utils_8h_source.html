@@ -508,7 +508,7 @@ $(document).ready(function(){initNavTree('mem__utils_8h_source.html',''); initRe
 <div class="line"><a id="l00478" name="l00478"></a><span class="lineno">  478</span> </div>
 <div class="line"><a id="l00490" name="l00490"></a><span class="lineno">  490</span>    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> T, <span class="keywordtype">bool</span> SOA = mem::is_soa_layout_v&lt;T&gt;&gt;</div>
 <div class="line"><a id="l00491" name="l00491"></a><span class="lineno">  491</span>    <span class="keywordtype">void</span> move_element(</div>
-<div class="line"><a id="l00492" name="l00492"></a><span class="lineno">  492</span>        uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,</div>
+<div class="line"><a id="l00492" name="l00492"></a><span class="lineno">  492</span>        uint8_t* dst, uint8_t* src, uint32_t idxDst, uint32_t idxSrc,</div>
 <div class="line"><a id="l00493" name="l00493"></a><span class="lineno">  493</span>        [[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {</div>
 <div class="line"><a id="l00494" name="l00494"></a><span class="lineno">  494</span>      <span class="keywordflow">if</span> GAIA_UNLIKELY (src == dst &amp;&amp; idxSrc == idxDst)</div>
 <div class="line"><a id="l00495" name="l00495"></a><span class="lineno">  495</span>        <span class="keywordflow">return</span>;</div>
