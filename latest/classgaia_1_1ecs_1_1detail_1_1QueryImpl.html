@@ -845,7 +845,7 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>SystemBuilder</b></t
 </div><div class="memdoc">
 
 <p>Returns the effective read/write access for an id. </p>
-<p>Effective access combines positive query terms and explicit <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2b2c39b6e514fc082664e77c7c271bcf" title="Declares an additional component or pair type read by this query callback.">reads()</a>/writes() declarations. Pair query terms do not imply data access. Use explicit <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a54113ef0bb7babf43c525522dbafb927" title="Declares an additional id read by this query callback.">reads(Entity)</a> or <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752" title="Declares an additional id written by this query callback.">writes(Entity)</a> when a pair id is a custom scheduling key. </p><dl class="params"><dt>Parameters</dt><dd>
+<p>Effective access combines payload-bearing query terms and explicit <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2b2c39b6e514fc082664e77c7c271bcf" title="Declares an additional component or pair type read by this query callback.">reads()</a>/writes() declarations. Pair patterns overlap when their fixed endpoints agree. Wildcards and variables match any endpoint. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td>Component/entity id to inspect. </td></tr>
   </table>

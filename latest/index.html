@@ -1147,7 +1147,7 @@ Query</h3>
 <div class="line">  }</div>
 <div class="line">});</div>
 </div><!-- fragment --><p><a class="anchor" id="query-access"></a></p>
-<p>Queries also expose scheduling access metadata. <code>all()</code>, <code>or_()</code>, and <code>any()</code> terms infer read access from value or const types and write access from mutable references. Optional terms declare access even when no matching entity currently has the component. If the callback touches data outside the query shape, declare it explicitly with <code>reads(Entity)</code>, <code>writes(Entity)</code>, or the typed adapters <code>reads&lt;T&gt;()</code> / <code>writes&lt;T&gt;()</code>. Use <code>main_thread()</code> for callbacks that are not safe to run on worker threads even when component access would otherwise allow it. The <code>reads()</code>, <code>writes()</code>, and <code>main_thread()</code> declarations only affect scheduling metadata. They do not change query matching, hashing, shared-cache identity, or cache invalidation.</p>
+<p>Queries also expose scheduling access metadata. <code>all()</code>, <code>or_()</code>, and <code>any()</code> terms with payload infer read access from value or const types and write access from mutable references. Optional terms declare access even when no matching entity currently has the component. If the callback touches data outside the query shape, declare it explicitly with <code>reads(Entity)</code>, <code>writes(Entity)</code>, or the typed adapters <code>reads&lt;T&gt;()</code> / <code>writes&lt;T&gt;()</code>. Use <code>main_thread()</code> for callbacks that are not safe to run on worker threads even when component access would otherwise allow it. The <code>reads()</code>, <code>writes()</code>, and <code>main_thread()</code> declarations only affect scheduling metadata. They do not change query matching, hashing, shared-cache identity, or cache invalidation.</p>
 <div class="fragment"><div class="line"><span class="keyword">auto</span> move = w.query()</div>
 <div class="line">  .all&lt;Position&amp;&gt;()</div>
 <div class="line">  .all&lt;const Velocity&gt;();</div>
@@ -1163,20 +1163,23 @@ Query</h3>
 <div class="line"><span class="keywordflow">if</span> (!move.can_run_parallel(bounds)) {</div>
 <div class="line">  <span class="comment">// Add a dependency or keep one of the jobs on the serial path.</span></div>
 <div class="line">}</div>
-</div><!-- fragment --><p>Two queries conflict when both access the same id and at least one side writes it. Pair query terms are treated as matching/filtering metadata and do not imply component data access; if a pair id is used as an external scheduling key, declare it explicitly with <code>reads(pairEntity)</code> or <code>writes(pairEntity)</code>.</p>
+</div><!-- fragment --><p>Two queries conflict when both access the same component or pair and at least one side writes it. Empty tags, entity IDs used as tags, and exact pairs without payload automatically use presence-only access. Pairs with payload infer read/write access like components. Wildcard and variable pairs keep their declared access because unresolved endpoints may carry data. Their scheduling conflicts include any overlapping pair access.</p>
 <p>Use <code>.no_access()</code> after an <code>all()</code>, <code>or_()</code>, or <code>any()</code> term to match a component without reading or writing its data. It sets only the preceding term's access to <code>QueryAccess::Match</code> and leaves matching unchanged. The term declares no data access, so it does not conflict with a writer of the component. System builders support the same modifier.</p>
 <div class="fragment"><div class="line"><span class="keyword">auto</span> move = w.query()</div>
 <div class="line">  .all&lt;Position&amp;&gt;() <span class="comment">// Read and write Position.</span></div>
-<div class="line">  .all&lt;const Selected&gt;().no_access() <span class="comment">// Only check whether Selected is present.</span></div>
+<div class="line">  .all&lt;const Acceleration&gt;().no_access() <span class="comment">// Require Acceleration without reading its data.</span></div>
 <div class="line">  .all&lt;<span class="keyword">const</span> Velocity&gt;(); <span class="comment">// Read Velocity.</span></div>
 <div class="line"> </div>
 <div class="line">move.each([](Position&amp; pos, <span class="keyword">const</span> Velocity&amp; vel) {</div>
 <div class="line">  pos.x += vel.x;</div>
 <div class="line">});</div>
 <div class="line"> </div>
+<div class="line"><span class="keyword">struct </span>Selected {};</div>
+<div class="line"><span class="keyword">struct </span>Highlighted {};</div>
+<div class="line"> </div>
 <div class="line"><span class="keyword">auto</span> selectedOrHighlighted = w.query()</div>
-<div class="line">  .or_&lt;Selected&gt;().no_access()</div>
-<div class="line">  .or_&lt;Highlighted&gt;().no_access();</div>
+<div class="line">  .or_&lt;Selected&gt;() <span class="comment">// Empty tags automatically use presence-only access.</span></div>
+<div class="line">  .or_&lt;Highlighted&gt;();</div>
 </div><!-- fragment --><p>Apply the modifier while building the query, before calling <code>fetch()</code>, <code>count()</code>, <code>access()</code>, or any execution method. Calling it without a preceding term, after <code>no()</code>, or after compilation is invalid.</p>
 <p>You can also pass <code>QueryTermOptions{}.no_access()</code> to <code>all()</code>, <code>or_()</code>, or <code>any()</code>. This works with source and traversal settings on typed or entity-id terms. Using this option with <code>no()</code> is invalid.</p>
 <p>With <code>GAIA_ASSERT_ENABLED</code>, invalid modifier usage and attempts to access a presence-only term through callback arguments, iterator views, or <code>sort_by&lt;T&gt;()</code> trigger <code>GAIA_ASSERT</code>.</p>
