@@ -1874,17 +1874,17 @@ namespace gaia {
 					if (hasPrefabTerms)
 						data.flags |= QueryCtx::QueryFlags::HasPrefabTerms;
 					else
-						data.flags &= ~QueryCtx::QueryFlags::HasPrefabTerms;
+						data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::HasPrefabTerms);
 
 					if (hasSourceTerms)
 						data.flags |= QueryCtx::QueryFlags::HasSourceTerms;
 					else
-						data.flags &= ~QueryCtx::QueryFlags::HasSourceTerms;
+						data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::HasSourceTerms);
 
 					if (hasVariableTerms)
 						data.flags |= QueryCtx::QueryFlags::HasVariableTerms;
 					else
-						data.flags &= ~QueryCtx::QueryFlags::HasVariableTerms;
+						data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::HasVariableTerms);
 
 					if (hasSourceTerms || hasVariableTerms)
 						data.cachePolicy = CachePolicy::Dynamic;
@@ -1912,7 +1912,7 @@ namespace gaia {
 						data.flags |= QueryCtx::QueryFlags::Complex;
 					} else {
 						data.queryMask = build_entity_mask(EntitySpan{idsNoSrc.data(), idsNoSrcCnt});
-						data.flags &= ~QueryCtx::QueryFlags::Complex;
+						data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::Complex);
 					}
 				}
 

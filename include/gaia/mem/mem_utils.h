@@ -489,7 +489,7 @@ namespace gaia {
 		//! \param sizeSrc Source capacity for SoA field strides.
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_element(
-				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
+				uint8_t* dst, uint8_t* src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;

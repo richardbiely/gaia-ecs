@@ -122,7 +122,8 @@ namespace gaia {
 
 		template <typename... T, typename Func, size_t... I>
 		inline void invoke_typed_query_args_by_id(
-				World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
+				World& world, [[maybe_unused]] Entity entity, [[maybe_unused]] const Entity* pArgIds, Func& func,
+				std::index_sequence<I...>) {
 			func(([&]() -> decltype(auto) {
 				using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 				if constexpr (std::is_same_v<Arg, Entity>)

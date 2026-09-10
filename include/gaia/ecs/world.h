@@ -160,7 +160,7 @@ namespace gaia {
 				//! \param term Component entity or exact pair.
 				//! \param value Initial value to stage.
 				SetWriteProxyTyped(World& world, Entity entity, Entity term, const TValue& value):
-						TValue(value), m_pWorld(&world), m_entity(entity), m_term(term) {}
+					TValue(value), m_pWorld(&world), m_entity(entity), m_term(term) {}
 
 				//! Creates a write-back proxy initialized by moving a component value.
 				//! \param world World receiving the deferred write.
@@ -168,7 +168,7 @@ namespace gaia {
 				//! \param term Component entity or exact pair.
 				//! \param value Initial value to stage.
 				SetWriteProxyTyped(World& world, Entity entity, Entity term, TValue&& value):
-						TValue(GAIA_MOV(value)), m_pWorld(&world), m_entity(entity), m_term(term) {}
+					TValue(GAIA_MOV(value)), m_pWorld(&world), m_entity(entity), m_term(term) {}
 
 				SetWriteProxyTyped(const SetWriteProxyTyped&) = delete;
 				SetWriteProxyTyped& operator=(const SetWriteProxyTyped&) = delete;
@@ -11093,7 +11093,7 @@ namespace gaia {
 					for (auto& ec: m_recs.entities) {
 						if ((ec.flags & EntityContainerFlags::Load) == 0)
 							continue;
-						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
+						ec.flags &= (EntityContainerFlagsType)(~(EntityContainerFlagsType)EntityContainerFlags::Load); // Clear the load flag
 
 						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
 						ec.pArchetype = m_archetypes[archetypeIdx];
@@ -11111,7 +11111,7 @@ namespace gaia {
 							continue;
 
 						GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) != 0);
-						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
+						ec.flags &= (EntityContainerFlagsType)(~(EntityContainerFlagsType)EntityContainerFlags::Load); // Clear the load flag
 
 						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
 						ec.pArchetype = m_archetypes[archetypeIdx];

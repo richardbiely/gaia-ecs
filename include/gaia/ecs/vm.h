@@ -4122,7 +4122,7 @@ namespace gaia {
 					}
 
 					// Mark as compiled
-					queryCtx.data.flags &= ~QueryCtx::QueryFlags::Recompile;
+					queryCtx.data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::Recompile);
 				}
 				//! \endcond
 

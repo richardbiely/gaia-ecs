@@ -615,8 +615,8 @@ namespace gaia {
 	#define GAIA_CLANG_WARNING_POP() _Pragma("clang diagnostic pop")
 	// Ignore unknown warning groups first so version-specific disables stay
 	// portable under -Werror -Wunknown-warning-option (e.g. Clang 18 vs 21).
-	#define GAIA_CLANG_WARNING_DISABLE(warningId)                      \
-		DO_PRAGMA(clang diagnostic ignored "-Wunknown-warning-option") \
+	#define GAIA_CLANG_WARNING_DISABLE(warningId)                                                                        \
+		DO_PRAGMA(clang diagnostic ignored "-Wunknown-warning-option")                                                     \
 		DO_PRAGMA(clang diagnostic ignored warningId)
 	#define GAIA_CLANG_WARNING_ERROR(warningId) DO_PRAGMA(clang diagnostic error warningId)
 	#define GAIA_CLANG_WARNING_ALLOW(warningId) DO_PRAGMA(clang diagnostic warning warningId)
@@ -6961,8 +6961,8 @@ namespace gaia {
 
 		private:
 			template <size_t... Ids>
-			GAIA_NODISCARD constexpr static size_t
-			get_aligned_byte_offset_seq(uintptr_t address, size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
+			GAIA_NODISCARD constexpr static size_t get_aligned_byte_offset_seq(
+					uintptr_t address, [[maybe_unused]] size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
 				((address = detail::get_aligned_byte_offset(address, Alignment, sizeof(value_type<Ids>), cnt)), ...);
 				address += mem::padding(address, Alignment);
 				return address;
@@ -7730,8 +7730,8 @@ namespace gaia {
 		//! \param sizeSrc Source capacity for SoA field strides.
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_element(
-				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
-				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
+				uint8_t* dst, uint8_t* src, uint32_t idxDst, uint32_t idxSrc, [[maybe_unused]] uint32_t sizeDst,
+				[[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;
 
@@ -15883,14 +15883,14 @@ namespace gaia {
 	#ifdef ROBIN_HOOD_LOG_ENABLED
 		#define ROBIN_HOOD_LOG(x, ...) GAIA_LOG_D("L:%s@%d: " x, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 	#else
-		#define ROBIN_HOOD_LOG(x, ...)
+		#define ROBIN_HOOD_LOG(...)
 	#endif
 
 	// #define ROBIN_HOOD_TRACE_ENABLED
 	#ifdef ROBIN_HOOD_TRACE_ENABLED
 		#define ROBIN_HOOD_TRACE(x, ...) GAIA_LOG_D("T:%s@%d: " x, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 	#else
-		#define ROBIN_HOOD_TRACE(x, ...)
+		#define ROBIN_HOOD_TRACE(...)
 	#endif
 
 	// all non-argument macros should use this facility. See
@@ -37170,8 +37170,9 @@ namespace gaia {
 				if (cntEntities > 0) {
 					auto* dst = m_records.pRecords = (ComponentRecord*)&data(headerOffsets.firstByte_Records);
 					GAIA_FOR_(cntEntities, j) {
-						dst[j].comp = pItems[j] == nullptr ? Component(IdentifierIdBad, 0, 0, 0, DataStorageType::Table)
-																							 : archetype_component(ids[j], pItems[j]->comp);
+						dst[j].comp = pItems[j] == nullptr //
+															? Component(IdentifierIdBad, 0, 0, 0, DataStorageType::Table)
+															: archetype_component(ids[j], pItems[j]->comp);
 						dst[j].pData = &data(compOffs[j]);
 						dst[j].pItem = pItems[j];
 					}
@@ -43479,17 +43480,17 @@ namespace gaia {
 					if (hasPrefabTerms)
 						data.flags |= QueryCtx::QueryFlags::HasPrefabTerms;
 					else
-						data.flags &= ~QueryCtx::QueryFlags::HasPrefabTerms;
+						data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::HasPrefabTerms);
 
 					if (hasSourceTerms)
 						data.flags |= QueryCtx::QueryFlags::HasSourceTerms;
 					else
-						data.flags &= ~QueryCtx::QueryFlags::HasSourceTerms;
+						data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::HasSourceTerms);
 
 					if (hasVariableTerms)
 						data.flags |= QueryCtx::QueryFlags::HasVariableTerms;
 					else
-						data.flags &= ~QueryCtx::QueryFlags::HasVariableTerms;
+						data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::HasVariableTerms);
 
 					if (hasSourceTerms || hasVariableTerms)
 						data.cachePolicy = CachePolicy::Dynamic;
@@ -43517,7 +43518,7 @@ namespace gaia {
 						data.flags |= QueryCtx::QueryFlags::Complex;
 					} else {
 						data.queryMask = build_entity_mask(EntitySpan{idsNoSrc.data(), idsNoSrcCnt});
-						data.flags &= ~QueryCtx::QueryFlags::Complex;
+						data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::Complex);
 					}
 				}
 
@@ -45238,7 +45239,8 @@ namespace gaia {
 					if (!raw_term_field_info(termIdx, fieldIdx, compIdx, pItem))
 						return {};
 
-					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
+					const auto recs = m_pChunk->comp_rec_view();
+					const auto& rec = recs[compIdx];
 					const std::span<const uint8_t> fieldSizes{pItem->soaSizes, rec.comp.soa()};
 					const auto* pData = mem::data_view_policy_soa_erased::get(
 							m_pChunk->comp_ptr(compIdx), rec.comp.alig(), fieldSizes, fieldIdx, from(), m_pChunk->capacity());
@@ -45262,7 +45264,8 @@ namespace gaia {
 							m_pChunk->update_world_version(compIdx);
 					}
 
-					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
+					const auto recs = m_pChunk->comp_rec_view();
+					const auto& rec = recs[compIdx];
 					const std::span<const uint8_t> fieldSizes{pItem->soaSizes, rec.comp.soa()};
 					auto* pData = mem::data_view_policy_soa_erased::set(
 							m_pChunk->comp_ptr_mut(compIdx), rec.comp.alig(), fieldSizes, fieldIdx, from(), m_pChunk->capacity());
@@ -45435,7 +45438,8 @@ namespace gaia {
 					if (compIdx == 0xFF || compIdx >= m_pChunk->comp_rec_view().size())
 						return;
 
-					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
+					const auto recs = m_pChunk->comp_rec_view();
+					const auto& rec = recs[compIdx];
 					if (rec.comp.soa() != 0) {
 						uint8_t fieldCompIdx;
 						const ComponentCacheItem* pItem;
@@ -51129,7 +51133,7 @@ namespace gaia {
 					}
 
 					// Mark as compiled
-					queryCtx.data.flags &= ~QueryCtx::QueryFlags::Recompile;
+					queryCtx.data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::Recompile);
 				}
 				//! \endcond
 
@@ -52348,9 +52352,9 @@ namespace gaia {
 				bool keepStamps;
 
 				//! Creates a guard for an already acquired matching frame.
-				//! \param world World owning the frame.
-				//! \param keepStamps Whether allocated dedup-stamp pages remain reusable.
-				explicit CleanUpTmpArchetypeMatches(World& world, bool keepStamps): world(world), keepStamps(keepStamps) {}
+				//! \param w World owning the frame.
+				//! \param keep Whether allocated dedup-stamp pages remain reusable.
+				explicit CleanUpTmpArchetypeMatches(World& w, bool keep): world(w), keepStamps(keep) {}
 				CleanUpTmpArchetypeMatches(const CleanUpTmpArchetypeMatches&) = delete;
 				CleanUpTmpArchetypeMatches(CleanUpTmpArchetypeMatches&&) = delete;
 				CleanUpTmpArchetypeMatches& operator=(const CleanUpTmpArchetypeMatches&) = delete;
@@ -52944,7 +52948,7 @@ namespace gaia {
 
 				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0 && m_state.nonTrivial.sortVersion != 0)
 					return;
-				m_plan.ctx.data.flags &= ~QueryCtx::QueryFlags::SortEntities;
+				m_plan.ctx.data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::SortEntities);
 
 				// First, sort entities in archetypes
 				for (const auto* pArchetype: m_state.archetypeCache)
@@ -52959,7 +52963,7 @@ namespace gaia {
 			void sort_cache_groups() {
 				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortGroups) == 0)
 					return;
-				m_plan.ctx.data.flags &= ~QueryCtx::QueryFlags::SortGroups;
+				m_plan.ctx.data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::SortGroups);
 
 				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::OrderGroups) != 0)
 					ensure_group_data(true);
@@ -55782,7 +55786,7 @@ namespace gaia {
 					if ((flags & QueryCtx::QueryFlags::OrderGroups) != 0)
 						ctxData.flags |= QueryCtx::QueryFlags::OrderGroups;
 					else
-						ctxData.flags &= ~QueryCtx::QueryFlags::OrderGroups;
+						ctxData.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::OrderGroups);
 				}
 			};
 
@@ -63057,7 +63061,8 @@ namespace gaia {
 
 		template <typename... T, typename Func, size_t... I>
 		inline void invoke_typed_query_args_by_id(
-				World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
+				World& world, [[maybe_unused]] Entity entity, [[maybe_unused]] const Entity* pArgIds, Func& func,
+				std::index_sequence<I...>) {
 			func(([&]() -> decltype(auto) {
 				using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 				if constexpr (std::is_same_v<Arg, Entity>)
@@ -78109,7 +78114,8 @@ namespace gaia {
 					for (auto& ec: m_recs.entities) {
 						if ((ec.flags & EntityContainerFlags::Load) == 0)
 							continue;
-						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
+						ec.flags &= (EntityContainerFlagsType)(~(
+								EntityContainerFlagsType)EntityContainerFlags::Load); // Clear the load flag
 
 						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
 						ec.pArchetype = m_archetypes[archetypeIdx];
@@ -78127,7 +78133,8 @@ namespace gaia {
 							continue;
 
 						GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) != 0);
-						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
+						ec.flags &= (EntityContainerFlagsType)(~(
+								EntityContainerFlagsType)EntityContainerFlags::Load); // Clear the load flag
 
 						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
 						ec.pArchetype = m_archetypes[archetypeIdx];
@@ -82876,7 +82883,7 @@ namespace gaia {
 			if (observed)
 				ec.flags |= EntityContainerFlags::IsObserved;
 			else
-				ec.flags &= ~EntityContainerFlags::IsObserved;
+				ec.flags &= (EntityContainerFlagsType)(~(EntityContainerFlagsType)EntityContainerFlags::IsObserved);
 
 			// Archetypes keep a counter so mutation dispatch can reject unobserved changes
 			// without searching the registry. Keep every archetype containing this term in sync.

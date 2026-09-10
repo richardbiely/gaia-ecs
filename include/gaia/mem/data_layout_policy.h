@@ -596,7 +596,7 @@ namespace gaia {
 		private:
 			template <size_t... Ids>
 			GAIA_NODISCARD constexpr static size_t
-			get_aligned_byte_offset_seq(uintptr_t address, size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
+			get_aligned_byte_offset_seq(uintptr_t address, [[maybe_unused]] size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
 				((address = detail::get_aligned_byte_offset(address, Alignment, sizeof(value_type<Ids>), cnt)), ...);
 				address += mem::padding(address, Alignment);
 				return address;

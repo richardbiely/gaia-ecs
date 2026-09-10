@@ -1181,9 +1181,9 @@ namespace gaia {
 				bool keepStamps;
 
 				//! Creates a guard for an already acquired matching frame.
-				//! \param world World owning the frame.
-				//! \param keepStamps Whether allocated dedup-stamp pages remain reusable.
-				explicit CleanUpTmpArchetypeMatches(World& world, bool keepStamps): world(world), keepStamps(keepStamps) {}
+				//! \param w World owning the frame.
+				//! \param keep Whether allocated dedup-stamp pages remain reusable.
+				explicit CleanUpTmpArchetypeMatches(World& w, bool keep): world(w), keepStamps(keep) {}
 				CleanUpTmpArchetypeMatches(const CleanUpTmpArchetypeMatches&) = delete;
 				CleanUpTmpArchetypeMatches(CleanUpTmpArchetypeMatches&&) = delete;
 				CleanUpTmpArchetypeMatches& operator=(const CleanUpTmpArchetypeMatches&) = delete;
@@ -1777,7 +1777,7 @@ namespace gaia {
 
 				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0 && m_state.nonTrivial.sortVersion != 0)
 					return;
-				m_plan.ctx.data.flags &= ~QueryCtx::QueryFlags::SortEntities;
+				m_plan.ctx.data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::SortEntities);
 
 				// First, sort entities in archetypes
 				for (const auto* pArchetype: m_state.archetypeCache)
@@ -1792,7 +1792,7 @@ namespace gaia {
 			void sort_cache_groups() {
 				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortGroups) == 0)
 					return;
-				m_plan.ctx.data.flags &= ~QueryCtx::QueryFlags::SortGroups;
+				m_plan.ctx.data.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::SortGroups);
 
 				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::OrderGroups) != 0)
 					ensure_group_data(true);
@@ -2097,8 +2097,8 @@ namespace gaia {
 
 					cacheData.indices[fieldIdx] = (compIdx != BadIndex && compIdx != ComponentIndexBad &&
 																				 compIdx < pArchetype->ids_view().size())
-																						? (uint8_t)compIdx
-																						: (uint8_t)0xFF;
+									? (uint8_t)compIdx
+									: (uint8_t)0xFF;
 				}
 				return cacheData;
 			}

@@ -65,14 +65,14 @@
 #ifdef ROBIN_HOOD_LOG_ENABLED
 	#define ROBIN_HOOD_LOG(x, ...) GAIA_LOG_D("L:%s@%d: " x, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
-	#define ROBIN_HOOD_LOG(x, ...)
+	#define ROBIN_HOOD_LOG(...)
 #endif
 
 // #define ROBIN_HOOD_TRACE_ENABLED
 #ifdef ROBIN_HOOD_TRACE_ENABLED
 	#define ROBIN_HOOD_TRACE(x, ...) GAIA_LOG_D("T:%s@%d: " x, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
-	#define ROBIN_HOOD_TRACE(x, ...)
+	#define ROBIN_HOOD_TRACE(...)
 #endif
 
 // all non-argument macros should use this facility. See

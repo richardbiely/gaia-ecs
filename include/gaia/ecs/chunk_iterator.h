@@ -1541,7 +1541,8 @@ namespace gaia {
 					if (!raw_term_field_info(termIdx, fieldIdx, compIdx, pItem))
 						return {};
 
-					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
+					const auto recs = m_pChunk->comp_rec_view();
+					const auto& rec = recs[compIdx];
 					const std::span<const uint8_t> fieldSizes{pItem->soaSizes, rec.comp.soa()};
 					const auto* pData = mem::data_view_policy_soa_erased::get(
 							m_pChunk->comp_ptr(compIdx), rec.comp.alig(), fieldSizes, fieldIdx, from(), m_pChunk->capacity());
@@ -1565,7 +1566,8 @@ namespace gaia {
 							m_pChunk->update_world_version(compIdx);
 					}
 
-					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
+					const auto recs = m_pChunk->comp_rec_view();
+					const auto& rec = recs[compIdx];
 					const std::span<const uint8_t> fieldSizes{pItem->soaSizes, rec.comp.soa()};
 					auto* pData = mem::data_view_policy_soa_erased::set(
 							m_pChunk->comp_ptr_mut(compIdx), rec.comp.alig(), fieldSizes, fieldIdx, from(), m_pChunk->capacity());
@@ -1738,7 +1740,8 @@ namespace gaia {
 					if (compIdx == 0xFF || compIdx >= m_pChunk->comp_rec_view().size())
 						return;
 
-					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
+					const auto recs = m_pChunk->comp_rec_view();
+					const auto& rec = recs[compIdx];
 					if (rec.comp.soa() != 0) {
 						uint8_t fieldCompIdx;
 						const ComponentCacheItem* pItem;

@@ -3437,7 +3437,7 @@ TEST_CASE("each_ext") {
 	SUBCASE("index argument") {
 		uint32_t cnt = 0;
 		core::each_ext<2, N - 1, 2>([&cnt](auto i) {
-			cnt += i;
+			cnt += (uint32_t)i;
 		});
 		CHECK(cnt == 2 + 4 + 6 + 8);
 	}

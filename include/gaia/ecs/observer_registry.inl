@@ -947,7 +947,7 @@ namespace gaia {
 			if (observed)
 				ec.flags |= EntityContainerFlags::IsObserved;
 			else
-				ec.flags &= ~EntityContainerFlags::IsObserved;
+				ec.flags &= (EntityContainerFlagsType)(~(EntityContainerFlagsType)EntityContainerFlags::IsObserved);
 
 			// Archetypes keep a counter so mutation dispatch can reject unobserved changes
 			// without searching the registry. Keep every archetype containing this term in sync.

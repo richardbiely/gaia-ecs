@@ -278,7 +278,7 @@ namespace gaia {
 					if ((flags & QueryCtx::QueryFlags::OrderGroups) != 0)
 						ctxData.flags |= QueryCtx::QueryFlags::OrderGroups;
 					else
-						ctxData.flags &= ~QueryCtx::QueryFlags::OrderGroups;
+						ctxData.flags &= (QueryCtx::QueryFlags)(~(uint16_t)QueryCtx::QueryFlags::OrderGroups);
 				}
 			};
 

@@ -3964,7 +3964,7 @@ TEST_CASE("Exact pair records - typed payload access") {
 	wld.sset<Position>(pair).x = 4.0f;
 	wld.acc_mut(pair).sset<Position>({4.0f, 5.0f, 6.0f});
 	{
-		const auto& value = wld.acc(pair).get<Position>();
+		const auto value = wld.acc(pair).get<Position>();
 		CHECK(value.x == 4.0f);
 		CHECK(value.y == 5.0f);
 		CHECK(value.z == 6.0f);

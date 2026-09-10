@@ -181,10 +181,18 @@ else()
     # enable_cxx_compiler_flag_if_supported("-Wpadded")
     # enable_cxx_compiler_flag_if_supported("-Wpadded-bitfield")
     enable_cxx_compiler_flag_if_supported("-Werror")
-    enable_cxx_compiler_flag_if_supported("-Wshadow")
+    # GCC -Wshadow flags uncaptured lambda locals and constructor
+    # parameters that share a method or member name. Clang does not.
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+      enable_cxx_compiler_flag_if_supported("-Wshadow")
+    endif()
     enable_cxx_compiler_flag_if_supported("-Wcast-align")
     enable_cxx_compiler_flag_if_supported("-Wunused")
-    enable_cxx_compiler_flag_if_supported("-Wconversion")
+    # GCC -Wconversion fires on every store into a packed bit-field.
+    # Clang does not. Keep it off GCC until those stores are rewritten.
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+      enable_cxx_compiler_flag_if_supported("-Wconversion")
+    endif()
     enable_cxx_compiler_flag_if_supported("-Wsign-conversion")
     enable_cxx_compiler_flag_if_supported("-Wnull-dereference")
     enable_cxx_compiler_flag_if_supported("-Wdouble-promotion")
@@ -193,7 +201,9 @@ else()
     enable_cxx_compiler_flag_if_supported("-Wduplicated-cond")
     enable_cxx_compiler_flag_if_supported("-Wduplicated-branches")
     enable_cxx_compiler_flag_if_supported("-Wlogical-op")
-    enable_cxx_compiler_flag_if_supported("-Wuseless-cast")
+    # Cannot be used yet. EntityId and similar aliases are uint32_t.
+    # GCC treats explicit casts to those aliases as useless.
+    # enable_cxx_compiler_flag_if_supported("-Wuseless-cast")
     enable_cxx_compiler_flag_if_supported("-Wunused-parameter")
     enable_cxx_compiler_flag_if_supported("-Wunused-local-typedef")
   else()
