@@ -89744,20 +89744,22 @@ namespace gaia {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			if constexpr (std::is_same_v<Arg, Entity>)
 				return entity;
-			const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
-			if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>) {
-				if (!world.has_direct(entity, termId)) {
-					if constexpr (is_pair<Arg>::value)
-						(void)world.override(entity, termId);
-					else
-						(void)world.template override<Arg>(entity, termId);
-				}
+			else {
+				const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
+				if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>) {
+					if (!world.has_direct(entity, termId)) {
+						if constexpr (is_pair<Arg>::value)
+							(void)world.override(entity, termId);
+						else
+							(void)world.template override<Arg>(entity, termId);
+					}
 
-				return world.template mut_im<Arg>(entity, termId);
-			} else {
-				if GAIA_UNLIKELY (entity.pair())
-					return world_query_pair_record_arg_by_id_const<Arg>(world, entity, termId);
-				return world.template get<Arg>(entity, termId);
+					return world.template mut_im<Arg>(entity, termId);
+				} else {
+					if GAIA_UNLIKELY (entity.pair())
+						return world_query_pair_record_arg_by_id_const<Arg>(world, entity, termId);
+					return world.template get<Arg>(entity, termId);
+				}
 			}
 		}
 
@@ -89773,19 +89775,21 @@ namespace gaia {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			if constexpr (std::is_same_v<Arg, Entity>)
 				return entity;
+			else {
+				const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
+				if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>) {
+					if (!world.has_direct(entity, termId)) {
+						if constexpr (is_pair<Arg>::value)
+							(void)world.override(entity, termId);
+						else
+							(void)world.template override<Arg>(entity, termId);
+					}
 
-			const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
-			if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>) {
-				if (!world.has_direct(entity, termId)) {
-					if constexpr (is_pair<Arg>::value)
-						(void)world.override(entity, termId);
-					else
-						(void)world.template override<Arg>(entity, termId);
+					return world.template mut<Arg>(entity, termId);
+				} else {
+					return world.template get<Arg>(entity, termId);
 				}
-
-				return world.template mut<Arg>(entity, termId);
-			} else
-				return world.template get<Arg>(entity, termId);
+			}
 		}
 
 		//! Initializes chunk-stable cached lookup state for inherited const query arguments.
