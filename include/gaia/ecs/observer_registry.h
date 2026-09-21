@@ -181,8 +181,68 @@ namespace gaia {
 
 			using DiffDispatchCtx = DiffDispatcher::Context;
 
+			//! Reentrancy-safe view over one dispatch's region of ObserverRegistry::m_relevant_observers_tmp.
+			//! Acquires a fresh region on construction and drops it on destruction, so a nested dispatch
+			//! started from an observer callback cannot clear or otherwise disturb the outer dispatch's region.
+			class RelevantObserverScope {
+			public:
+				explicit RelevantObserverScope(ObserverRegistry& registry):
+						m_pRegistry(&registry), m_base((uint32_t)registry.m_relevant_observers_tmp.size()) {}
+
+				~RelevantObserverScope() {
+					// Truncate back to this scope's base. A well-behaved nested scope has already truncated
+					// back to its own base (== our size), so this only drops entries this scope collected.
+					auto& buffer = m_pRegistry->m_relevant_observers_tmp;
+					GAIA_ASSERT(buffer.size() >= m_base);
+					if (buffer.size() > m_base)
+						buffer.resize(m_base);
+				}
+
+				RelevantObserverScope(const RelevantObserverScope&) = delete;
+				RelevantObserverScope& operator=(const RelevantObserverScope&) = delete;
+				RelevantObserverScope(RelevantObserverScope&&) = delete;
+				RelevantObserverScope& operator=(RelevantObserverScope&&) = delete;
+
+				//! Drops everything this scope has collected so far without ending the scope.
+				//! Replaces the old m_relevant_observers_tmp.clear() calls, which would have discarded
+				//! the enclosing dispatch's entries as well.
+				void clear() {
+					auto& buffer = m_pRegistry->m_relevant_observers_tmp;
+					GAIA_ASSERT(buffer.size() >= m_base);
+					if (buffer.size() > m_base)
+						buffer.resize(m_base);
+				}
+
+				GAIA_NODISCARD uint32_t size() const {
+					const auto& buffer = m_pRegistry->m_relevant_observers_tmp;
+					GAIA_ASSERT(buffer.size() >= m_base);
+					return (uint32_t)buffer.size() - m_base;
+				}
+
+				GAIA_NODISCARD bool empty() const {
+					return size() == 0;
+				}
+
+				//! Re-reads the element from the owning container every call. Never cache the result across
+				//! anything that can run an observer callback - a nested dispatch may have reallocated the buffer.
+				GAIA_NODISCARD ObserverRuntimeData* operator[](uint32_t idx) const {
+					auto& buffer = m_pRegistry->m_relevant_observers_tmp;
+					GAIA_ASSERT(m_base + idx < buffer.size());
+					return buffer[m_base + idx];
+				}
+
+			private:
+				ObserverRegistry* m_pRegistry;
+				uint32_t m_base;
+			};
+
 		private:
-			//! Temporary list of observers preliminary matching the event.
+			//! Scratch stack of observers preliminary matching the event.
+			//! Observer callbacks can re-enter dispatch, so every dispatch owns a contiguous region of this
+			//! buffer delimited by a RelevantObserverScope. A nested dispatch only ever appends above the
+			//! outer region and truncates back to its own base, which keeps the outer region's contents intact.
+			//! Appending can still reallocate the buffer, so regions must be walked by index (see scope_at()),
+			//! never by a cached pointer, reference or range-for over the container.
 			cnt::darray<ObserverRuntimeData*> m_relevant_observers_tmp;
 			//! Runtime observer payload storage.
 			cnt::map<EntityLookupKey, ObserverRuntimeData> m_observer_data;

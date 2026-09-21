@@ -183,7 +183,7 @@ namespace gaia {
 				normalize_targets(ctx.targets);
 			}
 
-			registry.m_relevant_observers_tmp.clear();
+			RelevantObserverScope relevant(registry);
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			if (terms.empty()) {
 				SharedDispatch::collect_diff_from_list(registry, world, index.all, matchStamp);
@@ -215,12 +215,13 @@ namespace gaia {
 			if (!terms.empty() && !hasEntityLifecycleTerm)
 				SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp);
 
-			if (!ctx.targeted && !targetEntities.empty() && !registry.m_relevant_observers_tmp.empty()) {
+			if (!ctx.targeted && !targetEntities.empty() && !relevant.empty()) {
 				cnt::darray<Entity> narrowedTargets;
 				cnt::darray<TargetNarrowCacheEntry> narrowCache;
 				bool canNarrow = true;
 
-				for (auto* pObs: registry.m_relevant_observers_tmp) {
+				for (uint32_t i = 0; i < relevant.size(); ++i) {
+					auto* pObs = relevant[i];
 					if (pObs == nullptr)
 						continue;
 
@@ -256,11 +257,12 @@ namespace gaia {
 				}
 			}
 
-			if (registry.m_relevant_observers_tmp.empty())
+			if (relevant.empty())
 				return ctx;
 
 			ctx.active = true;
-			for (auto* pObs: registry.m_relevant_observers_tmp) {
+			for (uint32_t i = 0; i < relevant.size(); ++i) {
+				auto* pObs = relevant[i];
 				ctx.observers.push_back({});
 				auto& snapshot = ctx.observers.back();
 				snapshot.pObs = pObs;
@@ -301,7 +303,7 @@ namespace gaia {
 				return prepare(registry, world, ObserverEvent::OnAdd, terms);
 			}
 
-			registry.m_relevant_observers_tmp.clear();
+			RelevantObserverScope relevant(registry);
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			for (auto term: terms) {
 				SharedDispatch::collect_from_map<true>(registry, world, index.direct, term, matchStamp);
@@ -323,13 +325,14 @@ namespace gaia {
 			}
 			SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp);
 
-			if (registry.m_relevant_observers_tmp.empty())
+			if (relevant.empty())
 				return ctx;
 
 			ctx.active = true;
 			ctx.targeted = true;
 			ctx.targetsAddedAfterPrepare = true;
-			for (auto* pObs: registry.m_relevant_observers_tmp) {
+			for (uint32_t i = 0; i < relevant.size(); ++i) {
+				auto* pObs = relevant[i];
 				if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
 					ctx.resetTraversalCaches = true;
 				ctx.observers.push_back({});
@@ -452,6 +455,7 @@ namespace gaia {
 				return;
 
 			const bool archetypeIsPrefab = archetype.has(Prefab);
+			RelevantObserverScope relevant(registry);
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			for (auto comp: entsAdded) {
 				SharedDispatch::collect_for_event_term(registry, world, registry.m_observer_map_add, comp, matchStamp);
@@ -469,8 +473,10 @@ namespace gaia {
 				SharedDispatch::collect_for_inherited_terms(registry, world, registry.m_observer_map_add, target, matchStamp);
 			}
 
-			for (auto* pObs: registry.m_relevant_observers_tmp) {
-				auto& obs = *pObs;
+			// Walk by index and re-read through the scope on every step: execute_targets() runs a user
+			// callback, which can re-enter dispatch and reallocate the underlying buffer.
+			for (uint32_t i = 0; i < relevant.size(); ++i) {
+				auto& obs = *relevant[i];
 				if (!obs.plan.uses_direct_dispatch())
 					continue;
 				QueryInfo* pQueryInfo = nullptr;
@@ -483,8 +489,6 @@ namespace gaia {
 				if (SharedDispatch::matches_direct_targets(obs, archetype, targets, pQueryInfo))
 					SharedDispatch::execute_targets(world, obs, targets);
 			}
-
-			registry.m_relevant_observers_tmp.clear();
 		}
 
 		inline void ObserverRegistry::DirectDispatcher::on_del(
@@ -503,6 +507,7 @@ namespace gaia {
 					!SharedDispatch::has_inherited_terms(world, registry.m_observer_map_del, entsRemoved))
 				return;
 
+			RelevantObserverScope relevant(registry);
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			for (auto comp: entsRemoved) {
 				SharedDispatch::collect_for_event_term(registry, world, registry.m_observer_map_del, comp, matchStamp);
@@ -520,8 +525,10 @@ namespace gaia {
 				SharedDispatch::collect_for_inherited_terms(registry, world, registry.m_observer_map_del, target, matchStamp);
 			}
 
-			for (auto* pObs: registry.m_relevant_observers_tmp) {
-				auto& obs = *pObs;
+			// Walk by index and re-read through the scope on every step: execute_targets() runs a user
+			// callback, which can re-enter dispatch and reallocate the underlying buffer.
+			for (uint32_t i = 0; i < relevant.size(); ++i) {
+				auto& obs = *relevant[i];
 				if (!obs.plan.uses_direct_dispatch())
 					continue;
 				QueryInfo* pQueryInfo = nullptr;
@@ -538,8 +545,6 @@ namespace gaia {
 				if (matches)
 					SharedDispatch::execute_targets(world, obs, targets);
 			}
-
-			registry.m_relevant_observers_tmp.clear();
 		}
 
 		inline void ObserverRegistry::DirectDispatcher::on_set(
@@ -549,7 +554,7 @@ namespace gaia {
 			if (targets.empty())
 				return;
 
-			registry.m_relevant_observers_tmp.clear();
+			RelevantObserverScope relevant(registry);
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			SharedDispatch::collect_from_map<false>(registry, world, registry.m_observer_map_set, term, matchStamp);
 			if (term.pair()) {
@@ -562,11 +567,13 @@ namespace gaia {
 				SharedDispatch::collect_from_map<false>(
 						registry, world, registry.m_observer_map_set, Pair(All, All), matchStamp);
 			}
-			if (registry.m_relevant_observers_tmp.empty())
+			if (relevant.empty())
 				return;
 
-			for (auto* pObs: registry.m_relevant_observers_tmp) {
-				auto& obs = *pObs;
+			// Walk by index and re-read through the scope on every step: execute_targets() runs a user
+			// callback, which can re-enter dispatch and reallocate the underlying buffer.
+			for (uint32_t i = 0; i < relevant.size(); ++i) {
+				auto& obs = *relevant[i];
 				for (auto entity: targets) {
 					if (!world.valid(entity))
 						continue;
@@ -583,8 +590,6 @@ namespace gaia {
 					SharedDispatch::execute_targets(world, obs, EntitySpan{&entity, 1});
 				}
 			}
-
-			registry.m_relevant_observers_tmp.clear();
 		}
 
 		template <bool DiffOnly, typename TObserverMap>

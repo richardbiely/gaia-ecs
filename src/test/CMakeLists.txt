@@ -10,6 +10,7 @@ set(GAIA_TEST_SOURCES
 	src/test_mutation_runtime.cpp
 	src/test_system.cpp
 	src/test_observer_basic.cpp
+	src/test_observer_reentrancy.cpp
 	src/test_observer_trav.cpp
 	src/test_observer_prefab.cpp
 	src/test_misc.cpp
