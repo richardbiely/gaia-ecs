@@ -13,21 +13,21 @@ TEST_CASE("Observer - simple") {
 													.event(ecs::ObserverEvent::OnAdd)
 													.all<Position>()
 													.all<Acceleration>()
-												.on_each([&cnt, &negativeQueryHit]() {
-													++cnt;
-													negativeQueryHit = false;
+													.on_each([&cnt, &negativeQueryHit]() {
+														++cnt;
+														negativeQueryHit = false;
 													})
 													.entity();
 	(void)on_add;
 	const auto on_empty = wld.observer() //
-												.event(ecs::ObserverEvent::OnAdd)
-													.no<Position>()
-													.no<Acceleration>()
-												.on_each([&cnt, &negativeQueryHit]() {
-													++cnt;
-													negativeQueryHit = true;
-													})
-													.entity();
+														.event(ecs::ObserverEvent::OnAdd)
+														.no<Position>()
+														.no<Acceleration>()
+														.on_each([&cnt, &negativeQueryHit]() {
+															++cnt;
+															negativeQueryHit = true;
+														})
+														.entity();
 	(void)on_empty;
 
 	ecs::Entity e, e1, e2;
@@ -167,21 +167,21 @@ TEST_CASE("Observer - all-negative membership transitions") {
 	uint32_t addHits = 0;
 	uint32_t delHits = 0;
 	const auto onAdd = wld.observer()
-									.event(ecs::ObserverEvent::OnAdd)
-									.no<Position>()
-									.no<Acceleration>()
-									.on_each([&] {
-										++addHits;
-									})
-									.entity();
+												 .event(ecs::ObserverEvent::OnAdd)
+												 .no<Position>()
+												 .no<Acceleration>()
+												 .on_each([&] {
+													 ++addHits;
+												 })
+												 .entity();
 	const auto onDel = wld.observer()
-									.event(ecs::ObserverEvent::OnDel)
-									.no<Position>()
-									.no<Acceleration>()
-									.on_each([&] {
-										++delHits;
-									})
-									.entity();
+												 .event(ecs::ObserverEvent::OnDel)
+												 .no<Position>()
+												 .no<Acceleration>()
+												 .on_each([&] {
+													 ++delHits;
+												 })
+												 .entity();
 
 	CHECK(wld.observers().data(onAdd).plan.uses_diff_dispatch());
 	CHECK(wld.observers().data(onDel).plan.uses_diff_dispatch());
@@ -229,12 +229,12 @@ TEST_CASE("Observer - event can be selected after query terms") {
 
 		uint32_t hits = 0;
 		const auto observer = wld.observer()
-									 .all<Position>()
-									 .event(ecs::ObserverEvent::OnDel)
-									 .on_each([&](ecs::Iter&) {
-										 ++hits;
-									 })
-									 .entity();
+															.all<Position>()
+															.event(ecs::ObserverEvent::OnDel)
+															.on_each([&](ecs::Iter&) {
+																++hits;
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<Position>(entity);
@@ -250,12 +250,12 @@ TEST_CASE("Observer - event can be selected after query terms") {
 
 		uint32_t hits = 0;
 		const auto observer = wld.observer()
-									 .all<Position>()
-									 .event(ecs::ObserverEvent::OnSet)
-									 .on_each([&](ecs::Iter&) {
-										 ++hits;
-									 })
-									 .entity();
+															.all<Position>()
+															.event(ecs::ObserverEvent::OnSet)
+															.on_each([&](ecs::Iter&) {
+																++hits;
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<Position>(entity);
@@ -271,13 +271,13 @@ TEST_CASE("Observer - event can be selected after query terms") {
 
 		uint32_t hits = 0;
 		const auto observer = wld.observer()
-									 .event(ecs::ObserverEvent::OnSet)
-									 .all<Position>()
-									 .event(ecs::ObserverEvent::OnDel)
-									 .on_each([&](ecs::Iter&) {
-										 ++hits;
-									 })
-									 .entity();
+															.event(ecs::ObserverEvent::OnSet)
+															.all<Position>()
+															.event(ecs::ObserverEvent::OnDel)
+															.on_each([&](ecs::Iter&) {
+																++hits;
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<Position>(entity);
@@ -298,12 +298,12 @@ TEST_CASE("Observer - event can be selected after query terms") {
 		const auto pair = ecs::Pair(relation, target);
 		uint32_t hits = 0;
 		const auto observer = wld.observer()
-									 .all(ecs::Pair(relation, ecs::All))
-									 .event(ecs::ObserverEvent::OnDel)
-									 .on_each([&](ecs::Iter&) {
-										 ++hits;
-									 })
-									 .entity();
+															.all(ecs::Pair(relation, ecs::All))
+															.event(ecs::ObserverEvent::OnDel)
+															.on_each([&](ecs::Iter&) {
+																++hits;
+															})
+															.entity();
 
 		wld.add(entity, pair);
 		CHECK(hits == 0);
@@ -1197,13 +1197,13 @@ TEST_CASE("Observer - typed pair add emits once with initialized payload") {
 	uint32_t hits = 0;
 	float observedValue = -1.0f;
 	const auto observer = wld.observer()
-									 .event(ecs::ObserverEvent::OnAdd)
-									 .all(ecs::Pair(relation, target))
-									 .on_each([&](ecs::Iter& it) {
-										 ++hits;
-										 observedValue = it.view_any<PairType>()[0].value;
-									 })
-									 .entity();
+														.event(ecs::ObserverEvent::OnAdd)
+														.all(ecs::Pair(relation, target))
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															observedValue = it.view_any<PairType>()[0].value;
+														})
+														.entity();
 
 	const auto initialized = wld.add();
 	wld.add<PairType>(initialized, {42.0f});
@@ -1262,13 +1262,13 @@ TEST_CASE("Observer - deleting an entity emits component OnDel") {
 		uint32_t hits = 0;
 		float observedX = 0.0f;
 		const auto observer = wld.observer()
-									 .event(ecs::ObserverEvent::OnDel)
-									 .all<Position>()
-									 .on_each([&](ecs::Iter& it) {
-										 ++hits;
-										 observedX = it.view_any<Position>()[0].x;
-									 })
-									 .entity();
+															.event(ecs::ObserverEvent::OnDel)
+															.all<Position>()
+															.on_each([&](ecs::Iter& it) {
+																++hits;
+																observedX = it.view_any<Position>()[0].x;
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<Position>(entity, {1.0f, 2.0f, 3.0f});
@@ -1285,13 +1285,13 @@ TEST_CASE("Observer - deleting an entity emits component OnDel") {
 		uint32_t hits = 0;
 		float observedX = 0.0f;
 		const auto observer = wld.observer()
-									 .event(ecs::ObserverEvent::OnDel)
-									 .all<PositionSparse>()
-									 .on_each([&](ecs::Iter& it) {
-										 ++hits;
-										 observedX = it.view_any<PositionSparse>()[0].x;
-									 })
-									 .entity();
+															.event(ecs::ObserverEvent::OnDel)
+															.all<PositionSparse>()
+															.on_each([&](ecs::Iter& it) {
+																++hits;
+																observedX = it.view_any<PositionSparse>()[0].x;
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<PositionSparse>(entity, {4.0f, 5.0f, 6.0f});
@@ -1310,13 +1310,13 @@ TEST_CASE("Observer - deleting an entity emits component OnDel") {
 		uint32_t hits = 0;
 		float observedX = 0.0f;
 		const auto observer = wld.observer()
-									 .event(ecs::ObserverEvent::OnDel)
-									 .all<PositionSparse>()
-									 .on_each([&](ecs::Iter& it) {
-										 ++hits;
-										 observedX = it.view_any<PositionSparse>()[0].x;
-									 })
-									 .entity();
+															.event(ecs::ObserverEvent::OnDel)
+															.all<PositionSparse>()
+															.on_each([&](ecs::Iter& it) {
+																++hits;
+																observedX = it.view_any<PositionSparse>()[0].x;
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<PositionSparse>(entity, {7.0f, 8.0f, 9.0f});
@@ -1332,13 +1332,13 @@ TEST_CASE("Observer - deleting an entity emits component OnDel") {
 		TestWorld twld;
 		uint32_t hits = 0;
 		const auto observer = wld.observer()
-									 .event(ecs::ObserverEvent::OnDel)
-									 .all<Position>()
-									 .all<Rotation>()
-									 .on_each([&](ecs::Iter&) {
-										 ++hits;
-									 })
-									 .entity();
+															.event(ecs::ObserverEvent::OnDel)
+															.all<Position>()
+															.all<Rotation>()
+															.on_each([&](ecs::Iter&) {
+																++hits;
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<Position>(entity);
@@ -1364,29 +1364,29 @@ TEST_CASE("Observer - cascade deletion emits owned component OnDel") {
 	uint32_t sparseCount = 0;
 	float sparseX = 0.0f;
 	const auto positionObserver = wld.observer()
-									 .event(ecs::ObserverEvent::OnDel)
-									 .all<Position>()
-									 .on_each([&](ecs::Iter& it) {
-										 positionCount += it.size();
-										 const auto entities = it.view<ecs::Entity>();
-										 GAIA_EACH(it) wld.del(entities[i]);
-									 })
-									 .entity();
+																		.event(ecs::ObserverEvent::OnDel)
+																		.all<Position>()
+																		.on_each([&](ecs::Iter& it) {
+																			positionCount += it.size();
+																			const auto entities = it.view<ecs::Entity>();
+																			GAIA_EACH(it) wld.del(entities[i]);
+																		})
+																		.entity();
 	const auto pairObserver = wld.observer()
-							 .event(ecs::ObserverEvent::OnDel)
-							 .all(ecs::Pair(relation, target))
-							 .on_each([&](ecs::Iter& it) {
-								 pairCount += it.size();
-							 })
-							 .entity();
+																.event(ecs::ObserverEvent::OnDel)
+																.all(ecs::Pair(relation, target))
+																.on_each([&](ecs::Iter& it) {
+																	pairCount += it.size();
+																})
+																.entity();
 	const auto sparseObserver = wld.observer()
-								 .event(ecs::ObserverEvent::OnDel)
-								 .all<PositionSparse>()
-								 .on_each([&](ecs::Iter& it) {
-									 sparseCount += it.size();
-									 sparseX = it.view_any<PositionSparse>()[0].x;
-								 })
-								 .entity();
+																	.event(ecs::ObserverEvent::OnDel)
+																	.all<PositionSparse>()
+																	.on_each([&](ecs::Iter& it) {
+																		sparseCount += it.size();
+																		sparseX = it.view_any<PositionSparse>()[0].x;
+																	})
+																	.entity();
 
 	const auto sourceA = wld.add();
 	const auto sourceB = wld.add();
@@ -1844,20 +1844,20 @@ TEST_CASE("Observer - OnSet callback deletes pending observer") {
 	uint32_t secondHits = 0;
 	ecs::Entity observerToDelete = ecs::EntityBad;
 	const auto deletingObserver = wld.observer()
+																		.event(ecs::ObserverEvent::OnSet)
+																		.all<Position>()
+																		.on_each([&](ecs::Iter&) {
+																			++firstHits;
+																			wld.del(observerToDelete);
+																		})
+																		.entity();
+	observerToDelete = wld.observer()
 												 .event(ecs::ObserverEvent::OnSet)
 												 .all<Position>()
 												 .on_each([&](ecs::Iter&) {
-													 ++firstHits;
-													 wld.del(observerToDelete);
+													 ++secondHits;
 												 })
 												 .entity();
-	observerToDelete = wld.observer()
-									 .event(ecs::ObserverEvent::OnSet)
-									 .all<Position>()
-									 .on_each([&](ecs::Iter&) {
-										 ++secondHits;
-									 })
-									 .entity();
 
 	wld.set<Position>(entity) = {};
 
@@ -1876,13 +1876,13 @@ TEST_CASE("Observer - OnSet callback deletes itself") {
 	uint32_t hits = 0;
 	ecs::Entity observer = ecs::EntityBad;
 	observer = wld.observer()
-							 .event(ecs::ObserverEvent::OnSet)
-							 .all<Position>()
-							 .on_each([&](ecs::Iter&) {
-								 ++hits;
-								 wld.del(observer);
-							 })
-							 .entity();
+								 .event(ecs::ObserverEvent::OnSet)
+								 .all<Position>()
+								 .on_each([&](ecs::Iter&) {
+									 ++hits;
+									 wld.del(observer);
+								 })
+								 .entity();
 
 	wld.set<Position>(entity) = {};
 	CHECK(hits == 1);
@@ -1902,21 +1902,21 @@ TEST_CASE("Observer - OnSet callback registers observer") {
 	uint32_t addedHits = 0;
 	ecs::Entity addedObserver = ecs::EntityBad;
 	const auto firstObserver = wld.observer()
-												.event(ecs::ObserverEvent::OnSet)
-												.all<Position>()
-												.on_each([&](ecs::Iter&) {
-													++firstHits;
-													if (addedObserver != ecs::EntityBad)
-														return;
-													addedObserver = wld.observer()
-																					.event(ecs::ObserverEvent::OnSet)
-																					.all<Position>()
-																					.on_each([&](ecs::Iter&) {
-																						++addedHits;
-																					})
-																					.entity();
-												})
-												.entity();
+																 .event(ecs::ObserverEvent::OnSet)
+																 .all<Position>()
+																 .on_each([&](ecs::Iter&) {
+																	 ++firstHits;
+																	 if (addedObserver != ecs::EntityBad)
+																		 return;
+																	 addedObserver = wld.observer()
+																											 .event(ecs::ObserverEvent::OnSet)
+																											 .all<Position>()
+																											 .on_each([&](ecs::Iter&) {
+																												 ++addedHits;
+																											 })
+																											 .entity();
+																 })
+																 .entity();
 
 	wld.set<Position>(entity) = {};
 	CHECK(firstHits == 1);
@@ -1941,24 +1941,24 @@ TEST_CASE("Observer - nested OnSet dispatch preserves pending observers") {
 	uint32_t secondHits = 0;
 	bool nested = false;
 	const auto firstObserver = wld.observer()
-												.event(ecs::ObserverEvent::OnSet)
-												.all<Position>()
-												.on_each([&](ecs::Iter&) {
-													++firstHits;
-													if (nested)
-														return;
-													nested = true;
-													wld.set<Position>(nestedEntity) = {};
-													nested = false;
-												})
-												.entity();
+																 .event(ecs::ObserverEvent::OnSet)
+																 .all<Position>()
+																 .on_each([&](ecs::Iter&) {
+																	 ++firstHits;
+																	 if (nested)
+																		 return;
+																	 nested = true;
+																	 wld.set<Position>(nestedEntity) = {};
+																	 nested = false;
+																 })
+																 .entity();
 	const auto secondObserver = wld.observer()
-												 .event(ecs::ObserverEvent::OnSet)
-												 .all<Position>()
-												 .on_each([&](ecs::Iter&) {
-													 ++secondHits;
-												 })
-												 .entity();
+																	.event(ecs::ObserverEvent::OnSet)
+																	.all<Position>()
+																	.on_each([&](ecs::Iter&) {
+																		++secondHits;
+																	})
+																	.entity();
 
 	wld.set<Position>(firstEntity) = {};
 
@@ -1968,6 +1968,69 @@ TEST_CASE("Observer - nested OnSet dispatch preserves pending observers") {
 	(void)secondObserver;
 }
 
+TEST_CASE("Observer - nested OnSet dispatch does not replay enclosing observers") {
+	// The re-entering observer is registered first, so it runs while later observers are
+	// still pending. It writes a different component. A shared scratch buffer would overwrite
+	// those pending slots with the nested matches and either drop them or run them twice.
+	const uint32_t spectatorCounts[] = {4U, 16U};
+
+	for (uint32_t spectatorIdx = 0; spectatorIdx < 2; ++spectatorIdx) {
+		const uint32_t spectatorCount = spectatorCounts[spectatorIdx];
+		TestWorld twld;
+		const auto entity = wld.add();
+		wld.add<Position>(entity, {});
+		wld.add<Acceleration>(entity, {});
+
+		uint32_t moverHits = 0;
+		uint32_t positionHits = 0;
+		uint32_t accelerationHits = 0;
+		bool inMover = false;
+		bool nestedDuringMover = false;
+
+		const auto mover = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all<Position>()
+													 .on_each([&](ecs::Iter& it) {
+														 moverHits += it.size();
+														 inMover = true;
+														 if (it.size() > 0)
+															 wld.set<Acceleration>(it.view<ecs::Entity>()[0]) = {};
+														 inMover = false;
+													 })
+													 .entity();
+		(void)mover;
+
+		for (uint32_t i = 0; i < spectatorCount; ++i) {
+			const auto positionSpectator = wld.observer()
+																				 .event(ecs::ObserverEvent::OnSet)
+																				 .all<Position>()
+																				 .on_each([&](ecs::Iter& it) {
+																					 positionHits += it.size();
+																				 })
+																				 .entity();
+			const auto accelerationSpectator = wld.observer()
+																						 .event(ecs::ObserverEvent::OnSet)
+																						 .all<Acceleration>()
+																						 .on_each([&](ecs::Iter& it) {
+																							 accelerationHits += it.size();
+																							 if (inMover)
+																								 nestedDuringMover = true;
+																						 })
+																						 .entity();
+			(void)positionSpectator;
+			(void)accelerationSpectator;
+		}
+
+		wld.set<Position>(entity) = {};
+
+		CHECK_FALSE(inMover);
+		CHECK(nestedDuringMover);
+		CHECK(moverHits == 1);
+		CHECK(positionHits == spectatorCount);
+		CHECK(accelerationHits == spectatorCount);
+	}
+}
+
 TEST_CASE("Observer - direct matching evaluates all query terms") {
 	SUBCASE("Negative term") {
 		TestWorld twld;
@@ -1975,21 +2038,21 @@ TEST_CASE("Observer - direct matching evaluates all query terms") {
 		uint32_t addHits = 0;
 		uint32_t delHits = 0;
 		const auto onAdd = wld.observer()
-											.event(ecs::ObserverEvent::OnAdd)
-											.all<Position>()
-											.no<Acceleration>()
-											.on_each([&]() {
-												++addHits;
-											})
-											.entity();
+													 .event(ecs::ObserverEvent::OnAdd)
+													 .all<Position>()
+													 .no<Acceleration>()
+													 .on_each([&]() {
+														 ++addHits;
+													 })
+													 .entity();
 		const auto onDel = wld.observer()
-											.event(ecs::ObserverEvent::OnDel)
-											.all<Position>()
-											.no<Acceleration>()
-											.on_each([&]() {
-												++delHits;
-											})
-											.entity();
+													 .event(ecs::ObserverEvent::OnDel)
+													 .all<Position>()
+													 .no<Acceleration>()
+													 .on_each([&]() {
+														 ++delHits;
+													 })
+													 .entity();
 
 		const auto entity = wld.add();
 		wld.add<Acceleration>(entity);
@@ -2019,14 +2082,14 @@ TEST_CASE("Observer - direct matching evaluates all query terms") {
 
 		uint32_t hits = 0;
 		const auto observer = wld.observer()
-												 .event(ecs::ObserverEvent::OnAdd)
-												 .all<Position>()
-												 .or_<Acceleration>()
-												 .or_<Rotation>()
-												 .on_each([&]() {
-													 ++hits;
-												 })
-												 .entity();
+															.event(ecs::ObserverEvent::OnAdd)
+															.all<Position>()
+															.or_<Acceleration>()
+															.or_<Rotation>()
+															.on_each([&]() {
+																++hits;
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<Position>(entity);
@@ -2044,21 +2107,21 @@ TEST_CASE("Observer - direct matching evaluates all query terms") {
 		uint32_t addHits = 0;
 		uint32_t delHits = 0;
 		const auto onAdd = wld.observer()
-												 .event(ecs::ObserverEvent::OnAdd)
-												 .is(base)
-												 .no<Acceleration>()
-												 .on_each([&]() {
-													 ++addHits;
-												 })
-												 .entity();
+													 .event(ecs::ObserverEvent::OnAdd)
+													 .is(base)
+													 .no<Acceleration>()
+													 .on_each([&]() {
+														 ++addHits;
+													 })
+													 .entity();
 		const auto onDel = wld.observer()
-												 .event(ecs::ObserverEvent::OnDel)
-												 .is(base)
-												 .no<Acceleration>()
-												 .on_each([&]() {
-													 ++delHits;
-												 })
-												 .entity();
+													 .event(ecs::ObserverEvent::OnDel)
+													 .is(base)
+													 .no<Acceleration>()
+													 .on_each([&]() {
+														 ++delHits;
+													 })
+													 .entity();
 
 		const auto rejected = wld.add();
 		wld.add<Acceleration>(rejected);
@@ -2085,13 +2148,13 @@ TEST_CASE("Observer - direct matching evaluates all query terms") {
 		const auto base = wld.add();
 		uint32_t hits = 0;
 		const auto observer = wld.observer()
-												 .event(ecs::ObserverEvent::OnAdd)
-												 .in(base)
-												 .no<Acceleration>()
-												 .on_each([&]() {
-													 ++hits;
-												 })
-												 .entity();
+															.event(ecs::ObserverEvent::OnAdd)
+															.in(base)
+															.no<Acceleration>()
+															.on_each([&]() {
+																++hits;
+															})
+															.entity();
 
 		const auto rejected = wld.add();
 		wld.add<Acceleration>(rejected);
@@ -2113,17 +2176,17 @@ TEST_CASE("Observer - monitor exact query membership transitions") {
 		uint32_t delHits = 0;
 		ecs::Entity callbackEntity = ecs::EntityBad;
 		const auto observer = wld.observer()
-			.monitor()
-			.all<Position>()
-			.no<Acceleration>()
-			.on_each([&](ecs::Iter& it) {
-				callbackEntity = it.view<ecs::Entity>()[0];
-				if (it.event() == ecs::ObserverEvent::OnAdd)
-					++addHits;
-				else if (it.event() == ecs::ObserverEvent::OnDel)
-					++delHits;
-			})
-			.entity();
+															.monitor()
+															.all<Position>()
+															.no<Acceleration>()
+															.on_each([&](ecs::Iter& it) {
+																callbackEntity = it.view<ecs::Entity>()[0];
+																if (it.event() == ecs::ObserverEvent::OnAdd)
+																	++addHits;
+																else if (it.event() == ecs::ObserverEvent::OnDel)
+																	++delHits;
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<Position>(entity);
@@ -2159,16 +2222,16 @@ TEST_CASE("Observer - monitor exact query membership transitions") {
 		uint32_t addHits = 0;
 		uint32_t delHits = 0;
 		const auto observer = wld.observer()
-			.monitor()
-			.all<Position>()
-			.all(ecs::Pair(relation, ecs::All))
-			.on_each([&](ecs::Iter& it) {
-				if (it.event() == ecs::ObserverEvent::OnAdd)
-					++addHits;
-				else if (it.event() == ecs::ObserverEvent::OnDel)
-					++delHits;
-			})
-			.entity();
+															.monitor()
+															.all<Position>()
+															.all(ecs::Pair(relation, ecs::All))
+															.on_each([&](ecs::Iter& it) {
+																if (it.event() == ecs::ObserverEvent::OnAdd)
+																	++addHits;
+																else if (it.event() == ecs::ObserverEvent::OnDel)
+																	++delHits;
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<Position>(entity);
@@ -2201,14 +2264,14 @@ TEST_CASE("Observer - monitor exact query membership transitions") {
 		uint32_t addHits = 0;
 		uint32_t delHits = 0;
 		const auto observer = wld.observer()
-			.all<Position>()
-			.no<Acceleration>()
-			.monitor()
-			.on_each([&](ecs::Iter& it) {
-				addHits += it.event() == ecs::ObserverEvent::OnAdd;
-				delHits += it.event() == ecs::ObserverEvent::OnDel;
-			})
-			.entity();
+															.all<Position>()
+															.no<Acceleration>()
+															.monitor()
+															.on_each([&](ecs::Iter& it) {
+																addHits += it.event() == ecs::ObserverEvent::OnAdd;
+																delHits += it.event() == ecs::ObserverEvent::OnDel;
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<Position>(entity);
@@ -2223,15 +2286,15 @@ TEST_CASE("Observer - monitor exact query membership transitions") {
 
 		uint32_t hits = 0;
 		const auto observer = wld.observer()
-			.monitor()
-			.all<Position>()
-			.no<Acceleration>()
-			.event(ecs::ObserverEvent::OnAdd)
-			.on_each([&](ecs::Iter& it) {
-				CHECK(it.event() == ecs::ObserverEvent::OnAdd);
-				++hits;
-			})
-			.entity();
+															.monitor()
+															.all<Position>()
+															.no<Acceleration>()
+															.event(ecs::ObserverEvent::OnAdd)
+															.on_each([&](ecs::Iter& it) {
+																CHECK(it.event() == ecs::ObserverEvent::OnAdd);
+																++hits;
+															})
+															.entity();
 
 		CHECK(wld.observers().data(observer).plan.uses_diff_dispatch());
 		const auto entity = wld.add();
@@ -2248,13 +2311,13 @@ TEST_CASE("Observer - monitor exact query membership transitions") {
 		uint32_t addHits = 0;
 		uint32_t delHits = 0;
 		const auto observer = wld.observer()
-			.monitor()
-			.all<Position>()
-			.on_each([&](ecs::Iter& it) {
-				addHits += it.event() == ecs::ObserverEvent::OnAdd;
-				delHits += it.event() == ecs::ObserverEvent::OnDel;
-			})
-			.entity();
+															.monitor()
+															.all<Position>()
+															.on_each([&](ecs::Iter& it) {
+																addHits += it.event() == ecs::ObserverEvent::OnAdd;
+																delHits += it.event() == ecs::ObserverEvent::OnDel;
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<Position>(entity);
@@ -2274,12 +2337,12 @@ TEST_CASE("Observer - monitor exact query membership transitions") {
 
 		ecs::ObserverEvent reported = ecs::ObserverEvent::None;
 		const auto observer = wld.observer()
-			.event(ecs::ObserverEvent::OnAdd)
-			.no<Position>()
-			.on_each([&](ecs::Iter& it) {
-				reported = it.event();
-			})
-			.entity();
+															.event(ecs::ObserverEvent::OnAdd)
+															.no<Position>()
+															.on_each([&](ecs::Iter& it) {
+																reported = it.event();
+															})
+															.entity();
 
 		const auto entity = wld.add();
 		wld.add<Position>(entity);
