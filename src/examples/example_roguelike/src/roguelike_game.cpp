@@ -8,15 +8,15 @@
 #include <cstring>
 
 void Occupancy::Clear() {
-	GAIA_FOR_(ScreenY, y) {
-		GAIA_FOR_(ScreenX, x) {
+	for (int y = 0; y < ScreenY; ++y) {
+		for (int x = 0; x < ScreenX; ++x) {
 			cells[y][x].clear();
 		}
 	}
 }
 
 void Occupancy::Add(int x, int y, gaia::ecs::Entity e) {
-	if (x < 0 || y < 0 || x >= (int)ScreenX || y >= (int)ScreenY)
+	if (x < 0 || y < 0 || x >= ScreenX || y >= ScreenY)
 		return;
 	if (cells[y][x].size() < MaxBodiesPerCell)
 		cells[y][x].push_back(e);
@@ -24,7 +24,7 @@ void Occupancy::Add(int x, int y, gaia::ecs::Entity e) {
 
 const gaia::cnt::sarray_ext<gaia::ecs::Entity, MaxBodiesPerCell>& Occupancy::At(int x, int y) const {
 	static const gaia::cnt::sarray_ext<gaia::ecs::Entity, MaxBodiesPerCell> kEmpty{};
-	if (x < 0 || y < 0 || x >= (int)ScreenX || y >= (int)ScreenY)
+	if (x < 0 || y < 0 || x >= ScreenX || y >= ScreenY)
 		return kEmpty;
 	return cells[y][x];
 }
@@ -350,8 +350,8 @@ void Game::ResolveMovement() {
 	}
 
 	gaia::ecs::Entity claimed[ScreenY][ScreenX];
-	GAIA_FOR_(ScreenY, y) {
-		GAIA_FOR_(ScreenX, x) {
+	for (int y = 0; y < ScreenY; ++y) {
+		for (int x = 0; x < ScreenX; ++x) {
 			claimed[y][x] = gaia::ecs::EntityBad;
 		}
 	}
@@ -454,12 +454,10 @@ void Game::ChasePlayer(const Position& p, Velocity& v) {
 	}
 
 	AStar astar;
-	auto path = astar.FindPath(
-			dungeon.graph, AStar::NodeIdFromXY((uint32_t)p.x, (uint32_t)p.y),
-			AStar::NodeIdFromXY((uint32_t)pp.x, (uint32_t)pp.y));
+	auto path = astar.FindPath(dungeon.graph, AStar::NodeIdFromXY(p.x, p.y), AStar::NodeIdFromXY(pp.x, pp.y));
 	if (path.size() >= 2) {
-		const auto nx = (int)AStar::NodeIdToX(path[1]);
-		const auto ny = (int)AStar::NodeIdToY(path[1]);
+		const int nx = AStar::NodeIdToX(path[1]);
+		const int ny = AStar::NodeIdToY(path[1]);
 		v = {nx - p.x, ny - p.y};
 		return;
 	}

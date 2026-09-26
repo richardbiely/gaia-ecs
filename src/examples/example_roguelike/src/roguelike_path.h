@@ -103,23 +103,23 @@ public:
 	//! Column of a packed cell id.
 	//! \param id Cell id.
 	//! \return X coordinate.
-	static constexpr uint32_t NodeIdToX(uint32_t id) {
-		return id % ScreenX;
+	static constexpr int NodeIdToX(uint32_t id) {
+		return (int)(id % (uint32_t)ScreenX);
 	}
 
 	//! Row of a packed cell id.
 	//! \param id Cell id.
 	//! \return Y coordinate.
-	static constexpr uint32_t NodeIdToY(uint32_t id) {
-		return id / ScreenX;
+	static constexpr int NodeIdToY(uint32_t id) {
+		return (int)(id / (uint32_t)ScreenX);
 	}
 
 	//! Packs a cell coordinate.
 	//! \param x Column.
 	//! \param y Row.
 	//! \return Cell id.
-	static constexpr uint32_t NodeIdFromXY(uint32_t x, uint32_t y) {
-		return y * ScreenX + x;
+	static constexpr uint32_t NodeIdFromXY(int x, int y) {
+		return (uint32_t)(y * ScreenX + x);
 	}
 
 	//! Euclidean heuristic.

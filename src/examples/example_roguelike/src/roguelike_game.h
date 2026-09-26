@@ -109,6 +109,10 @@ struct Game {
 
 	//! Appends a printf-style line to the combat log.
 	//! \param fmt printf format string.
+#if GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
+	// Argument 1 is the implicit `this`.
+	__attribute__((format(printf, 2, 3)))
+#endif
 	void log_msg(const char* fmt, ...);
 
 	//! Creates monster and item prefabs. Call once before systems are registered.

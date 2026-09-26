@@ -12,7 +12,7 @@ int Dungeon::RoomCenterY(const Room& r) {
 }
 
 bool Dungeon::InBounds(int x, int y) const {
-	return x >= 0 && y >= 0 && x < (int)ScreenX && y < (int)ScreenY;
+	return x >= 0 && y >= 0 && x < ScreenX && y < ScreenY;
 }
 
 bool Dungeon::IsWall(int x, int y) const {
@@ -30,8 +30,8 @@ char Dungeon::At(int x, int y) const {
 }
 
 void Dungeon::CarveRoom(const Room& r) {
-	GAIA_FOR2_(r.y + 1, r.y + r.h - 1, y) {
-		GAIA_FOR2_(r.x + 1, r.x + r.w - 1, x) {
+	for (int y = r.y + 1; y < r.y + r.h - 1; ++y) {
+		for (int x = r.x + 1; x < r.x + r.w - 1; ++x) {
 			if (InBounds(x, y))
 				tiles[y][x] = TILE_FREE;
 		}
@@ -41,7 +41,7 @@ void Dungeon::CarveRoom(const Room& r) {
 void Dungeon::CarveH(int x0, int x1, int y) {
 	if (x0 > x1)
 		gaia::core::swap(x0, x1);
-	GAIA_FOR2_(x0, x1 + 1, x) {
+	for (int x = x0; x <= x1; ++x) {
 		if (InBounds(x, y))
 			tiles[y][x] = TILE_FREE;
 	}
@@ -50,7 +50,7 @@ void Dungeon::CarveH(int x0, int x1, int y) {
 void Dungeon::CarveV(int y0, int y1, int x) {
 	if (y0 > y1)
 		gaia::core::swap(y0, y1);
-	GAIA_FOR2_(y0, y1 + 1, y) {
+	for (int y = y0; y <= y1; ++y) {
 		if (InBounds(x, y))
 			tiles[y][x] = TILE_FREE;
 	}
@@ -67,17 +67,17 @@ void Dungeon::ConnectRooms(const Room& a, const Room& b) {
 
 void Dungeon::RebuildGraph() {
 	graph.clear();
-	graph.reserve(ScreenX * ScreenY);
+	graph.reserve((uint32_t)(ScreenX * ScreenY));
 	uint32_t index = 0;
-	GAIA_FOR_(ScreenY, y) {
-		GAIA_FOR_(ScreenX, x) {
+	for (int y = 0; y < ScreenY; ++y) {
+		for (int x = 0; x < ScreenX; ++x) {
 			AStar::Node node{index++};
 			if (IsWalkable(x, y)) {
 				if (y > 0)
 					node.InitIndex(0, IsWalkable(x, y - 1) ? 1 : 0);
-				if (x < (int)ScreenX - 1)
+				if (x < ScreenX - 1)
 					node.InitIndex(1, IsWalkable(x + 1, y) ? 1 : 0);
-				if (y < (int)ScreenY - 1)
+				if (y < ScreenY - 1)
 					node.InitIndex(2, IsWalkable(x, y + 1) ? 1 : 0);
 				if (x > 0)
 					node.InitIndex(3, IsWalkable(x - 1, y) ? 1 : 0);
@@ -88,8 +88,8 @@ void Dungeon::RebuildGraph() {
 }
 
 void Dungeon::Generate() {
-	GAIA_FOR_(ScreenY, y) {
-		GAIA_FOR_(ScreenX, x) {
+	for (int y = 0; y < ScreenY; ++y) {
+		for (int x = 0; x < ScreenX; ++x) {
 			tiles[y][x] = TILE_WALL;
 		}
 	}

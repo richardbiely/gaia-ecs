@@ -93,8 +93,8 @@ void AStar::Node::SetEdgeCost(uint32_t index, uint32_t cost) {
 float AStar::HeuristicCostEstimate(const Node& current, const Node& goal) const {
 	const uint32_t cid = current.comp_id();
 	const uint32_t gid = goal.comp_id();
-	const int dx = (int)NodeIdToX(cid) - (int)NodeIdToX(gid);
-	const int dy = (int)NodeIdToY(cid) - (int)NodeIdToY(gid);
+	const int dx = NodeIdToX(cid) - NodeIdToX(gid);
+	const int dy = NodeIdToY(cid) - NodeIdToY(gid);
 	return sqrtf((float)(dx * dx + dy * dy));
 }
 
@@ -138,7 +138,7 @@ gaia::cnt::darray<uint32_t> AStar::FindPath(const gaia::cnt::darray<Node>& graph
 
 		closed_set.emplace(current_id);
 
-		constexpr int neighborOffsets[MAX_NEIGHBORS] = {-(int)ScreenX, 1, ScreenX, -1};
+		constexpr int neighborOffsets[MAX_NEIGHBORS] = {-ScreenX, 1, ScreenX, -1};
 
 		const Node& current_node = graph[current_id];
 		GAIA_FOR(MAX_NEIGHBORS) {
@@ -149,9 +149,10 @@ gaia::cnt::darray<uint32_t> AStar::FindPath(const gaia::cnt::darray<Node>& graph
 			if (neighborCost <= 0.F)
 				continue;
 
-			const uint32_t neighbor_id = current_id + neighborOffsets[i];
-			if (neighbor_id >= graph.size())
+			const int neighbor = (int)current_id + neighborOffsets[i];
+			if (neighbor < 0 || (uint32_t)neighbor >= graph.size())
 				continue;
+			const auto neighbor_id = (uint32_t)neighbor;
 			if (closed_set.find(neighbor_id) != closed_set.end())
 				continue;
 

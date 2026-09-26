@@ -42,7 +42,9 @@ int main() {
 	}
 
 	auto p1 = w.get<Position>(e);
-	GAIA_LOG_N("Entity 0 moved from [%.2f,%.2f,%.2f] to [%.2f,%.2f,%.2f]", p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
+	GAIA_LOG_N(
+			"Entity 0 moved from [%.2f,%.2f,%.2f] to [%.2f,%.2f,%.2f]", (double)p0.x, (double)p0.y, (double)p0.z,
+			(double)p1.x, (double)p1.y, (double)p1.z);
 
 	return 0;
 }

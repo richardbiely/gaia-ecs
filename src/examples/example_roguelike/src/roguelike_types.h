@@ -79,9 +79,11 @@ struct RigidBody {};
 //! Singleton tag so once-per-turn systems have a matching entity.
 struct Turn {};
 
-constexpr uint32_t ScreenX = 50;
-constexpr uint32_t ScreenY = 18;
-constexpr uint32_t FovRadius = 8;
+//! Map size in cells. Signed like `Position` so coordinate math needs no casts.
+constexpr int ScreenX = 50;
+constexpr int ScreenY = 18;
+//! Sight radius in cells.
+constexpr int FovRadius = 8;
 constexpr uint32_t MaxFloors = 5;
 constexpr uint32_t LogLines = 4;
 constexpr uint32_t LogWidth = 72;
@@ -149,5 +151,5 @@ struct CollisionData {
 //! \param y Row.
 //! \return Cell index in the dense map stores.
 constexpr uint32_t CellIndex(int x, int y) {
-	return (uint32_t)y * ScreenX + (uint32_t)x;
+	return (uint32_t)(y * ScreenX + x);
 }

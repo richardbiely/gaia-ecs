@@ -90,8 +90,8 @@ void view_begin_frame(const Game& game) {
 }
 
 void view_copy_terrain(Game& game) {
-	GAIA_FOR_(ScreenY, y) {
-		GAIA_FOR_(ScreenX, x) {
+	for (int y = 0; y < ScreenY; ++y) {
+		for (int x = 0; x < ScreenX; ++x) {
 			game.glyphs[y][x] = game.dungeon.tiles[y][x];
 		}
 	}
@@ -109,13 +109,13 @@ void view_recompute_fov(Game& game) {
 		return;
 
 	const auto p = game.world.get<Position>(game.player);
-	const int r = (int)FovRadius;
+	const int r = FovRadius;
 	const int y0 = p.y - r < 0 ? 0 : p.y - r;
-	const int y1 = p.y + r + 1 > (int)ScreenY ? (int)ScreenY : p.y + r + 1;
+	const int y1 = p.y + r + 1 > ScreenY ? ScreenY : p.y + r + 1;
 	const int x0 = p.x - r < 0 ? 0 : p.x - r;
-	const int x1 = p.x + r + 1 > (int)ScreenX ? (int)ScreenX : p.x + r + 1;
-	GAIA_FOR2_(y0, y1, y) {
-		GAIA_FOR2_(x0, x1, x) {
+	const int x1 = p.x + r + 1 > ScreenX ? ScreenX : p.x + r + 1;
+	for (int y = y0; y < y1; ++y) {
+		for (int x = x0; x < x1; ++x) {
 			if (!game.dungeon.InBounds(x, y))
 				continue;
 			const int dx = x - p.x;
@@ -131,8 +131,8 @@ void view_recompute_fov(Game& game) {
 }
 
 void view_draw_map(const Game& game) {
-	GAIA_FOR_(ScreenY, y) {
-		GAIA_FOR_(ScreenX, x) {
+	for (int y = 0; y < ScreenY; ++y) {
+		for (int x = 0; x < ScreenX; ++x) {
 			if (!game.visible[y][x] && !game.seen[y][x]) {
 				putchar(' ');
 				continue;
