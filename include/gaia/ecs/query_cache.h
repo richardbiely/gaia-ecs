@@ -120,6 +120,8 @@ namespace gaia {
 			cnt::map<QueryLookupKey, QueryInfo*> m_pCache;
 			//! QueryInfo records are kept in paged storage so growth does not relocate live queries.
 			cnt::paged_ilist<QueryInfo, QueryHandle> m_queryArr;
+			//! Lifetime of the world's query state, independent of recycled slot generations.
+			uint64_t m_epoch = 0;
 
 			//! Entity -> query mapping
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToQuery;
@@ -171,6 +173,7 @@ namespace gaia {
 
 			//! Removes every cached query and clears all reverse indices.
 			void clear() {
+				++m_epoch;
 				m_pCache.clear();
 				m_queryArr.clear();
 				m_entityToQuery.clear();
@@ -185,6 +188,12 @@ namespace gaia {
 				m_createQueryHandleStamp = 1;
 				for (auto& cnt: m_createQuerySelectorCnt)
 					cnt = 0;
+			}
+
+			//! Returns the lifetime of the current query state.
+			//! \return Epoch advanced whenever clear() invalidates all queries.
+			GAIA_NODISCARD uint64_t epoch() const {
+				return m_epoch;
 			}
 
 			//! Clears only the reverse indices that keep raw archetype pointers alive.

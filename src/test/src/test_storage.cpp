@@ -273,6 +273,108 @@ TEST_CASE("Sparse storage - table transitions do not construct sparse payloads i
 	}
 }
 
+TEST_CASE("Sparse storage - tag queries stay consistent through archetype churn") {
+	TestWorld twld;
+	(void)wld.add<Empty>();
+	(void)wld.add<Position>();
+	(void)wld.add<SparseHeaderFill>();
+
+	uint32_t rounds = 16;
+	uint32_t batchSize = 64;
+	SUBCASE("Ordinary archetype cache") {}
+	SUBCASE("Flattened chunk cache") {
+		rounds = 2;
+		batchSize = 2048;
+	}
+
+	cnt::sarray<ecs::Entity, 11> shapeTags;
+	for (uint32_t i = 0; i < shapeTags.size(); ++i)
+		shapeTags[i] = wld.add();
+	cnt::darray<ecs::Entity> live;
+	auto retained = wld.query().all<Empty>();
+	auto uncached = wld.uquery().all<Empty>();
+
+	auto checkQuery = [&](ecs::Query& query) {
+		uint32_t expected = 0;
+		for (uint32_t i = 0; i < live.size(); ++i) {
+			if (wld.has<Empty>(live[i]) && wld.enabled(live[i]))
+				++expected;
+		}
+
+		uint32_t count = 0;
+		query.each([&](ecs::Entity entity) {
+			CHECK(entity != ecs::Core);
+			const bool valid = wld.valid(entity);
+			CHECK(valid);
+			if (!valid)
+				return;
+			CHECK(wld.has<Empty>(entity));
+			CHECK(wld.enabled(entity));
+			const bool hasPosition = wld.has<Position>(entity);
+			CHECK(hasPosition);
+			if (hasPosition)
+				CHECK(wld.get<Position>(entity).x == doctest::Approx((float)entity.id()));
+			++count;
+		});
+		CHECK(count == expected);
+		CHECK(query.count() == expected);
+		CHECK(query.empty() == (expected == 0));
+
+		count = 0;
+		query.each([&](ecs::Iter& it) {
+			const auto entities = it.view<ecs::Entity>();
+			for (uint32_t i = 0; i < it.size(); ++i) {
+				CHECK(entities[i] != ecs::Core);
+				CHECK(wld.has<Empty>(entities[i]));
+				++count;
+			}
+		});
+		CHECK(count == expected);
+	};
+	auto check = [&]() {
+		checkQuery(retained);
+		checkQuery(uncached);
+		auto fresh = wld.query().all<Empty>();
+		checkQuery(fresh);
+	};
+
+	check();
+	for (uint32_t round = 0; round < rounds; ++round) {
+		for (uint32_t i = 0; i < batchSize; ++i) {
+			const auto entity = wld.add();
+			live.push_back(entity);
+			if ((i & 1) == 0)
+				wld.add<SparseHeaderFill>(entity);
+			wld.add<Empty>(entity);
+			wld.add<Position>(entity, {(float)entity.id(), 2.0f, 3.0f});
+			for (uint32_t bit = 0; bit < shapeTags.size(); ++bit) {
+				if ((i & (1U << bit)) != 0)
+					wld.add(entity, shapeTags[bit]);
+			}
+			if ((i & 1) != 0)
+				wld.add<SparseHeaderFill>(entity);
+		}
+		check();
+
+		for (uint32_t i = 0; i < live.size(); ++i) {
+			if ((i & 3) == 0)
+				wld.del<Empty>(live[i]);
+			if ((i & 3) == 1)
+				wld.enable(live[i], false);
+		}
+		check();
+
+		for (uint32_t i = 0; i < live.size(); ++i)
+			wld.del(live[i]);
+		live.clear();
+		check();
+		// Expire empty chunks and archetypes while the queries retain their previous matches.
+		for (uint32_t tick = 0; tick < 32; ++tick)
+			wld.frame_cleanup();
+		check();
+	}
+}
+
 TEST_CASE("Sparse DontFragment relationship payload stays outside archetype storage") {
 	SparseTestWorld twld;
 

@@ -84,6 +84,158 @@ TEST_CASE("Query - assignment releases overwritten cached query") {
 	CHECK(wld.test_query_cache_count() == 0);
 }
 
+TEST_CASE("Query - cleanup invalidates retained query state") {
+	TestWorld twld;
+	bool cached = true;
+	bool shared = false;
+	SUBCASE("Cached") {}
+	SUBCASE("Shared") {
+		shared = true;
+	}
+	SUBCASE("Uncached") {
+		cached = false;
+	}
+
+	auto retained = wld.query();
+	if (!cached)
+		retained = wld.uquery();
+	if (shared)
+		retained.scope(ecs::QueryCacheScope::Shared);
+	retained.all<Position>();
+	const auto oldEntity = wld.add();
+	wld.add<Position>(oldEntity, {1, 2, 3});
+	CHECK(retained.count() == 1);
+	auto beforeCleanupCopy = retained;
+
+	wld.cleanup();
+	// Reuse both query slots and component ids for unrelated state.
+	const auto newEntity = wld.add();
+	wld.add<Acceleration>(newEntity, {4, 5, 6});
+	auto replacement = wld.query().all(ecs::Core);
+	const auto replacementCount = replacement.count();
+	CHECK(replacementCount > 0);
+	CHECK_FALSE(retained.is_cached());
+	CHECK_FALSE(beforeCleanupCopy.is_cached());
+
+	retained.reset();
+	auto afterCleanupCopy = beforeCleanupCopy;
+	auto moved = GAIA_MOV(beforeCleanupCopy);
+	for (auto* query: {&retained, &afterCleanupCopy, &moved}) {
+		CHECK(query->count() == 0);
+		CHECK(query->empty());
+		uint32_t count = 0;
+		query->each([&](ecs::Entity) {
+			++count;
+		});
+		CHECK(count == 0);
+		query->each([&](ecs::Iter&) {
+			++count;
+		});
+		CHECK(count == 0);
+		cnt::darray<ecs::Entity> entities;
+		query->arr(entities);
+		CHECK(entities.empty());
+	}
+	CHECK(replacement.is_cached());
+	CHECK(replacement.count() == replacementCount);
+
+	// Reauthoring starts with the new world's ids, not the previous filter.
+	retained.all<Acceleration>();
+	expect_exact_entities(retained, {newEntity});
+	uint32_t typedCount = 0;
+	retained.each([&](const Acceleration& value) {
+		CHECK(value.x == 4);
+		++typedCount;
+	});
+	CHECK(typedCount == 1);
+	CHECK(retained.scope() == (shared ? ecs::QueryCacheScope::Shared : ecs::QueryCacheScope::Local));
+}
+
+TEST_CASE("Query - stale query lifetime cannot release replacement state") {
+	TestWorld twld;
+	auto replacement = wld.query();
+	{
+		auto stale = wld.query().all<Position>();
+		(void)stale.count();
+		wld.cleanup();
+		replacement = wld.query().all(ecs::Core);
+		(void)replacement.count();
+		CHECK(wld.test_query_cache_count() == 1);
+
+		SUBCASE("Destruction") {}
+		SUBCASE("Explicit destroy") {
+			stale.destroy();
+		}
+		SUBCASE("Copy and assignment") {
+			auto copy = stale;
+			auto assigned = wld.query();
+			assigned = stale;
+			stale = wld.query();
+		}
+	}
+	CHECK(replacement.is_cached());
+	CHECK(wld.test_query_cache_count() == 1);
+	CHECK(replacement.count() > 0);
+}
+
+TEST_CASE("Query - cleanup invalidates pending builder commands") {
+	TestWorld twld;
+	for (uint32_t cycle = 0; cycle < 3; ++cycle) {
+		auto pending = wld.query().all<Position>();
+		auto pendingCopy = pending;
+		auto uncached = wld.uquery().all<Position>();
+		wld.cleanup();
+		auto replacement = wld.query().all(ecs::Core);
+		CHECK(pending.count() == 0);
+		CHECK(pendingCopy.count() == 0);
+		CHECK(uncached.count() == 0);
+		CHECK(replacement.count() > 0);
+		uint32_t count = 0;
+		replacement.each([&](ecs::Entity entity) {
+			CHECK(wld.has(entity, ecs::Core));
+			++count;
+		});
+		CHECK(count > 0);
+	}
+}
+
+TEST_CASE("Query - cleanup allows authoring with new world state") {
+	TestWorld twld;
+	auto query = wld.query().all<Position>().reads<Position>();
+	(void)query.count();
+	wld.cleanup();
+	CHECK(query.id() == ecs::QueryIdBad);
+	CHECK(query.gen() == ecs::QueryIdBad);
+	CHECK(query.custom_reads().empty());
+
+	const auto entity = wld.add();
+	wld.add<Acceleration>(entity, {4, 5, 6});
+	const auto relation = wld.add();
+	wld.add(entity, ecs::Pair(relation, entity));
+	int context = 0;
+	query.ctx(&context).main_thread().cache_src_trav(8);
+	SUBCASE("Access before terms") {
+		query.reads<Acceleration>().all<Acceleration>();
+		CHECK(query.custom_reads().size() == 1);
+	}
+	SUBCASE("Variable before terms") {
+		query.var_name(ecs::Var0, "source").set_var("source", entity);
+		query.all(ecs::Pair(relation, ecs::Var0)).all<Acceleration>();
+		query.set_var("source", entity);
+	}
+	SUBCASE("Expression variables") {
+		query.add("(%e,$source), Acceleration", relation.value()).set_var("source", entity);
+	}
+	SUBCASE("Pending builder after cleanup") {
+		query.all<Acceleration&>().no_access();
+		CHECK(query.access(wld.add<Acceleration>().entity) == ecs::QueryAccess::None);
+	}
+	expect_exact_entities(query, {entity});
+	CHECK(query.ctx() == &context);
+	CHECK(query.main_thread_required());
+	CHECK(query.cache_src_trav() == 8);
+}
+
 TEST_CASE("Query - QueryResult") {
 	SUBCASE("Cached query") {
 		Test_Query_QueryResult<ecs::Query>();

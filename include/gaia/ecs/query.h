@@ -308,6 +308,8 @@ namespace gaia {
 				World* m_world = nullptr;
 				//! QueryImpl cache (stable pointer to parent world's query cache)
 				QueryCache* m_pCache = nullptr;
+				//! World query-state lifetime captured at initialization.
+				uint64_t m_epoch = 0;
 				//! Hot cached query pointer. Validated against m_identity.handle before use.
 				QueryInfo* m_pInfo = nullptr;
 				//! Locally-owned query plan used when the query does not use cache-backed storage.
@@ -326,6 +328,7 @@ namespace gaia {
 				QueryImplStorage(QueryImplStorage&& other) {
 					m_world = other.m_world;
 					m_pCache = other.m_pCache;
+					m_epoch = other.m_epoch;
 					m_pInfo = other.m_pInfo;
 					m_pOwnedInfo = other.m_pOwnedInfo;
 					m_identity = other.m_identity;
@@ -345,6 +348,7 @@ namespace gaia {
 
 					m_world = other.m_world;
 					m_pCache = other.m_pCache;
+					m_epoch = other.m_epoch;
 					m_pInfo = other.m_pInfo;
 					m_pOwnedInfo = other.m_pOwnedInfo;
 					m_identity = other.m_identity;
@@ -362,15 +366,16 @@ namespace gaia {
 				QueryImplStorage(const QueryImplStorage& other) {
 					m_world = other.m_world;
 					m_pCache = other.m_pCache;
+					m_epoch = other.m_epoch;
 					m_pInfo = other.m_pInfo;
-					if (other.m_pOwnedInfo != nullptr)
+					if (other.m_pOwnedInfo != nullptr && other.is_current())
 						m_pOwnedInfo = new QueryInfo(*other.m_pOwnedInfo);
 					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
 					// Make sure to update the ref count of the cached query so
 					// it doesn't get deleted by accident.
-					if (!m_destroyed && m_pCache != nullptr) {
+					if (!m_destroyed && is_current()) {
 						auto* pInfo = try_query_info_fast();
 						if (pInfo == nullptr)
 							pInfo = m_pCache->try_get(m_identity.handle);
@@ -387,15 +392,16 @@ namespace gaia {
 
 					m_world = other.m_world;
 					m_pCache = other.m_pCache;
+					m_epoch = other.m_epoch;
 					m_pInfo = other.m_pInfo;
-					if (other.m_pOwnedInfo != nullptr)
+					if (other.m_pOwnedInfo != nullptr && other.is_current())
 						m_pOwnedInfo = new QueryInfo(*other.m_pOwnedInfo);
 					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
 					// Make sure to update the ref count of the cached query so
 					// it doesn't get deleted by accident.
-					if (!m_destroyed && m_pCache != nullptr) {
+					if (!m_destroyed && is_current()) {
 						auto* pInfo = try_query_info_fast();
 						if (pInfo == nullptr)
 							pInfo = m_pCache->try_get(m_identity.handle);
@@ -429,7 +435,14 @@ namespace gaia {
 				void init(World* world, QueryCache* queryCache) {
 					m_world = world;
 					m_pCache = queryCache;
+					m_epoch = queryCache->epoch();
 					m_pInfo = nullptr;
+				}
+
+				//! Returns whether this storage belongs to the world's current query lifetime.
+				//! \return False for uninitialized storage or after world cleanup.
+				GAIA_NODISCARD bool is_current() const {
+					return m_pCache != nullptr && m_epoch == m_pCache->epoch();
 				}
 
 				//! Releases any data allocated by the query.
@@ -448,7 +461,7 @@ namespace gaia {
 				//! Tries to delete the query from the query cache.
 				//! \return False.
 				GAIA_NODISCARD bool try_del_from_cache() {
-					if (!m_destroyed && m_identity.handle.id() != QueryIdBad)
+					if (!m_destroyed && m_identity.handle.id() != QueryIdBad && is_current())
 						m_pCache->del(m_identity.handle);
 
 					// Don't allow multiple calls to destroy to break the reference counter.
@@ -469,7 +482,7 @@ namespace gaia {
 				//! Returns the cached QueryInfo pointer when the fast-path cache is still valid.
 				//! \return Cached QueryInfo pointer or nullptr.
 				GAIA_NODISCARD QueryInfo* try_query_info_fast() const {
-					if (m_pInfo == nullptr || m_identity.handle.id() == QueryIdBad || m_pCache == nullptr)
+					if (m_pInfo == nullptr || m_identity.handle.id() == QueryIdBad || !is_current())
 						return nullptr;
 
 					auto* pInfo = m_pCache->try_get(m_identity.handle);
@@ -507,6 +520,8 @@ namespace gaia {
 				//! Returns whether the query is found in the query cache.
 				//! \return True if the query is found in the query cache. False otherwise.
 				GAIA_NODISCARD bool is_cached() const {
+					if (!is_current())
+						return false;
 					auto* pInfo = try_query_info_fast();
 					if (pInfo == nullptr)
 						pInfo = m_pCache->try_get(m_identity.handle);
@@ -842,6 +857,27 @@ namespace gaia {
 
 				OnDemandDataHolder<DirectSeedRunData> m_directSeedRunData;
 
+				//! Discards state from a previous world lifetime before executing or authoring a query.
+				void refresh_world_lifetime() {
+					if GAIA_LIKELY (m_storage.is_current())
+						return;
+					reset_world_lifetime();
+				}
+
+				//! Replaces world-dependent state without carrying old entity ids into the new world.
+				GAIA_NOINLINE void reset_world_lifetime() {
+					GAIA_ASSERT(m_storage.is_initialized());
+					QueryImpl fresh(
+							*m_storage.world(), *m_storage.m_pCache, *m_nextArchetypeId, *m_worldVersion, *m_entityToArchetypeMap,
+							*m_entityToArchetypeMapVersions, *m_allArchetypes);
+					fresh.m_cacheKind = m_cacheKind;
+					fresh.m_cacheScope = m_cacheScope;
+					fresh.m_cacheSrcTrav = m_cacheSrcTrav;
+					fresh.m_ctx = m_ctx;
+					fresh.m_mainThread = m_mainThread;
+					*this = GAIA_MOV(fresh);
+				}
+
 				//! Merges two access modes, preserving write access as the strongest mode.
 				//! \param lhs First access mode.
 				//! \param rhs Second access mode.
@@ -1002,6 +1038,7 @@ namespace gaia {
 				//! \return QueryInfo object.
 				QueryInfo& fetch() {
 					GAIA_PROF_SCOPE(query::fetch);
+					refresh_world_lifetime();
 
 					// Make sure the query was created by World::query()
 					GAIA_ASSERT(m_storage.is_initialized());
@@ -1209,6 +1246,7 @@ namespace gaia {
 				//! \return Self reference.
 				//! \see writes(Entity)
 				QueryImpl& reads(Entity entity) {
+					refresh_world_lifetime();
 					m_access.add_read(entity);
 					return *this;
 				}
@@ -1231,6 +1269,7 @@ namespace gaia {
 				//! \return Self reference.
 				//! \see reads(Entity)
 				QueryImpl& writes(Entity entity) {
+					refresh_world_lifetime();
 					m_access.add_write(entity);
 					return *this;
 				}
@@ -1247,13 +1286,13 @@ namespace gaia {
 				//! Returns explicitly declared read ids that are not query terms.
 				//! \return Read-only span over custom read declarations.
 				GAIA_NODISCARD std::span<const Entity> custom_reads() const {
-					return m_access.reads_view();
+					return m_storage.is_current() ? m_access.reads_view() : std::span<const Entity>{};
 				}
 
 				//! Returns explicitly declared write ids that are not query terms.
 				//! \return Read-only span over custom write declarations.
 				GAIA_NODISCARD std::span<const Entity> custom_writes() const {
-					return m_access.writes_view();
+					return m_storage.is_current() ? m_access.writes_view() : std::span<const Entity>{};
 				}
 
 				//! Returns the effective read/write access for an id.
@@ -1579,6 +1618,7 @@ namespace gaia {
 
 				template <typename T>
 				void add_cmd(T& cmd) {
+					refresh_world_lifetime();
 					invalidate_each_walk_cache();
 
 					// Make sure to invalidate if necessary.
@@ -1818,6 +1858,7 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void set_group_id_inter(GroupId groupId) {
+					refresh_world_lifetime();
 					// Dummy usage of GroupIdMax to avoid warning about unused constant
 					(void)GroupIdMax;
 
@@ -5636,17 +5677,17 @@ namespace gaia {
 #endif
 
 				//! Returns the cache handle id of this query.
-				//! \return Query id, or QueryIdBad for uncached queries.
+				//! \return Query id, or QueryIdBad for uncached or world-invalidated queries.
 				GAIA_NODISCARD QueryId id() const {
-					if (!uses_query_cache_storage())
+					if (!uses_query_cache_storage() || !m_storage.is_current())
 						return QueryIdBad;
 					return m_storage.m_identity.handle.id();
 				}
 
 				//! Returns the cache handle generation of this query.
-				//! \return Query generation, or QueryIdBad for uncached queries.
+				//! \return Query generation, or QueryIdBad for uncached or world-invalidated queries.
 				GAIA_NODISCARD uint32_t gen() const {
-					if (!uses_query_cache_storage())
+					if (!uses_query_cache_storage() || !m_storage.is_current())
 						return QueryIdBad;
 					return m_storage.m_identity.handle.gen();
 				}
@@ -5723,6 +5764,7 @@ namespace gaia {
 				//! \param ... Optional varargs consumed by `%e` substitutions inside \a str.
 				//! \return Reference to this query.
 				QueryImpl& add(const char* str, ...) {
+					refresh_world_lifetime();
 					GAIA_ASSERT(str != nullptr);
 					if (str == nullptr)
 						return *this;
@@ -6036,9 +6078,12 @@ namespace gaia {
 				//! Scans pending builder commands once and updates the term in place without growing the command buffer.
 				//! \return Self reference.
 				QueryImpl& no_access() {
+					refresh_world_lifetime();
 #if GAIA_ASSERT_ENABLED
 					GAIA_ASSERT(m_storage.m_identity.serId != QueryIdBad && "no_access() requires a pending query term");
 #endif
+					if (m_storage.m_identity.serId == QueryIdBad)
+						return *this;
 					auto& buffer = m_storage.ser_buffer();
 					const auto end = buffer.bytes();
 					const uint32_t commandSizes[] = {ser::bytes(QueryCmd_AddItem{}),	ser::bytes(QueryCmd_AddFilter{}),
@@ -6181,6 +6226,7 @@ namespace gaia {
 				//! \return Self reference.
 				//! \note Empty names and reserved name "this" are rejected.
 				QueryImpl& var_name(Entity varEntity, util::str_view name) {
+					refresh_world_lifetime();
 					[[maybe_unused]] const bool ok = set_var_name_internal(varEntity, name);
 					GAIA_ASSERT(ok);
 					return *this;
@@ -6202,6 +6248,7 @@ namespace gaia {
 				//! \param value Entity value to bind
 				//! \return Self reference.
 				QueryImpl& set_var(Entity varEntity, Entity value) {
+					refresh_world_lifetime();
 					const bool ok = is_query_var_entity(varEntity);
 					GAIA_ASSERT(ok);
 					if (!ok)
@@ -6217,6 +6264,7 @@ namespace gaia {
 				//! \param value Entity value to bind
 				//! \return Self reference.
 				QueryImpl& set_var(util::str_view name, Entity value) {
+					refresh_world_lifetime();
 					const auto varEntity = find_var_by_name(name);
 					GAIA_ASSERT(varEntity != EntityBad);
 					if (varEntity == EntityBad)

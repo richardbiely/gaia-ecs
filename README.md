@@ -1958,6 +1958,8 @@ q.each(...) { ... };
 
 ### Query remarks
 
+`World::cleanup()` invalidates all previously authored queries, including uncached queries and pending builder commands. Retained query objects become empty builders and cannot alias queries created after cleanup. Their cache settings, user context and main-thread requirements are preserved. Terms, variable names and bindings, explicit access declarations and world-dependent caches are discarded because component and entity ids can be reassigned. Reauthor the terms using the new world's ids before using typed callbacks, or assign a new query from `World::query()` or `World::uquery()`. Queries must not outlive their owning `World`.
+
 Nested direct queries keep independent deduplication stamps and writable entity snapshots. Calling `count()`, `empty()`, `arr()`, or `each()` from a callback does not overwrite the outer query's scratch state, including when the nested query uses another world. Scratch storage is reused per thread and active nesting depth. A new depth allocates its slot and grows its buffers on demand.
 
 Building cache requires memory. Because of that, sometimes it comes handy having the ability to release this data. Calling ```myQuery.reset()``` will remove any data allocated by the query. The next time the query is used to fetch results the cache is rebuilt.

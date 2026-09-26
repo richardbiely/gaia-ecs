@@ -10171,7 +10171,10 @@ namespace gaia {
 				util::log_flush();
 			}
 
-			//! Clears the world so that all its entities and components are released
+			//! Clears the world so that all its entities and components are released.
+			//! Invalidates retained queries, including uncached plans and pending builder commands.
+			//! Retained queries become empty builders. Reauthor their terms using the new world's ids.
+			//! Cache settings, user context and main-thread requirements are preserved.
 			void cleanup() {
 				cleanup_inter();
 
