@@ -2910,7 +2910,7 @@ template&lt;typename Func , std::enable_if_t&lt;!detail::is_query_walk_core_call
 </div><div class="memdoc">
 
 <p>Returns the cache handle generation of this query. </p>
-<dl class="section return"><dt>Returns</dt><dd>Query generation, or QueryIdBad for uncached queries. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>Query generation, or QueryIdBad for uncached or world-invalidated queries. </dd></dl>
 
 </div>
 </div>
@@ -3304,7 +3304,7 @@ template&lt;typename Container &gt; </div>
 </div><div class="memdoc">
 
 <p>Returns the cache handle id of this query. </p>
-<dl class="section return"><dt>Returns</dt><dd>Query id, or QueryIdBad for uncached queries. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>Query id, or QueryIdBad for uncached or world-invalidated queries. </dd></dl>
 
 </div>
 </div>

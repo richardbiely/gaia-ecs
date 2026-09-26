@@ -167,7 +167,7 @@ var searchData=
   ['create_5fcomp_5findices_164',['create_comp_indices',['../classgaia_1_1ecs_1_1QueryInfo.html#ae8c86eabf0ce93f14283d203f7d55741',1,'gaia::ecs::QueryInfo']]],
   ['create_5finherited_5fdata_165',['create_inherited_data',['../classgaia_1_1ecs_1_1QueryInfo.html#a571482fa27f9670fa4b41d6e9cdc857c',1,'gaia::ecs::QueryInfo']]],
   ['create_5fselectors_5fview_166',['create_selectors_view',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#a4139121ee0e57a712cfb3435b7d3a2de',1,'gaia::ecs::QueryCtx::Data::Dependencies']]],
-  ['createarchetypematchkind_167',['createarchetypematchkind',['../structgaia_1_1ecs_1_1QueryCtx.html#a97d2f17f09aed5a440566bb3f2797ae1',1,'gaia::ecs::QueryCtx::CreateArchetypeMatchKind'],['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a7b0e1497f6112f134efaca963c2592f1',1,'gaia::ecs::QueryCtx::Data::createArchetypeMatchKind']]],
+  ['createarchetypematchkind_167',['createarchetypematchkind',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a7b0e1497f6112f134efaca963c2592f1',1,'gaia::ecs::QueryCtx::Data::createArchetypeMatchKind'],['../structgaia_1_1ecs_1_1QueryCtx.html#a97d2f17f09aed5a440566bb3f2797ae1',1,'gaia::ecs::QueryCtx::CreateArchetypeMatchKind']]],
   ['createselectorcnt_168',['createSelectorCnt',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#aae6b65dc633265ddcb619a79c21e0054',1,'gaia::ecs::QueryCtx::Data::Dependencies']]],
   ['createselectors_169',['createSelectors',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#aa0ecb9f76d515dd78c1469392cdf36d2',1,'gaia::ecs::QueryCtx::Data::Dependencies']]],
   ['creation_170',['Batched creation',['../index.html#batched-creation',1,'']]],

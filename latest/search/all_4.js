@@ -172,7 +172,7 @@ var searchData=
   ['directchunksresultrevision_169',['directChunksResultRevision',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1ExecPayload.html#a7e4df63be8db823eb13e1cd7e81fa0a7',1,'gaia::ecs::QueryInfo::QueryState::ExecPayload']]],
   ['directchunksworldversion_170',['directChunksWorldVersion',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1ExecPayload.html#ac4c0e32f88e4bd8cdb2edc8deb178db7',1,'gaia::ecs::QueryInfo::QueryState::ExecPayload']]],
   ['directdense_171',['DirectDense',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4aa2a007e1aadb91e8f5c05b04bfc37e50',1,'gaia::ecs::detail::QueryImpl']]],
-  ['directsource_172',['directsource',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html#a82715a027c638a3cb1de96140edadfe8',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState::directSource'],['../structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6a671b43a8aa7f492975b2f27645d9d3ca',1,'gaia::ecs::QueryCtx::DirectSource']]],
+  ['directsource_172',['directsource',['../structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6a671b43a8aa7f492975b2f27645d9d3ca',1,'gaia::ecs::QueryCtx::DirectSource'],['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html#a82715a027c638a3cb1de96140edadfe8',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState::directSource']]],
   ['directsourcepayload_173',['DirectSourcePayload',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1DirectSourcePayload.html',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState']]],
   ['directstructuralterms_174',['DirectStructuralTerms',['../structgaia_1_1ecs_1_1QueryCtx.html#a97d2f17f09aed5a440566bb3f2797ae1a5cf0a1f2d32b582f060fb2cdce53d282',1,'gaia::ecs::QueryCtx']]],
   ['directtargetevalid_175',['directTargetEvalId',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a800578f5f5ed8406b7406ef2fe777a26',1,'gaia::ecs::QueryCtx::Data']]],
@@ -186,6 +186,6 @@ var searchData=
   ['dyn_5fsingleton_183',['dyn_singleton',['../classgaia_1_1core_1_1dyn__singleton.html',1,'gaia::core']]],
   ['dynamic_184',['Dynamic',['../structgaia_1_1ecs_1_1QueryCtx.html#ae52188f6f38dcc11f98de27ed02be345a971fd8cc345d8bd9f92e9f7d88fdf20c',1,'gaia::ecs::QueryCtx']]],
   ['dynamic_20vectors_185',['Dynamic vectors',['../index.html#dynamic-vectors',1,'']]],
-  ['dynamiccachekind_186',['dynamiccachekind',['../structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6',1,'gaia::ecs::QueryCtx::DynamicCacheKind'],['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a94125c6fa03139fe79a66e81a31381e6',1,'gaia::ecs::QueryCtx::Data::dynamicCacheKind']]],
+  ['dynamiccachekind_186',['dynamiccachekind',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a94125c6fa03139fe79a66e81a31381e6',1,'gaia::ecs::QueryCtx::Data::dynamicCacheKind'],['../structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6',1,'gaia::ecs::QueryCtx::DynamicCacheKind']]],
   ['dynamiccachestate_187',['DynamicCacheState',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html',1,'gaia::ecs::QueryInfo::QueryState']]]
 ];
