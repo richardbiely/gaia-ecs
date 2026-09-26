@@ -32,6 +32,13 @@ namespace gaia {
 
 		const EntityContainer& fetch(const World& world, Entity entity);
 		EntityContainer& fetch_mut(World& world, Entity entity);
+		//! Returns the record of \p entity while its id and generation still own the slot.
+		//! Unlike valid(), this ignores chunk placement and deletion requests, so it also finds the
+		//! record while \p entity is being deleted. Returns nullptr once the slot is gone or reused.
+		//! \param world World that owns the entity records.
+		//! \param entity Entity or exact pair record.
+		//! \return Record pointer, or nullptr.
+		EntityContainer* try_fetch_mut(World& world, Entity entity);
 
 		void del(World& world, Entity entity);
 

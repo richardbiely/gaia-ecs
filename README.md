@@ -1204,6 +1204,8 @@ This is an edge-case scenario, unlikely to happen even, but should you ever need
 
 A more useful use case, however, would be if you need an entity identifier that gets automatically reset when the entity gets deleted without any setup necessary from your end. Certain situations can be complex and using `ecs::WeakEntity` just might be the one way for you to address them.
 
+`ecs::WeakEntity` can live inside a component, including a component that references its own entity. Deleting that entity destroys the component and resets every other `ecs::WeakEntity` pointing at it in the same step.
+
 ### Archetype lifespan
 
 Once all entities of given archetype are deleted (and as a result all chunks in the archetypes are empty), the archetype stays alive for another 127 ticks of `ecs::World::update`. However, there might be cases where this behavior is insufficient. Maybe you want the archetype deleted faster, or you want to keep it around forever.

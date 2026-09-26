@@ -31508,6 +31508,13 @@ namespace gaia {
 
 		const EntityContainer& fetch(const World& world, Entity entity);
 		EntityContainer& fetch_mut(World& world, Entity entity);
+		//! Returns the record of \p entity while its id and generation still own the slot.
+		//! Unlike valid(), this ignores chunk placement and deletion requests, so it also finds the
+		//! record while \p entity is being deleted. Returns nullptr once the slot is gone or reused.
+		//! \param world World that owns the entity records.
+		//! \param entity Entity or exact pair record.
+		//! \return Record pointer, or nullptr.
+		EntityContainer* try_fetch_mut(World& world, Entity entity);
 
 		void del(World& world, Entity entity);
 
@@ -37024,10 +37031,14 @@ namespace gaia {
 				if (m_pTracker->prev != nullptr)
 					m_pTracker->prev->next = m_pTracker->next;
 
-				if (m_w != nullptr && valid(*m_w, m_entity)) {
-					auto& ec = fetch_mut(*m_w, m_entity);
-					if (ec.pWeakTracker == m_pTracker)
-						ec.pWeakTracker = m_pTracker->next;
+				// A linked tracker means the target's record still owns this list. That holds while the target
+				// is being deleted, when valid() already fails: deletion destroys the target's components
+				// (a self reference among them) before it invalidates the list. Only the head needs the
+				// record. During world teardown the records are gone first and the lookup finds nothing.
+				if (m_pTracker->prev == nullptr && m_w != nullptr) {
+					auto* pEc = try_fetch_mut(*m_w, m_entity);
+					if (pEc != nullptr && pEc->pWeakTracker == m_pTracker)
+						pEc->pWeakTracker = m_pTracker->next;
 				}
 
 				delete m_pTracker;
@@ -67176,6 +67187,7 @@ namespace gaia {
 			friend struct ComponentSetter;
 			friend void lock(World&);
 			friend void unlock(World&);
+			friend EntityContainer* try_fetch_mut(World&, Entity);
 			friend QueryMatchScratch& query_match_scratch_acquire(World&);
 			friend void query_match_scratch_release(World&, bool);
 			friend uint32_t world_component_index_bucket_size(const World&, Entity);
@@ -81815,6 +81827,10 @@ namespace gaia {
 
 		GAIA_NODISCARD inline EntityContainer& fetch_mut(World& world, Entity entity) {
 			return world.fetch(entity);
+		}
+
+		GAIA_NODISCARD inline EntityContainer* try_fetch_mut(World& world, Entity entity) {
+			return world.try_fetch_record(entity);
 		}
 
 		inline void del(World& world, Entity entity) {

@@ -846,6 +846,46 @@ TEST_CASE("Entity weak - recycled ids do not resurrect stale handles") {
 	CHECK(weak == ecs::EntityBad);
 }
 
+struct WeakSelfRef {
+	ecs::WeakEntity self;
+};
+
+TEST_CASE("Entity weak - component referencing its own entity survives deletion") {
+	TestWorld twld;
+
+	// Deleting b swap-removes c into b's chunk slot. That move-assign destroys b's self reference
+	// after b stopped being valid, while the reference is still the head of b's tracker list.
+	const auto a = wld.add();
+	const auto b = wld.add();
+	const auto c = wld.add();
+	// Created before the self references, so each sits behind its self reference in the list.
+	const auto watchB = ecs::WeakEntity(wld, b);
+	const auto watchC = ecs::WeakEntity(wld, c);
+	wld.add<WeakSelfRef>(a, {ecs::WeakEntity(wld, a)});
+	wld.add<WeakSelfRef>(b, {ecs::WeakEntity(wld, b)});
+	wld.add<WeakSelfRef>(c, {ecs::WeakEntity(wld, c)});
+	const auto watchA = ecs::WeakEntity(wld, a);
+
+	wld.del(b);
+	CHECK_FALSE(wld.valid(b));
+	CHECK(watchB == ecs::EntityBad);
+	CHECK(wld.get<WeakSelfRef>(a).self == a);
+	CHECK(wld.get<WeakSelfRef>(c).self == c);
+
+	// Coverage for the other destruction path: the last entity of its chunk has its component
+	// destroyed rather than overwritten.
+	wld.del(c);
+	CHECK_FALSE(wld.valid(c));
+	CHECK(watchC == ecs::EntityBad);
+	wld.update();
+
+	// a's list holds the watcher in front of the self reference; both clear when a goes.
+	CHECK(watchA == a);
+	wld.del(a);
+	CHECK(watchA == ecs::EntityBad);
+	wld.update();
+}
+
 	#if GAIA_ASSERT_ENABLED
 TEST_CASE("Entity validity distinguishes stale handles from recycled live slots") {
 	TestWorld twld;

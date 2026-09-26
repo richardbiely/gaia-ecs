@@ -98,6 +98,7 @@ namespace gaia {
 			friend struct ComponentSetter;
 			friend void lock(World&);
 			friend void unlock(World&);
+			friend EntityContainer* try_fetch_mut(World&, Entity);
 			friend QueryMatchScratch& query_match_scratch_acquire(World&);
 			friend void query_match_scratch_release(World&, bool);
 			friend uint32_t world_component_index_bucket_size(const World&, Entity);

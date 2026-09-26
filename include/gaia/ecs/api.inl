@@ -27,6 +27,10 @@ namespace gaia {
 			return world.fetch(entity);
 		}
 
+		GAIA_NODISCARD inline EntityContainer* try_fetch_mut(World& world, Entity entity) {
+			return world.try_fetch_record(entity);
+		}
+
 		inline void del(World& world, Entity entity) {
 			world.del(entity);
 		}
