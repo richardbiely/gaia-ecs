@@ -267,6 +267,7 @@ var classgaia_1_1ecs_1_1World =
     [ "world_version", "classgaia_1_1ecs_1_1World.html#a0314449dbd8740cb1c450b901ea93b37", null ],
     [ "query_match_scratch_acquire", "classgaia_1_1ecs_1_1World.html#a8508e415c773be8243636601be0ef18c", null ],
     [ "query_match_scratch_release", "classgaia_1_1ecs_1_1World.html#acc79620ba3ce9f17215fb6ea32889ffe", null ],
+    [ "try_fetch_mut", "classgaia_1_1ecs_1_1World.html#a0d917d0d7678094a954c35049529d465", null ],
     [ "world_archetype_delete_version", "classgaia_1_1ecs_1_1World.html#a604f2f6b57a16b579f703c89a762089d", null ],
     [ "world_component_index_bucket_size", "classgaia_1_1ecs_1_1World.html#a6e643163a2026c31ac421613ff26cf62", null ],
     [ "world_component_index_comp_idx", "classgaia_1_1ecs_1_1World.html#a4256da3a8b9b1fe4e77ed0408e5586bb", null ],

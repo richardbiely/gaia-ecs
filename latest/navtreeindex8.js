@@ -1,5 +1,6 @@
 var NAVTREEINDEX8 =
 {
+"index.html#copy-entity":[2,1,11],
 "index.html#create-or-delete-entity":[2,1,0],
 "index.html#customization":[2,12],
 "index.html#data-layouts":[2,7],
@@ -248,6 +249,5 @@ var NAVTREEINDEX8 =
 "structgaia_1_1cnt_1_1darray__ilist__storage.html#ad436ec5b52d262ae1500c1f76a8800f4":[9,0,0,0,10,1],
 "structgaia_1_1cnt_1_1darray__ilist__storage.html#ad71fa5f70c9b56dda0de3d2dcec08400":[9,0,0,0,10,0],
 "structgaia_1_1cnt_1_1fwd__llist.html":[9,0,0,0,12],
-"structgaia_1_1cnt_1_1fwd__llist.html#a1da5b19633cbed199058c896e6619884":[9,0,0,0,12,5],
-"structgaia_1_1cnt_1_1fwd__llist.html#a42c83b416835cde7c33102ae01a9d271":[9,0,0,0,12,9]
+"structgaia_1_1cnt_1_1fwd__llist.html#a1da5b19633cbed199058c896e6619884":[9,0,0,0,12,5]
 };

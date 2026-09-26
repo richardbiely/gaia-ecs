@@ -1044,6 +1044,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>lock</b> (<a class="e
 <tr class="memitem:a369f2aa1ebae2b395f9e35f49e21933b" id="r_a369f2aa1ebae2b395f9e35f49e21933b"><td class="memItemLeft" align="right" valign="top"><a id="a369f2aa1ebae2b395f9e35f49e21933b" name="a369f2aa1ebae2b395f9e35f49e21933b"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>unlock</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;)</td></tr>
 <tr class="separator:a369f2aa1ebae2b395f9e35f49e21933b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0d917d0d7678094a954c35049529d465" id="r_a0d917d0d7678094a954c35049529d465"><td class="memItemLeft" align="right" valign="top">EntityContainer *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a0d917d0d7678094a954c35049529d465">try_fetch_mut</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)</td></tr>
+<tr class="memdesc:a0d917d0d7678094a954c35049529d465"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the record of <code>entity</code> while its id and generation still own the slot. Unlike <a class="el" href="classgaia_1_1ecs_1_1World.html#a7f38da2b090f678111ea544b54c5f9a8" title="Checks if entity is valid.">valid()</a>, this ignores chunk placement and deletion requests, so it also finds the record while <code>entity</code> is being deleted. Returns nullptr once the slot is gone or reused.  <br /></td></tr>
+<tr class="separator:a0d917d0d7678094a954c35049529d465"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8508e415c773be8243636601be0ef18c" id="r_a8508e415c773be8243636601be0ef18c"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1QueryMatchScratch.html">QueryMatchScratch</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a8508e415c773be8243636601be0ef18c">query_match_scratch_acquire</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;)</td></tr>
 <tr class="memdesc:a8508e415c773be8243636601be0ef18c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Acquires temporary scratch storage used during query matching.  <br /></td></tr>
 <tr class="separator:a8508e415c773be8243636601be0ef18c"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -11942,6 +11945,52 @@ template&lt;typename T &gt; </div>
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a id="a0d917d0d7678094a954c35049529d465" name="a0d917d0d7678094a954c35049529d465"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0d917d0d7678094a954c35049529d465">&#9670;&#160;</a></span>try_fetch_mut</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">EntityContainer * try_fetch_mut </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td>
+          <td class="paramname"><em>world</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">friend</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the record of <code>entity</code> while its id and generation still own the slot. Unlike <a class="el" href="classgaia_1_1ecs_1_1World.html#a7f38da2b090f678111ea544b54c5f9a8" title="Checks if entity is valid.">valid()</a>, this ignores chunk placement and deletion requests, so it also finds the record while <code>entity</code> is being deleted. Returns nullptr once the slot is gone or reused. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> that owns the entity records. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> or exact pair record. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Record pointer, or nullptr. </dd></dl>
 
 </div>
 </div>

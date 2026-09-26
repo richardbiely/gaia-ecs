@@ -592,66 +592,70 @@ $(document).ready(function(){initNavTree('entity__container_8h_source.html','');
 <div class="line"><a id="l00577" name="l00577"></a><span class="lineno">  577</span>        <span class="keywordflow">if</span> (m_pTracker-&gt;prev != <span class="keyword">nullptr</span>)</div>
 <div class="line"><a id="l00578" name="l00578"></a><span class="lineno">  578</span>          m_pTracker-&gt;prev-&gt;next = m_pTracker-&gt;next;</div>
 <div class="line"><a id="l00579" name="l00579"></a><span class="lineno">  579</span> </div>
-<div class="line"><a id="l00580" name="l00580"></a><span class="lineno">  580</span>        <span class="keywordflow">if</span> (m_w != <span class="keyword">nullptr</span> &amp;&amp; valid(*m_w, m_entity)) {</div>
-<div class="line"><a id="l00581" name="l00581"></a><span class="lineno">  581</span>          <span class="keyword">auto</span>&amp; ec = fetch_mut(*m_w, m_entity);</div>
-<div class="line"><a id="l00582" name="l00582"></a><span class="lineno">  582</span>          <span class="keywordflow">if</span> (ec.pWeakTracker == m_pTracker)</div>
-<div class="line"><a id="l00583" name="l00583"></a><span class="lineno">  583</span>            ec.pWeakTracker = m_pTracker-&gt;next;</div>
-<div class="line"><a id="l00584" name="l00584"></a><span class="lineno">  584</span>        }</div>
-<div class="line"><a id="l00585" name="l00585"></a><span class="lineno">  585</span> </div>
-<div class="line"><a id="l00586" name="l00586"></a><span class="lineno">  586</span>        <span class="keyword">delete</span> m_pTracker;</div>
-<div class="line"><a id="l00587" name="l00587"></a><span class="lineno">  587</span>        m_pTracker = <span class="keyword">nullptr</span>;</div>
-<div class="line"><a id="l00588" name="l00588"></a><span class="lineno">  588</span>      }</div>
+<div class="line"><a id="l00580" name="l00580"></a><span class="lineno">  580</span>        <span class="comment">// A linked tracker means the target&#39;s record still owns this list. That holds while the target</span></div>
+<div class="line"><a id="l00581" name="l00581"></a><span class="lineno">  581</span>        <span class="comment">// is being deleted, when valid() already fails: deletion destroys the target&#39;s components</span></div>
+<div class="line"><a id="l00582" name="l00582"></a><span class="lineno">  582</span>        <span class="comment">// (a self reference among them) before it invalidates the list. Only the head needs the</span></div>
+<div class="line"><a id="l00583" name="l00583"></a><span class="lineno">  583</span>        <span class="comment">// record. During world teardown the records are gone first and the lookup finds nothing.</span></div>
+<div class="line"><a id="l00584" name="l00584"></a><span class="lineno">  584</span>        <span class="keywordflow">if</span> (m_pTracker-&gt;prev == <span class="keyword">nullptr</span> &amp;&amp; m_w != <span class="keyword">nullptr</span>) {</div>
+<div class="line"><a id="l00585" name="l00585"></a><span class="lineno">  585</span>          <span class="keyword">auto</span>* pEc = try_fetch_mut(*m_w, m_entity);</div>
+<div class="line"><a id="l00586" name="l00586"></a><span class="lineno">  586</span>          <span class="keywordflow">if</span> (pEc != <span class="keyword">nullptr</span> &amp;&amp; pEc-&gt;pWeakTracker == m_pTracker)</div>
+<div class="line"><a id="l00587" name="l00587"></a><span class="lineno">  587</span>            pEc-&gt;pWeakTracker = m_pTracker-&gt;next;</div>
+<div class="line"><a id="l00588" name="l00588"></a><span class="lineno">  588</span>        }</div>
 <div class="line"><a id="l00589" name="l00589"></a><span class="lineno">  589</span> </div>
-<div class="line"><a id="l00590" name="l00590"></a><span class="lineno">  590</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Serializer&gt;</div>
-<div class="line"><a id="l00591" name="l00591"></a><span class="lineno">  591</span>      <span class="keywordtype">void</span> <a class="code hl_function" href="ser__ct_8h.html#afea4e9db5adcb2f65534c527ff9ac204">save</a>(Serializer&amp; s)<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l00592" name="l00592"></a><span class="lineno">  592</span>        s.save(m_entity.val);</div>
-<div class="line"><a id="l00593" name="l00593"></a><span class="lineno">  593</span>      }</div>
+<div class="line"><a id="l00590" name="l00590"></a><span class="lineno">  590</span>        <span class="keyword">delete</span> m_pTracker;</div>
+<div class="line"><a id="l00591" name="l00591"></a><span class="lineno">  591</span>        m_pTracker = <span class="keyword">nullptr</span>;</div>
+<div class="line"><a id="l00592" name="l00592"></a><span class="lineno">  592</span>      }</div>
+<div class="line"><a id="l00593" name="l00593"></a><span class="lineno">  593</span> </div>
 <div class="line"><a id="l00594" name="l00594"></a><span class="lineno">  594</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Serializer&gt;</div>
-<div class="line"><a id="l00595" name="l00595"></a><span class="lineno">  595</span>      <span class="keywordtype">void</span> <a class="code hl_function" href="ser__ct_8h.html#a38848ea2003a76e33f2b4e56d355a7fa">load</a>(Serializer&amp; s) {</div>
-<div class="line"><a id="l00596" name="l00596"></a><span class="lineno">  596</span>        del_tracker();</div>
-<div class="line"><a id="l00597" name="l00597"></a><span class="lineno">  597</span>        Identifier <span class="keywordtype">id</span>{};</div>
-<div class="line"><a id="l00598" name="l00598"></a><span class="lineno">  598</span>        s.load(<span class="keywordtype">id</span>);</div>
-<div class="line"><a id="l00599" name="l00599"></a><span class="lineno">  599</span>        m_entity = Entity(<span class="keywordtype">id</span>);</div>
-<div class="line"><a id="l00600" name="l00600"></a><span class="lineno">  600</span>        <span class="keywordflow">if</span> (m_w != <span class="keyword">nullptr</span> &amp;&amp; m_entity != EntityBad) {</div>
-<div class="line"><a id="l00601" name="l00601"></a><span class="lineno">  601</span>          m_pTracker = <span class="keyword">new</span> WeakEntityTracker();</div>
-<div class="line"><a id="l00602" name="l00602"></a><span class="lineno">  602</span>          set_tracker();</div>
-<div class="line"><a id="l00603" name="l00603"></a><span class="lineno">  603</span>        }</div>
-<div class="line"><a id="l00604" name="l00604"></a><span class="lineno">  604</span>      }</div>
-<div class="line"><a id="l00605" name="l00605"></a><span class="lineno">  605</span> </div>
-<div class="line"><a id="l00606" name="l00606"></a><span class="lineno">  606</span>      GAIA_NODISCARD Entity entity() const noexcept {</div>
-<div class="line"><a id="l00607" name="l00607"></a><span class="lineno">  607</span>        <span class="keywordflow">return</span> m_entity;</div>
+<div class="line"><a id="l00595" name="l00595"></a><span class="lineno">  595</span>      <span class="keywordtype">void</span> <a class="code hl_function" href="ser__ct_8h.html#afea4e9db5adcb2f65534c527ff9ac204">save</a>(Serializer&amp; s)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00596" name="l00596"></a><span class="lineno">  596</span>        s.save(m_entity.val);</div>
+<div class="line"><a id="l00597" name="l00597"></a><span class="lineno">  597</span>      }</div>
+<div class="line"><a id="l00598" name="l00598"></a><span class="lineno">  598</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Serializer&gt;</div>
+<div class="line"><a id="l00599" name="l00599"></a><span class="lineno">  599</span>      <span class="keywordtype">void</span> <a class="code hl_function" href="ser__ct_8h.html#a38848ea2003a76e33f2b4e56d355a7fa">load</a>(Serializer&amp; s) {</div>
+<div class="line"><a id="l00600" name="l00600"></a><span class="lineno">  600</span>        del_tracker();</div>
+<div class="line"><a id="l00601" name="l00601"></a><span class="lineno">  601</span>        Identifier <span class="keywordtype">id</span>{};</div>
+<div class="line"><a id="l00602" name="l00602"></a><span class="lineno">  602</span>        s.load(<span class="keywordtype">id</span>);</div>
+<div class="line"><a id="l00603" name="l00603"></a><span class="lineno">  603</span>        m_entity = Entity(<span class="keywordtype">id</span>);</div>
+<div class="line"><a id="l00604" name="l00604"></a><span class="lineno">  604</span>        <span class="keywordflow">if</span> (m_w != <span class="keyword">nullptr</span> &amp;&amp; m_entity != EntityBad) {</div>
+<div class="line"><a id="l00605" name="l00605"></a><span class="lineno">  605</span>          m_pTracker = <span class="keyword">new</span> WeakEntityTracker();</div>
+<div class="line"><a id="l00606" name="l00606"></a><span class="lineno">  606</span>          set_tracker();</div>
+<div class="line"><a id="l00607" name="l00607"></a><span class="lineno">  607</span>        }</div>
 <div class="line"><a id="l00608" name="l00608"></a><span class="lineno">  608</span>      }</div>
-<div class="line"><a id="l00609" name="l00609"></a><span class="lineno">  609</span>      GAIA_NODISCARD <span class="keyword">operator</span> Entity() const noexcept {</div>
-<div class="line"><a id="l00610" name="l00610"></a><span class="lineno">  610</span>        <span class="keywordflow">return</span> entity();</div>
-<div class="line"><a id="l00611" name="l00611"></a><span class="lineno">  611</span>      }</div>
-<div class="line"><a id="l00612" name="l00612"></a><span class="lineno">  612</span> </div>
-<div class="line"><a id="l00613" name="l00613"></a><span class="lineno">  613</span>      <span class="keywordtype">bool</span> operator==(<span class="keyword">const</span> WeakEntity&amp; other) <span class="keyword">const</span> <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00614" name="l00614"></a><span class="lineno">  614</span>        <span class="keywordflow">return</span> m_entity == other.entity();</div>
+<div class="line"><a id="l00609" name="l00609"></a><span class="lineno">  609</span> </div>
+<div class="line"><a id="l00610" name="l00610"></a><span class="lineno">  610</span>      GAIA_NODISCARD Entity entity() const noexcept {</div>
+<div class="line"><a id="l00611" name="l00611"></a><span class="lineno">  611</span>        <span class="keywordflow">return</span> m_entity;</div>
+<div class="line"><a id="l00612" name="l00612"></a><span class="lineno">  612</span>      }</div>
+<div class="line"><a id="l00613" name="l00613"></a><span class="lineno">  613</span>      GAIA_NODISCARD <span class="keyword">operator</span> Entity() const noexcept {</div>
+<div class="line"><a id="l00614" name="l00614"></a><span class="lineno">  614</span>        <span class="keywordflow">return</span> entity();</div>
 <div class="line"><a id="l00615" name="l00615"></a><span class="lineno">  615</span>      }</div>
-<div class="line"><a id="l00616" name="l00616"></a><span class="lineno">  616</span>    };</div>
-<div class="line"><a id="l00617" name="l00617"></a><span class="lineno">  617</span> </div>
-<div class="line"><a id="l00618" name="l00618"></a><span class="lineno">  618</span>    <span class="keyword">inline</span> <span class="keywordtype">bool</span> operator==(<span class="keyword">const</span> WeakEntity&amp; e1, Entity e2) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00619" name="l00619"></a><span class="lineno">  619</span>      <span class="keywordflow">return</span> e1.entity() == e2;</div>
-<div class="line"><a id="l00620" name="l00620"></a><span class="lineno">  620</span>    }</div>
-<div class="line"><a id="l00621" name="l00621"></a><span class="lineno">  621</span>    <span class="keyword">inline</span> <span class="keywordtype">bool</span> operator==(Entity e1, <span class="keyword">const</span> WeakEntity&amp; e2) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00622" name="l00622"></a><span class="lineno">  622</span>      <span class="keywordflow">return</span> e1 == e2.entity();</div>
-<div class="line"><a id="l00623" name="l00623"></a><span class="lineno">  623</span>    }</div>
-<div class="line"><a id="l00624" name="l00624"></a><span class="lineno">  624</span> </div>
-<div class="line"><a id="l00625" name="l00625"></a><span class="lineno">  625</span>    <span class="keyword">inline</span> <span class="keywordtype">bool</span> operator!=(<span class="keyword">const</span> WeakEntity&amp; e1, Entity e2) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00626" name="l00626"></a><span class="lineno">  626</span>      <span class="keywordflow">return</span> e1.entity() != e2;</div>
+<div class="line"><a id="l00616" name="l00616"></a><span class="lineno">  616</span> </div>
+<div class="line"><a id="l00617" name="l00617"></a><span class="lineno">  617</span>      <span class="keywordtype">bool</span> operator==(<span class="keyword">const</span> WeakEntity&amp; other) <span class="keyword">const</span> <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00618" name="l00618"></a><span class="lineno">  618</span>        <span class="keywordflow">return</span> m_entity == other.entity();</div>
+<div class="line"><a id="l00619" name="l00619"></a><span class="lineno">  619</span>      }</div>
+<div class="line"><a id="l00620" name="l00620"></a><span class="lineno">  620</span>    };</div>
+<div class="line"><a id="l00621" name="l00621"></a><span class="lineno">  621</span> </div>
+<div class="line"><a id="l00622" name="l00622"></a><span class="lineno">  622</span>    <span class="keyword">inline</span> <span class="keywordtype">bool</span> operator==(<span class="keyword">const</span> WeakEntity&amp; e1, Entity e2) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00623" name="l00623"></a><span class="lineno">  623</span>      <span class="keywordflow">return</span> e1.entity() == e2;</div>
+<div class="line"><a id="l00624" name="l00624"></a><span class="lineno">  624</span>    }</div>
+<div class="line"><a id="l00625" name="l00625"></a><span class="lineno">  625</span>    <span class="keyword">inline</span> <span class="keywordtype">bool</span> operator==(Entity e1, <span class="keyword">const</span> WeakEntity&amp; e2) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00626" name="l00626"></a><span class="lineno">  626</span>      <span class="keywordflow">return</span> e1 == e2.entity();</div>
 <div class="line"><a id="l00627" name="l00627"></a><span class="lineno">  627</span>    }</div>
-<div class="line"><a id="l00628" name="l00628"></a><span class="lineno">  628</span>    <span class="keyword">inline</span> <span class="keywordtype">bool</span> operator!=(Entity e1, <span class="keyword">const</span> WeakEntity&amp; e2) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00629" name="l00629"></a><span class="lineno">  629</span>      <span class="keywordflow">return</span> e1 != e2.entity();</div>
-<div class="line"><a id="l00630" name="l00630"></a><span class="lineno">  630</span>    }</div>
-<div class="line"><a id="l00631" name="l00631"></a><span class="lineno">  631</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00632" name="l00632"></a><span class="lineno">  632</span>  } <span class="comment">// namespace ecs</span></div>
-<div class="line"><a id="l00633" name="l00633"></a><span class="lineno">  633</span> </div>
-<div class="line"><a id="l00634" name="l00634"></a><span class="lineno">  634</span>  <span class="keyword">namespace </span>cnt {</div>
-<div class="line"><a id="l00635" name="l00635"></a><span class="lineno">  635</span>    <span class="keyword">inline</span> page_storage_id to_page_storage_id&lt;ecs::EntityContainer&gt;::get(<span class="keyword">const</span> ecs::EntityContainer&amp; item) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00636" name="l00636"></a><span class="lineno">  636</span>      <span class="keywordflow">return</span> item.idx;</div>
-<div class="line"><a id="l00637" name="l00637"></a><span class="lineno">  637</span>    }</div>
-<div class="line"><a id="l00638" name="l00638"></a><span class="lineno">  638</span>  } <span class="comment">// namespace cnt</span></div>
-<div class="line"><a id="l00639" name="l00639"></a><span class="lineno">  639</span>} <span class="comment">// namespace gaia</span></div>
+<div class="line"><a id="l00628" name="l00628"></a><span class="lineno">  628</span> </div>
+<div class="line"><a id="l00629" name="l00629"></a><span class="lineno">  629</span>    <span class="keyword">inline</span> <span class="keywordtype">bool</span> operator!=(<span class="keyword">const</span> WeakEntity&amp; e1, Entity e2) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00630" name="l00630"></a><span class="lineno">  630</span>      <span class="keywordflow">return</span> e1.entity() != e2;</div>
+<div class="line"><a id="l00631" name="l00631"></a><span class="lineno">  631</span>    }</div>
+<div class="line"><a id="l00632" name="l00632"></a><span class="lineno">  632</span>    <span class="keyword">inline</span> <span class="keywordtype">bool</span> operator!=(Entity e1, <span class="keyword">const</span> WeakEntity&amp; e2) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00633" name="l00633"></a><span class="lineno">  633</span>      <span class="keywordflow">return</span> e1 != e2.entity();</div>
+<div class="line"><a id="l00634" name="l00634"></a><span class="lineno">  634</span>    }</div>
+<div class="line"><a id="l00635" name="l00635"></a><span class="lineno">  635</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00636" name="l00636"></a><span class="lineno">  636</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l00637" name="l00637"></a><span class="lineno">  637</span> </div>
+<div class="line"><a id="l00638" name="l00638"></a><span class="lineno">  638</span>  <span class="keyword">namespace </span>cnt {</div>
+<div class="line"><a id="l00639" name="l00639"></a><span class="lineno">  639</span>    <span class="keyword">inline</span> page_storage_id to_page_storage_id&lt;ecs::EntityContainer&gt;::get(<span class="keyword">const</span> ecs::EntityContainer&amp; item) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00640" name="l00640"></a><span class="lineno">  640</span>      <span class="keywordflow">return</span> item.idx;</div>
+<div class="line"><a id="l00641" name="l00641"></a><span class="lineno">  641</span>    }</div>
+<div class="line"><a id="l00642" name="l00642"></a><span class="lineno">  642</span>  } <span class="comment">// namespace cnt</span></div>
+<div class="line"><a id="l00643" name="l00643"></a><span class="lineno">  643</span>} <span class="comment">// namespace gaia</span></div>
 <div class="ttc" id="aser__ct_8h_html_a38848ea2003a76e33f2b4e56d355a7fa"><div class="ttname"><a href="ser__ct_8h.html#a38848ea2003a76e33f2b4e56d355a7fa">gaia::ser::load</a></div><div class="ttdeci">void load(Reader &amp;reader, T &amp;data)</div><div class="ttdoc">Read data using Reader at compile-time.</div><div class="ttdef"><b>Definition</b> ser_ct.h:112</div></div>
 <div class="ttc" id="aser__ct_8h_html_afea4e9db5adcb2f65534c527ff9ac204"><div class="ttname"><a href="ser__ct_8h.html#afea4e9db5adcb2f65534c527ff9ac204">gaia::ser::save</a></div><div class="ttdeci">void save(Writer &amp;writer, const T &amp;data)</div><div class="ttdoc">Write data using Writer at compile-time.</div><div class="ttdef"><b>Definition</b> ser_ct.h:101</div></div>
 <div class="ttc" id="astructgaia_1_1cnt_1_1ilist__handle__traits_html_a09f6cc8860d12a917c39acbd92f86acb"><div class="ttname"><a href="structgaia_1_1cnt_1_1ilist__handle__traits.html#a09f6cc8860d12a917c39acbd92f86acb">gaia::cnt::ilist_handle_traits::make</a></div><div class="ttdeci">static TItemHandle make(uint32_t id, uint32_t gen, const TItemHandle &amp;prev)</div><div class="ttdoc">Rebuilds a handle after its generation changes.</div><div class="ttdef"><b>Definition</b> ilist.h:497</div></div>
