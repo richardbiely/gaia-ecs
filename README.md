@@ -123,6 +123,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Priorities](#priorities)
     * [Threads](#threads)
     * [Scheduler adapters](#scheduler-adapters)
+    * [Migrating query jobs from 1.0.0](#migrating-query-jobs-from-100)
   * [Customization](#customization)
     * [Logging](#logging)
 * [Requirements](#requirements)
@@ -2508,7 +2509,7 @@ Resorting is triggered automatically any time the query matches a new archetype,
 
 ### Parallel execution
 
-Queries can make use of [mulithreading](#multithreading). By default, all queries are handles by the thread that iterates the query. However, it is possible to execute them by multiple threads at once simply by providing the right `ecs::QueryExecType` parameter.
+Queries run on the calling thread by default. Pass `ecs::QueryExecType::Parallel` to split one query across workers. `each()` waits for the work to finish before returning.
 
 ```cpp
 // Ordinary single-thread query (default)
@@ -2525,7 +2526,38 @@ q.each([](ecs::Iter& iter) { ... }, ecs::QueryExecType::ParallelEff);
 
 Not only is multi-threaded execution possible, but you can also influence what kind of cores actually run your logic. Maybe you want to limit your system's power consumption in which case you target only the efficiency cores. Or, if you want maximum performance, you can easily have all your system's cores participate.
 
-For dependency-aware deferred execution, add the query as a scheduler job with `Query::job(...)` and wire the returned `ecs::SchedJob` before submitting it. See [scheduler adapters](#scheduler-adapters).
+`QueryExecType::Parallel` splits one query across workers while the calling thread keeps the World lock. Do not call `.each()` on the same World from two user threads at once. Even disjoint queries share the World version and the structural-change lock.
+
+### Running several queries
+
+Use `ecs::QueryJobBatch` when several queries need to run together. Register the work with `add()`, declare necessary ordering with `dep()`, then call `run()`. You do not submit, wait for or delete individual jobs.
+
+```cpp
+// Position and Velocity are application components with an x field.
+auto moveQuery = w.query().all<Position&>().all<const Velocity&>();
+auto boundsQuery = w.query().all<Position&>();
+ecs::QueryJobBatch batch(w);
+
+auto move = batch.add(moveQuery, [](Position& p, const Velocity& v) {
+  p.x += v.x;
+}, ecs::QueryExecType::Parallel);
+auto bounds = batch.add(boundsQuery, [](Position& p) {
+  if (p.x < 0)
+    p.x = 0;
+});
+const bool linked = batch.dep(move, bounds);
+GAIA_ASSERT(linked);
+const auto result = batch.run();
+GAIA_ASSERT(result == ecs::QueryJobBatch::Result::Completed);
+```
+
+`dep(move, bounds)` means the first query and its effects finish before the second query is matched and executed. Independent registrations can run concurrently. `run()` waits for the whole batch and returns its result. Register once and call `run()` again for each update.
+
+Keep the queries and World alive and at stable addresses while the batch exists. Declare queries before the batch, as above. Callbacks use copies of the registered callable on each run. Store persistent state outside those copies. Declare all component reads and writes, including accesses through captured objects.
+
+The application code is the same with a custom scheduler. Install its adapter with `w.set_sched(...)` and keep using the batch. Direct `job()` and `QueryJobScope` are only needed when your application must manage individual scheduler jobs itself.
+
+See the runnable [query jobs example](src/examples/example_query_jobs) for parallel iteration, dependent queries and an external scheduler. See [query batch details](#query-batch-details) for result handling and optional scheduling controls, or [manual query jobs](#manual-query-jobs) for low-level integration.
 
 ## Relationships
 ### Relationship basics
@@ -4449,7 +4481,11 @@ Relocation into raw AoS storage uses `mem::move_ctor_elements`, which constructs
 
 ### Worlds, threads, and allocation arenas
 
-Do not mutate the same World from two threads at once. Running queries and systems in parallel inside one World is fine.
+Do not mutate the same World from two threads at once. That includes calling `Query::each()` or `System::exec()` on one World from two threads, even when the queries match disjoint components.
+
+`QueryExecType::Parallel` splits one query across workers under a coordinator-held World lock. Use `ecs::QueryJobBatch` to register multiple queries and dependencies, then call `run()` on the coordinator. It owns job preparation, submission and completion, and applies deferred effects before preparing the next visibility phase. Concurrent callbacks must have compatible component access.
+
+For manual scheduler integration, `Query::job()` prepares work eagerly on the coordinator and `ecs::QueryJobScope` groups its completion effects. Neither API makes arbitrary concurrent `each()` calls or concurrent job preparation safe. See [scheduler adapters](#scheduler-adapters) for both workflows.
 
 `mem::SmallBlockAllocator`, `ecs::ChunkAllocator`, and `mem::PagedAllocator` are shared by every World in the process and are not locked by default.
 
@@ -4779,29 +4815,90 @@ w.system().all<Velocity>().mode(ecs::QueryExecType::Parallel).on_each([](Velocit
 });
 ```
 
-Queries and systems can also be added as scheduler-owned work without submitting immediately. This is useful when an engine wants to wire dependencies in its own job graph and wait once at the end of a phase:
+### Migrating query jobs from 1.0.0
+
+The query-job changes below are **behaviorally breaking compared with 1.0.0**, even though existing `query.job(callback, mode)` calls still compile. Ordinary synchronous `each()` usage, including blocking parallel `each()`, does not require migration. `QueryJobBatch` is optional, not a requirement for every ECS job.
+
+- **Matching happens at preparation time.** In 1.0.0, `Default` jobs entered `each()` when executed. Some parallel query paths also used that fallback. All query jobs now select their rows and evaluate changed filters when `job()` is called on the coordinator. Component values remain live, not copied. A dependency between already-created `SchedJob` objects only orders execution. It does not refresh the successor's matches.
+- **Default jobs protect World structure earlier.** Nonempty jobs now hold structural protection from preparation through cleanup, including `Default` jobs. Finish setup before creating jobs. Prepare overlapping jobs before submitting any, then submit, wait and delete them on the coordinator. Do not change World structure or execute nested queries from their callbacks. The 1.0.0 API already warned against structural changes that invalidate a pending query.
+- **Empty Default jobs no longer create a deferred task.** A query with no matching rows returns an invalid job at preparation time. Use the optional `QueryJobStatus*` argument to distinguish `Empty` from `InvalidMode`, `UnsupportedScheduler` or `MissingOverride`.
+- **Deferred jobs require deferred scheduler support.** The 1.0.0 eager fallback through `sched` or `sched_par` is no longer used by `Query::job()`. Custom adapters need `add` for Default jobs or `add_par` for parallel jobs, plus `submit`, `wait` and `del`. Eager-only adapters can still serve blocking parallel `each()`.
+- **Waiting for one job may not publish its effects yet.** Chunk change versions, observer notifications and structural commands remain deferred while sibling jobs or enclosing locks protect the World. Do not rely on an individual wait to make these effects visible while other jobs are pending.
+- **Iterator command buffers are work-item local inside prepared jobs.** `it.cmd_buffer_st()` no longer selects the shared World buffer there. Record commands in it and let coordinator completion replay them. Preregister component types used by worker commands, and keep temporary entity IDs within the buffer that created them. Outside prepared jobs, this API still selects the World's buffer. `it.cmd_buffer_mt()` remains shared.
+- **Inherited writable arguments need local overrides.** Prepared typed jobs reject missing local overrides with `MissingOverride` rather than creating them during worker execution. Create the overrides before preparation, or stage them through a predecessor's command buffer and prepare the writable query after those commands have been applied.
+
+For dependent queries, the recommended migration is [registering a `QueryJobBatch`](#running-several-queries) with `add()`, expressing effects-visible ordering with `dep()`, then calling `run()`. The batch prepares each successor after its prerequisites and their deferred effects complete. It also owns submission, waits and cleanup. Use [manual query jobs](#manual-query-jobs) and the new `QueryJobScope` only when the application needs to own individual job handles.
+
+### Query batch details
+
+Start with [running several queries](#running-several-queries). The following details cover reusable registrations, failure handling and advanced scheduling choices.
+
+`add(query, callback, mode = QueryExecType::Default)` copies the callback and returns a batch-local handle. It does not match the query or lock the World. The batch owns callbacks and execution jobs, not the queries or World. Keep those objects alive and at stable addresses for the batch's lifetime. Each run reads the queries' current configuration and uses fresh callback copies. Store persistent application state outside those copies.
+
+- `dep(first, second)` completes the first job and applies its deferred effects before matching the second query. Use this when structural commands, observer reactions or changed filters must be visible to the successor.
+- `barrier()` separates all earlier registrations from subsequent registrations. Later queries are prepared after earlier groups complete and apply their effects.
+- `run()` synchronously prepares each phase, wires dependencies, submits work, waits and deletes its jobs. No work survives the call. The batch can be run again.
+
+Declared query access conflicts add payload-order dependencies automatically. Explicit dependencies take precedence over registration order. Unordered conflicting registrations follow registration order. Access through captured objects or undeclared World lookups remains the application's responsibility. A query marked `main_thread()` runs synchronously on the calling coordinator in its own phase, with completion boundaries before and after it, regardless of the requested execution mode.
+
+Use batch methods only on the coordinator, not from scheduler workers. Do not overlap `run()` with unrelated prepared jobs on the same World. Worker registrations require `submit`, `wait` and `del`, with `add` for `Default` execution and `add_par` for parallel execution. The scheduler needs `dep` only when the plan has dependencies within one phase, including inferred access conflicts. Visibility boundaries do not require it. Main-thread-only batches need no scheduler callbacks. These requirements are checked before preparing jobs and conservatively include registrations that match no rows.
+
+`run()` reports `Completed` even when registered queries match no rows. `Empty` means there are no registrations. Check other results such as `Busy`, `Cycle`, `WrongWorld`, `UnsupportedScheduler` and `PreparationFailed` instead of treating them as empty work. For `PreparationFailed`, `batch.failure()` identifies the rejected registration and its `QueryJobStatus`:
 
 ```cpp
-ecs::Query moveQuery = w.query().all<Position>().all<Velocity>();
-ecs::Query boundsQuery = w.query().all<Position>();
-
-auto moveJob = moveQuery.job([](ecs::Iter& it) {
-  // ... some work
-}, ecs::QueryExecType::Parallel);
-
-auto boundsJob = boundsQuery.job([](ecs::Iter& it) {
-  // ... some work
-}, ecs::QueryExecType::Parallel);
-
-boundsJob.dep(moveJob);
-moveJob.submit();
-boundsJob.submit();
-
-moveJob.wait();
-boundsJob.wait();
+if (batch.run() == ecs::QueryJobBatch::Result::PreparationFailed) {
+  const auto failure = batch.failure();
+  // failure.handle.index identifies the registration returned by add().
+  if (failure.status == ecs::QueryJobStatus::MissingOverride) {
+    // Create the required local overrides before retrying the batch.
+  }
+}
 ```
 
-`SchedJob` is move-only and owns the scheduler token plus the small cleanup context Gaia-ECS needs to keep callbacks and chunk batches alive until completion. Parallel `ecs::Iter&` callbacks and typed callbacks both add parallel-for work directly when the query can be split into chunk batches; entity-seeded and grouped paths may still fall back to one added task.
+The diagnostic is cleared at the start of each non-busy run. A `Busy` attempt preserves it. Its status is meaningful only when `failure.handle.owner` is non-null. Graph and scheduler errors have no query-preparation diagnostic. A preparation failure can occur after earlier phases have already completed and does not roll them back. Invalid execution modes are rejected before any callbacks run, including for main-thread registrations. Dependency methods return `false` for invalid handles or mutation during a run. Backward dependencies across a barrier are rejected as cycles.
+
+#### Payload-only dependencies
+
+Use `dep()` by default. As an optimization, `dep_payload(first, second)` orders callback execution without requiring an effects-visibility boundary. Both queries can be prepared against the same World state. The successor can read updated component values, but the edge does not refresh its matching or changed filters, or deliver prerequisite commands and observer reactions. Use this only when those effects are not needed by the successor.
+
+### Manual query jobs
+
+An external scheduler does not require this lower-level API. Keep using `QueryJobBatch` unless your application needs to own individual scheduler jobs. For manual integration, queries and systems can instead be added as scheduler-owned work without submitting immediately. Use `ecs::QueryJobScope` to group completion effects while retaining ownership of the job wrappers:
+
+```cpp
+auto positions = w.query().all<Position&>();
+auto velocities = w.query().all<Velocity&>();
+ecs::QueryJobScope scope(w);
+ecs::QueryJobStatus status;
+auto positionJob = positions.job([](Position& p) { p.x += 1; },
+    ecs::QueryExecType::Default, &status);
+auto velocityJob = velocities.job([](Velocity& v) { v.x += 1; });
+positionJob.submit();
+velocityJob.submit();
+positionJob.wait();
+velocityJob.wait();
+const bool finished = scope.finish();
+GAIA_ASSERT(finished);
+// Check status if positionJob is invalid to distinguish empty work from failure.
+```
+
+`SchedJob` is move-only and owns its scheduler token and prepared callback state. `Query::job(callback, execType = QueryExecType::Default, status = nullptr)` eagerly prepares matching, enabled rows, sorting and changed filters on the coordinator. This snapshots row membership and callback metadata, not component values. For manual dependencies, call `successor.dep(prerequisite)` before submission. Such an edge orders execution but cannot make an already prepared query match newly added rows or newly changed chunks. Unlike the owning batch's `dep()`, it does not create a new matching phase.
+
+The optional third argument is an `ecs::QueryJobStatus*`. `Ready` means a job was prepared. `Empty` returns an invalid job because there are no matching rows. `InvalidMode`, `UnsupportedScheduler` and `MissingOverride` also return invalid jobs, but indicate failure rather than empty work. An unavailable or incomplete deferred scheduler is rejected without consuming changed-filter state.
+
+`Default` adds one serial worker task over the prepared set. Parallel modes expose parallel-for work. Grouped, selected-group, sorted, entity-seeded, sparse and inherited query paths also execute prepared work rather than entering `each()` on a worker. Parallel callbacks do not preserve sorted or grouped callback order.
+
+`QueryJobScope` enrolls jobs prepared while it is active and holds the structural lock. Prepare all overlapping jobs before submitting any. Submit, wait and delete wrappers on the coordinator. After every enrolled job has been waited for or cancelled with `del()`, `finish()` releases the scope's lock and finalizes the scope. It returns `false` while an enrolled job remains unfinished. Effects are applied in preparation order only when no enclosing structural lock remains. A `true` result therefore does not guarantee visibility under an enclosing lock. Finish before destroying the scope. It does not own, submit or wait for your jobs. Without a scope, coordinator waits or deletions finalize jobs, but deferred effects wait until other prepared jobs release the World's structural locks. Waiting for one job alone is not a structural visibility boundary while sibling jobs still hold those locks.
+
+Keep queries, shared caches, callback context and World alive and structurally unchanged while jobs are prepared. Concurrent callbacks must have compatible component access. Do not mutate World structure directly, execute nested queries or prepare jobs concurrently. These APIs do not support arbitrary concurrent `each()` calls on one World.
+
+**Recording structural changes in jobs**
+
+Inside a prepared query callback, `it.cmd_buffer_st()` returns a private command buffer for that prepared work item, including in parallel modes. Record `add`, `set`, `del`, copy or instantiate commands there instead of changing World structure directly. Commands are replayed on the coordinator at a safe completion boundary. Within a scope or batch phase, replay follows job preparation order and then prepared range order, not worker completion order. Unscoped jobs replay in coordinator finalization order, then prepared range order. Do not commit the buffer from a worker. Outside prepared jobs, `it.cmd_buffer_st()` still returns the World's single-threaded buffer. `it.cmd_buffer_mt()` remains the shared World multi-threaded buffer.
+
+Register every component type used by worker commands on the coordinator before preparing jobs, for example with `w.add<Position>()`. Recording a command must not register a new type while workers are running. Temporary entity IDs belong only to the buffer that created them. Use them only in subsequent commands in that same buffer, not in another job or range, a captured cross-worker list or a direct World lookup. Do not retain a private buffer or its temporary IDs for a later run.
+
+Typed inherited reads bind their component owners during preparation. Writable inherited callback arguments require preexisting local overrides for every affected entity, in both archetype/chunk and sparse storage. A job needing a missing override is rejected with `MissingOverride`. Create overrides on the coordinator before preparing work, or record an explicit `add` or `set` through an iterator's command buffer and put the writable query in a later batch phase using `dep()` or `barrier()`. Use `add` when attaching a missing component. `set` requires the component to exist, possibly through inheritance, and can stage a local override. A staged command does not provide a writable reference inside the recording callback. The local override must already exist when the writable job is prepared.
 
 For a fully deferred external scheduler, implement `add` / `add_par`, `submit`, `dep`, `wait`, and `del`. If only `sched` / `sched_par` are provided, Gaia-ECS can still run blocking parallel query/system execution through the adapter, but `Query::job(...)` / `System::job()` cannot produce truly deferred dependency-ready work because the scheduler has no separate add step.
 
@@ -5023,6 +5120,7 @@ Project name | Description
 [Standalone](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1)|A dummy example showing how to use the framework in a standalone project.
 [DLL](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/app)|A dummy example showing how to use the framework as a dynamic library that is used by an executable.
 [Basic](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2)|Simple example using some basic features of the framework.
+[Query jobs](src/examples/example_query_jobs)|Parallel iteration and dependent query batches. Runs the same batch with Gaia's scheduler and a small external scheduler adapter, with no manual job management in application code.
 [Roguelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike)|Playable five-floor dungeon demonstrating application architecture, systems, phases, prefabs, relationships, change detection, command buffers, and deterministic collision. See the [example README](https://github.com/richardbiely/gaia-ecs/blob/main/src/examples/example_roguelike/README.md).
 [WASM](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_wasm)|WebAssembly example that runs in the browser and now includes a lightweight Explorer-style UI for inspecting entities/components in real time.
 

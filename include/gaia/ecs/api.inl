@@ -183,6 +183,8 @@ namespace gaia {
 		// CommandBuffer API
 
 		GAIA_NODISCARD inline CommandBufferST& cmd_buffer_st_get(World& world) {
+			if (auto* buffer = detail::defer_query_cmd_buffer(world))
+				return *buffer;
 			return world.cmd_buffer_st();
 		}
 
@@ -193,6 +195,7 @@ namespace gaia {
 		inline void commit_cmd_buffer_st(World& world) {
 			if (world.locked())
 				return;
+			detail::defer_query_jobs_drain(world, nullptr);
 			cmd_buffer_commit(world.cmd_buffer_st());
 		}
 

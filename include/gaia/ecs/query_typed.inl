@@ -1375,20 +1375,6 @@ namespace gaia {
 				}
 			}
 
-#if GAIA_ASSERT_ENABLED
-			template <typename Func>
-			inline void QueryImpl::validate_typed_access() {
-				using InputArgs = decltype(core::func_args(&Func::operator()));
-
-				auto& queryInfo = fetch();
-				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
-				const auto argCount = init_typed_query_arg_metas(metas, *queryInfo.world(), InputArgs{});
-				GAIA_FOR(argCount) {
-					GAIA_ASSERT(ChunkIterImpl::allows_term_access(queryInfo.ctx().data, metas[i].termId, false));
-				}
-			}
-#endif
-
 			template <QueryExecType ExecType, typename Func>
 			inline void QueryImpl::each_typed_inter(QueryInfo& queryInfo, Func func) {
 				using InputArgs = decltype(core::func_args(&Func::operator()));
@@ -1536,6 +1522,323 @@ namespace gaia {
 						each_iter_inter_erased<QueryExecType::Default>(
 								queryInfo, plan, pFunc, state, runDirectFastChunk, runMappedChunk);
 						break;
+				}
+			}
+
+			//! Runs typed arguments over a coordinator-filtered row range without query matching.
+			//! \tparam Func Typed callback.
+			//! \tparam T Callback argument types.
+			//! \param it Prepared iterator.
+			//! \param func Callback copy local to this scheduler invocation.
+			//! \param state Coordinator-prepared argument metadata and sparse store bindings.
+			//! \param types Callback type list.
+			template <typename Func, typename... T>
+			inline void run_prepared_typed_chunk(
+					Iter& it, Func& func, const TypedQueryExecState& state, core::func_type_list<T...> types) {
+				if constexpr (typed_query_args_use_sparse_storage_v<T...>) {
+					if (state.canUseSparseChunkEval) {
+						run_typed_sparse_chunk_rows(
+								const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), func, state, types);
+						finish_typed_chunk_state(*it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
+						return;
+					}
+				}
+
+				run_typed_chunk_views(
+						nullptr, it, &func, state.canUseDirectChunkEval, noop_row_done,
+						&invoke_typed_query_row_erased<
+								Func, std::tuple<decltype(std::declval<Iter&>().template sview_auto<T>())...>, T...>,
+						&invoke_typed_query_row_erased<
+								Func, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>, T...>,
+						types);
+				finish_typed_chunk_state(*it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
+				it.clear_touched_writes();
+			}
+
+			//! Resolves one payload owner on the coordinator, never on a worker.
+			//! \tparam T Callback argument type.
+			//! \tparam W World type.
+			//! \param world Owning world.
+			//! \param entity Matched entity.
+			//! \param state Bound argument metadata.
+			//! \param index Argument index.
+			//! \return Resolved source, with relative rows for direct table payloads.
+			template <typename T, typename W>
+			inline QueryImpl::QueryJobArgData
+			prepare_job_typed_arg(W& world, Entity entity, const TypedQueryExecState& state, uint32_t index) {
+				QueryImpl::QueryJobArgData out{};
+				using U = typename actual_type_t<T>::Type;
+				if constexpr (!std::is_same_v<U, Entity>) {
+					auto owner = entity;
+					if (!world.has_direct(owner, state.argIds[index])) {
+						for (auto target: world.as_targets_trav_cache(entity)) {
+							if (world.has_direct(target, state.argIds[index])) {
+								owner = target;
+								break;
+							}
+						}
+					}
+
+					const auto& ec = world.fetch(owner);
+					out.chunk = ec.pChunk;
+					out.row = ec.row;
+					if constexpr (uses_ct_sparse_storage_v<T>)
+						out.sparseData = world_typed_sparse_store_try_get<U>(state.sparseStores[index], owner);
+					else
+						out.rowRelative = owner == entity;
+				}
+
+				return out;
+			}
+
+			//! Appends one binding per argument, expanding only row-varying sparse sources.
+			//! Fragmenting inherited sources share an owner throughout the chunk. Non-fragmenting
+			//! sparse overrides can differ per entity and must be resolved before workers start.
+			//! \tparam W World type.
+			//! \tparam T Callback argument types.
+			//! \tparam I Argument indices.
+			//! \param world Owning world.
+			//! \param batch Prepared chunk range.
+			//! \param state Bound argument metadata.
+			//! \param out Owned binding buffer. Offsets survive reallocation.
+			template <typename W, typename Batch, typename... T, size_t... I>
+			inline void prepare_job_typed_args(
+					W& world, const Batch& batch, const TypedQueryExecState& state, cnt::darray<QueryImpl::QueryJobArgData>& out,
+					core::func_type_list<T...>, std::index_sequence<I...>) {
+				const auto start = (uint32_t)out.size();
+				out.resize(start + sizeof...(T));
+				const auto entities = batch.pChunk->entity_view();
+				(([&]() {
+					 out[start + I] = prepare_job_typed_arg<T>(world, entities[batch.from], state, I);
+					 if constexpr (uses_ct_sparse_storage_v<T>) {
+						 const bool perRow =
+								 world.has(state.argIds[I], DontFragment) || world.has_direct(entities[batch.from], state.argIds[I]);
+						 if (perRow && batch.to - batch.from > 1) {
+							 const auto first = (uint32_t)out.size();
+							 out.resize(first + batch.to - batch.from);
+							 out[first] = out[start + I];
+							 out[start + I].rowBindingOffset = first - (start + I);
+							 for (uint32_t row = batch.from + 1; row < batch.to; ++row)
+								 out[first + row - batch.from] = prepare_job_typed_arg<T>(world, entities[row], state, I);
+						 }
+					 }
+				 }()),
+				 ...);
+			}
+
+			//! Reads an already-resolved payload without world/cache access or structural writes.
+			//! \tparam T Callback argument type.
+			//! \param entity Matched entity for Entity arguments.
+			//! \param binding Coordinator-resolved payload source.
+			//! \param rowOffset Row relative to the prepared range start.
+			//! \return Typed callback argument.
+			template <typename T>
+			inline decltype(auto)
+			job_typed_arg(Entity entity, const QueryImpl::QueryJobArgData& binding, uint32_t rowOffset) {
+				const auto& arg = binding.rowBindingOffset != 0 ? (&binding)[binding.rowBindingOffset + rowOffset] : binding;
+				using U = typename actual_type_t<T>::Type;
+				using Original = typename actual_type_t<T>::TypeOriginal;
+				if constexpr (std::is_same_v<U, Entity>) {
+					return entity;
+				} else if constexpr (uses_ct_sparse_storage_v<T>) {
+					GAIA_ASSERT(arg.sparseData != nullptr);
+					if constexpr (core::is_mut_v<Original>)
+						return *static_cast<U*>(const_cast<void*>(arg.sparseData));
+					else
+						return *static_cast<const U*>(arg.sparseData);
+				} else {
+					const auto row = (uint16_t)(arg.row + (arg.rowRelative ? rowOffset : 0));
+					auto view = arg.chunk->template sview_auto<T>(row, (uint16_t)(row + 1));
+					return typed_direct_chunk_arg_at<T>(view, 0, row);
+				}
+			}
+
+			//! Invokes typed rows using immutable coordinator bindings.
+			//! \tparam Func Callback type.
+			//! \tparam T Callback arguments.
+			//! \tparam I Argument indices.
+			//! \param it Prepared range.
+			//! \param func Worker-local callback copy.
+			//! \param args Per-argument payload bindings and optional sparse row arrays.
+			template <typename Func, typename... T, size_t... I>
+			inline void run_job_typed_args(
+					Iter& it, Func& func, const QueryImpl::QueryJobArgData* args, core::func_type_list<T...>,
+					std::index_sequence<I...>) {
+				const auto entities = it.chunk()->entity_view();
+				for (uint32_t row = it.row_begin(); row < it.row_end(); ++row) {
+					func(job_typed_arg<T>(entities[row], args[I], row - it.row_begin())...);
+				}
+			}
+
+			//! Deduces argument indices for coordinator preparation.
+			template <typename W, typename Batch, typename... T>
+			inline void prepare_job_typed_args(
+					W& world, const Batch& batch, const TypedQueryExecState& state, cnt::darray<QueryImpl::QueryJobArgData>& out,
+					core::func_type_list<T...> types) {
+				prepare_job_typed_args(world, batch, state, out, types, std::index_sequence_for<T...>{});
+			}
+
+			//! Deduces argument indices for prepared worker dispatch.
+			template <typename Func, typename... T>
+			inline void run_job_typed_args(
+					Iter& it, Func& func, const QueryImpl::QueryJobArgData* args, core::func_type_list<T...> types) {
+				run_job_typed_args(it, func, args, types, std::index_sequence_for<T...>{});
+			}
+
+			template <typename Func>
+			inline SchedJob QueryImpl::job(Func func, QueryExecType execType, QueryJobStatus* status) {
+				if (status != nullptr)
+					*status = QueryJobStatus::InvalidMode;
+				if (execType != QueryExecType::Default && execType != QueryExecType::Parallel &&
+						execType != QueryExecType::ParallelPerf && execType != QueryExecType::ParallelEff)
+					return {};
+
+				// Prepared execution must never use the scheduler's eager fallback.
+				if (status != nullptr)
+					*status = QueryJobStatus::UnsupportedScheduler;
+				const auto& scheduler = sched_resolve(world_sched(*m_storage.world()));
+				if (scheduler.submit == nullptr || scheduler.wait == nullptr || scheduler.del == nullptr)
+					return {};
+
+				if (execType == QueryExecType::Default ? scheduler.add == nullptr : scheduler.add_par == nullptr)
+					return {};
+
+				auto& queryInfo = fetch();
+				match_all(queryInfo);
+				const auto plan = prepare_query_plan(queryInfo, Constraints::EnabledOnly);
+
+				const auto addPrepared = [&](auto callback, const TypedQueryExecState* typedState = nullptr,
+																		 void (*prepareArgs)(
+																				 World&, const ChunkBatch&, const TypedQueryExecState&,
+																				 cnt::darray<QueryJobArgData>&) = nullptr) -> SchedJob {
+					if (plan.mode == QueryPlanMode::Empty) {
+						if (status != nullptr)
+							*status = QueryJobStatus::Empty;
+						m_changedWorldVersion = *m_worldVersion;
+						return {};
+					}
+
+					::gaia::ecs::update_version(*m_worldVersion);
+					m_batches.clear();
+
+					if (plan.mode == QueryPlanMode::EntitySeed) {
+						DirectQueryScratchScope scratchScope;
+						auto& world = *m_storage.world();
+						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratchScope.scratch);
+						for (auto entity: scratchScope.scratch.entities) {
+							if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly))
+								continue;
+							if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+								continue;
+
+							const auto& ec = ::gaia::ecs::fetch(world, entity);
+							// Preserve seed order while joining adjacent typed rows from the same chunk.
+							if (typedState != nullptr && !m_batches.empty()) {
+								auto& previous = m_batches.back();
+								if (previous.pChunk == ec.pChunk && previous.to == ec.row) {
+									previous.to = (uint16_t)(ec.row + 1);
+									continue;
+								}
+							}
+							m_batches.push_back(
+									{ec.pArchetype, ec.pChunk, nullptr, queryInfo.inherited_data_view(ec.pArchetype), 0, ec.row,
+									 (uint16_t)(ec.row + 1)});
+						}
+					} else if ((plan.flags & QueryPlanFlag_Filtered) != 0)
+						collect_runtime_parallel_batches<true>(queryInfo, plan, Constraints::EnabledOnly);
+					else
+						collect_runtime_parallel_batches<false>(queryInfo, plan, Constraints::EnabledOnly);
+
+					// Missing inherited overrides are rejected for both table and sparse storage.
+					// Preparation may run while sibling jobs already pin chunks, so materializing
+					// overrides here would invalidate their bindings (or reallocate sparse stores).
+					if (typedState != nullptr && typedState->hasInheritedTerms && typedState->hasWriteArgs) {
+						for (const auto& batch: m_batches) {
+							for (uint32_t row = batch.from; row < batch.to; ++row) {
+								const auto entity = batch.pChunk->entity_view()[row];
+								for (uint32_t i = 0; i < typedState->argCount; ++i) {
+									if (typedState->writeFlags[i] &&
+											!world_has_entity_term_direct(*m_storage.world(), entity, typedState->argIds[i])) {
+
+										m_batches.clear();
+										if (status != nullptr)
+											*status = QueryJobStatus::MissingOverride;
+										return {};
+									}
+								}
+							}
+						}
+					}
+
+					const bool empty = m_batches.empty();
+					SchedJob out;
+					using Callback = decltype(callback);
+					switch (execType) {
+						case QueryExecType::Default:
+							out = add_parallel_query_job<Callback, IterModeEnabled, QueryExecType::Default>(
+									GAIA_MOV(callback), queryInfo, typedState != nullptr ? typedState->argCount : 0, typedState,
+									prepareArgs);
+							break;
+						case QueryExecType::Parallel:
+							out = add_parallel_query_job<Callback, IterModeEnabled, QueryExecType::Parallel>(
+									GAIA_MOV(callback), queryInfo, typedState != nullptr ? typedState->argCount : 0, typedState,
+									prepareArgs);
+							break;
+						case QueryExecType::ParallelPerf:
+							out = add_parallel_query_job<Callback, IterModeEnabled, QueryExecType::ParallelPerf>(
+									GAIA_MOV(callback), queryInfo, typedState != nullptr ? typedState->argCount : 0, typedState,
+									prepareArgs);
+							break;
+						case QueryExecType::ParallelEff:
+							out = add_parallel_query_job<Callback, IterModeEnabled, QueryExecType::ParallelEff>(
+									GAIA_MOV(callback), queryInfo, typedState != nullptr ? typedState->argCount : 0, typedState,
+									prepareArgs);
+							break;
+					}
+					if (status != nullptr)
+						*status = empty ? QueryJobStatus::Empty : QueryJobStatus::Ready;
+					return out;
+				};
+
+				if constexpr (detail::is_query_iter_callback_v<Func>) {
+					return addPrepared(
+							[func = GAIA_MOV(func), pInfo = &queryInfo, ctx = m_ctx](Iter& it, const QueryJobArgData*) mutable {
+								it.ctx(ctx);
+#if GAIA_ASSERT_ENABLED
+								it.set_query_access(&pInfo->ctx().data);
+#else
+								(void)pInfo;
+#endif
+								func(it);
+							});
+				} else {
+					using InputArgs = decltype(core::func_args(&Func::operator()));
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
+#endif
+					TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
+					const auto argCount = init_typed_query_arg_metas(metas, *m_storage.world(), InputArgs{});
+					auto state = build_typed_query_exec_state(*m_storage.world(), queryInfo, metas, argCount);
+
+					if constexpr (typed_query_arg_list_uses_sparse_storage_v<InputArgs>)
+						bind_typed_sparse_stores(state, *m_storage.world(), InputArgs{});
+
+					return addPrepared(
+							[func = GAIA_MOV(func), pInfo = &queryInfo, ctx = m_ctx, state](Iter& it, const QueryJobArgData* args) mutable {
+								it.ctx(ctx);
+#if GAIA_ASSERT_ENABLED
+								it.set_query_access(&pInfo->ctx().data);
+#else
+								(void)pInfo;
+#endif
+								if (args != nullptr) {
+									run_job_typed_args(it, func, args, InputArgs{});
+									finish_typed_chunk_state(*it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
+								} else run_prepared_typed_chunk(it, func, state, InputArgs{});
+							},
+							&state, state.hasInheritedTerms ? +[](World& world, const ChunkBatch& batch, const TypedQueryExecState& bound, cnt::darray<QueryJobArgData>& out) {
+								prepare_job_typed_args(world, batch, bound, out, InputArgs{});
+							} : nullptr);
 				}
 			}
 

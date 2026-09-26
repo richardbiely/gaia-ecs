@@ -17,6 +17,9 @@ namespace gaia {
 		struct EntityContainer;
 		struct Entity;
 
+		//! Outcome of preparing a query job. Empty matches are not a preparation failure.
+		enum class QueryJobStatus : uint8_t { Ready, Empty, InvalidMode, UnsupportedScheduler, MissingOverride };
+
 		// Component API
 
 		const ComponentCache& comp_cache(const World& world);
@@ -124,8 +127,20 @@ namespace gaia {
 
 		// Locking API
 
+		//! Locks \a world against structural changes.
+		//! Nested locks from the same thread are allowed.
+		//! \param world World to lock.
+		//! \warning Not thread-safe. Two threads must not lock the same World at once.
+		//!          That includes two threads calling Query::each() even on disjoint queries.
 		void lock(World& world);
+
+		//! Unlocks \a world for structural changes.
+		//! \param world World to unlock.
 		void unlock(World& world);
+
+		//! Checks if \a world is locked for structural changes.
+		//! \param world World to inspect.
+		//! \return True while at least one structural-change lock is held. False otherwise.
 		bool locked(const World& world);
 
 #if GAIA_OBSERVERS_ENABLED
@@ -159,14 +174,92 @@ namespace gaia {
 		void world_defer_parallel_begin(World& world, uint32_t itemCount);
 		void world_defer_parallel_end(World& world);
 
+		namespace detail {
+			//! Opaque deferred effects retained until the owning completion boundary.
+			struct DeferredQueryJob;
+			//! Returns the current work item's private command buffer, or null outside a prepared job.
+			//! \param world World owning the requested commands.
+			//! \return Lazily allocated, reusable work-item buffer.
+			CommandBufferST* defer_query_cmd_buffer(World& world);
+
+			//! Records a prepared worker's chunk-version write for coordinator completion.
+			//! \param world World owning the pinned chunk.
+			//! \param versions Chunk version array, with the entity version at index zero.
+			//! \param component Component index within the chunk.
+			//! \param version Version to publish after joining.
+			//! \return False outside a prepared job for this World.
+			bool defer_chunk_version(World& world, uint32_t* versions, uint32_t component, uint32_t version);
+
+			//! Opens a coordinator-owned job region and allocates disjoint work-item queues.
+			//! \param world Owning world.
+			//! \param itemCount Number of independently scheduled work items.
+			//! \return Stable job-owned queues, recycled after the completion boundary.
+			DeferredQueryJob* defer_query_job_begin(World& world, uint32_t itemCount);
+
+			//! Completes one job on the coordinator or retains effects for its explicit batch.
+			//! \param world Owning world.
+			//! \param job Completed job whose effects are ready.
+			void defer_query_job_end(World& world, DeferredQueryJob* job);
+			//! Drains completed jobs in list order and recycles their queues.
+			//! \param world Owning world.
+			//! \param head First completed job in the boundary, or null for empty work.
+			void defer_query_jobs_drain(World& world, DeferredQueryJob* head);
+
+			//! One thread-local binding for both legacy parallel regions and prepared jobs.
+			struct DeferContext {
+				uint32_t slot = BadDeferSlot;
+				DeferredQueryJob* job = nullptr;
+			};
+
+			//! Returns the calling thread's deferral binding.
+			inline DeferContext& defer_context_ref() {
+				static thread_local DeferContext ctx;
+				return ctx;
+			}
+
+			//! Returns the current worker's job binding, independently of coordinator counters.
+			//! \return Thread-local binding, null outside prepared job callbacks.
+			inline DeferredQueryJob*& defer_query_job_ref() {
+				return defer_context_ref().job;
+			}
+		} // namespace detail
+
+		//! Explicit coordinator-owned completion boundary for query jobs created within this scope.
+		//! Prepare all jobs before submitting any. Wait or delete every job before finishing the scope.
+		//! The World must outlive this non-movable scope. Nested scopes on one World are not supported.
+		class QueryJobScope final {
+			friend class World;
+			friend detail::DeferredQueryJob* detail::defer_query_job_begin(World&, uint32_t);
+			friend void detail::defer_query_job_end(World&, detail::DeferredQueryJob*);
+
+			World* m_world;
+			detail::DeferredQueryJob* m_head = nullptr;
+			detail::DeferredQueryJob* m_tail = nullptr;
+			uint32_t m_pending = 0;
+
+		public:
+			//! Opens a structural-change boundary and enrolls subsequently prepared jobs.
+			//! \param world World used by every job in this scope.
+			explicit QueryJobScope(World& world);
+			~QueryJobScope();
+			QueryJobScope(const QueryJobScope&) = delete;
+			QueryJobScope(QueryJobScope&&) = delete;
+			QueryJobScope& operator=(const QueryJobScope&) = delete;
+			QueryJobScope& operator=(QueryJobScope&&) = delete;
+
+			//! Releases this scope's structural protection after all enrolled jobs have completed.
+			//! Effects remain deferred while an enclosing structural lock is held.
+			//! \return False while jobs still need waiting or deletion. True when the scope is finalized.
+			bool finish();
+		};
+
 		//! Work-item slot the calling thread records deferred notifications into. Both the
 		//! observer (`OnSet`) and sorted-query-invalidation channels read it, so a work item
 		//! writes into one slot-aligned queue per channel. Thread-local so a work item keeps
 		//! its own slot regardless of which thread runs it, including schedulers that execute
 		//! work inline on the caller thread.
 		GAIA_NODISCARD inline uint32_t& defer_slot_ref() {
-			static thread_local uint32_t s_slot = BadDeferSlot;
-			return s_slot;
+			return detail::defer_context_ref().slot;
 		}
 
 		//! Returns the deferred-notification slot owned by the calling thread.
@@ -176,14 +269,20 @@ namespace gaia {
 
 		//! Binds the calling thread to a work-item deferral slot for the lifetime of the scope.
 		class DeferSlotScope final {
-			uint32_t m_prev;
+			detail::DeferContext& m_current;
+			detail::DeferContext m_prev;
 
 		public:
-			explicit DeferSlotScope(uint32_t slot): m_prev(defer_slot_ref()) {
-				defer_slot_ref() = slot;
+			//! Binds a work-item slot and optional prepared-job queues to this thread.
+			//! \param slot Work-item index within the selected queues.
+			//! \param job Prepared-job queues, or null for the enclosing World deferral region.
+			explicit DeferSlotScope(uint32_t slot, detail::DeferredQueryJob* job = nullptr):
+					m_current(detail::defer_context_ref()), m_prev(m_current) {
+				m_current = {slot, job};
 			}
+
 			~DeferSlotScope() {
-				defer_slot_ref() = m_prev;
+				m_current = m_prev;
 			}
 
 			DeferSlotScope(DeferSlotScope&&) = delete;

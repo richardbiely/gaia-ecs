@@ -1389,6 +1389,8 @@ namespace gaia {
 				}
 				//! \}
 
+				//! Returns the prepared work item's private buffer, or the World buffer outside prepared jobs.
+				//! \return Reusable command buffer. Temporary entity ids belong to this buffer only.
 				GAIA_NODISCARD CommandBufferST& cmd_buffer_st() const {
 					auto* pWorld = const_cast<World*>(m_pWorld);
 					return cmd_buffer_st_get(*pWorld);
@@ -2224,8 +2226,10 @@ namespace gaia {
 				return m_pChunk;
 			}
 
-			//! Returns the world's single-threaded command buffer.
-			//! \return Single-threaded command buffer associated with the world.
+			//! Returns a private recording buffer inside prepared query jobs.
+			//! Allocated on first use and reused. Completion replays commands in job/range order.
+			//! Outside prepared jobs this returns the World single-threaded buffer.
+			//! \return World-owned buffer. Temporary ids must not cross buffer boundaries.
 			GAIA_NODISCARD CommandBufferST& cmd_buffer_st() const {
 				auto* pWorld = const_cast<World*>(m_pWorld);
 				return cmd_buffer_st_get(*pWorld);

@@ -31493,6 +31493,9 @@ namespace gaia {
 		struct EntityContainer;
 		struct Entity;
 
+		//! Outcome of preparing a query job. Empty matches are not a preparation failure.
+		enum class QueryJobStatus : uint8_t { Ready, Empty, InvalidMode, UnsupportedScheduler, MissingOverride };
+
 		// Component API
 
 		const ComponentCache& comp_cache(const World& world);
@@ -31600,8 +31603,20 @@ namespace gaia {
 
 		// Locking API
 
+		//! Locks \a world against structural changes.
+		//! Nested locks from the same thread are allowed.
+		//! \param world World to lock.
+		//! \warning Not thread-safe. Two threads must not lock the same World at once.
+		//!          That includes two threads calling Query::each() even on disjoint queries.
 		void lock(World& world);
+
+		//! Unlocks \a world for structural changes.
+		//! \param world World to unlock.
 		void unlock(World& world);
+
+		//! Checks if \a world is locked for structural changes.
+		//! \param world World to inspect.
+		//! \return True while at least one structural-change lock is held. False otherwise.
 		bool locked(const World& world);
 
 #if GAIA_OBSERVERS_ENABLED
@@ -31635,14 +31650,92 @@ namespace gaia {
 		void world_defer_parallel_begin(World& world, uint32_t itemCount);
 		void world_defer_parallel_end(World& world);
 
+		namespace detail {
+			//! Opaque deferred effects retained until the owning completion boundary.
+			struct DeferredQueryJob;
+			//! Returns the current work item's private command buffer, or null outside a prepared job.
+			//! \param world World owning the requested commands.
+			//! \return Lazily allocated, reusable work-item buffer.
+			CommandBufferST* defer_query_cmd_buffer(World& world);
+
+			//! Records a prepared worker's chunk-version write for coordinator completion.
+			//! \param world World owning the pinned chunk.
+			//! \param versions Chunk version array, with the entity version at index zero.
+			//! \param component Component index within the chunk.
+			//! \param version Version to publish after joining.
+			//! \return False outside a prepared job for this World.
+			bool defer_chunk_version(World& world, uint32_t* versions, uint32_t component, uint32_t version);
+
+			//! Opens a coordinator-owned job region and allocates disjoint work-item queues.
+			//! \param world Owning world.
+			//! \param itemCount Number of independently scheduled work items.
+			//! \return Stable job-owned queues, recycled after the completion boundary.
+			DeferredQueryJob* defer_query_job_begin(World& world, uint32_t itemCount);
+
+			//! Completes one job on the coordinator or retains effects for its explicit batch.
+			//! \param world Owning world.
+			//! \param job Completed job whose effects are ready.
+			void defer_query_job_end(World& world, DeferredQueryJob* job);
+			//! Drains completed jobs in list order and recycles their queues.
+			//! \param world Owning world.
+			//! \param head First completed job in the boundary, or null for empty work.
+			void defer_query_jobs_drain(World& world, DeferredQueryJob* head);
+
+			//! One thread-local binding for both legacy parallel regions and prepared jobs.
+			struct DeferContext {
+				uint32_t slot = BadDeferSlot;
+				DeferredQueryJob* job = nullptr;
+			};
+
+			//! Returns the calling thread's deferral binding.
+			inline DeferContext& defer_context_ref() {
+				static thread_local DeferContext ctx;
+				return ctx;
+			}
+
+			//! Returns the current worker's job binding, independently of coordinator counters.
+			//! \return Thread-local binding, null outside prepared job callbacks.
+			inline DeferredQueryJob*& defer_query_job_ref() {
+				return defer_context_ref().job;
+			}
+		} // namespace detail
+
+		//! Explicit coordinator-owned completion boundary for query jobs created within this scope.
+		//! Prepare all jobs before submitting any. Wait or delete every job before finishing the scope.
+		//! The World must outlive this non-movable scope. Nested scopes on one World are not supported.
+		class QueryJobScope final {
+			friend class World;
+			friend detail::DeferredQueryJob* detail::defer_query_job_begin(World&, uint32_t);
+			friend void detail::defer_query_job_end(World&, detail::DeferredQueryJob*);
+
+			World* m_world;
+			detail::DeferredQueryJob* m_head = nullptr;
+			detail::DeferredQueryJob* m_tail = nullptr;
+			uint32_t m_pending = 0;
+
+		public:
+			//! Opens a structural-change boundary and enrolls subsequently prepared jobs.
+			//! \param world World used by every job in this scope.
+			explicit QueryJobScope(World& world);
+			~QueryJobScope();
+			QueryJobScope(const QueryJobScope&) = delete;
+			QueryJobScope(QueryJobScope&&) = delete;
+			QueryJobScope& operator=(const QueryJobScope&) = delete;
+			QueryJobScope& operator=(QueryJobScope&&) = delete;
+
+			//! Releases this scope's structural protection after all enrolled jobs have completed.
+			//! Effects remain deferred while an enclosing structural lock is held.
+			//! \return False while jobs still need waiting or deletion. True when the scope is finalized.
+			bool finish();
+		};
+
 		//! Work-item slot the calling thread records deferred notifications into. Both the
 		//! observer (`OnSet`) and sorted-query-invalidation channels read it, so a work item
 		//! writes into one slot-aligned queue per channel. Thread-local so a work item keeps
 		//! its own slot regardless of which thread runs it, including schedulers that execute
 		//! work inline on the caller thread.
 		GAIA_NODISCARD inline uint32_t& defer_slot_ref() {
-			static thread_local uint32_t s_slot = BadDeferSlot;
-			return s_slot;
+			return detail::defer_context_ref().slot;
 		}
 
 		//! Returns the deferred-notification slot owned by the calling thread.
@@ -31652,14 +31745,20 @@ namespace gaia {
 
 		//! Binds the calling thread to a work-item deferral slot for the lifetime of the scope.
 		class DeferSlotScope final {
-			uint32_t m_prev;
+			detail::DeferContext& m_current;
+			detail::DeferContext m_prev;
 
 		public:
-			explicit DeferSlotScope(uint32_t slot): m_prev(defer_slot_ref()) {
-				defer_slot_ref() = slot;
+			//! Binds a work-item slot and optional prepared-job queues to this thread.
+			//! \param slot Work-item index within the selected queues.
+			//! \param job Prepared-job queues, or null for the enclosing World deferral region.
+			explicit DeferSlotScope(uint32_t slot, detail::DeferredQueryJob* job = nullptr):
+					m_current(detail::defer_context_ref()), m_prev(m_current) {
+				m_current = {slot, job};
 			}
+
 			~DeferSlotScope() {
-				defer_slot_ref() = m_prev;
+				m_current = m_prev;
 			}
 
 			DeferSlotScope(DeferSlotScope&&) = delete;
@@ -38876,10 +38975,16 @@ namespace gaia {
 			//! Update the version of a component at the index \param compIdx
 			GAIA_FORCEINLINE void update_world_version(uint32_t compIdx) {
 				auto versions = comp_version_view_mut();
-				// Automatically treat the entity as changed.
-				versions[0] = m_header.worldVersion;
-				// Do +1 because index 0 is reserved for the entity version number.
-				versions[compIdx + 1] = m_header.worldVersion;
+
+				// Disjoint component writers still share the entity version at index zero.
+				if (!detail::defer_chunk_version(
+								*const_cast<World*>(m_header.world), versions.data(), compIdx, m_header.worldVersion)) {
+					// Automatically treat the entity as changed.
+					versions[0] = m_header.worldVersion;
+					// Do +1 because index 0 is reserved for the entity version number.
+					versions[compIdx + 1] = m_header.worldVersion;
+				}
+
 				// Sorted queries keyed by this component can invalidate their cached order immediately.
 				world_invalidate_sorted_queries_for_entity(
 						*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx]);
@@ -45087,6 +45192,8 @@ namespace gaia {
 				}
 				//! \}
 
+				//! Returns the prepared work item's private buffer, or the World buffer outside prepared jobs.
+				//! \return Reusable command buffer. Temporary entity ids belong to this buffer only.
 				GAIA_NODISCARD CommandBufferST& cmd_buffer_st() const {
 					auto* pWorld = const_cast<World*>(m_pWorld);
 					return cmd_buffer_st_get(*pWorld);
@@ -45922,8 +46029,10 @@ namespace gaia {
 				return m_pChunk;
 			}
 
-			//! Returns the world's single-threaded command buffer.
-			//! \return Single-threaded command buffer associated with the world.
+			//! Returns a private recording buffer inside prepared query jobs.
+			//! Allocated on first use and reused. Completion replays commands in job/range order.
+			//! Outside prepared jobs this returns the World single-threaded buffer.
+			//! \return World-owned buffer. Temporary ids must not cross buffer boundaries.
 			GAIA_NODISCARD CommandBufferST& cmd_buffer_st() const {
 				auto* pWorld = const_cast<World*>(m_pWorld);
 				return cmd_buffer_st_get(*pWorld);
@@ -46463,6 +46572,10 @@ namespace gaia {
 #include <cstdlib>
 #include <cstring>
 #include <type_traits>
+#if GAIA_ASSERT_ENABLED
+	#include <atomic>
+	#include <thread>
+#endif
 
 #include <cstdint>
 
@@ -57668,7 +57781,7 @@ namespace gaia {
 					DeferSlotScope m_scope;
 
 				public:
-					explicit ParallelSlot(uint32_t idxStart): m_scope(idxStart) {}
+					explicit ParallelSlot(uint32_t idxStart, DeferredQueryJob* job = nullptr): m_scope(idxStart, job) {}
 
 					ParallelSlot(ParallelSlot&&) = delete;
 					ParallelSlot(const ParallelSlot&) = delete;
@@ -57957,73 +58070,70 @@ namespace gaia {
 				//------------------------------------------------
 
 				//! \cond INTERNAL
+				//! Coordinator-resolved typed payload source. Workers never traverse inheritance.
+				struct QueryJobArgData {
+					Chunk* chunk = nullptr;
+					const void* sparseData = nullptr;
+					uint16_t row = 0;
+					//! Direct table rows advance relative to the prepared range start.
+					bool rowRelative = false;
+					//! Offset from this argument to optional per-row sparse bindings. Zero means constant.
+					uint32_t rowBindingOffset = 0;
+				};
+
+				//! Prepared range with optional cache-free term identifiers.
+				struct QueryJobBatchData {
+					ChunkBatch batch;
+					const Entity* termIds = nullptr;
+					uint32_t argOffset = 0;
+				};
+
+				//! Owned field mapping used only by cache-free entity-seeded ranges.
+				struct QueryJobFieldMapping {
+					uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+					Entity termIds[ChunkHeader::MAX_COMPONENTS];
+				};
+
 				template <typename Func, typename TMode>
 				struct QueryJobCtx {
 					QueryImpl* pSelf = nullptr;
 					World* pWorld = nullptr;
-					cnt::darray<ChunkBatch> batches;
+					cnt::darray<QueryJobBatchData> batches;
 					Func func;
+
+					//! Stable effects queues owned by this prepared run, not by its local slot index.
+					DeferredQueryJob* deferred = nullptr;
+					//! Empty for cached ranges, whose pinned query already owns field mappings.
+					cnt::darray<QueryJobFieldMapping> fieldMappings;
+					cnt::darray<QueryJobArgData> argData;
 
 					GAIA_USE_SMALLBLOCK(QueryJobCtx)
 				};
 
-				template <typename Func>
-				struct QueryTaskJobCtx {
-					QueryImpl* pSelf = nullptr;
-					Func func;
-					QueryExecType execType = QueryExecType::Default;
-
-					GAIA_USE_SMALLBLOCK(QueryTaskJobCtx)
-				};
-
-				//! Callback adapter that sets iterator context before invoking an `Iter&` user callback.
-				//! \tparam Func User callback type invocable with `Iter&`.
-				template <typename Func>
-				struct IterJobCallback {
-					//! Query owning the runtime context pointer.
-					QueryImpl* pSelf = nullptr;
-					//! User callback copied into the deferred job context.
-					Func func;
-
-					//! Invokes the stored callback for \a it.
-					//! \param it Iterator prepared for the current query batch.
-					void operator()(Iter& it) {
-						it.ctx(pSelf->ctx());
-#if GAIA_ASSERT_ENABLED
-						it.set_query_access(&pSelf->fetch().ctx().data);
-#endif
-						func(it);
+				//! Executes only already-matched batches. Field mappings and callback state are immutable.
+				//! \tparam Func Prepared callback type.
+				//! \tparam TMode Row constraint tag.
+				//! \param ctx Owned prepared execution.
+				//! \param from First batch index.
+				//! \param to Exclusive last batch index.
+				template <typename Func, typename TMode>
+				static void run_prepared_query_job(QueryJobCtx<Func, TMode>& ctx, uint32_t from, uint32_t to) {
+					auto func = ctx.func;
+					for (uint32_t i = from; i < to; ++i) {
+						ParallelSlot slot(i, ctx.deferred);
+						auto& prepared = ctx.batches[i];
+						auto& batch = prepared.batch;
+						Iter it;
+						it.init_query_state(ctx.pWorld, iter_mode_constraints<TMode>(), false);
+						it.set_archetype(batch.pArchetype);
+						it.set_chunk(batch.pChunk, batch.from, batch.to);
+						it.set_comp_indices(batch.pCompIndices);
+						it.set_term_ids(prepared.termIds);
+						it.set_inherited_data(batch.inheritedData);
+						it.set_group_id(batch.groupId);
+						func(it, ctx.argData.empty() ? nullptr : ctx.argData.data() + prepared.argOffset);
+						finish_iter_writes(it);
 					}
-				};
-
-				//! Callback adapter that materializes typed callback arguments on top of a prepared iterator.
-				//! \tparam Func Typed query callback type accepted by each().
-				template <typename Func>
-				struct TypedJobCallback {
-					//! Query that owns typed execution metadata and runtime context.
-					QueryImpl* pSelf = nullptr;
-					//! User callback copied into the deferred job context.
-					Func func;
-
-					//! Runs the typed callback for \a it.
-					//! \param it Iterator prepared for the current query batch.
-					void operator()(Iter& it) {
-						pSelf->each_iter(it, func);
-					}
-				};
-
-				template <typename Func>
-				static void invoke_query_task_job(void* pCtx) {
-					auto& ctx = *reinterpret_cast<QueryTaskJobCtx<Func>*>(pCtx);
-					ctx.pSelf->each(ctx.func, ctx.execType);
-				}
-
-				template <typename Func>
-				static void cleanup_query_task_job(void* pCtx) {
-					auto* pJobCtx = reinterpret_cast<QueryTaskJobCtx<Func>*>(pCtx);
-					if (pJobCtx == nullptr)
-						return;
-					delete pJobCtx;
 				}
 
 				template <typename Func, typename TMode>
@@ -58035,10 +58145,9 @@ namespace gaia {
 					auto* pWorld = pJobCtx->pWorld;
 					if (pWorld != nullptr) {
 						unlock(*pWorld);
-						// Apply the sorted-query invalidations and deliver the OnSet notifications workers
-						// recorded. This runs once the job finished, on the thread that waited for it,
-						// with the world already unlocked.
-						world_defer_parallel_end(*pWorld);
+
+						// An explicit batch retains effects until its completion boundary.
+						defer_query_job_end(*pWorld, pJobCtx->deferred);
 						commit_cmd_buffer_st(*pWorld);
 						commit_cmd_buffer_mt(*pWorld);
 						if (pJobCtx->pSelf != nullptr)
@@ -58049,8 +58158,10 @@ namespace gaia {
 				}
 
 				template <typename Func, typename TMode, QueryExecType ExecType>
-				GAIA_NODISCARD SchedJob add_parallel_query_job(Func func) {
-					static_assert(ExecType != QueryExecType::Default);
+				GAIA_NODISCARD SchedJob add_parallel_query_job(
+						Func func, QueryInfo& queryInfo, uint32_t typedArgCount = 0, const TypedQueryExecState* state = nullptr,
+						void (*prepareArgs)(World&, const ChunkBatch&, const TypedQueryExecState&, cnt::darray<QueryJobArgData>&) =
+								nullptr) {
 					if (m_batches.empty()) {
 						m_changedWorldVersion = *m_worldVersion;
 						return {};
@@ -58059,10 +58170,54 @@ namespace gaia {
 					auto* pWorld = m_storage.world();
 					lock(*pWorld);
 
-					auto* pCtx = new QueryJobCtx<Func, TMode>{this, pWorld, {}, GAIA_MOV(func)};
+					auto* pCtx = new QueryJobCtx<Func, TMode>{this, pWorld, {}, GAIA_MOV(func), nullptr, {}, {}};
 					pCtx->batches.resize(m_batches.size());
-					GAIA_EACH(m_batches) pCtx->batches[i] = m_batches[i];
+
+					// Materialize field mappings on the coordinator, never through fetch() on a worker.
+					uint32_t mappingCount = 0;
+					for (const auto& batch: m_batches)
+						mappingCount += batch.pCompIndices == nullptr;
+					pCtx->fieldMappings.resize(mappingCount);
+					if (prepareArgs != nullptr)
+						pCtx->argData.reserve((uint32_t)m_batches.size() * typedArgCount);
+
+					uint32_t mappingIdx = 0;
+					GAIA_EACH(m_batches) {
+						auto& dst = pCtx->batches[i];
+						dst.batch = m_batches[i];
+						dst.argOffset = (uint32_t)pCtx->argData.size();
+						if (prepareArgs != nullptr)
+							prepareArgs(*pWorld, dst.batch, *state, pCtx->argData);
+
+						if (dst.batch.pCompIndices == nullptr) {
+							auto& mapping = pCtx->fieldMappings[mappingIdx++];
+							Iter it;
+							init_direct_entity_iter(
+									queryInfo, *pWorld, dst.batch.pChunk->entity_view()[dst.batch.from], it, mapping.indices,
+									mapping.termIds);
+							dst.batch.pCompIndices = mapping.indices;
+							dst.termIds = mapping.termIds;
+						}
+					}
+
 					m_batches.clear();
+#if GAIA_ECS_TEST_HOOKS
+					test_job_binding_count = (uint32_t)pCtx->argData.size();
+#endif
+
+					if constexpr (ExecType == QueryExecType::Default) {
+						pCtx->deferred = defer_query_job_begin(*pWorld, (uint32_t)pCtx->batches.size());
+						SchedTaskDesc task{};
+						task.pCtx = pCtx;
+						task.execType = ExecType;
+						task.invoke = [](void* pInvokeCtx) {
+							auto& ctx = *reinterpret_cast<QueryJobCtx<Func, TMode>*>(pInvokeCtx);
+
+							run_prepared_query_job(ctx, 0, (uint32_t)ctx.batches.size());
+						};
+
+						return sched_add(world_sched(*pWorld), task, pCtx, &cleanup_query_job<Func, TMode>);
+					}
 
 					SchedParDesc desc{};
 					desc.pCtx = pCtx;
@@ -58071,13 +58226,12 @@ namespace gaia {
 					desc.execType = ExecType;
 					desc.invoke = [](void* pInvokeCtx, uint32_t idxStart, uint32_t idxEnd) {
 						auto& ctx = *reinterpret_cast<QueryJobCtx<Func, TMode>*>(pInvokeCtx);
-						ParallelSlot slot(idxStart);
-						run_query_func<Func, TMode>(ctx.pWorld, ctx.func, std::span(&ctx.batches[idxStart], idxEnd - idxStart));
+
+						run_prepared_query_job(ctx, idxStart, idxEnd);
 					};
 
-					// Matched by world_defer_parallel_end() in cleanup_query_job(), which runs after
-					// the job completed and the world was unlocked.
-					world_defer_parallel_begin(*pWorld, desc.itemCount);
+					// Retain per-run queues through the final sibling cleanup, including cancelled jobs.
+					pCtx->deferred = defer_query_job_begin(*pWorld, desc.itemCount);
 
 					return sched_add_par(world_sched(*pWorld), desc, pCtx, &cleanup_query_job<Func, TMode>);
 				}
@@ -58097,6 +58251,9 @@ namespace gaia {
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
+							if (view.archetypeIdx < plan.idxFrom || view.archetypeIdx >= plan.idxTo)
+								continue;
+
 							const auto* pArchetype = cacheView[view.archetypeIdx];
 							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
 							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
@@ -58121,7 +58278,8 @@ namespace gaia {
 							const auto inheritedDataView =
 									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
 							push_matching_chunk_batch(
-									m_batches, queryInfo, pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow,
+									m_batches, queryInfo, pArchetype, view.pChunk, indicesView.data(), inheritedDataView,
+									((plan.flags & QueryPlanFlag_Grouped) != 0 ? queryInfo.group_id(view.archetypeIdx) : 0), startRow,
 									endRow);
 						}
 						return;
@@ -58150,49 +58308,10 @@ namespace gaia {
 							}
 
 							push_matching_chunk_batch(
-									m_batches, queryInfo, pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, from, to);
+									m_batches, queryInfo, pArchetype, pChunk, indicesView.data(), inheritedDataView,
+									((plan.flags & QueryPlanFlag_Grouped) != 0 ? queryInfo.group_id(i) : 0), from, to);
 						}
 					}
-				}
-
-				template <typename Func>
-				GAIA_NODISCARD SchedJob add_query_task_job(Func func, QueryExecType execType) {
-					auto* pCtx = new QueryTaskJobCtx<Func>{this, GAIA_MOV(func), execType};
-
-					SchedTaskDesc desc{};
-					desc.pCtx = pCtx;
-					desc.invoke = &invoke_query_task_job<Func>;
-					desc.execType = execType;
-
-					return sched_add(world_sched(*m_storage.world()), desc, pCtx, &cleanup_query_task_job<Func>);
-				}
-
-				template <typename Func, QueryExecType ExecType>
-				GAIA_NODISCARD SchedJob add_iter_parallel_job(Func func) {
-					static_assert(ExecType != QueryExecType::Default);
-
-					auto& queryInfo = fetch();
-					match_all(queryInfo);
-					const auto constraints = Constraints::EnabledOnly;
-					const auto plan = prepare_query_plan(queryInfo, constraints);
-					if (plan.mode == QueryPlanMode::Empty || plan.idxFrom >= plan.idxTo)
-						return {};
-					if (plan.mode == QueryPlanMode::EntitySeed)
-						return add_query_task_job(GAIA_MOV(func), ExecType);
-
-					const auto cacheRange = selected_query_cache_range(queryInfo);
-					if (cacheRange.hasSelectedGroup)
-						return add_query_task_job(GAIA_MOV(func), ExecType);
-
-					::gaia::ecs::update_version(*m_worldVersion);
-					m_batches.clear();
-					if ((plan.flags & QueryPlanFlag_Filtered) != 0)
-						collect_runtime_parallel_batches<true>(queryInfo, plan, constraints);
-					else
-						collect_runtime_parallel_batches<false>(queryInfo, plan, constraints);
-
-					using JobFunc = IterJobCallback<Func>;
-					return add_parallel_query_job<JobFunc, IterModeEnabled, ExecType>(JobFunc{this, GAIA_MOV(func)});
 				}
 
 				//------------------------------------------------
@@ -61134,6 +61253,9 @@ namespace gaia {
 				}
 
 #if GAIA_ECS_TEST_HOOKS
+				//! Number of bindings materialized by the latest prepared job (coordinator-only test hook).
+				inline static uint32_t test_job_binding_count = 0;
+
 				template <typename Func>
 				GAIA_NODISCARD QueryPlan test_typed_plan(Func func);
 
@@ -61973,61 +62095,24 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				//! Adds a query execution job without submitting it.
-				//!
-				//! The returned SchedJob is backed by the world's ECS scheduler descriptor rather than a
-				//! gaia::mt::JobHandle, so external schedulers can provide their own token, submission,
-				//! dependency, wait, and cleanup behavior. The job owns only the callback copy and scheduler
-				//! token. The query and world must outlive the job.
-				//! \tparam Func Query callback type accepted by each().
-				//! \param func Callback invoked when the added job runs.
-				//! \param execType Query execution mode used inside the job.
-				//! \return Move-only scheduler job wrapper for the added query execution.
-				//! \warning Structural mutations that invalidate this query while the job is pending are not safe.
+				//! Prepares matching rows and callback metadata on the coordinator without submitting work.
+				//! Default executes the snapshot serially in one scheduler task. Parallel modes expose batch fanout.
+				//! Matching and changed filters are evaluated now. Component payloads remain live, not copied.
+				//! Requires deferred add/add_par, submit, wait and del callbacks. Eager-only schedulers are rejected.
+				//! \tparam Func Iterator or typed query callback.
+				//! \param func Callback copied into the prepared execution.
+				//! \param execType Serial prepared execution or parallel batch fanout.
+				//! \param status Optional output distinguishing empty matches from preparation failures.
+				//! \return Move-only job, or an invalid job for empty matches, invalid mode, unavailable scheduler,
+				//! or typed inherited writes requiring missing local overrides.
+				//! \warning Prepare siblings before submitting any. Submit, wait and del on the coordinator.
+				//! Keep the query, shared cache, context and world alive and unchanged until completion.
+				//! Callbacks must declare compatible access, avoid structural mutation and not execute nested queries.
+				//! Parallel modes do not preserve callback order, including sorted and grouped queries.
 				//! \see SchedJob
-				//! \see each(Func, QueryExecType)
 				template <typename Func>
-				GAIA_NODISCARD SchedJob job(Func func, QueryExecType execType) {
-#if GAIA_ASSERT_ENABLED
-					if constexpr (!detail::is_query_iter_callback_v<Func>)
-						validate_typed_access<Func>();
-#endif
-					if constexpr (detail::is_query_iter_callback_v<Func>) {
-						switch (execType) {
-							case QueryExecType::Parallel:
-								return add_iter_parallel_job<Func, QueryExecType::Parallel>(GAIA_MOV(func));
-							case QueryExecType::ParallelPerf:
-								return add_iter_parallel_job<Func, QueryExecType::ParallelPerf>(GAIA_MOV(func));
-							case QueryExecType::ParallelEff:
-								return add_iter_parallel_job<Func, QueryExecType::ParallelEff>(GAIA_MOV(func));
-							default:
-								break;
-						}
-					} else {
-						switch (execType) {
-							case QueryExecType::Parallel:
-								return add_iter_parallel_job<TypedJobCallback<Func>, QueryExecType::Parallel>(
-										TypedJobCallback<Func>{this, GAIA_MOV(func)});
-							case QueryExecType::ParallelPerf:
-								return add_iter_parallel_job<TypedJobCallback<Func>, QueryExecType::ParallelPerf>(
-										TypedJobCallback<Func>{this, GAIA_MOV(func)});
-							case QueryExecType::ParallelEff:
-								return add_iter_parallel_job<TypedJobCallback<Func>, QueryExecType::ParallelEff>(
-										TypedJobCallback<Func>{this, GAIA_MOV(func)});
-							default:
-								break;
-						}
-					}
-
-					return add_query_task_job(GAIA_MOV(func), execType);
-				}
-
-#if GAIA_ASSERT_ENABLED
-				//! Validates typed payload declarations before deferred jobs can return for empty matches.
-				//! \tparam Func Typed query callback.
-				template <typename Func>
-				void validate_typed_access();
-#endif
+				GAIA_NODISCARD SchedJob
+				job(Func func, QueryExecType execType = QueryExecType::Default, QueryJobStatus* status = nullptr);
 
 				//! Iterates query matches using the default execution mode.
 				//! Each callback receives a contiguous chunk window. DontFragment / sparse entity-filter
@@ -62037,6 +62122,8 @@ namespace gaia {
 				//! \param func Callable invoked for each match.
 				//! \see Iter::ctx() const
 				//! \see count(Constraints)
+				//! \warning Not thread-safe across two user threads on one World, even for disjoint queries.
+				//!          Use QueryExecType::Parallel or Query::job to iterate on many threads.
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func) {
 					each_runtime_inter<QueryExecType::Default, Func>(func, Constraints::EnabledOnly);
@@ -62045,6 +62132,7 @@ namespace gaia {
 				//! Iterates query matches with a typed component callback using the default execution mode.
 				//! \tparam Func Typed callback whose arguments identify the requested query components.
 				//! \param func Callable invoked for each matching entity.
+				//! \warning Not thread-safe across two user threads on one World, even for disjoint queries.
 				template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func);
 
@@ -62072,6 +62160,9 @@ namespace gaia {
 				//! \param func Callable invoked for each match.
 				//! \param execType Execution mode.
 				//! \param constraints Entity-row subset exposed to the callback.
+				//! \warning Not thread-safe across two user threads on one World, even for disjoint queries.
+				//!          QueryExecType::Parallel splits this query across workers while the calling thread
+				//!          keeps the World lock.
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func, QueryExecType execType, Constraints constraints) {
 					switch (execType) {
@@ -62094,6 +62185,7 @@ namespace gaia {
 				//! \tparam Func Typed callback whose arguments identify the requested query components.
 				//! \param func Callable invoked for each matching entity.
 				//! \param execType Execution mode.
+				//! \warning Not thread-safe across two user threads on one World, even for disjoint queries.
 				template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func, QueryExecType execType);
 
@@ -64486,20 +64578,6 @@ namespace gaia {
 				}
 			}
 
-#if GAIA_ASSERT_ENABLED
-			template <typename Func>
-			inline void QueryImpl::validate_typed_access() {
-				using InputArgs = decltype(core::func_args(&Func::operator()));
-
-				auto& queryInfo = fetch();
-				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
-				const auto argCount = init_typed_query_arg_metas(metas, *queryInfo.world(), InputArgs{});
-				GAIA_FOR(argCount) {
-					GAIA_ASSERT(ChunkIterImpl::allows_term_access(queryInfo.ctx().data, metas[i].termId, false));
-				}
-			}
-#endif
-
 			template <QueryExecType ExecType, typename Func>
 			inline void QueryImpl::each_typed_inter(QueryInfo& queryInfo, Func func) {
 				using InputArgs = decltype(core::func_args(&Func::operator()));
@@ -64647,6 +64725,323 @@ namespace gaia {
 						each_iter_inter_erased<QueryExecType::Default>(
 								queryInfo, plan, pFunc, state, runDirectFastChunk, runMappedChunk);
 						break;
+				}
+			}
+
+			//! Runs typed arguments over a coordinator-filtered row range without query matching.
+			//! \tparam Func Typed callback.
+			//! \tparam T Callback argument types.
+			//! \param it Prepared iterator.
+			//! \param func Callback copy local to this scheduler invocation.
+			//! \param state Coordinator-prepared argument metadata and sparse store bindings.
+			//! \param types Callback type list.
+			template <typename Func, typename... T>
+			inline void run_prepared_typed_chunk(
+					Iter& it, Func& func, const TypedQueryExecState& state, core::func_type_list<T...> types) {
+				if constexpr (typed_query_args_use_sparse_storage_v<T...>) {
+					if (state.canUseSparseChunkEval) {
+						run_typed_sparse_chunk_rows(
+								const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), func, state, types);
+						finish_typed_chunk_state(*it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
+						return;
+					}
+				}
+
+				run_typed_chunk_views(
+						nullptr, it, &func, state.canUseDirectChunkEval, noop_row_done,
+						&invoke_typed_query_row_erased<
+								Func, std::tuple<decltype(std::declval<Iter&>().template sview_auto<T>())...>, T...>,
+						&invoke_typed_query_row_erased<
+								Func, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>, T...>,
+						types);
+				finish_typed_chunk_state(*it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
+				it.clear_touched_writes();
+			}
+
+			//! Resolves one payload owner on the coordinator, never on a worker.
+			//! \tparam T Callback argument type.
+			//! \tparam W World type.
+			//! \param world Owning world.
+			//! \param entity Matched entity.
+			//! \param state Bound argument metadata.
+			//! \param index Argument index.
+			//! \return Resolved source, with relative rows for direct table payloads.
+			template <typename T, typename W>
+			inline QueryImpl::QueryJobArgData
+			prepare_job_typed_arg(W& world, Entity entity, const TypedQueryExecState& state, uint32_t index) {
+				QueryImpl::QueryJobArgData out{};
+				using U = typename actual_type_t<T>::Type;
+				if constexpr (!std::is_same_v<U, Entity>) {
+					auto owner = entity;
+					if (!world.has_direct(owner, state.argIds[index])) {
+						for (auto target: world.as_targets_trav_cache(entity)) {
+							if (world.has_direct(target, state.argIds[index])) {
+								owner = target;
+								break;
+							}
+						}
+					}
+
+					const auto& ec = world.fetch(owner);
+					out.chunk = ec.pChunk;
+					out.row = ec.row;
+					if constexpr (uses_ct_sparse_storage_v<T>)
+						out.sparseData = world_typed_sparse_store_try_get<U>(state.sparseStores[index], owner);
+					else
+						out.rowRelative = owner == entity;
+				}
+
+				return out;
+			}
+
+			//! Appends one binding per argument, expanding only row-varying sparse sources.
+			//! Fragmenting inherited sources share an owner throughout the chunk. Non-fragmenting
+			//! sparse overrides can differ per entity and must be resolved before workers start.
+			//! \tparam W World type.
+			//! \tparam T Callback argument types.
+			//! \tparam I Argument indices.
+			//! \param world Owning world.
+			//! \param batch Prepared chunk range.
+			//! \param state Bound argument metadata.
+			//! \param out Owned binding buffer. Offsets survive reallocation.
+			template <typename W, typename Batch, typename... T, size_t... I>
+			inline void prepare_job_typed_args(
+					W& world, const Batch& batch, const TypedQueryExecState& state, cnt::darray<QueryImpl::QueryJobArgData>& out,
+					core::func_type_list<T...>, std::index_sequence<I...>) {
+				const auto start = (uint32_t)out.size();
+				out.resize(start + sizeof...(T));
+				const auto entities = batch.pChunk->entity_view();
+				(([&]() {
+					 out[start + I] = prepare_job_typed_arg<T>(world, entities[batch.from], state, I);
+					 if constexpr (uses_ct_sparse_storage_v<T>) {
+						 const bool perRow =
+								 world.has(state.argIds[I], DontFragment) || world.has_direct(entities[batch.from], state.argIds[I]);
+						 if (perRow && batch.to - batch.from > 1) {
+							 const auto first = (uint32_t)out.size();
+							 out.resize(first + batch.to - batch.from);
+							 out[first] = out[start + I];
+							 out[start + I].rowBindingOffset = first - (start + I);
+							 for (uint32_t row = batch.from + 1; row < batch.to; ++row)
+								 out[first + row - batch.from] = prepare_job_typed_arg<T>(world, entities[row], state, I);
+						 }
+					 }
+				 }()),
+				 ...);
+			}
+
+			//! Reads an already-resolved payload without world/cache access or structural writes.
+			//! \tparam T Callback argument type.
+			//! \param entity Matched entity for Entity arguments.
+			//! \param binding Coordinator-resolved payload source.
+			//! \param rowOffset Row relative to the prepared range start.
+			//! \return Typed callback argument.
+			template <typename T>
+			inline decltype(auto)
+			job_typed_arg(Entity entity, const QueryImpl::QueryJobArgData& binding, uint32_t rowOffset) {
+				const auto& arg = binding.rowBindingOffset != 0 ? (&binding)[binding.rowBindingOffset + rowOffset] : binding;
+				using U = typename actual_type_t<T>::Type;
+				using Original = typename actual_type_t<T>::TypeOriginal;
+				if constexpr (std::is_same_v<U, Entity>) {
+					return entity;
+				} else if constexpr (uses_ct_sparse_storage_v<T>) {
+					GAIA_ASSERT(arg.sparseData != nullptr);
+					if constexpr (core::is_mut_v<Original>)
+						return *static_cast<U*>(const_cast<void*>(arg.sparseData));
+					else
+						return *static_cast<const U*>(arg.sparseData);
+				} else {
+					const auto row = (uint16_t)(arg.row + (arg.rowRelative ? rowOffset : 0));
+					auto view = arg.chunk->template sview_auto<T>(row, (uint16_t)(row + 1));
+					return typed_direct_chunk_arg_at<T>(view, 0, row);
+				}
+			}
+
+			//! Invokes typed rows using immutable coordinator bindings.
+			//! \tparam Func Callback type.
+			//! \tparam T Callback arguments.
+			//! \tparam I Argument indices.
+			//! \param it Prepared range.
+			//! \param func Worker-local callback copy.
+			//! \param args Per-argument payload bindings and optional sparse row arrays.
+			template <typename Func, typename... T, size_t... I>
+			inline void run_job_typed_args(
+					Iter& it, Func& func, const QueryImpl::QueryJobArgData* args, core::func_type_list<T...>,
+					std::index_sequence<I...>) {
+				const auto entities = it.chunk()->entity_view();
+				for (uint32_t row = it.row_begin(); row < it.row_end(); ++row) {
+					func(job_typed_arg<T>(entities[row], args[I], row - it.row_begin())...);
+				}
+			}
+
+			//! Deduces argument indices for coordinator preparation.
+			template <typename W, typename Batch, typename... T>
+			inline void prepare_job_typed_args(
+					W& world, const Batch& batch, const TypedQueryExecState& state, cnt::darray<QueryImpl::QueryJobArgData>& out,
+					core::func_type_list<T...> types) {
+				prepare_job_typed_args(world, batch, state, out, types, std::index_sequence_for<T...>{});
+			}
+
+			//! Deduces argument indices for prepared worker dispatch.
+			template <typename Func, typename... T>
+			inline void run_job_typed_args(
+					Iter& it, Func& func, const QueryImpl::QueryJobArgData* args, core::func_type_list<T...> types) {
+				run_job_typed_args(it, func, args, types, std::index_sequence_for<T...>{});
+			}
+
+			template <typename Func>
+			inline SchedJob QueryImpl::job(Func func, QueryExecType execType, QueryJobStatus* status) {
+				if (status != nullptr)
+					*status = QueryJobStatus::InvalidMode;
+				if (execType != QueryExecType::Default && execType != QueryExecType::Parallel &&
+						execType != QueryExecType::ParallelPerf && execType != QueryExecType::ParallelEff)
+					return {};
+
+				// Prepared execution must never use the scheduler's eager fallback.
+				if (status != nullptr)
+					*status = QueryJobStatus::UnsupportedScheduler;
+				const auto& scheduler = sched_resolve(world_sched(*m_storage.world()));
+				if (scheduler.submit == nullptr || scheduler.wait == nullptr || scheduler.del == nullptr)
+					return {};
+
+				if (execType == QueryExecType::Default ? scheduler.add == nullptr : scheduler.add_par == nullptr)
+					return {};
+
+				auto& queryInfo = fetch();
+				match_all(queryInfo);
+				const auto plan = prepare_query_plan(queryInfo, Constraints::EnabledOnly);
+
+				const auto addPrepared = [&](auto callback, const TypedQueryExecState* typedState = nullptr,
+																		 void (*prepareArgs)(
+																				 World&, const ChunkBatch&, const TypedQueryExecState&,
+																				 cnt::darray<QueryJobArgData>&) = nullptr) -> SchedJob {
+					if (plan.mode == QueryPlanMode::Empty) {
+						if (status != nullptr)
+							*status = QueryJobStatus::Empty;
+						m_changedWorldVersion = *m_worldVersion;
+						return {};
+					}
+
+					::gaia::ecs::update_version(*m_worldVersion);
+					m_batches.clear();
+
+					if (plan.mode == QueryPlanMode::EntitySeed) {
+						DirectQueryScratchScope scratchScope;
+						auto& world = *m_storage.world();
+						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratchScope.scratch);
+						for (auto entity: scratchScope.scratch.entities) {
+							if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly))
+								continue;
+							if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+								continue;
+
+							const auto& ec = ::gaia::ecs::fetch(world, entity);
+							// Preserve seed order while joining adjacent typed rows from the same chunk.
+							if (typedState != nullptr && !m_batches.empty()) {
+								auto& previous = m_batches.back();
+								if (previous.pChunk == ec.pChunk && previous.to == ec.row) {
+									previous.to = (uint16_t)(ec.row + 1);
+									continue;
+								}
+							}
+							m_batches.push_back(
+									{ec.pArchetype, ec.pChunk, nullptr, queryInfo.inherited_data_view(ec.pArchetype), 0, ec.row,
+									 (uint16_t)(ec.row + 1)});
+						}
+					} else if ((plan.flags & QueryPlanFlag_Filtered) != 0)
+						collect_runtime_parallel_batches<true>(queryInfo, plan, Constraints::EnabledOnly);
+					else
+						collect_runtime_parallel_batches<false>(queryInfo, plan, Constraints::EnabledOnly);
+
+					// Missing inherited overrides are rejected for both table and sparse storage.
+					// Preparation may run while sibling jobs already pin chunks, so materializing
+					// overrides here would invalidate their bindings (or reallocate sparse stores).
+					if (typedState != nullptr && typedState->hasInheritedTerms && typedState->hasWriteArgs) {
+						for (const auto& batch: m_batches) {
+							for (uint32_t row = batch.from; row < batch.to; ++row) {
+								const auto entity = batch.pChunk->entity_view()[row];
+								for (uint32_t i = 0; i < typedState->argCount; ++i) {
+									if (typedState->writeFlags[i] &&
+											!world_has_entity_term_direct(*m_storage.world(), entity, typedState->argIds[i])) {
+
+										m_batches.clear();
+										if (status != nullptr)
+											*status = QueryJobStatus::MissingOverride;
+										return {};
+									}
+								}
+							}
+						}
+					}
+
+					const bool empty = m_batches.empty();
+					SchedJob out;
+					using Callback = decltype(callback);
+					switch (execType) {
+						case QueryExecType::Default:
+							out = add_parallel_query_job<Callback, IterModeEnabled, QueryExecType::Default>(
+									GAIA_MOV(callback), queryInfo, typedState != nullptr ? typedState->argCount : 0, typedState,
+									prepareArgs);
+							break;
+						case QueryExecType::Parallel:
+							out = add_parallel_query_job<Callback, IterModeEnabled, QueryExecType::Parallel>(
+									GAIA_MOV(callback), queryInfo, typedState != nullptr ? typedState->argCount : 0, typedState,
+									prepareArgs);
+							break;
+						case QueryExecType::ParallelPerf:
+							out = add_parallel_query_job<Callback, IterModeEnabled, QueryExecType::ParallelPerf>(
+									GAIA_MOV(callback), queryInfo, typedState != nullptr ? typedState->argCount : 0, typedState,
+									prepareArgs);
+							break;
+						case QueryExecType::ParallelEff:
+							out = add_parallel_query_job<Callback, IterModeEnabled, QueryExecType::ParallelEff>(
+									GAIA_MOV(callback), queryInfo, typedState != nullptr ? typedState->argCount : 0, typedState,
+									prepareArgs);
+							break;
+					}
+					if (status != nullptr)
+						*status = empty ? QueryJobStatus::Empty : QueryJobStatus::Ready;
+					return out;
+				};
+
+				if constexpr (detail::is_query_iter_callback_v<Func>) {
+					return addPrepared(
+							[func = GAIA_MOV(func), pInfo = &queryInfo, ctx = m_ctx](Iter& it, const QueryJobArgData*) mutable {
+								it.ctx(ctx);
+#if GAIA_ASSERT_ENABLED
+								it.set_query_access(&pInfo->ctx().data);
+#else
+								(void)pInfo;
+#endif
+								func(it);
+							});
+				} else {
+					using InputArgs = decltype(core::func_args(&Func::operator()));
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
+#endif
+					TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
+					const auto argCount = init_typed_query_arg_metas(metas, *m_storage.world(), InputArgs{});
+					auto state = build_typed_query_exec_state(*m_storage.world(), queryInfo, metas, argCount);
+
+					if constexpr (typed_query_arg_list_uses_sparse_storage_v<InputArgs>)
+						bind_typed_sparse_stores(state, *m_storage.world(), InputArgs{});
+
+					return addPrepared(
+							[func = GAIA_MOV(func), pInfo = &queryInfo, ctx = m_ctx, state](Iter& it, const QueryJobArgData* args) mutable {
+								it.ctx(ctx);
+#if GAIA_ASSERT_ENABLED
+								it.set_query_access(&pInfo->ctx().data);
+#else
+								(void)pInfo;
+#endif
+								if (args != nullptr) {
+									run_job_typed_args(it, func, args, InputArgs{});
+									finish_typed_chunk_state(*it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
+								} else run_prepared_typed_chunk(it, func, state, InputArgs{});
+							},
+							&state, state.hasInheritedTerms ? +[](World& world, const ChunkBatch& batch, const TypedQueryExecState& bound, cnt::darray<QueryJobArgData>& out) {
+								prepare_job_typed_args(world, batch, bound, out, InputArgs{});
+							} : nullptr);
 				}
 			}
 
@@ -67097,6 +67492,40 @@ namespace gaia {
 		template <typename T>
 		decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id);
 
+		namespace detail {
+			//! Deferred writes from one prepared query run. Queue shape is immutable on workers.
+			struct DeferredQueryJob {
+				//! World against which the thread-local binding is validated.
+				World* world = nullptr;
+				//! Explicit completion owner, or null for an independently finalized job.
+				QueryJobScope* batch = nullptr;
+				//! Coordinator-only preparation-order list, never traversed by workers.
+				DeferredQueryJob* next = nullptr;
+#if GAIA_OBSERVERS_ENABLED
+				//! Component/entity pair recorded for coordinator-side observer delivery.
+				struct OnSet {
+					Entity term;
+					Entity entity;
+				};
+				cnt::darray<cnt::darray<OnSet>> onSet;
+#endif
+				//! Component ids whose sorted-query caches must be invalidated after joining.
+				cnt::darray<cnt::darray<Entity>> sortInv;
+				//! Coalesced component-version writes for one pinned chunk.
+				struct VersionWrite {
+					uint32_t* versions;
+					uint32_t mask;
+					uint32_t version;
+				};
+				//! Each work item normally writes one chunk, stored inline without worker allocation.
+				cnt::darray<cnt::darray_ext<VersionWrite, 1>> versions;
+				//! Private command buffers retained at their high-water slot count for reuse.
+				cnt::darray<CommandBufferST*> commands;
+			};
+			//! Drains nonempty prepared-job effects outside the synchronous fast path.
+			void defer_query_jobs_drain_pending(World& world, DeferredQueryJob* pending);
+		} // namespace detail
+
 		//! Owns entities, components, archetypes, queries, observers, and systems.
 		class GAIA_API World final {
 		public:
@@ -67119,6 +67548,13 @@ namespace gaia {
 			friend struct ComponentSetter;
 			friend void lock(World&);
 			friend void unlock(World&);
+			friend detail::DeferredQueryJob* detail::defer_query_job_begin(World&, uint32_t);
+			friend void detail::defer_query_job_end(World&, detail::DeferredQueryJob*);
+			friend void detail::defer_query_jobs_drain(World&, detail::DeferredQueryJob*);
+			friend void detail::defer_query_jobs_drain_pending(World&, detail::DeferredQueryJob*);
+			friend bool detail::defer_chunk_version(World&, uint32_t*, uint32_t, uint32_t);
+			friend class QueryJobScope;
+			friend class QueryJobBatch;
 			friend QueryMatchScratch& query_match_scratch_acquire(World&);
 			friend void query_match_scratch_release(World&, bool);
 			friend uint32_t world_component_index_bucket_size(const World&, Entity);
@@ -67890,6 +68326,18 @@ namespace gaia {
 			//! Greater than zero while writes must record sorted invalidations instead of applying them.
 			uint32_t m_deferSortInvDepth = 0;
 
+			//! Scope receiving newly prepared jobs on the coordinator.
+			QueryJobScope* m_queryJobBatch = nullptr;
+			//! Coordinator-owned lifetime count, not an implicit completion boundary.
+			uint32_t m_deferredQueryCount = 0;
+			//! Changes only before the first worker or after the last join, unlike the coordinator count.
+			bool m_deferredQueryActive = false;
+			//! Completed job queues reused on the coordinator and released at World destruction.
+			detail::DeferredQueryJob* m_deferredQueryFree = nullptr;
+			//! Completed jobs retaining all effects until enclosing structural locks are released.
+			detail::DeferredQueryJob* m_deferredQueryPendingHead = nullptr;
+			detail::DeferredQueryJob* m_deferredQueryPendingTail = nullptr;
+
 #if GAIA_SYSTEMS_ENABLED
 			//! System runtime payload kept outside ECS component storage.
 			SystemRegistry m_systems;
@@ -67931,6 +68379,14 @@ namespace gaia {
 			uint32_t m_archetypeDeleteVersion = 0;
 
 			uint32_t m_structuralChangesLocked = 0;
+#if GAIA_ASSERT_ENABLED
+			//! Thread that currently holds a positive structural-change lock count.
+			std::atomic<std::thread::id> m_lockOwner{};
+	#if GAIA_ECS_TEST_HOOKS
+			//! Concurrent lock overlaps observed while TEST_HOOKS is enabled.
+			std::atomic_uint32_t m_lockTestViolations{0};
+	#endif
+#endif
 
 			//! Returns the entity record for a non-pair id in one lookup.
 			//! Use this instead of `valid()` followed by `fetch()` when only the record is needed.
@@ -68031,6 +68487,17 @@ namespace gaia {
 			//! \return Number of live cached-query records.
 			GAIA_NODISCARD uint32_t test_query_cache_count() const {
 				return m_queryCache.test_query_count();
+			}
+
+			//! Returns concurrent World-lock violations observed on this world.
+			//! Meaningful only when asserts are on.
+			//! \return Detected overlaps from two threads locking the same World.
+			GAIA_NODISCARD uint32_t test_lock_violations() const {
+	#if GAIA_ASSERT_ENABLED
+				return m_lockTestViolations.load(std::memory_order_relaxed);
+	#else
+				return 0;
+	#endif
 			}
 #endif
 
@@ -76165,44 +76632,36 @@ namespace gaia {
 			template <typename Func>
 			GAIA_NODISCARD bool each_inherited_term_entity(Entity term, Func&& func) const {
 				cnt::set<EntityLookupKey> seen;
-				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(term));
-				if (it == m_entityToArchetypeMap.end())
-					return true;
+				auto visit = [&](Entity entity) {
+					GAIA_ASSERT(valid(entity));
+					const auto key = EntityLookupKey(entity);
+					if (seen.contains(key))
+						return true;
+					seen.insert(key);
 
-				for (const auto& record: it->second) {
-					const auto* pArchetype = record.pArchetype;
-					if (pArchetype->is_req_del())
-						continue;
+					if (!func(entity))
+						return false;
 
-					for (const auto* pChunk: pArchetype->chunks()) {
-						const auto entities = pChunk->entity_view();
-						GAIA_EACH(entities) {
-							const auto entity = entities[i];
-							GAIA_ASSERT(valid(entity));
-							const auto entityKey = EntityLookupKey(entity);
-							if (seen.contains(entityKey))
-								continue;
-							seen.insert(entityKey);
-
-							if (!func(entity))
-								return false;
-
-							const auto& descendants = as_relations_trav_cache(entity);
-							for (const auto descendant: descendants) {
-								GAIA_ASSERT(valid(descendant));
-								const auto descendantKey = EntityLookupKey(descendant);
-								if (seen.contains(descendantKey))
-									continue;
-								seen.insert(descendantKey);
-
-								if (!func(descendant))
-									return false;
-							}
-						}
+					const auto& descendants = as_relations_trav_cache(entity);
+					for (auto descendant: descendants) {
+						GAIA_ASSERT(valid(descendant));
+						const auto descendantKey = EntityLookupKey(descendant);
+						if (seen.contains(descendantKey))
+							continue;
+						seen.insert(descendantKey);
+						if (!func(descendant))
+							return false;
 					}
-				}
+					return true;
+				};
 
-				return true;
+				// Direct enumeration includes non-fragmenting owners absent from archetype term indices.
+				return each_direct_term_entity_inter(
+						term, &visit,
+						[](void* ctx, Entity entity) {
+							return (*static_cast<decltype(visit)*>(ctx))(entity);
+						},
+						false);
 			}
 
 			//! Counts entities matching a direct term using the narrowest available store/index.
@@ -76758,7 +77217,8 @@ namespace gaia {
 
 			//! Returns whether `OnSet` notifications are currently being recorded.
 			GAIA_NODISCARD bool defer_on_set_active() const {
-				return m_deferOnSetDepth != 0;
+				const auto* job = detail::defer_query_job_ref();
+				return (job != nullptr && job->world == this) || m_deferOnSetDepth != 0;
 			}
 
 			//! Records an `OnSet` notification for later dispatch.
@@ -76766,6 +77226,13 @@ namespace gaia {
 			//! \param term Component or pair id that was written.
 			//! \param entity Entity the write applied to.
 			void defer_on_set_record(uint32_t slot, Entity term, Entity entity) {
+				auto* job = detail::defer_query_job_ref();
+				if (job != nullptr && job->world == this) {
+					GAIA_ASSERT(slot < job->onSet.size());
+					job->onSet[slot].push_back({term, entity});
+					return;
+				}
+
 				GAIA_ASSERT(slot < m_deferredOnSet.size());
 				m_deferredOnSet[slot].push_back({term, entity});
 			}
@@ -76809,13 +77276,21 @@ namespace gaia {
 			//! Returns whether sorted-query invalidations are currently being recorded.
 			//! \return True while deferred sorted-query invalidation is active.
 			GAIA_NODISCARD bool defer_sort_inv_active() const {
-				return m_deferSortInvDepth != 0;
+				const auto* job = detail::defer_query_job_ref();
+				return (job != nullptr && job->world == this) || m_deferSortInvDepth != 0;
 			}
 
 			//! Records a sorted-query invalidation for later application.
 			//! \param slot Work-item slot owned exclusively by the calling thread.
 			//! \param entity Component entity whose version was bumped by a write.
 			void defer_sort_inv_record(uint32_t slot, Entity entity) {
+				auto* job = detail::defer_query_job_ref();
+				if (job != nullptr && job->world == this) {
+					GAIA_ASSERT(slot < job->sortInv.size());
+					job->sortInv[slot].push_back(entity);
+					return;
+				}
+
 				GAIA_ASSERT(slot < m_deferredSortInv.size());
 				m_deferredSortInv[slot].push_back({entity});
 			}
@@ -77448,20 +77923,65 @@ namespace gaia {
 				return valid(ec, Entity(entityId, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair));
 			}
 
-			//! Locks the chunk for structural changes.
+			//! Locks the world against structural changes.
 			//! While locked, no new entities or components can be added or removed.
 			//! While locked, no entities can be enabled or disabled.
+			//! Nested locks from the same thread are allowed.
+			//! \warning Not thread-safe. Two threads must not lock the same World at once.
+			//!          That includes two threads calling Query::each() even on disjoint queries.
+			//!          Assert builds abort when a second thread enters while the lock is held.
 			void lock() {
+#if GAIA_ASSERT_ENABLED
+				const auto me = std::this_thread::get_id();
+				auto owner = m_lockOwner.load(std::memory_order_acquire);
+				if (owner == std::thread::id{}) {
+					std::thread::id expected{};
+					if (m_lockOwner.compare_exchange_strong(expected, me, std::memory_order_acq_rel, std::memory_order_acquire))
+						owner = me;
+					else
+						owner = expected;
+				}
+
+				if (owner != me) {
+	#if GAIA_ECS_TEST_HOOKS
+					m_lockTestViolations.fetch_add(1, std::memory_order_relaxed);
+					return;
+	#else
+					GAIA_ASSERT(
+							owner == me && "World locked concurrently from two threads. "
+														 "Do not call Query::each() or lock() on one World from two threads. "
+														 "Use QueryExecType::Parallel or Query::job.");
+	#endif
+				}
+#endif
+
 				GAIA_ASSERT(m_structuralChangesLocked != (uint32_t)-1);
 				++m_structuralChangesLocked;
 			}
 
-			//! Unlocks the chunk for structural changes.
+			//! Unlocks the world for structural changes.
 			//! While locked, no new entities or components can be added or removed.
 			//! While locked, no entities can be enabled or disabled.
 			void unlock() {
+#if GAIA_ASSERT_ENABLED
+				const auto me = std::this_thread::get_id();
+				const auto owner = m_lockOwner.load(std::memory_order_acquire);
+				if (owner != me) {
+	#if GAIA_ECS_TEST_HOOKS
+					return;
+	#else
+					GAIA_ASSERT(owner == me && "World unlocked from a thread that does not hold the structural-change lock.");
+	#endif
+				}
+#endif
+
 				GAIA_ASSERT(m_structuralChangesLocked > 0);
 				--m_structuralChangesLocked;
+
+#if GAIA_ASSERT_ENABLED
+				if (m_structuralChangesLocked == 0)
+					m_lockOwner.store(std::thread::id{}, std::memory_order_release);
+#endif
 			}
 
 #if GAIA_SYSTEMS_ENABLED
@@ -77470,7 +77990,7 @@ namespace gaia {
 #endif
 
 		public:
-			//! Checks if the chunk is locked for structural changes.
+			//! Checks if the world is locked for structural changes.
 			//! \return True while at least one structural-change lock is held. False otherwise.
 			GAIA_NODISCARD bool locked() const {
 				return m_structuralChangesLocked != 0;
@@ -81280,6 +81800,22 @@ namespace gaia {
 			void done() {
 				cleanup_inter();
 
+				GAIA_ASSERT(m_deferredQueryCount == 0);
+				if (m_deferredQueryPendingHead != nullptr) {
+					m_deferredQueryPendingTail->next = m_deferredQueryFree;
+					m_deferredQueryFree = m_deferredQueryPendingHead;
+					m_deferredQueryPendingHead = m_deferredQueryPendingTail = nullptr;
+				}
+
+				while (m_deferredQueryFree != nullptr) {
+					auto* job = m_deferredQueryFree;
+					m_deferredQueryFree = job->next;
+					for (auto* buffer: job->commands)
+						if (buffer != nullptr)
+							cmd_buffer_destroy(*buffer);
+					delete job;
+				}
+
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				ChunkAllocator::get().flush();
 #endif
@@ -81913,6 +82449,8 @@ namespace gaia {
 		// CommandBuffer API
 
 		GAIA_NODISCARD inline CommandBufferST& cmd_buffer_st_get(World& world) {
+			if (auto* buffer = detail::defer_query_cmd_buffer(world))
+				return *buffer;
 			return world.cmd_buffer_st();
 		}
 
@@ -81923,6 +82461,7 @@ namespace gaia {
 		inline void commit_cmd_buffer_st(World& world) {
 			if (world.locked())
 				return;
+			detail::defer_query_jobs_drain(world, nullptr);
 			cmd_buffer_commit(world.cmd_buffer_st());
 		}
 
@@ -88863,55 +89402,42 @@ namespace gaia {
 							 type == QueryExecType::ParallelEff;
 			}
 
-			//! Runs or prepares a system entity from the erased system-query callback path.
-			//! \param pCtx Pointer to SystemRunCtx.
-			//! \param item Precomputed scheduling key for the system entity to run or prepare.
-			inline void run_system_entity_erased(void* pCtx, const SystemScheduleItem& item) {
-				auto& ctx = *static_cast<SystemRunCtx*>(pCtx);
-				GAIA_ASSERT(ctx.pWorld != nullptr);
-				GAIA_ASSERT(ctx.pPending != nullptr);
-				if (ctx.pWorld == nullptr || ctx.pPending == nullptr)
-					return;
-
+			//! Prepares one compatible system inside the current query-job completion scope.
+			//! \param ctx World, pending jobs, and current scheduling key.
+			//! \param item Precomputed scheduling key for the system to prepare.
+			//! \return True when consumed, false when a completed batch is required first.
+			inline bool prepare_system_entity(SystemRunCtx& ctx, const SystemScheduleItem& item) {
 				auto& world = *ctx.pWorld;
 				auto& pending = *ctx.pPending;
 				const auto systemEntity = item.entity;
 				if (!world.valid(systemEntity) || !world.has(systemEntity, System))
-					return;
+					return true;
 				if (!world.enabled_hierarchy(systemEntity, ChildOf))
-					return;
+					return true;
 
-				if (!ctx.hasCurrent) {
-					ctx.current = item;
-					ctx.hasCurrent = true;
-				} else if (system_schedule_batch_changed(ctx.current, item)) {
-					flush_pending_system_jobs(pending);
-					ctx.current = item;
-				}
+				if (ctx.hasCurrent && system_schedule_batch_changed(ctx.current, item))
+					return false;
 
 				auto ss = world.acc_mut(systemEntity);
 				auto& sys = ss.smut<ecs::System_>();
-				if (!ctx.canScheduleSystems || !system_exec_uses_scheduler(sys.execType) || sys.query.main_thread_required()) {
-					flush_pending_system_jobs(pending);
-					sys.exec(world);
-					return;
-				}
+				if (!system_exec_uses_scheduler(sys.execType) || sys.query.main_thread_required())
+					return false;
 
-				auto job = sys.job(world);
-				if (!job.valid())
-					return;
-
-				for (auto& pendingJob: pending) {
-					if (!world.valid(pendingJob.entity) || !world.has(pendingJob.entity, System))
-						continue;
-
+				// Dependencies on conflicting jobs must complete before matching, not only before execution.
+				for (const auto& pendingJob: pending) {
 					auto prevSs = world.acc_mut(pendingJob.entity);
 					auto& prevSys = prevSs.smut<ecs::System_>();
 					if (!prevSys.query.can_run_parallel(sys.query))
-						job.dep(pendingJob.job);
+						return false;
 				}
 
-				pending.emplace_back(systemEntity, GAIA_MOV(job));
+				ctx.current = item;
+				ctx.hasCurrent = true;
+				auto job = sys.job(world);
+				if (job.valid())
+					pending.emplace_back(systemEntity, GAIA_MOV(job));
+
+				return true;
 			}
 
 			//! Collects one system scheduling key from the erased system-query callback path.
@@ -88960,9 +89486,36 @@ namespace gaia {
 				ctx.pPending = &pending;
 				ctx.canScheduleSystems = sched_supports_deferred_system_jobs(world_sched(world));
 
-				for (const auto& item: items)
-					run_system_entity_erased(&ctx, item);
-				flush_pending_system_jobs(pending);
+				uint32_t next = 0;
+				while (next < items.size()) {
+					const auto entity = items[next].entity;
+					if (!world.valid(entity) || !world.has(entity, System) || !world.enabled_hierarchy(entity, ChildOf)) {
+						++next;
+						continue;
+					}
+
+					// Serial callbacks must run outside the scope, with all earlier effects already committed.
+					{
+						auto ss = world.acc_mut(entity);
+						auto& sys = ss.smut<ecs::System_>();
+						if (!ctx.canScheduleSystems || !system_exec_uses_scheduler(sys.execType) ||
+								sys.query.main_thread_required()) {
+							sys.exec(world);
+							++next;
+							continue;
+						}
+					}
+
+					// Prepare only independent jobs together. No worker runs while another query is being prepared.
+					QueryJobScope batch(world);
+					ctx.hasCurrent = false;
+					while (next < items.size() && prepare_system_entity(ctx, items[next]))
+						++next;
+
+					flush_pending_system_jobs(pending);
+					[[maybe_unused]] const bool finished = batch.finish();
+					GAIA_ASSERT(finished);
+				}
 			}
 
 			//! Orders collected scheduling keys and runs them.
@@ -89121,6 +89674,201 @@ namespace gaia {
 			else
 				scratch.clear_temporary_matches();
 		}
+
+		inline QueryJobScope::QueryJobScope(World& world): m_world(&world) {
+			GAIA_ASSERT(world.m_queryJobBatch == nullptr);
+			world.lock();
+			world.m_queryJobBatch = this;
+		}
+
+		inline QueryJobScope::~QueryJobScope() {
+			const bool completed = finish();
+			GAIA_ASSERT(completed);
+			(void)completed;
+		}
+
+		inline bool QueryJobScope::finish() {
+			if (m_world == nullptr)
+				return true;
+			if (m_pending != 0)
+				return false;
+
+			auto& world = *m_world;
+			GAIA_ASSERT(world.m_queryJobBatch == this);
+			world.m_queryJobBatch = nullptr;
+			m_world = nullptr;
+			world.unlock();
+
+			// Unbind before callbacks so observers can open their own execution batch.
+			detail::defer_query_jobs_drain(world, m_head);
+			m_head = m_tail = nullptr;
+			commit_cmd_buffer_st(world);
+			commit_cmd_buffer_mt(world);
+			return true;
+		}
+
+		namespace detail {
+			inline DeferredQueryJob* defer_query_job_begin(World& world, uint32_t itemCount) {
+				auto* job = world.m_deferredQueryFree;
+				if (job != nullptr)
+					world.m_deferredQueryFree = job->next;
+				else
+					job = new DeferredQueryJob();
+
+				job->next = nullptr;
+				job->versions.resize(itemCount);
+				if (job->commands.size() < itemCount)
+					job->commands.resize(itemCount, nullptr);
+				job->world = &world;
+				job->sortInv.resize(itemCount);
+#if GAIA_OBSERVERS_ENABLED
+				job->onSet.resize(itemCount);
+#endif
+
+				job->batch = world.m_queryJobBatch;
+				if (auto* batch = job->batch) {
+					if (batch->m_tail != nullptr)
+						batch->m_tail->next = job;
+					else
+						batch->m_head = job;
+					batch->m_tail = job;
+					++batch->m_pending;
+				}
+
+				if (world.m_deferredQueryCount++ == 0)
+					world.m_deferredQueryActive = true;
+
+				return job;
+			}
+
+			inline bool defer_chunk_version(World& world, uint32_t* versions, uint32_t component, uint32_t version) {
+				// Ordinary serial writes avoid thread-local access entirely.
+				if (!world.m_deferredQueryActive)
+					return false;
+
+				const auto& context = defer_context_ref();
+				auto* job = context.job;
+				if (job == nullptr || job->world != &world)
+					return false;
+
+				GAIA_ASSERT(component < ChunkHeader::MAX_COMPONENTS);
+				const auto slot = context.slot;
+				GAIA_ASSERT(slot < job->versions.size());
+
+				auto& queue = job->versions[slot];
+				if (!queue.empty() && queue.back().versions == versions)
+					queue.back().mask |= uint32_t(1) << component;
+				else
+					queue.push_back({versions, uint32_t(1) << component, version});
+
+				return true;
+			}
+
+			inline void defer_query_job_end(World& world, DeferredQueryJob* job) {
+				GAIA_ASSERT(world.m_deferredQueryCount != 0);
+				if (--world.m_deferredQueryCount == 0)
+					world.m_deferredQueryActive = false;
+
+				if (job->batch != nullptr) {
+					GAIA_ASSERT(job->batch->m_pending != 0);
+					--job->batch->m_pending;
+					return;
+				}
+
+				defer_query_jobs_drain(world, job);
+			}
+
+			inline CommandBufferST* defer_query_cmd_buffer(World& world) {
+				const auto& context = defer_context_ref();
+				auto* job = context.job;
+				if (job == nullptr || job->world != &world)
+					return nullptr;
+				GAIA_ASSERT(context.slot < job->commands.size());
+				auto*& buffer = job->commands[context.slot];
+				if (buffer == nullptr)
+					buffer = cmd_buffer_st_create(world);
+				return buffer;
+			}
+
+			//! Keeps ordinary synchronous commits out of the deferred-effect drain machinery.
+			inline void defer_query_jobs_drain(World& world, DeferredQueryJob* pending) {
+				if (pending == nullptr && world.m_deferredQueryPendingHead == nullptr)
+					return;
+				defer_query_jobs_drain_pending(world, pending);
+			}
+
+			inline void defer_query_jobs_drain_pending(World& world, DeferredQueryJob* pending) {
+				// Observers can read sibling payloads, so every effect waits for stable storage.
+				if (world.locked()) {
+					if (pending != nullptr) {
+						if (world.m_deferredQueryPendingTail != nullptr)
+							world.m_deferredQueryPendingTail->next = pending;
+						else
+							world.m_deferredQueryPendingHead = pending;
+						for (auto* job = pending; job != nullptr; job = job->next)
+							world.m_deferredQueryPendingTail = job;
+					}
+					return;
+				}
+				if (world.m_deferredQueryPendingHead != nullptr) {
+					world.m_deferredQueryPendingTail->next = pending;
+					pending = world.m_deferredQueryPendingHead;
+					world.m_deferredQueryPendingHead = world.m_deferredQueryPendingTail = nullptr;
+				}
+				// Publish every version before observers evaluate changed filters.
+				for (auto* job = pending; job != nullptr; job = job->next) {
+					for (auto& queue: job->versions) {
+						for (const auto& item: queue) {
+							item.versions[0] = item.version;
+							for (auto mask = item.mask; mask != 0; mask &= mask - 1)
+								item.versions[GAIA_CLZ(mask) + 1] = item.version;
+						}
+						queue.clear();
+					}
+				}
+
+				// Invalidate every sibling before any observer can execute a sorted query.
+				for (auto* job = pending; job != nullptr; job = job->next) {
+					for (const auto& queue: job->sortInv) {
+						for (auto entity: queue)
+							world_invalidate_sorted_queries_for_entity(world, entity);
+					}
+				}
+
+				for (auto* job = pending; job != nullptr; job = job->next) {
+#if GAIA_OBSERVERS_ENABLED
+					for (const auto& queue: job->onSet) {
+						for (const auto& item: queue)
+							world_notify_on_set_entity(world, item.term, item.entity);
+					}
+#endif
+
+					for (auto& queue: job->sortInv)
+						queue.clear();
+
+#if GAIA_OBSERVERS_ENABLED
+					for (auto& queue: job->onSet)
+						queue.clear();
+#endif
+				}
+
+				// Observer callbacks may prepare new work and pin storage again.
+				if (world.locked()) {
+					defer_query_jobs_drain(world, pending);
+					return;
+				}
+
+				while (pending != nullptr) {
+					auto* job = pending;
+					pending = job->next;
+					for (auto* buffer: job->commands)
+						if (buffer != nullptr)
+							cmd_buffer_commit(*buffer);
+					job->next = world.m_deferredQueryFree;
+					world.m_deferredQueryFree = job;
+				}
+			}
+		} // namespace detail
 
 		//! Invalidates sorted queries affected by \a entity.
 		//! \param world World owning the queries.
@@ -90131,6 +90879,425 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 #endif
+
+namespace gaia {
+	namespace ecs {
+		//! Reusable coordinator-owned execution graph. Registration copies callbacks, but retains non-owning query
+		//! references. Queries and World must outlive the batch and must not move during its lifetime. All graph access is
+		//! coordinator-only. run() prepares each visibility phase only after the preceding phase has joined and applied its
+		//! effects. Explicit dependencies take precedence over registration order. Undeclared accesses remain the caller's
+		//! responsibility. Registration/scratch capacity is retained across runs. Query::job still owns per-execution
+		//! scheduler resources.
+		class QueryJobBatch final {
+		public:
+			//! Outcome of a synchronous graph run. Empty means no registered nodes, not rejected query work.
+			enum class Result : uint8_t {
+				Completed,
+				Empty,
+				Busy,
+				Cycle,
+				WrongWorld,
+				UnsupportedScheduler,
+
+				PreparationFailed
+			};
+
+			//! Non-owning registration identifier, valid only for its originating batch lifetime.
+			struct Handle {
+				const QueryJobBatch* owner = nullptr;
+				uint32_t index = (uint32_t)-1;
+			};
+
+			//! Query preparation rejection from the latest non-busy run.
+			//! Status is meaningful only when handle.owner is non-null. Graph and scheduler errors have no query status.
+			struct Failure {
+				Handle handle{};
+				QueryJobStatus status = QueryJobStatus::Ready;
+			};
+
+		private:
+			//! Type-erased retained callback and non-owning query registration.
+			struct Node {
+				Query* query;
+				void* context;
+				SchedJob (*prepare)(void*, Query&, QueryExecType, QueryJobStatus&);
+				void (*execute)(void*, Query&);
+				void (*destroy)(void*);
+				QueryExecType mode;
+				uint32_t group;
+			};
+
+			//! Directed dependency: visibility edges advance preparation to a later completion boundary.
+			struct Edge {
+				uint32_t first, second;
+				bool visibility;
+			};
+
+			World& m_world;
+			cnt::darray<Node> m_nodes;
+			cnt::darray<Edge> m_edges;
+			cnt::darray<Edge> m_runEdges;
+			//! Reused adjacency, min-heap and phase buckets. No transitive closure is materialized.
+			cnt::darray<uint32_t> m_order, m_indegree, m_phase, m_head, m_next, m_ready;
+			cnt::darray<uint32_t> m_phaseHead, m_phaseTail, m_phaseNext;
+			cnt::darray<SchedJob> m_jobs;
+			uint32_t m_group = 0;
+			bool m_running = false;
+			Failure m_failure;
+
+			//! Validates a batch-local handle without touching query state.
+			//! \param h Handle to inspect.
+			//! \return True for a live registration in this batch.
+			bool valid(Handle h) const {
+				return h.owner == this && h.index < m_nodes.size();
+			}
+
+			//! Stores a dependency, rejecting mutation during execution.
+			//! \param a Prerequisite registration.
+			//! \param b Dependent registration.
+			//! \param visibility Whether effects must be applied before dependent preparation.
+			//! \return False for invalid handles or an active run. Cycles are diagnosed by run().
+			bool edge(Handle a, Handle b, bool visibility) {
+				if (m_running || !valid(a) || !valid(b))
+					return false;
+				for (auto& e: m_edges)
+					if (e.first == a.index && e.second == b.index) {
+						e.visibility |= visibility;
+						return true;
+					}
+				m_edges.push_back({a.index, b.index, visibility});
+				return true;
+			}
+
+			//! Builds outgoing edge adjacency in linear time, retaining allocation capacity.
+			void adjacency() {
+				m_head.resize(m_nodes.size());
+				m_next.resize(m_runEdges.size());
+				for (auto& head: m_head)
+					head = (uint32_t)-1;
+				for (uint32_t i = 0; i < m_runEdges.size(); ++i) {
+					auto a = m_runEdges[i].first;
+					m_next[i] = m_head[a];
+					m_head[a] = i;
+				}
+			}
+
+			//! Produces group-first, registration-stable topological order with a ready min-heap.
+			//! \return False for cycles, including backwards crossings of registration barriers.
+			bool order() {
+				const auto n = (uint32_t)m_nodes.size();
+				m_order.clear();
+				m_ready.clear();
+				m_indegree.resize(n);
+				for (auto& degree: m_indegree)
+					degree = 0;
+				for (const auto& e: m_runEdges) {
+					if (m_nodes[e.first].group > m_nodes[e.second].group)
+						return false;
+					++m_indegree[e.second];
+				}
+
+				adjacency();
+				auto later = [&](uint32_t a, uint32_t b) {
+					if (m_nodes[a].group != m_nodes[b].group)
+						return m_nodes[a].group > m_nodes[b].group;
+					return a > b;
+				};
+
+				for (uint32_t i = 0; i < n; ++i) {
+					if (m_indegree[i] == 0) {
+						m_ready.push_back(i);
+						std::push_heap(m_ready.begin(), m_ready.end(), later);
+					}
+				}
+
+				while (!m_ready.empty()) {
+					std::pop_heap(m_ready.begin(), m_ready.end(), later);
+					auto a = m_ready.back();
+					m_ready.pop_back();
+					m_order.push_back(a);
+					for (auto e = m_head[a]; e != (uint32_t)-1; e = m_next[e]) {
+						auto b = m_runEdges[e].second;
+						if (--m_indegree[b] == 0) {
+							m_ready.push_back(b);
+							std::push_heap(m_ready.begin(), m_ready.end(), later);
+						}
+					}
+				}
+
+				return m_order.size() == n;
+			}
+
+		public:
+			//! Creates an unlocked, empty registration graph.
+			//! \param world World used by every registered query and its scheduler.
+			explicit QueryJobBatch(World& world): m_world(world) {}
+			~QueryJobBatch() {
+				for (auto& n: m_nodes)
+					n.destroy(n.context);
+			}
+
+			QueryJobBatch(const QueryJobBatch&) = delete;
+			QueryJobBatch(QueryJobBatch&&) = delete;
+			QueryJobBatch& operator=(const QueryJobBatch&) = delete;
+			QueryJobBatch& operator=(QueryJobBatch&&) = delete;
+
+			//! Copies a callable without preparing/matching its query or locking World.
+			//! \tparam Func Copyable query callback type.
+			//! \param query Non-owning, stable query reference. Its current configuration is read by each run.
+			//! \param func Callback copied into retained registration storage and then into each prepared query job.
+			//! \param mode Query job execution mode.
+			//! \return Batch-local handle, or an invalid handle if called during run().
+			template <typename Func>
+			Handle add(Query& query, Func func, QueryExecType mode = QueryExecType::Default) {
+				if (m_running)
+					return {};
+
+				auto* retained = new Func(GAIA_MOV(func));
+				const auto idx = (uint32_t)m_nodes.size();
+				m_nodes.push_back(
+						{&query, retained,
+						 [](void* p, Query& q, QueryExecType m, QueryJobStatus& status) {
+							 return q.job(*static_cast<Func*>(p), m, &status);
+						 },
+						 [](void* p, Query& q) {
+							 auto callback = *static_cast<Func*>(p);
+							 q.each(callback, QueryExecType::Default);
+						 },
+						 [](void* p) {
+							 delete static_cast<Func*>(p);
+						 },
+						 mode, m_group});
+				return {this, idx};
+			}
+
+			//! Requires prerequisite effects (including structural commands and observers) before dependent matching.
+			//! \param first Prerequisite handle.
+			//! \param second Dependent handle.
+			//! \return Whether the edge was recorded.
+			bool dep(Handle first, Handle second) {
+				return edge(first, second, true);
+			}
+
+			//! Orders payload execution only. Both queries may be prepared against the same pre-execution World.
+			//! \param first Prerequisite handle.
+			//! \param second Dependent handle.
+			//! \return Whether the edge was recorded.
+			//! \warning Does not make structural commands, observer reactions, or changed-query filters visible to the
+			//! successor.
+			bool dep_payload(Handle first, Handle second) {
+				return edge(first, second, false);
+			}
+
+			//! Starts a new registration group whose preparation observes effects of all preceding groups.
+			//! \return False during execution. True when the boundary was recorded.
+			bool barrier() {
+				if (m_running)
+					return false;
+
+				++m_group;
+				return true;
+			}
+
+			//! Returns the latest query preparation rejection without changing the run result.
+			//! \return Failure with an invalid handle unless a query registration rejected preparation.
+			//! \note Cleared before each non-busy run. Busy attempts preserve the previous or active run diagnostic.
+			Failure failure() const {
+				return m_failure;
+			}
+
+			//! Validates the graph, then owns all preparation, dependency wiring, submission, joins and deletion.
+			//! \return Actionable run status. PreparationFailed can occur after earlier phases already completed.
+			//! \note Requires add for Default worker nodes and add_par for parallel worker nodes, plus submit/wait/del.
+			//! dep is needed only for same-phase edges. Requirements conservatively include empty matching nodes.
+			//! Main-thread-only graphs need no scheduler callbacks. Main-thread queries execute on the calling coordinator,
+			//! with completion boundaries before and after, regardless of their requested execution mode.
+			//! \note Empty matching queries are successful registrations. Callback-local mutable copies reset each run.
+			//! \warning Do not call from a scheduler worker or overlap unrelated prepared jobs on this World.
+			Result run() {
+				if (m_running || m_world.locked() || m_world.m_queryJobBatch != nullptr || m_world.m_deferredQueryCount != 0)
+					return Result::Busy;
+
+				m_failure = {};
+				if (m_nodes.empty())
+					return Result::Empty;
+
+				const auto& s = m_world.sched();
+
+				m_running = true;
+				struct RunGuard {
+					bool& flag;
+					~RunGuard() {
+						flag = false;
+					}
+				} guard{m_running};
+
+				m_runEdges = m_edges;
+				const auto n = (uint32_t)m_nodes.size();
+				if (!order())
+					return Result::Cycle;
+
+				for (uint32_t a = 0; a < n; ++a) {
+					auto& node = m_nodes[a];
+					if (node.mode != QueryExecType::Default && node.mode != QueryExecType::Parallel &&
+							node.mode != QueryExecType::ParallelPerf && node.mode != QueryExecType::ParallelEff) {
+						m_failure = {{this, a}, QueryJobStatus::InvalidMode};
+						return Result::PreparationFailed;
+					}
+					if (node.query->fetch().world() != &m_world)
+						return Result::WrongWorld;
+				}
+
+				// Explicit order determines conflict direction. Different groups already have completion boundaries.
+				for (uint32_t i = 0; i < n; ++i) {
+					for (uint32_t j = i + 1; j < n; ++j) {
+						auto a = m_order[i], b = m_order[j];
+						if (m_nodes[a].group != m_nodes[b].group)
+							break;
+						if (m_nodes[a].query->conflicts_with(*m_nodes[b].query))
+							m_runEdges.push_back({a, b, false});
+					}
+				}
+
+				adjacency();
+				m_phase.resize(n);
+				m_jobs.resize(n);
+				for (auto& phase: m_phase)
+					phase = 0;
+				uint32_t maxPhase = 0, floor = 0, group = m_nodes[m_order[0]].group;
+
+				// Group bounds replace dense barrier edges. Main-thread nodes occupy an exclusive phase.
+				for (auto a: m_order) {
+					if (group != m_nodes[a].group) {
+						floor = maxPhase + 1;
+						group = m_nodes[a].group;
+					}
+
+					const bool main = m_nodes[a].query->main_thread_required();
+					if (main)
+						floor = maxPhase + 1;
+					m_phase[a] = core::get_max(m_phase[a], floor);
+					maxPhase = core::get_max(maxPhase, m_phase[a]);
+					if (main)
+						floor = maxPhase + 1;
+
+					for (auto e = m_head[a]; e != (uint32_t)-1; e = m_next[e]) {
+						const auto& edge = m_runEdges[e];
+						m_phase[edge.second] = core::get_max(m_phase[edge.second], m_phase[a] + (uint32_t)edge.visibility);
+					}
+				}
+
+				// Check the complete plan before preparing any jobs or consuming changed filters.
+				for (const auto& node: m_nodes) {
+					if (node.query->main_thread_required())
+						continue;
+					if (!s.submit || !s.wait || !s.del || (node.mode == QueryExecType::Default ? !s.add : !s.add_par))
+						return Result::UnsupportedScheduler;
+				}
+				if (!s.dep) {
+					for (const auto& edge: m_runEdges)
+						if (m_phase[edge.first] == m_phase[edge.second])
+							return Result::UnsupportedScheduler;
+				}
+
+				m_phaseHead.resize(maxPhase + 1);
+				m_phaseTail.resize(maxPhase + 1);
+				m_phaseNext.resize(n);
+
+				for (auto& head: m_phaseHead)
+					head = (uint32_t)-1;
+
+				for (auto a: m_order) {
+					auto phase = m_phase[a];
+					m_phaseNext[a] = (uint32_t)-1;
+					if (m_phaseHead[phase] == (uint32_t)-1)
+						m_phaseHead[phase] = a;
+					else
+						m_phaseNext[m_phaseTail[phase]] = a;
+					m_phaseTail[phase] = a;
+				}
+
+				for (auto& stamp: m_indegree)
+					stamp = (uint32_t)-1;
+
+				for (uint32_t phase = 0; phase <= maxPhase; ++phase) {
+					auto first = m_phaseHead[phase];
+					if (first == (uint32_t)-1)
+						continue;
+
+					if (m_nodes[first].query->main_thread_required()) {
+						auto& node = m_nodes[first];
+						node.execute(node.context, *node.query);
+						continue;
+					}
+
+					QueryJobScope scope(m_world);
+					bool failed = false;
+					for (auto a = first; a != (uint32_t)-1; a = m_phaseNext[a]) {
+						auto& node = m_nodes[a];
+						QueryJobStatus status;
+						m_jobs[a] = node.prepare(node.context, *node.query, node.mode, status);
+						if (!m_jobs[a].valid()) {
+							if (status != QueryJobStatus::Empty) {
+								m_failure = {{this, a}, status};
+								failed = true;
+								break;
+							}
+
+							// Empty matches retain a lightweight scheduler junction only when they have successors.
+							// This preserves arbitrary sparse dependency chains without dense transitive closure.
+							bool junction = false;
+							for (auto e = m_head[a]; e != (uint32_t)-1; e = m_next[e])
+								junction |= m_phase[m_runEdges[e].second] == phase;
+
+							if (junction) {
+								if (s.add != nullptr) {
+									SchedTaskDesc desc{};
+									desc.invoke = [](void*) {};
+									m_jobs[a] = SchedJob(s, s.add(s.pCtx, &desc), false, nullptr, nullptr);
+								} else {
+									SchedParDesc desc{};
+									desc.invoke = [](void*, uint32_t, uint32_t) {};
+									desc.itemCount = 1;
+									desc.groupSize = 1;
+									desc.execType = node.mode;
+									m_jobs[a] = SchedJob(s, s.add_par(s.pCtx, &desc), false, nullptr, nullptr);
+								}
+							}
+						}
+					}
+
+					if (!failed) {
+						// Visit each adjacency edge once and stamp prerequisites to deduplicate explicit/conflict links.
+						for (auto a = first; a != (uint32_t)-1; a = m_phaseNext[a]) {
+							for (auto e = m_head[a]; e != (uint32_t)-1; e = m_next[e]) {
+								auto b = m_runEdges[e].second;
+								if (m_phase[b] == phase && m_jobs[a].valid() && m_jobs[b].valid() && m_indegree[b] != a) {
+									m_jobs[b].dep(m_jobs[a]);
+									m_indegree[b] = a;
+								}
+							}
+						}
+
+						for (auto a = first; a != (uint32_t)-1; a = m_phaseNext[a])
+							m_jobs[a].submit();
+						for (auto a = first; a != (uint32_t)-1; a = m_phaseNext[a])
+							m_jobs[a].wait();
+					}
+
+					for (auto a = first; a != (uint32_t)-1; a = m_phaseNext[a])
+						m_jobs[a].del();
+
+					scope.finish();
+					if (failed)
+						return Result::PreparationFailed;
+				}
+
+				return Result::Completed;
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
 
 namespace gaia {
 	namespace ecs {

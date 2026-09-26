@@ -24,6 +24,7 @@ struct ExternalExecProbeComp {
 
 struct ExternalSchedProbe {
 	ecs::SchedParDesc addedParallel[8]{};
+	uint32_t waitsBeforeParallelAdd[8]{};
 	ecs::SchedTaskDesc addedTasks[8]{};
 	uint32_t runParallelCalls = 0;
 	uint32_t addTaskCalls = 0;
@@ -83,6 +84,7 @@ struct ExternalSchedProbe {
 		probe.lastItemCount = pDesc->itemCount;
 		probe.lastGroupSize = pDesc->groupSize;
 		probe.addedParallel[probe.addParallelCalls - 1] = *pDesc;
+		probe.waitsBeforeParallelAdd[probe.addParallelCalls - 1] = probe.waitCalls;
 
 		ecs::SchedToken token{};
 		token.value[0] = probe.addParallelCalls;
@@ -145,6 +147,41 @@ struct ExternalSchedProbe {
 	}
 };
 
+TEST_CASE("ECS - Query job batches retain effects until unrelated jobs release protection") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+	auto entity = wld.add();
+	wld.add<ExternalExecProbeComp>(entity, {1});
+	auto query = wld.query().all<ExternalExecProbeComp&>();
+	uint32_t notifications = 0;
+	wld.observer()
+			.event(ecs::ObserverEvent::OnSet)
+			.all<ExternalExecProbeComp>()
+			.on_each([&](const ExternalExecProbeComp&) {
+				++notifications;
+			});
+	auto unrelatedQuery = wld.query().all<const ExternalExecProbeComp>();
+	auto unrelated = unrelatedQuery.job([](const ExternalExecProbeComp&) {}, ecs::QueryExecType::Parallel);
+	{
+		ecs::QueryJobScope batch(wld);
+		auto job = query.job(
+				[](ExternalExecProbeComp& value) {
+					++value.value;
+				},
+				ecs::QueryExecType::Parallel);
+		CHECK_FALSE(batch.finish());
+		job.submit();
+		job.wait();
+		CHECK(notifications == 0);
+		CHECK(batch.finish());
+		// A finished batch cannot deliver callbacks while an unrelated job still protects the world.
+		CHECK(notifications == 0);
+	}
+	unrelated.del();
+	CHECK(notifications == 1);
+}
+
 TEST_CASE("ECS - Query jobs use external scheduler wrappers") {
 	TestWorld twld;
 	ExternalSchedProbe probe;
@@ -193,6 +230,210 @@ TEST_CASE("ECS - Query jobs use external scheduler wrappers") {
 
 	CHECK(probe.waitCalls == 2);
 	CHECK(probe.delCalls == 2);
+}
+
+//! Default jobs snapshot changed-filter membership during coordinator preparation.
+TEST_CASE("ECS - Default query jobs snapshot changed filters before execution") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+
+	const auto entity = wld.add();
+	wld.add<ExternalExecProbeComp>(entity, {1});
+	auto query = wld.query().all<ExternalExecProbeComp>().changed<ExternalExecProbeComp>();
+	query.each([](const ExternalExecProbeComp&) {});
+	uint32_t hits = 0;
+	query.each([&](const ExternalExecProbeComp&) {
+		++hits;
+	});
+	CHECK(hits == 0);
+
+	auto job = query.job(
+			[&](const ExternalExecProbeComp& value) {
+				CHECK(value.value == 2);
+				++hits;
+			},
+			ecs::QueryExecType::Default);
+	CHECK_FALSE(job.valid());
+	CHECK(hits == 0);
+	// Payload changes after preparation cannot add rows to the prepared set.
+	wld.set<ExternalExecProbeComp>(entity) = {2};
+	job.submit();
+	job.wait();
+	CHECK(hits == 0);
+	query.each([&](const ExternalExecProbeComp& value) {
+		CHECK(value.value == 2);
+		++hits;
+	});
+	CHECK(hits == 1);
+}
+
+TEST_CASE("ECS - Prepared jobs reject eager schedulers without consuming changes") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	auto entity = wld.add();
+	wld.add<ExternalExecProbeComp>(entity, {1});
+
+	auto query = wld.query().all<ExternalExecProbeComp>().changed<ExternalExecProbeComp>();
+	query.each([](const ExternalExecProbeComp&) {});
+	wld.set<ExternalExecProbeComp>(entity) = {2};
+
+	auto eager = probe.sched();
+	eager.sched = eager.add;
+	eager.add = nullptr;
+	eager.sched_par = eager.add_par;
+	eager.add_par = nullptr;
+	wld.set_sched(eager);
+
+	ecs::SchedJob job;
+	job = query.job([](const ExternalExecProbeComp&) {});
+	CHECK_FALSE(job.valid());
+	CHECK(probe.addTaskCalls == 0);
+	job.del();
+	job = query.job([](const ExternalExecProbeComp&) {}, ecs::QueryExecType::Parallel);
+	CHECK_FALSE(job.valid());
+	CHECK(probe.addParallelCalls == 0);
+	job.del();
+	for (uint32_t missing = 0; missing < 3; ++missing) {
+		auto incomplete = probe.sched();
+		if (missing == 0)
+			incomplete.submit = nullptr;
+		if (missing == 1)
+			incomplete.wait = nullptr;
+		if (missing == 2)
+			incomplete.del = nullptr;
+		wld.set_sched(incomplete);
+		job = query.job([](const ExternalExecProbeComp&) {});
+		CHECK_FALSE(job.valid());
+		job = query.job([](const ExternalExecProbeComp&) {}, ecs::QueryExecType::Parallel);
+		CHECK_FALSE(job.valid());
+	}
+
+	wld.set_sched(probe.sched());
+	uint32_t hits = 0;
+	job = query.job([&](const ExternalExecProbeComp&) {
+		++hits;
+	});
+
+	CHECK(job.valid());
+	if (!job.valid())
+		return;
+
+	job.submit();
+	job.wait();
+	CHECK(hits == 1);
+}
+
+TEST_CASE("ECS - Query jobs snapshot filters and support grouped sparse and seeded plans") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+	const auto entity = wld.add();
+	wld.add<ExternalExecProbeComp>(entity, {1});
+
+	auto query = wld.query().all<ExternalExecProbeComp>();
+	uint32_t hits = 0;
+	ecs::SchedJob job;
+	job = query.job([&](const ExternalExecProbeComp& value) {
+		CHECK(value.value == 1);
+		++hits;
+	});
+
+	CHECK(job.valid());
+	CHECK(hits == 0);
+	job.submit();
+	job.wait();
+	CHECK(hits == 1);
+	job.del();
+	auto filtered = wld.query().all<ExternalExecProbeComp>().changed<ExternalExecProbeComp>();
+	filtered.each([](const ExternalExecProbeComp&) {});
+	job = filtered.job([&](ecs::Iter&) {
+		++hits;
+	});
+
+	CHECK_FALSE(job.valid());
+	wld.set<ExternalExecProbeComp>(entity) = {2};
+	CHECK(hits == 1);
+	auto grouped = wld.query().all<ExternalExecProbeComp>().group_by(ecs::ChildOf);
+	job = grouped.job([&](ecs::Iter& it) {
+		hits += it.size();
+	});
+
+	CHECK(job.valid());
+	job.submit();
+	job.wait();
+	CHECK(hits == 2);
+	job.del();
+	grouped.group_id(entity);
+	job = grouped.job([](ecs::Iter&) {});
+	CHECK_FALSE(job.valid());
+	auto sparseEntity = wld.add();
+	wld.add<PositionSparse>(sparseEntity, {1, 2, 3});
+	auto seeded = wld.query().is(sparseEntity);
+	uint32_t seededHits = 0;
+	job = seeded.job([&](ecs::Iter& it) {
+		seededHits += it.size();
+	});
+
+	CHECK(job.valid());
+	job.submit();
+	job.wait();
+	CHECK(seededHits == 1);
+	job.del();
+	auto sparse = wld.query().all<PositionSparse>();
+	uint32_t sparseHits = 0;
+
+	job = sparse.job([&](const PositionSparse& value) {
+		CHECK(value.x == 1);
+		CHECK(value.y == 2);
+		CHECK(value.z == 3);
+		++sparseHits;
+	});
+
+	CHECK(job.valid());
+	job.submit();
+	job.wait();
+	CHECK(sparseHits == 1);
+}
+
+TEST_CASE("ECS - Prepared query jobs preserve sorted ranges and execution modes") {
+	TestWorld twld;
+	GAIA_FOR(12) {
+		auto entity = wld.add();
+		wld.add<Position>(entity, {float(12 - i), 0, 0});
+		if (i == 0)
+			wld.enable(entity, false);
+	}
+
+	const auto sortPos = [](const ecs::World&, const void* a, const void* b) {
+		return (((const Position*)a)->x > ((const Position*)b)->x) ? 1 : -1;
+	};
+
+	auto query = wld.query().all<Position>().sort_by<Position>(sortPos);
+	const ecs::QueryExecType modes[] = {
+			ecs::QueryExecType::Default, ecs::QueryExecType::Parallel, ecs::QueryExecType::ParallelPerf,
+			ecs::QueryExecType::ParallelEff};
+
+	for (auto mode: modes) {
+		ExternalSchedProbe probe;
+		wld.set_sched(probe.sched());
+		uint32_t hits = 0;
+		float last = 0;
+		ecs::SchedJob job;
+		job = query.job(
+				[&](const Position& value) {
+					CHECK(value.x > last);
+					last = value.x;
+					++hits;
+				},
+				mode);
+		CHECK(job.valid());
+		if (!job.valid())
+			return;
+		job.submit();
+		job.wait();
+		CHECK(hits == 11);
+	}
 }
 
 TEST_CASE("ECS - Parallel query jobs add scheduler work without running it") {
@@ -248,7 +489,7 @@ TEST_CASE("ECS - Parallel query jobs add scheduler work without running it") {
 	CHECK(probe.delCalls == 2);
 }
 
-TEST_CASE("ECS - Grouped parallel query jobs use scheduler task path") {
+TEST_CASE("ECS - Grouped parallel query jobs expose prepared scheduler ranges") {
 	TestWorld twld;
 	ExternalSchedProbe probe;
 	wld.set_sched(probe.sched());
@@ -279,8 +520,8 @@ TEST_CASE("ECS - Grouped parallel query jobs use scheduler task path") {
 			},
 			ecs::QueryExecType::Parallel);
 
-	CHECK(probe.addTaskCalls == 1);
-	CHECK(probe.addParallelCalls == 0);
+	CHECK(probe.addTaskCalls == 0);
+	CHECK(probe.addParallelCalls == 1);
 	CHECK(probe.submitCalls == 0);
 	CHECK(hits == 0);
 
@@ -859,9 +1100,9 @@ TEST_CASE("ECS - System update wires parallel job dependencies from query access
 	CHECK(probe.submitCalls == 3);
 	CHECK(probe.waitCalls == 3);
 	CHECK(probe.delCalls == 3);
-	CHECK(probe.depCalls == 1);
-	CHECK(probe.depFirst[0].value[0] == 1);
-	CHECK(probe.depSecond[0].value[0] == 2);
+	CHECK(probe.depCalls == 0);
+	CHECK(probe.waitsBeforeParallelAdd[1] == 1);
+	CHECK(probe.waitsBeforeParallelAdd[2] == 1);
 	CHECK(posWritesA == EntityCount);
 	CHECK(posWritesB == EntityCount);
 	CHECK(accelReads == EntityCount);
@@ -890,7 +1131,7 @@ TEST_CASE("ECS - Presence-only system terms omit payload dependency edges") {
 		wld.update();
 		CHECK(probe.addParallelCalls == 2);
 		CHECK(probe.submitCalls == 2);
-		CHECK(probe.depCalls == (presenceOnly ? 0 : 1));
+		CHECK(probe.waitsBeforeParallelAdd[1] == (presenceOnly ? 0 : 1));
 		CHECK(wld.get<Position>(entity).x == 2);
 		CHECK(wld.get<Acceleration>(entity).x == 3);
 	}
@@ -924,7 +1165,7 @@ TEST_CASE("ECS - Pair payload defaults determine scheduler dependency edges") {
 		CHECK(probe.addParallelCalls == 2);
 		CHECK(probe.submitCalls == 2);
 		CHECK(probe.waitCalls == 2);
-		CHECK(probe.depCalls == (mode == 1 ? 1 : 0));
+		CHECK(probe.waitsBeforeParallelAdd[1] == (mode == 1 ? 1 : 0));
 		CHECK(readRows == 1);
 		CHECK(writeRows == 1);
 	}
@@ -972,11 +1213,7 @@ TEST_CASE("ECS - Optional system payload access determines dependency edges") {
 		CHECK(probe.addParallelCalls == 2);
 		CHECK(probe.submitCalls == 2);
 		CHECK(probe.waitCalls == 2);
-		CHECK(probe.depCalls == (access == ecs::QueryAccess::Match ? 0 : 1));
-		if (access != ecs::QueryAccess::Match) {
-			CHECK(probe.depFirst[0].value[0] == 1);
-			CHECK(probe.depSecond[0].value[0] == 2);
-		}
+		CHECK(probe.waitsBeforeParallelAdd[1] == (access == ecs::QueryAccess::Match ? 0 : 1));
 		CHECK(rows == 2);
 		CHECK(readValue == (access == ecs::QueryAccess::Read ? 2 : 0));
 		CHECK(wld.get<Position>(present).x == 2);
@@ -1022,9 +1259,9 @@ TEST_CASE("ECS - System update wires custom access dependencies") {
 
 	CHECK(probe.addParallelCalls == 3);
 	CHECK(probe.submitCalls == 3);
-	CHECK(probe.depCalls == 1);
-	CHECK(probe.depFirst[0].value[0] == 1);
-	CHECK(probe.depSecond[0].value[0] == 2);
+	CHECK(probe.depCalls == 0);
+	CHECK(probe.waitsBeforeParallelAdd[1] == 1);
+	CHECK(probe.waitsBeforeParallelAdd[2] == 1);
 	CHECK(writerHits == EntityCount);
 	CHECK(readerHits == EntityCount);
 	CHECK(independentHits == EntityCount);
@@ -1071,9 +1308,8 @@ TEST_CASE("ECS - System update wires shared context resource dependencies") {
 
 	CHECK(probe.addParallelCalls == 2);
 	CHECK(probe.submitCalls == 2);
-	CHECK(probe.depCalls == 1);
-	CHECK(probe.depFirst[0].value[0] == 1);
-	CHECK(probe.depSecond[0].value[0] == 2);
+	CHECK(probe.depCalls == 0);
+	CHECK(probe.waitsBeforeParallelAdd[1] == 1);
 	CHECK(context.value == EntityCount);
 	CHECK(observed == EntityCount);
 }
@@ -2400,3 +2636,446 @@ TEST_CASE("Multithreading - Handle reuse mixed delete modes") {
 	CHECK(autoCnt.load(std::memory_order_relaxed) == Iters);
 	CHECK(manualCnt.load(std::memory_order_relaxed) == Iters);
 }
+
+#if GAIA_ASSERT_ENABLED && GAIA_ECS_TEST_HOOKS
+// Query::each() always takes the per-World structural lock. Two threads calling
+// each() on one World, even for disjoint pre-warmed queries, overlap that lock.
+// TEST_HOOKS counts instead of aborting so the suite can assert the detector.
+TEST_CASE("ECS - World lock detects concurrent multi-thread use") {
+	TestWorld twld;
+	const auto before = wld.test_lock_violations();
+
+	ecs::lock(wld);
+	ecs::lock(wld);
+	ecs::unlock(wld);
+	ecs::unlock(wld);
+	CHECK(wld.test_lock_violations() == before);
+
+	std::atomic<bool> entered{false};
+	std::atomic<bool> release{false};
+
+	std::thread holder([&] {
+		ecs::lock(wld);
+		entered.store(true, std::memory_order_release);
+		while (!release.load(std::memory_order_acquire)) {
+		}
+		ecs::unlock(wld);
+	});
+
+	while (!entered.load(std::memory_order_acquire)) {
+	}
+	ecs::lock(wld);
+	ecs::unlock(wld);
+
+	release.store(true, std::memory_order_release);
+	holder.join();
+
+	CHECK(wld.test_lock_violations() > before);
+}
+#endif
+
+//! Two external scheduler jobs can own the same local slot without sharing deferred queues.
+struct ConcurrentQuerySched {
+	ecs::SchedTaskDesc tasks[2]{};
+	ecs::SchedParDesc desc[2]{};
+	static ecs::SchedToken add_task(void* ctx, const ecs::SchedTaskDesc* d) {
+		auto& self = *(ConcurrentQuerySched*)ctx;
+		const auto idx = self.count++;
+		self.tasks[idx] = *d;
+		ecs::SchedToken token{};
+		token.value[0] = idx + 1;
+		return token;
+	}
+	std::thread threads[2];
+	uint32_t count = 0;
+	static ecs::SchedToken add(void* ctx, const ecs::SchedParDesc* d) {
+		auto& self = *(ConcurrentQuerySched*)ctx;
+		const auto idx = self.count++;
+		self.desc[idx] = *d;
+		ecs::SchedToken token{};
+		token.value[0] = idx + 1;
+		return token;
+	}
+	static void submit(void* ctx, ecs::SchedToken token) {
+		auto& self = *(ConcurrentQuerySched*)ctx;
+		const auto idx = token.value[0] - 1;
+		self.threads[idx] = std::thread([&self, idx] {
+			if (self.tasks[idx].invoke != nullptr) {
+				auto& d = self.tasks[idx];
+				d.invoke(d.pCtx);
+				return;
+			}
+			auto& d = self.desc[idx];
+			GAIA_FOR(d.itemCount) d.invoke(d.pCtx, i, i + 1);
+		});
+	}
+	static void wait(void* ctx, ecs::SchedToken token) {
+		auto& thread = ((ConcurrentQuerySched*)ctx)->threads[token.value[0] - 1];
+		if (thread.joinable())
+			thread.join();
+	}
+	static void del(void*, ecs::SchedToken) {}
+	ecs::Sched sched() {
+		ecs::Sched s{};
+		s.pCtx = this;
+		s.add = add_task;
+		s.add_par = add;
+		s.submit = submit;
+		s.wait = wait;
+		s.del = del;
+		return s;
+	}
+};
+
+#if GAIA_OBSERVERS_ENABLED
+TEST_CASE("ECS - Unscoped sibling OnSet waits for gated writes to join") {
+	ecs::QueryExecType mode = ecs::QueryExecType::Default;
+	SUBCASE("default") {}
+	SUBCASE("parallel") {
+		mode = ecs::QueryExecType::Parallel;
+	}
+	ecs::World world;
+	ConcurrentQuerySched scheduler;
+	world.set_sched(scheduler.sched());
+	const auto entity = world.add();
+	world.add<Position>(entity, {0, 0, 0});
+	world.add<Acceleration>(entity, {0, 0, 0});
+	auto qa = world.query().all<Position&>();
+	auto qb = world.query().all<Acceleration&>();
+	uint32_t notifications = 0;
+	float observedY = -1;
+	world.observer().event(ecs::ObserverEvent::OnSet).all<Position>().on_each([&](const Position&) {
+		++notifications;
+		observedY = world.get<Acceleration>(entity).x;
+	});
+	std::atomic_bool enteredB{false};
+	std::atomic_bool releaseB{false};
+	auto ja = qa.job(
+			[&](Position& value) {
+				while (!enteredB.load())
+					std::this_thread::yield();
+				value.x = 1;
+			},
+			mode);
+	auto jb = qb.job(
+			[&](Acceleration& value) {
+				enteredB.store(true);
+				while (!releaseB.load())
+					std::this_thread::yield();
+				value.x = 2;
+			},
+			mode);
+	CHECK(ja.valid());
+	CHECK(jb.valid());
+	if (!ja.valid() || !jb.valid())
+		return;
+	ja.submit();
+	jb.submit();
+	ja.wait();
+	// B cannot write until this check completes, so even the RED observer read is race-free.
+	CHECK(notifications == 0);
+	// Always release B after a failed CHECK, before joining or destroying either job.
+	releaseB.store(true);
+	jb.wait();
+	CHECK(notifications == 1);
+	CHECK(observedY == 2);
+	CHECK(world.get<Position>(entity).x == 1);
+	CHECK(world.get<Acceleration>(entity).x == 2);
+}
+#endif
+
+TEST_CASE("ECS - Prepared jobs own deterministic command buffers") {
+	ecs::World world;
+	world.add<ExternalExecProbeComp>();
+	const auto a = world.add();
+	world.add<Position>(a, {0, 0, 0});
+	const auto b = world.add();
+	world.add<Acceleration>(b, {0, 0, 0});
+	auto qa = world.query().all<Position>();
+	auto qb = world.query().all<Acceleration>();
+	for (uint32_t repeat = 0; repeat < 8; ++repeat) {
+		ConcurrentQuerySched scheduler;
+		world.set_sched(scheduler.sched());
+		ecs::CommandBufferST* buffers[2]{};
+		std::atomic_uint32_t entered{0};
+		auto record = [&](ecs::Iter& it, uint32_t index) {
+			buffers[index] = &it.cmd_buffer_st();
+			entered.fetch_add(1);
+			while (entered.load() != 2)
+				std::this_thread::yield();
+			// Avoid racing the old shared buffer while establishing the regression.
+			if (buffers[0] == buffers[1])
+				return;
+			buffers[index]->add<ExternalExecProbeComp>(a, {index + 1});
+		};
+		ecs::QueryJobScope batch(world);
+		auto ja = qa.job([&](ecs::Iter& it) {
+			record(it, 0);
+		});
+		auto jb = qb.job([&](ecs::Iter& it) {
+			record(it, 1);
+		});
+		ja.submit();
+		jb.submit();
+		jb.wait();
+		ja.wait();
+		CHECK(buffers[0] != buffers[1]);
+		CHECK(batch.finish());
+		CHECK(world.has<ExternalExecProbeComp>(a));
+		if (world.has<ExternalExecProbeComp>(a)) {
+			CHECK(world.get<ExternalExecProbeComp>(a).value == 2);
+			world.del<ExternalExecProbeComp>(a);
+		}
+	}
+}
+
+TEST_CASE("ECS - Prepared commands wait for structural protection") {
+	ecs::World world;
+	world.add<ExternalExecProbeComp>();
+	const auto entity = world.add();
+	world.add<Position>(entity, {0, 0, 0});
+	auto query = world.query().all<Position>();
+	auto blockerQuery = world.query().all<Position>();
+	auto job = query.job([&](ecs::Iter& it) {
+		it.cmd_buffer_st().add<ExternalExecProbeComp>(entity, {9});
+	});
+	auto blocker = blockerQuery.job([](const Position&) {});
+	job.submit();
+	job.wait();
+	CHECK_FALSE(world.has<ExternalExecProbeComp>(entity));
+	blocker.del();
+	CHECK(world.has<ExternalExecProbeComp>(entity));
+	if (world.has<ExternalExecProbeComp>(entity))
+		CHECK(world.get<ExternalExecProbeComp>(entity).value == 9);
+}
+
+TEST_CASE("ECS - Prepared query jobs overlap and reuse cleared effects") {
+	bool sharedChunk = false;
+	SUBCASE("separate chunks") {}
+	SUBCASE("disjoint components in one chunk") {
+		sharedChunk = true;
+	}
+	ecs::World world;
+	const auto a = world.add();
+	world.add<Position>(a, {0, 0, 0});
+	const auto b = sharedChunk ? a : world.add();
+	world.add<Acceleration>(b, {0, 0, 0});
+	auto qa = world.query().all<Position&>();
+	auto qb = world.query().all<Acceleration&>();
+	uint32_t notifications = 0;
+#if GAIA_OBSERVERS_ENABLED
+	world.observer().event(ecs::ObserverEvent::OnSet).all<Position>().on_each([&](const Position&) {
+		++notifications;
+	});
+	world.observer().event(ecs::ObserverEvent::OnSet).all<Acceleration>().on_each([&](const Acceleration&) {
+		++notifications;
+	});
+#endif
+	GAIA_FOR(20) {
+		ConcurrentQuerySched scheduler;
+		const auto mode = (i & 1) == 0 ? ecs::QueryExecType::Default : ecs::QueryExecType::Parallel;
+		world.set_sched(scheduler.sched());
+		std::atomic_uint32_t entered{0};
+		auto barrier = [&] {
+			entered.fetch_add(1);
+			while (entered.load() != 2)
+				std::this_thread::yield();
+		};
+		ecs::QueryJobScope batch(world);
+		auto ja = qa.job(
+				[&](Position& value) {
+					barrier();
+					++value.x;
+				},
+				mode);
+		auto jb = qb.job(
+				[&](ecs::Iter& it) {
+					barrier();
+					auto values = it.view_mut<Acceleration>();
+					for (uint32_t row = 0; row < it.entity_rows().size(); ++row)
+						++values[row].x;
+				},
+				mode);
+		CHECK(ja.valid());
+		CHECK(jb.valid());
+		if (!ja.valid() || !jb.valid())
+			return;
+		ja.submit();
+		jb.submit();
+		ja.wait();
+		jb.wait();
+		CHECK(notifications == (GAIA_OBSERVERS_ENABLED ? i * 2 : 0));
+		CHECK(batch.finish());
+#if GAIA_OBSERVERS_ENABLED
+		CHECK(notifications == (i + 1) * 2);
+#endif
+	}
+	CHECK(world.get<Position>(a).x == 20);
+	CHECK(world.get<Acceleration>(b).x == 20);
+}
+
+TEST_CASE("ECS - Cancelling an unsubmitted prepared job releases retained effects") {
+	ecs::World world;
+	ConcurrentQuerySched scheduler;
+	world.set_sched(scheduler.sched());
+	const auto a = world.add();
+	world.add<Position>(a, {1, 0, 0});
+	const auto b = world.add();
+	world.add<Acceleration>(b, {1, 0, 0});
+	auto qa = world.query().all<Position&>();
+	auto qb = world.query().all<Acceleration&>();
+	uint32_t notifications = 0;
+#if GAIA_OBSERVERS_ENABLED
+	world.observer().event(ecs::ObserverEvent::OnSet).all<Position>().on_each([&](const Position&) {
+		++notifications;
+	});
+#endif
+	ecs::QueryJobScope batch(world);
+	bool cancelledRan = false;
+	auto ja = qa.job(
+			[](Position& value) {
+				value.x = 2;
+			},
+			ecs::QueryExecType::Parallel);
+	auto jb = qb.job(
+			[&](Acceleration&) {
+				cancelledRan = true;
+			},
+			ecs::QueryExecType::Parallel);
+	CHECK(ja.valid());
+	CHECK(jb.valid());
+	ja.submit();
+	ja.wait();
+	CHECK(notifications == 0);
+	CHECK_FALSE(batch.finish());
+	jb.del();
+	CHECK(notifications == 0);
+	CHECK(batch.finish());
+	CHECK_FALSE(cancelledRan);
+#if GAIA_OBSERVERS_ENABLED
+	CHECK(notifications == 1);
+#endif
+	// Cancellation must release the structural lock as well as the retained queues.
+	world.add<Acceleration>(a, {3, 0, 0});
+	CHECK(world.get<Position>(a).x == 2);
+	CHECK(world.get<Acceleration>(a).x == 3);
+	CHECK(world.get<Acceleration>(b).x == 1);
+}
+
+TEST_CASE("ECS - Concurrent query jobs own deferred effects until their batch finishes") {
+	ecs::World world;
+	ConcurrentQuerySched scheduler;
+	world.set_sched(scheduler.sched());
+	constexpr uint32_t Count = 2000;
+	GAIA_FOR(Count) {
+		if (i < Count / 2) {
+			auto a = world.add();
+			world.add<Position>(a, {float(i), 0, 0});
+		}
+		auto b = world.add();
+		world.add<Acceleration>(b, {float(i), 0, 0});
+	}
+	auto qa = world.query().all<Position&>();
+	auto qb = world.query().all<Acceleration&>();
+	const auto sortPos = [](const ecs::World&, const void* a, const void* b) {
+		return (((const Position*)a)->x > ((const Position*)b)->x) ? 1 : -1;
+	};
+	const auto sortAcc = [](const ecs::World&, const void* a, const void* b) {
+		return (((const Acceleration*)a)->x > ((const Acceleration*)b)->x) ? 1 : -1;
+	};
+	auto sortedA = world.query().all<Position>().sort_by<Position>(sortPos);
+	auto sortedB = world.query().all<Acceleration>().sort_by<Acceleration>(sortAcc);
+	sortedA.each([](const Position&) {});
+	sortedB.each([](const Acceleration&) {});
+	uint32_t notifications = 0;
+#if GAIA_OBSERVERS_ENABLED
+	const auto caller = std::this_thread::get_id();
+	world.observer().event(ecs::ObserverEvent::OnSet).all<Position>().on_each([&](const Position&) {
+		CHECK(std::this_thread::get_id() == caller);
+		// The first prepared query delivers before the second even when waits are reversed.
+		CHECK(notifications < Count / 2);
+		++notifications;
+	});
+	world.observer().event(ecs::ObserverEvent::OnSet).all<Acceleration>().on_each([&](const Acceleration&) {
+		CHECK(std::this_thread::get_id() == caller);
+		CHECK(notifications >= Count / 2);
+		++notifications;
+	});
+#endif
+	bool staggered = true;
+	bool reverseWait = false;
+	SUBCASE("Sibling cleanup while another callback is running") {}
+	SUBCASE("Overlapping deferred writes") {
+		staggered = false;
+	}
+	SUBCASE("Reverse completion order") {
+		staggered = false;
+		reverseWait = true;
+	}
+	std::atomic_uint32_t entered{0};
+	std::atomic_bool releaseB{!staggered};
+	bool firstA = true, firstB = true;
+	ecs::QueryJobScope batch(world);
+	auto ja = qa.job(
+			[&](Position& p) {
+				if (firstA) {
+					firstA = false;
+					entered.fetch_add(1);
+					while (entered.load() != 2)
+						std::this_thread::yield();
+				}
+				p.x = -p.x;
+			},
+			ecs::QueryExecType::Parallel);
+	auto jb = qb.job(
+			[&](ecs::Iter& it) {
+				if (firstB) {
+					firstB = false;
+					entered.fetch_add(1);
+					while (entered.load() != 2)
+						std::this_thread::yield();
+				}
+				auto values = it.view_mut<Acceleration>(0);
+				GAIA_FOR(it.size()) values[i].x = -values[i].x;
+				// Hold the final batch alive while the coordinator cleans up its sibling.
+				if (it.entity_rows().size() != 0)
+					while (!releaseB.load())
+						std::this_thread::yield();
+			},
+			ecs::QueryExecType::Parallel);
+	ja.submit();
+	jb.submit();
+	if (reverseWait)
+		jb.wait();
+	ja.wait();
+	if (staggered)
+		CHECK(notifications == 0);
+	releaseB.store(true);
+	jb.wait();
+	CHECK(notifications == 0);
+	CHECK(batch.finish());
+#if GAIA_OBSERVERS_ENABLED
+	CHECK(notifications == Count + Count / 2);
+#endif
+	float prev = -float(Count);
+	uint32_t rows = 0;
+	sortedA.each([&](const Position& p) {
+		CHECK(p.x >= prev);
+		prev = p.x;
+		++rows;
+	});
+	CHECK(rows == Count / 2);
+	prev = -float(Count);
+	rows = 0;
+	sortedB.each([&](const Acceleration& p) {
+		CHECK(p.x >= prev);
+		prev = p.x;
+		++rows;
+	});
+	CHECK(rows == Count);
+}
+
+#include "test_query_job_batch_owned.inl"
+#include "test_query_job_bindings.inl"
+#include "test_query_jobs_refactor.inl"
+#include "test_system_job_batch.inl"

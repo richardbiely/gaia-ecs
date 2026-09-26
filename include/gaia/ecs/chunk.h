@@ -1814,10 +1814,16 @@ namespace gaia {
 			//! Update the version of a component at the index \param compIdx
 			GAIA_FORCEINLINE void update_world_version(uint32_t compIdx) {
 				auto versions = comp_version_view_mut();
-				// Automatically treat the entity as changed.
-				versions[0] = m_header.worldVersion;
-				// Do +1 because index 0 is reserved for the entity version number.
-				versions[compIdx + 1] = m_header.worldVersion;
+
+				// Disjoint component writers still share the entity version at index zero.
+				if (!detail::defer_chunk_version(
+								*const_cast<World*>(m_header.world), versions.data(), compIdx, m_header.worldVersion)) {
+					// Automatically treat the entity as changed.
+					versions[0] = m_header.worldVersion;
+					// Do +1 because index 0 is reserved for the entity version number.
+					versions[compIdx + 1] = m_header.worldVersion;
+				}
+
 				// Sorted queries keyed by this component can invalidate their cached order immediately.
 				world_invalidate_sorted_queries_for_entity(
 						*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx]);
