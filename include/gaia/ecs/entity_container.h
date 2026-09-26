@@ -580,7 +580,8 @@ namespace gaia {
 				// A linked tracker means the target's record still owns this list. That holds while the target
 				// is being deleted, when valid() already fails: deletion destroys the target's components
 				// (a self reference among them) before it invalidates the list. Only the head needs the
-				// record. During world teardown the records are gone first and the lookup finds nothing.
+				// record. World cleanup releases every tracker before it destroys components, so none is
+				// linked there.
 				if (m_pTracker->prev == nullptr && m_w != nullptr) {
 					auto* pEc = try_fetch_mut(*m_w, m_entity);
 					if (pEc != nullptr && pEc->pWeakTracker == m_pTracker)

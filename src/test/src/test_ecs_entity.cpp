@@ -886,6 +886,126 @@ TEST_CASE("Entity weak - component referencing its own entity survives deletion"
 	wld.update();
 }
 
+TEST_CASE("Entity weak - bulk archetype deletion resets weak references") {
+	TestWorld twld;
+
+	// Deleting an (OnDelete, Delete) tag deletes whole archetypes at once, bypassing the
+	// per-entity deletion path.
+	const auto tag = wld.add();
+	wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	const auto a = wld.add();
+	const auto b = wld.add();
+	wld.add(a, tag);
+	wld.add(b, tag);
+	wld.add<WeakSelfRef>(a, {ecs::WeakEntity(wld, a)});
+	wld.add<WeakSelfRef>(b, {ecs::WeakEntity(wld, b)});
+	const auto watchA = ecs::WeakEntity(wld, a);
+	const auto watchB = ecs::WeakEntity(wld, b);
+
+	// Reset at the deletion request, as on the per-entity path, not only when update() finalizes it.
+	wld.del(tag);
+	CHECK(watchA == ecs::EntityBad);
+	CHECK(watchB == ecs::EntityBad);
+	wld.update();
+	CHECK_FALSE(wld.valid(a));
+	CHECK_FALSE(wld.valid(b));
+	CHECK(watchA == ecs::EntityBad);
+	CHECK(watchB == ecs::EntityBad);
+}
+
+TEST_CASE("Entity weak - non-fragmenting relation cascade resets weak references") {
+	// Deleting t cascades to s through an exclusive DontFragment relation, which requests s's
+	// deletion without going through the regular per-entity delete.
+	ecs::WeakEntity outside;
+	{
+		ecs::World w;
+		const auto r = w.add();
+		w.add(r, ecs::Exclusive);
+		w.add(r, ecs::DontFragment);
+		w.add(r, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete));
+		const auto t = w.add();
+		const auto s = w.add();
+		w.add(s, ecs::Pair(r, t));
+		const auto inside = ecs::WeakEntity(w, s);
+		outside = ecs::WeakEntity(w, s);
+
+		w.del(t);
+		CHECK(inside == ecs::EntityBad);
+		GAIA_FOR(200) w.update();
+		CHECK_FALSE(w.valid(s));
+		CHECK(inside == ecs::EntityBad);
+	}
+	// s's record was freed before the world died; the outside reference must not touch either.
+	CHECK(outside == ecs::EntityBad);
+}
+
+TEST_CASE("Entity weak - reference created after a deletion request resets when the record goes") {
+	TestWorld twld;
+
+	const auto tag = wld.add();
+	const auto e = wld.add();
+	wld.add(e, tag);
+	wld.del(e);
+	// e is delete-requested but its record still exists until update() finalizes the deletion.
+	const auto late = ecs::WeakEntity(wld, e);
+	twld.update();
+	CHECK(late == ecs::EntityBad);
+}
+
+TEST_CASE("Entity weak - re-adding a delete-requested pair resets weak references") {
+	ecs::WeakEntity outside;
+	{
+		ecs::World w;
+		const auto r = w.add();
+		const auto t = w.add();
+		const auto x = w.add();
+		const auto y = w.add();
+		const ecs::Pair pair(r, t);
+		w.add(x, pair);
+		w.del(pair);
+		// The pair record is delete-requested but still allocated, so the references attach to it.
+		outside = ecs::WeakEntity(w, pair);
+		const auto inside = ecs::WeakEntity(w, pair);
+
+		// Re-adding revives the record as a new incarnation of the pair.
+		w.add(y, pair);
+		CHECK(w.valid(pair));
+		CHECK(inside == ecs::EntityBad);
+		CHECK(outside == ecs::EntityBad);
+	}
+	// Destroying the reference after its world must not touch the dead world.
+	CHECK(outside == ecs::EntityBad);
+}
+
+TEST_CASE("Entity weak - world cleanup resets weak references") {
+	TestWorld twld;
+
+	const auto e = wld.add();
+	const auto weak = ecs::WeakEntity(wld, e);
+
+	wld.cleanup();
+	CHECK(weak == ecs::EntityBad);
+
+	// Cleanup restarts ids, so a new entity can take e's exact id and generation. The weak
+	// reference must not resurrect onto it.
+	const auto replacement = wld.add();
+	CHECK(weak == ecs::EntityBad);
+	CHECK(wld.valid(replacement));
+}
+
+TEST_CASE("Entity weak - weak reference outliving its world") {
+	ecs::WeakEntity outside;
+	{
+		ecs::World w;
+		const auto e = w.add();
+		outside = ecs::WeakEntity(w, e);
+		CHECK(outside == e);
+	}
+	// Destroying the world resets the reference, and destroying the reference later must not
+	// touch the dead world.
+	CHECK(outside == ecs::EntityBad);
+}
+
 	#if GAIA_ASSERT_ENABLED
 TEST_CASE("Entity validity distinguishes stale handles from recycled live slots") {
 	TestWorld twld;

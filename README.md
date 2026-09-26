@@ -1206,6 +1206,8 @@ A more useful use case, however, would be if you need an entity identifier that 
 
 `ecs::WeakEntity` can live inside a component, including a component that references its own entity. Deleting that entity destroys the component and resets every other `ecs::WeakEntity` pointing at it in the same step.
 
+Cleaning up or destroying the world resets every `ecs::WeakEntity` that points into it, including ones held outside the world, so none of them can later match a recycled entity.
+
 ### Archetype lifespan
 
 Once all entities of given archetype are deleted (and as a result all chunks in the archetypes are empty), the archetype stays alive for another 127 ticks of `ecs::World::update`. However, there might be cases where this behavior is insufficient. Maybe you want the archetype deleted faster, or you want to keep it around forever.

@@ -37034,7 +37034,8 @@ namespace gaia {
 				// A linked tracker means the target's record still owns this list. That holds while the target
 				// is being deleted, when valid() already fails: deletion destroys the target's components
 				// (a self reference among them) before it invalidates the list. Only the head needs the
-				// record. During world teardown the records are gone first and the lookup finds nothing.
+				// record. World cleanup releases every tracker before it destroys components, so none is
+				// linked there.
 				if (m_pTracker->prev == nullptr && m_w != nullptr) {
 					auto* pEc = try_fetch_mut(*m_w, m_entity);
 					if (pEc != nullptr && pEc->pWeakTracker == m_pTracker)
@@ -77349,6 +77350,16 @@ namespace gaia {
 					m_archetypesToDel = {};
 				}
 
+				// Reset every WeakEntity before its record goes. Cleanup restarts ids, so a surviving one
+				// could name a new entity, and one held outside a destroyed world would point into it.
+				// Components destroyed below then find no tracker to release.
+#if GAIA_USE_WEAK_ENTITY
+				for (auto& ec: m_recs.entities)
+					invalidate_weak_entities(ec);
+				for (auto it = m_recs.pair_record_begin(); it != m_recs.pair_record_end(); ++it)
+					invalidate_weak_entities(it->second);
+#endif
+
 				// Clear entities
 				m_recs.entities = {};
 				m_recs.pair_records_clear();
@@ -79489,15 +79500,20 @@ namespace gaia {
 				for (auto* pChunk: archetype.chunks()) {
 					auto ids = pChunk->entity_view();
 					for (auto e: ids) {
-						if (!valid(e))
+						auto* pEc = try_fetch_record(e);
+						if (pEc == nullptr)
 							continue;
 
-#if GAIA_ASSERT_ENABLED
-						const auto& ec = fetch(e);
+						// The archetype is already delete-requested, so valid() fails for its rows and they are
+						// skipped below: chunk release destroys their components but their records stay allocated.
+						// req_del(Archetype&) reset their WeakEntities; this catches rows that arrived since.
+						invalidate_weak_entities(*pEc);
+
+						if (!valid(*pEc, e))
+							continue;
 
 						// We should never end up trying to delete a forbidden-to-delete entity
-						GAIA_ASSERT((ec.flags & EntityContainerFlags::OnDeleteTarget_Error) == 0);
-#endif
+						GAIA_ASSERT((pEc->flags & EntityContainerFlags::OnDeleteTarget_Error) == 0);
 
 						del_entity(e, true);
 					}
@@ -79812,6 +79828,16 @@ namespace gaia {
 				if (archetype.is_req_del())
 					return;
 
+#if GAIA_USE_WEAK_ENTITY
+				// Reset WeakEntities at the request, as the per-entity path does.
+				for (const auto* pChunk: archetype.chunks()) {
+					for (const auto entity: pChunk->entity_view()) {
+						if (auto* pEc = try_fetch_record(entity))
+							invalidate_weak_entities(*pEc);
+					}
+				}
+#endif
+
 				const bool unlinkIsRelations = archetype.pairs_is() != 0;
 				const bool notifyComponents = may_notify_del_entity_components(archetype) && !tearing_down();
 				if (unlinkIsRelations) {
@@ -79872,6 +79898,9 @@ namespace gaia {
 				del_sparse_components(entity);
 
 				ec.req_del();
+				// Every per-entity deletion request passes here, including cascades that bypass
+				// handle_del_entity, so WeakEntities reset at the request.
+				invalidate_weak_entities(ec);
 				m_reqEntitiesToDel.insert(EntityLookupKey(entity));
 			}
 
@@ -80767,8 +80796,15 @@ namespace gaia {
 				// Mark the entity with the "delete requested" flag
 				req_del_inter(ec, entity);
 
+				entity_deletion_leave(entity);
+			}
+
+			//! Resets every WeakEntity that tracks the record's entity to EntityBad and releases the
+			//! trackers. Must run before the record is freed or cleared; afterwards a WeakEntity could
+			//! still name the dead entity, or a later entity that reuses its id and generation.
+			//! \param ec Record whose WeakEntity trackers are released.
+			static void invalidate_weak_entities([[maybe_unused]] EntityContainer& ec) {
 #if GAIA_USE_WEAK_ENTITY
-				// Invalidate WeakEntities
 				while (ec.pWeakTracker != nullptr) {
 					auto* pTracker = ec.pWeakTracker;
 					ec.pWeakTracker = pTracker->next;
@@ -80783,7 +80819,6 @@ namespace gaia {
 					delete pTracker;
 				}
 #endif
-				entity_deletion_leave(entity);
 			}
 
 			//! Removes a graph connection with the surrounding archetypes.
@@ -80951,13 +80986,20 @@ namespace gaia {
 				if (entity.pair()) {
 					// The pair entity identifies the store for sparse relationship payloads.
 					del_sparse_component_store(entity);
+					// A WeakEntity created after the deletion request must not outlive the record.
+					if (auto* pEc = m_recs.pair_record_find(entity))
+						invalidate_weak_entities(*pEc);
 					Entity rel;
 					Entity tgt;
 					if (del_pair_record(entity, pArchetype, rel, tgt))
 						del_pair_lookup(rel, tgt);
 				} else {
+					auto& rec = m_recs.entities[entity.id()];
+					// A WeakEntity created after the deletion request must not outlive the record.
+					invalidate_weak_entities(rec);
+
 					// Update the container record
-					auto ec = m_recs.entities[entity.id()];
+					auto ec = rec;
 					m_recs.entities.free(entity);
 
 					// If the deleted entity is itself a non-fragmenting exclusive relation, drop its store.
@@ -81408,6 +81450,9 @@ namespace gaia {
 						return false;
 
 					m_reqEntitiesToDel.erase(EntityLookupKey(entity));
+					// Pair ids carry no generation, so the revived pair is a new incarnation. Reset the
+					// WeakEntities created since the deletion request before the reset drops their trackers.
+					invalidate_weak_entities(*pRecord);
 					init_record(*pRecord);
 					return true;
 				}
