@@ -13409,7 +13409,7 @@ namespace gaia {
 					});
 
 					for (auto source: sourcesToDel)
-						req_del(fetch(source), source);
+						del_cascade_entity(source);
 				};
 
 				if (entity.pair()) {
@@ -13483,7 +13483,7 @@ namespace gaia {
 					});
 
 					for (auto source: sourcesToDel)
-						req_del(fetch(source), source);
+						del_cascade_entity(source);
 				};
 
 				for (auto source: cascadeTargets) {
@@ -13872,6 +13872,18 @@ namespace gaia {
 #endif
 			}
 
+			//! Deletes \a entity for a cleanup rule the way deleting it on its own would, with its rules and its pairs,
+			//! but even while a SafeEntity references it. Entities already deleted or queued are skipped.
+			//! \param entity Entity to delete.
+			void del_cascade_entity(Entity entity) {
+				if (!valid(entity))
+					return;
+
+				cnt::darray_ext<Entity, 64> pairEntities;
+				collect_entity_pairs(entity, pairEntities);
+				handle_del_entity(fetch(entity), entity, EntitySpan{pairEntities.data(), pairEntities.size()}, true);
+			}
+
 			//! Deletes pair entities that are still valid.
 			//! Callers delete an endpoint of every pair for good, so each pair goes even while a SafeEntity
 			//! references it. Its record then stays reserved until the last reference is released.
@@ -13896,10 +13908,11 @@ namespace gaia {
 			//! \param ec Entity container associated with \a entity.
 			//! \param entity Entity being deleted.
 			//! \param pairEntities Pair entities to delete after the entity passes deletion checks.
-			//! \param endpointDeleted True when \a entity is a pair whose relation or target is deleted for good.
-			//!                        The pair is then deleted even while a SafeEntity references it.
+			//! \param cascade True when a cleanup rule deletes \a entity for good, including a pair whose relation or
+			//!                target is deleted. It is then deleted even while a SafeEntity references it, and its record
+			//!                stays reserved until the last reference is released.
 			void handle_del_entity(
-					EntityContainer& ec, Entity entity, EntitySpan pairEntities, [[maybe_unused]] bool endpointDeleted = false) {
+					EntityContainer& ec, Entity entity, EntitySpan pairEntities, [[maybe_unused]] bool cascade = false) {
 				GAIA_PROF_SCOPE(World::handle_del_entity);
 				ArchetypeRowDelScope scope(*this);
 
@@ -13937,7 +13950,7 @@ namespace gaia {
 
 					// Don't delete so long something still references us. A pair cannot outlive its endpoints,
 					// so one losing an endpoint goes anyway, and its record stays reserved until released.
-					if (ec.refCnt != 0 && !endpointDeleted)
+					if (ec.refCnt != 0 && !cascade)
 						return;
 #endif
 
@@ -13976,8 +13989,8 @@ namespace gaia {
 					// Decrement the ref count at this point.
 					release_world_ref(ec);
 
-					// Don't delete so long something still references us
-					if (ec.refCnt != 0)
+					// Don't delete so long something still references us, unless a cleanup rule deletes us
+					if (ec.refCnt != 0 && !cascade)
 						return;
 #endif
 

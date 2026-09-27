@@ -1181,7 +1181,7 @@ w.add(player, ecs::Pair(likes, apples));
 bool isValid = w.valid(likes); // false
 ```
 
-A cleanup rule that deletes an endpoint deletes the pair as well, removing it from every entity that has it. As with an entity, the endpoint's and the pair's records stay reserved until the last `ecs::SafeEntity` goes out of scope, so no new entity reusing the endpoint's id can match the old pair. One known exception: an endpoint deleted through a `Parent` cascade leaves the pair on its sources until the last `ecs::SafeEntity` goes out of scope.
+A cleanup rule that deletes an endpoint deletes the pair as well, removing it from every entity that has it. As with an entity, the endpoint's and the pair's records stay reserved until the last `ecs::SafeEntity` goes out of scope, so no new entity reusing the endpoint's id can match the old pair.
 
 Just like an entity holding an `ecs::SafeEntity` on itself, an entity holding an `ecs::SafeEntity` on a pair that names it keeps itself alive against `del()`. Only a cleanup rule, or releasing the handle, deletes it.
 

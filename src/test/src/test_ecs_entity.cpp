@@ -1275,6 +1275,53 @@ TEST_CASE("Entity deletion - an id used as a relation and as an id is recycled")
 	CHECK(reused);
 }
 
+TEST_CASE("Entity deletion - Parent cascade applies the deleted entity's rules") {
+	// A Parent cascade deletes the child the same way as deleting it on its own: pairs naming it leave
+	// every entity, and no entity reusing its id matches them.
+	GAIA_FOR(2) {
+		const bool held = i == 1;
+		TestWorld twld;
+
+		const auto p = wld.add();
+		const auto c = wld.add();
+		const auto rel = wld.add();
+		const auto t = wld.add();
+		const auto x = wld.add();
+		wld.parent(c, p);
+		wld.add(x, ecs::Pair(rel, c));
+		wld.add(x, ecs::Pair(c, t));
+		wld.add(x, c);
+
+		{
+#if GAIA_USE_SAFE_ENTITY
+			ecs::SafeEntity handle;
+			if (held)
+				handle = ecs::SafeEntity(wld, ecs::Pair(rel, c));
+#endif
+			wld.del(p);
+			twld.update();
+
+			CHECK_FALSE(wld.valid(c));
+			CHECK(wld.valid(x));
+			CHECK_FALSE(wld.has(x, ecs::Pair(rel, c)));
+			CHECK_FALSE(wld.has(x, ecs::Pair(c, t)));
+			CHECK_FALSE(wld.has(x, c));
+		}
+		twld.update();
+
+		ecs::Entity fresh = ecs::EntityBad;
+		for (uint32_t j = 0; j < 64 && fresh == ecs::EntityBad; ++j) {
+			const auto e = wld.add();
+			if (e.id() == c.id())
+				fresh = e;
+		}
+		CHECK(fresh != ecs::EntityBad);
+		CHECK_FALSE(wld.has(x, ecs::Pair(rel, fresh)));
+		CHECK_FALSE(wld.has(x, ecs::Pair(fresh, t)));
+		CHECK_FALSE(wld.has(x, fresh));
+	}
+}
+
 TEST_CASE("Entity deletion - alias is released") {
 	TestWorld twld;
 
