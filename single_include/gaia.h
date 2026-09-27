@@ -80673,6 +80673,20 @@ namespace gaia {
 				}
 			}
 
+			//! Returns whether any chunk of \a archetype holds an entity. A chunk emptied recently still exists.
+			//! Removal skips archetypes without rows: nothing moves out of them, and computing their destination
+			//! would create an archetype no chunk ever enters. It would never be collected, and would keep the
+			//! removed entity's record, and so its id, from being freed.
+			//! \param archetype Archetype to inspect.
+			//! \return True when the archetype has at least one row.
+			GAIA_NODISCARD static bool archetype_has_rows(const Archetype& archetype) {
+				for (const auto* pChunk: archetype.chunks()) {
+					if (pChunk->size() != 0)
+						return true;
+				}
+				return false;
+			}
+
 			//! Removes \a entity from anything referencing it.
 			//! \param entity Entity to remove from referring records.
 			void rem_from_entities(Entity entity) {
@@ -80740,7 +80754,7 @@ namespace gaia {
 				cnt::darray<Entity> diffTargets;
 				for (const auto& record: srcRecords) {
 					auto* pArchetype = record.pArchetype;
-					if (pArchetype->is_req_del())
+					if (pArchetype->is_req_del() || !archetype_has_rows(*pArchetype))
 						continue;
 
 					auto* pDstArchetype = calc_dst_archetype(pArchetype, entity);
@@ -80784,7 +80798,7 @@ namespace gaia {
 				// Update archetypes of all affected entities
 				for (const auto& record: srcRecords) {
 					auto* pArchetype = record.pArchetype;
-					if (pArchetype->is_req_del())
+					if (pArchetype->is_req_del() || !archetype_has_rows(*pArchetype))
 						continue;
 
 					if (entity.pair()) {
@@ -80904,7 +80918,7 @@ namespace gaia {
 				cnt::darray<Entity> diffTargets;
 				for (const auto& record: srcRecords) {
 					auto* pArchetype = record.pArchetype;
-					if (pArchetype->is_req_del())
+					if (pArchetype->is_req_del() || !archetype_has_rows(*pArchetype))
 						continue;
 
 					if (!archetype_cond_match(*pArchetype, cond, entity))
@@ -80950,7 +80964,7 @@ namespace gaia {
 
 				for (const auto& record: srcRecords) {
 					auto* pArchetype = record.pArchetype;
-					if (pArchetype->is_req_del())
+					if (pArchetype->is_req_del() || !archetype_has_rows(*pArchetype))
 						continue;
 
 					// Evaluate the condition if a valid pair is given

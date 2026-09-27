@@ -1250,6 +1250,31 @@ TEST_CASE("Entity deletion - a pair leaves other pairs with its target alone") {
 	}
 }
 
+TEST_CASE("Entity deletion - an id used as a relation and as an id is recycled") {
+	// Removing the entity's pairs visits archetypes it already emptied. They must not spawn new archetypes
+	// holding the deleted id, which would never be collected and would keep its id from being reused.
+	TestWorld twld;
+
+	const auto c = wld.add();
+	const auto rel = wld.add();
+	const auto t = wld.add();
+	const auto x = wld.add();
+	wld.add(x, ecs::Pair(rel, c));
+	wld.add(x, ecs::Pair(c, t));
+	wld.add(x, c);
+
+	wld.del(c);
+	twld.update();
+	CHECK(wld.valid(x));
+	CHECK_FALSE(wld.has(x, ecs::Pair(rel, c)));
+	CHECK_FALSE(wld.has(x, ecs::Pair(c, t)));
+
+	bool reused = false;
+	for (uint32_t i = 0; i < 64 && !reused; ++i)
+		reused = wld.add().id() == c.id();
+	CHECK(reused);
+}
+
 TEST_CASE("Entity deletion - alias is released") {
 	TestWorld twld;
 
