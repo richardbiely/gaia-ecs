@@ -502,6 +502,58 @@ TEST_CASE("Entity safe") {
 
 		CHECK_FALSE(wld.valid(e));
 	}
+
+	SUBCASE("reassignment releases the previous reference") {
+		TestWorld twld;
+
+		auto e0 = wld.add();
+		auto e1 = wld.add();
+		auto e2 = wld.add();
+		{
+			ecs::SafeEntity copied(wld, e0);
+			ecs::SafeEntity moved(wld, e1);
+			ecs::SafeEntity source(wld, e2);
+			wld.del(e0);
+			wld.del(e1);
+			wld.del(e2);
+			CHECK(wld.valid(e0));
+			CHECK(wld.valid(e1));
+
+			// Each handle held the last reference to its old entity
+			copied = source;
+			CHECK_FALSE(wld.valid(e0));
+			moved = GAIA_MOV(source);
+			CHECK_FALSE(wld.valid(e1));
+			CHECK(wld.valid(e2));
+		}
+
+		CHECK_FALSE(wld.valid(e2));
+	}
+
+	SUBCASE("copying a moved-from handle yields an empty handle") {
+		TestWorld twld;
+
+		auto e = wld.add();
+		auto e2 = wld.add();
+		{
+			ecs::SafeEntity source(wld, e);
+			ecs::SafeEntity owner(GAIA_MOV(source));
+
+			ecs::SafeEntity copied(source);
+			CHECK((ecs::Entity)copied == ecs::EntityBad);
+
+			ecs::SafeEntity assigned(wld, e2);
+			wld.del(e2);
+			assigned = source;
+			CHECK((ecs::Entity)assigned == ecs::EntityBad);
+			CHECK_FALSE(wld.valid(e2));
+
+			wld.del(e);
+			CHECK(wld.valid(e));
+		}
+
+		CHECK_FALSE(wld.valid(e));
+	}
 }
 #endif
 

@@ -36844,8 +36844,51 @@ namespace gaia {
 			}
 
 			~SafeEntity() {
-				// EntityContainer can be null only from moved-from SharedEntities.
-				// This is not a common occurrence.
+				release();
+			}
+
+			SafeEntity(const SafeEntity& other): m_w(other.m_w), m_entity(other.m_entity) {
+				acquire();
+			}
+			SafeEntity& operator=(const SafeEntity& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				release();
+				m_w = other.m_w;
+				m_entity = other.m_entity;
+				acquire();
+				return *this;
+			}
+
+			SafeEntity(SafeEntity&& other) noexcept: m_w(other.m_w), m_entity(other.m_entity) {
+				other.m_w = nullptr;
+				other.m_entity = EntityBad;
+			}
+			SafeEntity& operator=(SafeEntity&& other) noexcept {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				release();
+				m_w = other.m_w;
+				m_entity = other.m_entity;
+
+				other.m_w = nullptr;
+				other.m_entity = EntityBad;
+				return *this;
+			}
+
+		private:
+			//! Adds this handle's reference. Empty and moved-from handles hold none.
+			void acquire() {
+				if GAIA_UNLIKELY (m_w == nullptr)
+					return;
+
+				auto& ec = fetch_mut(*m_w, m_entity);
+				++ec.refCnt;
+			}
+
+			//! Drops this handle's reference and deletes the entity when it was the last one.
+			//! Empty and moved-from handles hold none.
+			void release() {
 				if GAIA_UNLIKELY (m_w == nullptr)
 					return;
 
@@ -36861,36 +36904,7 @@ namespace gaia {
 					del(*m_w, m_entity);
 			}
 
-			SafeEntity(const SafeEntity& other): m_w(other.m_w), m_entity(other.m_entity) {
-				auto& ec = fetch_mut(*m_w, m_entity);
-				++ec.refCnt;
-			}
-			SafeEntity& operator=(const SafeEntity& other) {
-				GAIA_ASSERT(core::addressof(other) != this);
-
-				m_w = other.m_w;
-				m_entity = other.m_entity;
-
-				auto& ec = fetch_mut(*m_w, m_entity);
-				++ec.refCnt;
-				return *this;
-			}
-
-			SafeEntity(SafeEntity&& other) noexcept: m_w(other.m_w), m_entity(other.m_entity) {
-				other.m_w = nullptr;
-				other.m_entity = EntityBad;
-			}
-			SafeEntity& operator=(SafeEntity&& other) noexcept {
-				GAIA_ASSERT(core::addressof(other) != this);
-
-				m_w = other.m_w;
-				m_entity = other.m_entity;
-
-				other.m_w = nullptr;
-				other.m_entity = EntityBad;
-				return *this;
-			}
-
+		public:
 			template <typename Serializer>
 			void save(Serializer& s) const {
 				s.save(m_entity);
