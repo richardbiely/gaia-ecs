@@ -14413,7 +14413,9 @@ namespace gaia {
 				if GAIA_UNLIKELY (entity.pair())
 					return;
 
-				GAIA_ASSERT(valid_entity(entity));
+				// A delete-requested base is not valid() but keeps its record and archetype until finalization.
+				// Bulk deletion unlinks an instance's Is edge after marking its prefab's archetype.
+				GAIA_ASSERT(try_entity_record(entity) != nullptr);
 
 				if constexpr (!CheckIn) {
 					func(entity);

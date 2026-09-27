@@ -1338,6 +1338,46 @@ TEST_CASE("Entity deletion - system whose own target rule deletes its archetype 
 }
 #endif
 
+TEST_CASE("Entity bulk deletion - prefab deleted with its instances") {
+	// Cached queries hold the (Is, X) entries whose invalidation walks up from the deleted prefab
+	GAIA_FOR(2) {
+		const bool withQueries = i == 1;
+		TestWorld twld;
+
+		const auto tag = wld.add();
+		wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+		const auto base = wld.prefab();
+		const auto prefab = wld.prefab();
+		wld.as(prefab, base);
+		wld.add<Position>(prefab, {5, 0, 0});
+		wld.add(prefab, tag);
+		const auto inst0 = wld.instantiate(prefab);
+		const auto inst1 = wld.instantiate(prefab);
+		const auto survivor = wld.add();
+		wld.as(survivor, base);
+
+		auto qBase = wld.query().all(ecs::Pair(ecs::Is, base));
+		auto qPrefab = wld.query().all(ecs::Pair(ecs::Is, prefab));
+		uint32_t baseCnt = 0;
+		if (withQueries) {
+			baseCnt = qBase.count();
+			CHECK(qPrefab.count() == 2);
+		}
+
+		wld.del(tag);
+		twld.update();
+
+		CHECK_FALSE(wld.valid(prefab));
+		CHECK_FALSE(wld.valid(inst0));
+		CHECK_FALSE(wld.valid(inst1));
+		CHECK(wld.valid(base));
+		CHECK(wld.valid(survivor));
+		if (withQueries)
+			CHECK(qBase.count() == baseCnt - 2);
+		CHECK(wld.query().all<Position>().count() == 0);
+	}
+}
+
 #if GAIA_USE_SAFE_ENTITY
 TEST_CASE("Entity bulk deletion - SafeEntity keeps the record until released") {
 	TestWorld twld;
