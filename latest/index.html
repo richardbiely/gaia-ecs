@@ -247,6 +247,7 @@ Table of Contents</h1>
 <li><a class="el" href="index.html#installation">Installation</a><ul>
 <li><a class="el" href="index.html#cmake">CMake</a><ul>
 <li><a class="el" href="index.html#project-settings">Project settings</a></li>
+<li><a class="el" href="index.html#debug-builds">Debug builds</a></li>
 <li><a class="el" href="index.html#sanitizers">Sanitizers</a></li>
 <li><a class="el" href="index.html#single-header">Single-header</a></li>
 </ul>
@@ -4123,7 +4124,11 @@ Project settings</h3>
 Asserts</h3>
 <p>Gaia asserts when asserts are enabled. Debug builds enable them by default. Optimized builds strip them unless you set <code>GAIA_FORCE_DEBUG</code>. Keep asserts enabled while developing. Do not treat stripped asserts as missing bounds checks.</p>
 <p>Asserts catch contract misuse. They are not a Release error-handling path. Guarding every possible bad input on every call would be too expensive in hot paths. The better design is a contract of valid input. Gaia trusts that contract in optimized builds.</p>
-<h3><a class="anchor" id="sanitizers"></a>
+<h3><a class="anchor" id="debug-builds"></a>
+Debug builds</h3>
+<p>Build Debug configurations with <code>-Og</code> instead of the default <code>-O0</code> on GCC and Clang. Gaia is a header-only template library. At <code>-O0</code> none of its small accessors are inlined, so every <code>has</code>, <code>get</code>, <code>set</code> and view pays several layers of function calls. Asserts and <code>GAIA_DEBUG</code> follow <code>NDEBUG</code>, not the optimization level, so they stay enabled at <code>-Og</code>. Debug info is kept too; a debugger may show some locals as optimized out.</p>
+<div class="fragment"><div class="line">cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG=&quot;-g -Og&quot; -S . -B &quot;build&quot;</div>
+</div><!-- fragment --><h3><a class="anchor" id="sanitizers"></a>
 Sanitizers</h3>
 <p>Possible options are listed in <a href="https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake">cmake/sanitizers.cmake</a>.<br  />
  Note, that some options don't work together or might not be supported by all compilers. </p><div class="fragment"><div class="line">cmake -DCMAKE_BUILD_TYPE=Release -DGAIA_USE_SANITIZER=address -S . -B &quot;build&quot;</div>

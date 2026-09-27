@@ -138,7 +138,7 @@ using&#160;</td><td class="memItemRight" valign="bottom"><b>DescU</b> = typename
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
 <tr class="memitem:ac7a0c9a8f56594d86e166683d1c65668" id="r_ac7a0c9a8f56594d86e166683d1c65668"><td class="memItemLeft" align="right" valign="top">static constexpr <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">ComponentLookupHash</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ac7a0c9a8f56594d86e166683d1c65668">hash_lookup</a> ()</td></tr>
-<tr class="memdesc:ac7a0c9a8f56594d86e166683d1c65668"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the stable lookup hash for the component type.  <br /></td></tr>
+<tr class="memdesc:ac7a0c9a8f56594d86e166683d1c65668"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the stable lookup hash for the component type. The constexpr local forces compile-time evaluation. Unoptimized builds would otherwise re-hash the type name on every typed component lookup (has, get, set, views).  <br /></td></tr>
 <tr class="separator:ac7a0c9a8f56594d86e166683d1c65668"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad89d35d4747405f171441e85fa476602" id="r_ad89d35d4747405f171441e85fa476602"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ad89d35d4747405f171441e85fa476602">name</a> ()</td></tr>
 <tr class="memdesc:ad89d35d4747405f171441e85fa476602"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the reflected component symbol name.  <br /></td></tr>
@@ -554,7 +554,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Returns the stable lookup hash for the component type. </p>
+<p>Returns the stable lookup hash for the component type. The constexpr local forces compile-time evaluation. Unoptimized builds would otherwise re-hash the type name on every typed component lookup (has, get, set, views). </p>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> lookup hash derived from reflected type metadata. </dd></dl>
 
 </div>

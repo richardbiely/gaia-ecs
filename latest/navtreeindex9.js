@@ -1,5 +1,6 @@
 var NAVTREEINDEX9 =
 {
+"structgaia_1_1cnt_1_1darray__ilist__storage.html#ad436ec5b52d262ae1500c1f76a8800f4":[9,0,0,0,10,1],
 "structgaia_1_1cnt_1_1darray__ilist__storage.html#ad71fa5f70c9b56dda0de3d2dcec08400":[9,0,0,0,10,0],
 "structgaia_1_1cnt_1_1fwd__llist.html":[9,0,0,0,12],
 "structgaia_1_1cnt_1_1fwd__llist.html#a1da5b19633cbed199058c896e6619884":[9,0,0,0,12,5],
@@ -248,6 +249,5 @@ var NAVTREEINDEX9 =
 "structgaia_1_1cnt_1_1sringbuffer__iterator.html#a5ee85e265b18a8e1206d1bbc60b5ad1c":[9,0,0,0,35,24],
 "structgaia_1_1cnt_1_1sringbuffer__iterator.html#a60c15d7cf81708110d315217c3592079":[9,0,0,0,35,14],
 "structgaia_1_1cnt_1_1sringbuffer__iterator.html#a68ab3db31276d85ee85c98c20ec94bde":[9,0,0,0,35,0],
-"structgaia_1_1cnt_1_1sringbuffer__iterator.html#a8b54be0e1ea3cea5d5af8e796336e14d":[9,0,0,0,35,18],
-"structgaia_1_1cnt_1_1sringbuffer__iterator.html#a94e36c8c2d7b41824c73717ca3072b07":[9,0,0,0,35,5]
+"structgaia_1_1cnt_1_1sringbuffer__iterator.html#a8b54be0e1ea3cea5d5af8e796336e14d":[9,0,0,0,35,18]
 };

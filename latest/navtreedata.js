@@ -149,6 +149,7 @@ var NAVTREE =
       [ "CMake", "index.html#cmake", [
         [ "Project settings", "index.html#project-settings", null ],
         [ "Asserts", "index.html#asserts", null ],
+        [ "Debug builds", "index.html#debug-builds", null ],
         [ "Sanitizers", "index.html#sanitizers", null ],
         [ "Single-header", "index.html#single-header", null ]
       ] ],
@@ -195,12 +196,12 @@ var NAVTREEINDEX =
 "classgaia_1_1ecs_1_1World.html#aff0c1e47e21ba37d948d3f06467d5085",
 "classgaia_1_1mt_1_1ThreadPool.html#abae2dc1ab79367b708af43dfa2cae810",
 "index.html#constraints",
-"structgaia_1_1cnt_1_1darray__ilist__storage.html#ad71fa5f70c9b56dda0de3d2dcec08400",
-"structgaia_1_1cnt_1_1sringbuffer__iterator.html#aa795234f10307df35bdf7701f6ded605",
-"structgaia_1_1ecs_1_1CursorResult.html#ac18a21018af628992c2ee5b60627ddee",
-"structgaia_1_1ecs_1_1QueryHandleLookupKey.html#a49024b8cc0544d9002be09b7e2aeb9c7",
-"structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#ab16c37d50fa1afb05e7ae46206ae7978",
-"structgaia_1_1mem_1_1data__view__policy__soa.html#a8a35d0b8aff794863f29b0cfc0660285"
+"structgaia_1_1cnt_1_1darray__ilist__storage.html#ad436ec5b52d262ae1500c1f76a8800f4",
+"structgaia_1_1cnt_1_1sringbuffer__iterator.html#a94e36c8c2d7b41824c73717ca3072b07",
+"structgaia_1_1ecs_1_1CursorResult.html#ab58acb7e521355c7da0ab55890973cad",
+"structgaia_1_1ecs_1_1QueryHandleLookupKey.html#a2934576035e5f3ad00447ec092f26386",
+"structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#aa9accc5309adbb4e25638b7dd020d49a",
+"structgaia_1_1mem_1_1data__view__policy__soa.html#a83ea68b9f1bee961dfd1b3715e8697d7"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';
