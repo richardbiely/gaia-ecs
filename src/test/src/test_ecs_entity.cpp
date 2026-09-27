@@ -1537,6 +1537,133 @@ TEST_CASE("Entity bulk deletion - OnDel observer on many rows") {
 #endif
 
 #if GAIA_USE_SAFE_ENTITY
+TEST_CASE("Entity deletion - SafeEntity on a pair holds its endpoints") {
+	// endpoint: 0 = relation, 1 = target
+	// how: 0 = del(), 1 = (OnDelete, Delete) tag, 2 = ChildOf parent deleted
+	for (uint32_t endpointIdx = 0; endpointIdx < 2; ++endpointIdx) {
+		for (uint32_t how = 0; how < 3; ++how) {
+			TestWorld twld;
+
+			const auto tag = wld.add();
+			wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+			const auto parent = wld.add();
+			const auto rel = wld.add();
+			const auto tgt = wld.add();
+			const auto src = wld.add();
+			wld.add(src, ecs::Pair(rel, tgt));
+			const auto endpoint = endpointIdx == 0 ? rel : tgt;
+
+			auto reuses_endpoint_id = [&]() {
+				for (uint32_t i = 0; i < 64; ++i) {
+					const auto e = wld.add();
+					if (e.id() == endpoint.id())
+						return e;
+				}
+				return ecs::EntityBad;
+			};
+
+			{
+				const auto held = ecs::SafeEntity(wld, ecs::Pair(rel, tgt));
+				if (how == 0)
+					wld.del(endpoint);
+				else if (how == 1) {
+					wld.add(endpoint, tag);
+					wld.del(tag);
+				} else {
+					wld.child(endpoint, parent);
+					wld.del(parent);
+				}
+				twld.update();
+
+				if (how == 0) {
+					// A deletion request waits for the handle, like one on the entity itself
+					CHECK(wld.valid(endpoint));
+					CHECK(wld.has(src, ecs::Pair(rel, tgt)));
+				} else {
+					// A cleanup rule deletes the endpoint anyway, and the pair with it
+					CHECK_FALSE(wld.valid(endpoint));
+					CHECK_FALSE(wld.has(src, ecs::Pair(rel, tgt)));
+				}
+				CHECK(wld.valid(src));
+
+				// The endpoint's id is not reused while the handle holds it
+				CHECK(reuses_endpoint_id() == ecs::EntityBad);
+			}
+			twld.update();
+
+			CHECK_FALSE(wld.valid(endpoint));
+			CHECK_FALSE(wld.has(src, ecs::Pair(rel, tgt)));
+			CHECK(wld.valid(endpointIdx == 0 ? tgt : rel));
+
+			// Once released, the id is reused without aliasing the old pair
+			const auto fresh = reuses_endpoint_id();
+			CHECK(fresh != ecs::EntityBad);
+			if (fresh != ecs::EntityBad) {
+				const auto alias = endpointIdx == 0 ? ecs::Pair(fresh, tgt) : ecs::Pair(rel, fresh);
+				CHECK_FALSE(wld.has(src, alias));
+				CHECK(wld.query().all(alias).count() == 0);
+			}
+		}
+	}
+}
+
+TEST_CASE("Entity deletion - SafeEntity on a self pair and copies after rule deletion") {
+	SUBCASE("self pair") {
+		TestWorld twld;
+
+		const auto tag = wld.add();
+		wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+		const auto rel = wld.add();
+		const auto src = wld.add();
+		wld.add(src, ecs::Pair(rel, rel));
+		{
+			const auto held = ecs::SafeEntity(wld, ecs::Pair(rel, rel));
+			wld.del(rel);
+			twld.update();
+			CHECK(wld.valid(rel));
+			CHECK(wld.has(src, ecs::Pair(rel, rel)));
+
+			wld.add(rel, tag);
+			wld.del(tag);
+			twld.update();
+			CHECK_FALSE(wld.valid(rel));
+			CHECK_FALSE(wld.has(src, ecs::Pair(rel, rel)));
+		}
+		twld.update();
+		CHECK_FALSE(wld.valid(rel));
+		CHECK(wld.valid(src));
+	}
+
+	SUBCASE("copies made after a rule deleted an endpoint") {
+		TestWorld twld;
+
+		const auto tag = wld.add();
+		wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+		const auto rel = wld.add();
+		const auto tgt = wld.add();
+		const auto src = wld.add();
+		wld.add(src, ecs::Pair(rel, tgt));
+		wld.add(rel, tag);
+		{
+			ecs::SafeEntity held(wld, ecs::Pair(rel, tgt));
+			wld.del(tag);
+			twld.update();
+			CHECK_FALSE(wld.valid(rel));
+
+			// Copies reference the reserved records, and each one is released in turn
+			ecs::SafeEntity copied(held);
+			ecs::SafeEntity assigned;
+			assigned = held;
+			held = ecs::SafeEntity{};
+			CHECK((ecs::Entity)copied == ecs::Pair(rel, tgt));
+		}
+		twld.update();
+		CHECK(wld.valid(tgt));
+		CHECK(wld.valid(src));
+		CHECK_FALSE(wld.has(src, ecs::Pair(rel, tgt)));
+	}
+}
+
 TEST_CASE("Entity bulk deletion - SafeEntity keeps the record until released") {
 	TestWorld twld;
 

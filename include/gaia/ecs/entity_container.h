@@ -385,8 +385,7 @@ namespace gaia {
 		public:
 			SafeEntity() = default;
 			SafeEntity(World& w, Entity entity): m_w(&w), m_entity(entity) {
-				auto& ec = fetch_mut(w, entity);
-				++ec.refCnt;
+				acquire();
 			}
 
 			~SafeEntity() {
@@ -428,8 +427,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (m_w == nullptr)
 					return;
 
-				auto& ec = fetch_mut(*m_w, m_entity);
-				++ec.refCnt;
+				safe_entity_acquire(*m_w, m_entity);
 			}
 
 			//! Drops this handle's reference and deletes the entity when it was the last one.
@@ -440,14 +438,7 @@ namespace gaia {
 
 				// World cleanup and destruction clear every record before they destroy components,
 				// so a SafeEntity stored in a component finds no record there and has nothing to release.
-				auto* pEc = try_fetch_mut(*m_w, m_entity);
-				if GAIA_UNLIKELY (pEc == nullptr)
-					return;
-
-				GAIA_ASSERT(pEc->refCnt > 0);
-				--pEc->refCnt;
-				if (pEc->refCnt == 0)
-					del(*m_w, m_entity);
+				safe_entity_release(*m_w, m_entity);
 			}
 
 		public:

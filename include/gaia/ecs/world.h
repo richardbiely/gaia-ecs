@@ -99,6 +99,10 @@ namespace gaia {
 			friend void lock(World&);
 			friend void unlock(World&);
 			friend EntityContainer* try_fetch_mut(World&, Entity);
+#if GAIA_USE_SAFE_ENTITY
+			friend void safe_entity_acquire(World&, Entity);
+			friend void safe_entity_release(World&, Entity);
+#endif
 			friend QueryMatchScratch& query_match_scratch_acquire(World&);
 			friend void query_match_scratch_release(World&, bool);
 			friend uint32_t world_component_index_bucket_size(const World&, Entity);
@@ -13001,6 +13005,51 @@ namespace gaia {
 				--ec.refCnt;
 				ec.flags |= EntityContainerFlags::RefDecreased;
 			}
+
+			//! Adds a SafeEntity reference to \a entity. A pair also references its relation and target,
+			//! because a pair id names its endpoints by id only. While their ids stay in use, no recycled
+			//! entity can alias the pair.
+			//! \param entity Entity or exact pair.
+			void safe_ref_add(Entity entity) {
+				++fetch(entity).refCnt;
+				if (!entity.pair())
+					return;
+
+				++m_recs.entities[entity.id()].refCnt;
+				++m_recs.entities[entity.gen()].refCnt;
+			}
+
+			//! Drops a SafeEntity reference from \a entity, then from a pair's relation and target. Each one
+			//! whose last reference goes is deleted, as a deletion requested earlier was deferred until now.
+			//! Does nothing once world cleanup or destruction cleared the records.
+			//! \param entity Entity or exact pair.
+			void safe_ref_del(Entity entity) {
+				auto* pEc = try_fetch_record(entity);
+				if GAIA_UNLIKELY (pEc == nullptr)
+					return;
+
+				safe_ref_del(*pEc, entity);
+				if (!entity.pair())
+					return;
+
+				// The references keep both endpoint records, so their ids still name the same entities
+				const EntityId endpoints[] = {(EntityId)entity.id(), (EntityId)entity.gen()};
+				for (const auto id: endpoints) {
+					auto* pEndpoint = m_recs.entities.try_get(id);
+					GAIA_ASSERT(pEndpoint != nullptr);
+					if (pEndpoint != nullptr)
+						safe_ref_del(*pEndpoint, EntityContainer::handle(*pEndpoint));
+				}
+			}
+
+			//! Drops one SafeEntity reference from a record and deletes its entity when it was the last one.
+			//! \param ec Record of \a entity.
+			//! \param entity Entity or exact pair.
+			void safe_ref_del(EntityContainer& ec, Entity entity) {
+				GAIA_ASSERT(ec.refCnt > 0);
+				if (--ec.refCnt == 0)
+					del(entity);
+			}
 #endif
 
 			//! Collects the exact pairs \a entity takes part in as a relation or target.
@@ -13811,11 +13860,13 @@ namespace gaia {
 			}
 
 			//! Deletes pair entities that are still valid.
+			//! Callers delete an endpoint of every pair for good, so each pair goes even while a SafeEntity
+			//! references it. Its record then stays reserved until the last reference is released.
 			//! \param pairEntities Pair entities to delete.
 			void del_pair_entities(EntitySpan pairEntities) {
 				for (auto pair: pairEntities) {
 					if (valid(pair))
-						del_inter(pair);
+						handle_del_entity(fetch(pair), pair, EntitySpan{}, true);
 				}
 			}
 
@@ -13832,7 +13883,10 @@ namespace gaia {
 			//! \param ec Entity container associated with \a entity.
 			//! \param entity Entity being deleted.
 			//! \param pairEntities Pair entities to delete after the entity passes deletion checks.
-			void handle_del_entity(EntityContainer& ec, Entity entity, EntitySpan pairEntities) {
+			//! \param endpointDeleted True when \a entity is a pair whose relation or target is deleted for good.
+			//!                        The pair is then deleted even while a SafeEntity references it.
+			void handle_del_entity(
+					EntityContainer& ec, Entity entity, EntitySpan pairEntities, [[maybe_unused]] bool endpointDeleted = false) {
 				GAIA_PROF_SCOPE(World::handle_del_entity);
 				ArchetypeRowDelScope scope(*this);
 
@@ -13868,8 +13922,9 @@ namespace gaia {
 					// Decrement the ref count at this point.
 					release_world_ref(ec);
 
-					// Don't delete so long something still references us
-					if (ec.refCnt != 0)
+					// Don't delete so long something still references us. A pair cannot outlive its endpoints,
+					// so one losing an endpoint goes anyway, and its record stays reserved until released.
+					if (ec.refCnt != 0 && !endpointDeleted)
 						return;
 #endif
 

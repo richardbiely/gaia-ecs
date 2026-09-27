@@ -42,6 +42,18 @@ namespace gaia {
 
 		void del(World& world, Entity entity);
 
+#if GAIA_USE_SAFE_ENTITY
+		//! Adds a SafeEntity reference to \p entity, and for a pair also to its relation and target.
+		//! \param world World that owns the entity records.
+		//! \param entity Entity or exact pair.
+		void safe_entity_acquire(World& world, Entity entity);
+		//! Drops a SafeEntity reference added by safe_entity_acquire. Each entity whose last reference goes is
+		//! deleted. Does nothing once world cleanup or destruction cleared the records.
+		//! \param world World that owns the entity records.
+		//! \param entity Entity or exact pair.
+		void safe_entity_release(World& world, Entity entity);
+#endif
+
 		Entity entity_from_id(const World& world, EntityId id);
 		Entity id_entity(const World& world, Entity id);
 		Entity pair_rel(const World& world, Entity pair);

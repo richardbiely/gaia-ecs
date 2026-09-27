@@ -35,6 +35,16 @@ namespace gaia {
 			world.del(entity);
 		}
 
+#if GAIA_USE_SAFE_ENTITY
+		inline void safe_entity_acquire(World& world, Entity entity) {
+			world.safe_ref_add(entity);
+		}
+
+		inline void safe_entity_release(World& world, Entity entity) {
+			world.safe_ref_del(entity);
+		}
+#endif
+
 		GAIA_NODISCARD inline Entity entity_from_id(const World& world, EntityId id) {
 			return world.get(id);
 		}

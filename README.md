@@ -1162,6 +1162,29 @@ bool isValid = w.valid(player); // false
 
 A [cleanup rule](#cleanup-rules) that deletes the entity along with something else, such as its `ChildOf` parent, deletes its components even while an `ecs::SafeEntity` references it. The entity is no longer valid, but its record stays reserved until the last `ecs::SafeEntity` goes out of scope, so the wrapper never touches a recycled entity.
 
+An `ecs::SafeEntity` on a pair also holds its relation and its target. A pair id names its endpoints by id only, so the pair can only stay valid while both endpoints do, and while their ids cannot name anything else.
+
+```cpp
+ecs::World w;
+ecs::Entity likes = w.add();
+ecs::Entity apples = w.add();
+ecs::Entity player = w.add();
+w.add(player, ecs::Pair(likes, apples));
+{
+  auto pairSafe = ecs::SafeEntity(w, ecs::Pair(likes, apples));
+  // Deleting an endpoint waits for pairSafe, the same way deleting the pair would.
+  w.del(likes);
+  bool isValid = w.valid(likes); // true
+  bool hasPair = w.has(player, ecs::Pair(likes, apples)); // true
+}
+// pairSafe released its references. likes is deleted, and the pair with it.
+bool isValid = w.valid(likes); // false
+```
+
+A cleanup rule that deletes an endpoint deletes the pair as well, removing it from every entity that has it. As with an entity, the endpoint's and the pair's records stay reserved until the last `ecs::SafeEntity` goes out of scope, so no new entity reusing the endpoint's id can match the old pair. One known exception: an endpoint deleted through a `Parent` cascade leaves the pair on its sources until the last `ecs::SafeEntity` goes out of scope.
+
+Just like an entity holding an `ecs::SafeEntity` on itself, an entity holding an `ecs::SafeEntity` on a pair that names it keeps itself alive against `del()`. Only a cleanup rule, or releasing the handle, deletes it.
+
 `ecs::SafeEntity` can live inside a component. Cleaning up or destroying the world drops such references without deleting anything. An `ecs::SafeEntity` held outside the world must go out of scope before the world is cleaned up or destroyed. Unlike `ecs::WeakEntity`, it is not tracked, so it cannot be reset and would release a reference on whatever entity later reuses its id, or on a world that no longer exists.
 
 ecs::SafeEntity is fully compatible with ecs::Entity and can be used just like it in all scenarios.
