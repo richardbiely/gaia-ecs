@@ -131,6 +131,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
 * [Installation](#installation)
   * [CMake](#cmake)
     * [Project settings](#project-settings)
+    * [Debug builds](#debug-builds)
     * [Sanitizers](#sanitizers)
     * [Single-header](#single-header)
   * [Conan](#conan)
@@ -5011,6 +5012,13 @@ Parameter | Description
 Gaia asserts when asserts are enabled. Debug builds enable them by default. Optimized builds strip them unless you set `GAIA_FORCE_DEBUG`. Keep asserts enabled while developing. Do not treat stripped asserts as missing bounds checks.
 
 Asserts catch contract misuse. They are not a Release error-handling path. Guarding every possible bad input on every call would be too expensive in hot paths. The better design is a contract of valid input. Gaia trusts that contract in optimized builds.
+
+### Debug builds
+Build Debug configurations with `-Og` instead of the default `-O0` on GCC and Clang. Gaia is a header-only template library. At `-O0` none of its small accessors are inlined, so every `has`, `get`, `set` and view pays several layers of function calls. Asserts and `GAIA_DEBUG` follow `NDEBUG`, not the optimization level, so they stay enabled at `-Og`. Debug info is kept too; a debugger may show some locals as optimized out.
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -Og" -S . -B "build"
+```
 
 ### Sanitizers
 Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>

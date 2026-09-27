@@ -34379,9 +34379,12 @@ namespace gaia {
 				using DescU = typename CT::TypeFull;
 
 				//! Returns the stable lookup hash for the component type.
+				//! The constexpr local forces compile-time evaluation. Unoptimized builds would otherwise
+				//! re-hash the type name on every typed component lookup (has, get, set, views).
 				//! \return Component lookup hash derived from reflected type metadata.
 				static constexpr ComponentLookupHash hash_lookup() {
-					return {meta::type_info::hash<DescU>()};
+					constexpr ComponentLookupHash hash{meta::type_info::hash<DescU>()};
+					return hash;
 				}
 
 				//! Returns the reflected component symbol name.
