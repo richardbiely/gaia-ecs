@@ -68014,6 +68014,13 @@ namespace gaia {
 			//! Monotonic stamp used with m_entityVisitStamps for O(1) per-call dedup.
 			mutable uint64_t m_entityVisitStamp = 0;
 
+#if GAIA_USE_SAFE_ENTITY
+			//! Depth of chunk operations that can run component destructors, see CompDtorScope.
+			uint32_t m_compDtorDepth = 0;
+			//! Entities whose last SafeEntity reference was released by a component destructor or while the
+			//! world was locked. A structural change was not possible then, so the next frame_cleanup() deletes them.
+			cnt::darray<Entity> m_safeEntityDels;
+#endif
 			//! Deepest m_entitiesDeleting searched linearly. Deeper stacks are mirrored in m_entitiesDeletingSet.
 			static constexpr uint32_t EntitiesDeletingScanMax = 16;
 			//! Active entity-deletion stack used to suppress duplicate reentrant deletion.
@@ -73859,10 +73866,16 @@ namespace gaia {
 
 					auto& ec = fetch(entity);
 					handle_del_entity(ec, entity, EntitySpan{pairEntities.data(), pairEntities.size()});
-					return;
-				}
+				} else
+					del_inter(entity);
 
-				del_inter(entity);
+#if GAIA_USE_SAFE_ENTITY
+				// Destroying the entity's components may have released the last SafeEntity reference to others.
+				// Once the outermost deletion is done, nothing is in use anymore and they can go right away.
+				if (!m_safeEntityDels.empty() && m_entitiesDeleting.empty() && m_archetypeRowDelDepth == 0 &&
+						m_compDtorDepth == 0 && !locked())
+					del_released_safe_entities();
+#endif
 			}
 
 			//! Removes an \a object from \a entity if possible.
@@ -77222,6 +77235,10 @@ namespace gaia {
 				GAIA_ASSERT(!observer_callback_active());
 #endif
 
+#if GAIA_USE_SAFE_ENTITY
+				del_released_safe_entities();
+#endif
+
 				// Finish deleting entities
 				del_finalize();
 
@@ -77394,6 +77411,9 @@ namespace gaia {
 					m_archetypeRowsToDel = {};
 					m_entitiesDeleting = {};
 					m_entitiesDeletingSet = {};
+#if GAIA_USE_SAFE_ENTITY
+					m_safeEntityDels = {};
+#endif
 					m_chunksToDel = {};
 					m_archetypesToDel = {};
 				}
@@ -78447,10 +78467,31 @@ namespace gaia {
 				});
 			}
 
+#if GAIA_USE_SAFE_ENTITY
+			//! Marks a chunk operation that can run component destructors. A SafeEntity released by one of them
+			//! must not delete its entity right away, as that would change structures the operation is using.
+			class CompDtorScope {
+				World& m_world;
+
+			public:
+				explicit CompDtorScope(World& world): m_world(world) {
+					++m_world.m_compDtorDepth;
+				}
+				~CompDtorScope() {
+					--m_world.m_compDtorDepth;
+				}
+				CompDtorScope(const CompDtorScope&) = delete;
+				CompDtorScope& operator=(const CompDtorScope&) = delete;
+			};
+#endif
+
 			//! Remove a chunk from its archetype.
 			//! \param archetype Archetype we remove the chunk from
 			//! \param chunk Chunk we are removing
 			void remove_chunk(Archetype& archetype, Chunk& chunk) {
+#if GAIA_USE_SAFE_ENTITY
+				CompDtorScope dtorScope(*this);
+#endif
 				archetype.del(&chunk);
 				try_enqueue_archetype_for_deletion(archetype);
 			}
@@ -78477,6 +78518,9 @@ namespace gaia {
 			//! \param chunk Chunk we remove the entity from
 			//! \param row Index of entity within its chunk
 			void remove_entity(Archetype& archetype, Chunk& chunk, uint16_t row) {
+#if GAIA_USE_SAFE_ENTITY
+				CompDtorScope dtorScope(*this);
+#endif
 				archetype.remove_entity(chunk, row, m_recs);
 				try_enqueue_chunk_for_deletion(archetype, chunk);
 			}
@@ -80158,8 +80202,30 @@ namespace gaia {
 			//! \param entity Entity or exact pair.
 			void safe_ref_del(EntityContainer& ec, Entity entity) {
 				GAIA_ASSERT(ec.refCnt > 0);
-				if (--ec.refCnt == 0)
+				if (--ec.refCnt != 0)
+					return;
+
+				// Inside a component destructor or while iteration locks the world, deleting now would change
+				// structures in use. The next frame_cleanup() deletes the entity instead.
+				if (m_compDtorDepth != 0 || locked())
+					m_safeEntityDels.push_back(entity);
+				else
 					del(entity);
+			}
+
+			//! Deletes the entities whose last SafeEntity reference was released while their deletion had to wait.
+			//! One that gained a new reference since then is left to it.
+			void del_released_safe_entities() {
+				// Deleting them can release more references from destructors, which queue again
+				while (!m_safeEntityDels.empty()) {
+					auto dels = GAIA_MOV(m_safeEntityDels);
+					m_safeEntityDels = {};
+					for (const auto entity: dels) {
+						const auto* pEc = try_fetch_record(entity);
+						if (pEc != nullptr && pEc->refCnt == 0)
+							del(entity);
+					}
+				}
 			}
 #endif
 

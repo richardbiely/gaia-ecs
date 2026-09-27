@@ -1185,7 +1185,7 @@ A cleanup rule that deletes an endpoint deletes the pair as well, removing it fr
 
 Just like an entity holding an `ecs::SafeEntity` on itself, an entity holding an `ecs::SafeEntity` on a pair that names it keeps itself alive against `del()`. Only a cleanup rule, or releasing the handle, deletes it.
 
-`ecs::SafeEntity` can live inside a component. Cleaning up or destroying the world drops such references without deleting anything. An `ecs::SafeEntity` held outside the world must go out of scope before the world is cleaned up or destroyed. Unlike `ecs::WeakEntity`, it is not tracked, so it cannot be reset and would release a reference on whatever entity later reuses its id, or on a world that no longer exists.
+`ecs::SafeEntity` can live inside a component. Cleaning up or destroying the world drops such references without deleting anything. When destroying such a component releases the last reference, for example because its entity is deleted or the component is removed, the entity it held is deleted once the operation that destroyed the component is done: right after the outermost `del()` returns, otherwise at the next `update()`. The same applies to a reference released inside query iteration. An `ecs::SafeEntity` held outside the world must go out of scope before the world is cleaned up or destroyed. Unlike `ecs::WeakEntity`, it is not tracked, so it cannot be reset and would release a reference on whatever entity later reuses its id, or on a world that no longer exists.
 
 ecs::SafeEntity is fully compatible with ecs::Entity and can be used just like it in all scenarios.
 

@@ -1743,6 +1743,67 @@ TEST_CASE("Entity deletion - SafeEntity on a self pair and copies after rule del
 	}
 }
 
+TEST_CASE("Entity deletion - SafeEntity released while its entity cannot be deleted yet") {
+	struct Holder {
+		ecs::SafeEntity handle;
+	};
+
+	// how: 0 = delete the holder's entity, 1 = remove the holder component
+	// what: 0 = the held entity is also an id on the holder's entity, 1 = a pair on it naming the held relation
+	for (uint32_t how = 0; how < 2; ++how) {
+		for (uint32_t what = 0; what < 2; ++what) {
+			TestWorld twld;
+
+			const auto x = wld.add();
+			const auto tgt = wld.add();
+			const auto src = wld.add();
+			if (what == 0)
+				wld.add(src, x);
+			else
+				wld.add(src, ecs::Pair(x, tgt));
+			const ecs::Entity held = what == 0 ? x : (ecs::Entity)ecs::Pair(x, tgt);
+			wld.add<Holder>(src, {ecs::SafeEntity(wld, held)});
+			wld.del(x);
+			twld.update();
+			CHECK(wld.valid(x));
+
+			// Destroying the holder releases the last reference while src is being changed
+			if (how == 0) {
+				wld.del(src);
+				// del() deletes what the destructor released once it is done
+				CHECK_FALSE(wld.valid(x));
+			} else {
+				wld.del<Holder>(src);
+				twld.update();
+				CHECK_FALSE(wld.valid(x));
+				CHECK(wld.valid(src));
+				CHECK_FALSE(wld.has(src, held));
+			}
+			twld.update();
+			CHECK_FALSE(wld.valid(x));
+			CHECK(wld.valid(tgt));
+		}
+	}
+
+	SUBCASE("released during iteration") {
+		TestWorld twld;
+
+		const auto x = wld.add();
+		const auto src = wld.add();
+		wld.add(src, x);
+		wld.add<Holder>(src, {ecs::SafeEntity(wld, x)});
+		wld.del(x);
+		twld.update();
+
+		wld.query().all<Holder&>().each([](Holder& holder) {
+			holder.handle = ecs::SafeEntity{};
+		});
+		twld.update();
+		CHECK_FALSE(wld.valid(x));
+		CHECK_FALSE(wld.has(src, x));
+	}
+}
+
 TEST_CASE("Entity bulk deletion - SafeEntity keeps the record until released") {
 	TestWorld twld;
 
