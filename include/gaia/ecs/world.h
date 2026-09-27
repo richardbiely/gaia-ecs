@@ -10696,6 +10696,26 @@ namespace gaia {
 				return true;
 			}
 
+			//! Resolves the archetype and chunk indices load() stored in a loaded record's pointers.
+			//! A record saved without a location belongs to a deleted entity, whose deletion is queued again.
+			//! \param ec Loaded record.
+			//! \param entity Entity or pair the record belongs to.
+			void load_record_location(EntityContainer& ec, Entity entity) {
+				const auto archetypeIdx = (uint32_t)((uintptr_t)ec.pArchetype); // Decode the archetype idx
+				const auto chunkIdx = (uint32_t)((uintptr_t)ec.pChunk); // Decode the chunk idx
+				if (archetypeIdx == (uint32_t)BadIndex) {
+					ec.pArchetype = nullptr;
+					ec.pChunk = nullptr;
+					ec.pEntity = nullptr;
+					m_reqEntitiesToDel.insert(EntityLookupKey(entity));
+					return;
+				}
+
+				ec.pArchetype = m_archetypes[archetypeIdx];
+				ec.pChunk = ec.pArchetype->chunks()[chunkIdx];
+				ec.pEntity = &ec.pChunk->entity_view()[ec.row];
+			}
+
 			//! Serializes the complete world into an initialized serializer.
 			//! \param s Destination serializer.
 			void save_to(ser::serializer s) const {
@@ -10717,17 +10737,27 @@ namespace gaia {
 						s.save(ec.dataRaw);
 						s.save(ec.row);
 						GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) == 0);
-						s.save(ec.flags); // ignore Load
 
+						// A deleted entity whose record is not freed yet, because archetypes still use its id or a
+						// SafeEntity references it, has no storage left. It is saved without a location and loads
+						// as a pending deletion, which the next frame_cleanup() finishes.
+						const bool deleted = (ec.flags & EntityContainerFlags::DeleteRequested) != 0;
+						auto flags = ec.flags;
 #if GAIA_USE_SAFE_ENTITY
-						s.save(ec.refCnt);
+						// SafeEntity handles do not survive a load, so only the world's own reference is saved.
+						// A deletion that waited for handles is dropped along with them.
+						if (!deleted)
+							flags &= (EntityContainerFlagsType)(~(EntityContainerFlagsType)EntityContainerFlags::RefDecreased);
+						s.save(flags); // ignore Load
+						s.save((uint32_t)(deleted ? 0 : 1));
 #else
+						s.save(flags); // ignore Load
 						s.save((uint32_t)0);
 #endif
 
-						uint32_t archetypeIdx = ec.pArchetype->list_idx();
+						const uint32_t archetypeIdx = deleted ? (uint32_t)BadIndex : ec.pArchetype->list_idx();
 						s.save(archetypeIdx);
-						uint32_t chunkIdx = ec.pChunk->idx();
+						const uint32_t chunkIdx = deleted ? (uint32_t)BadIndex : ec.pChunk->idx();
 						s.save(chunkIdx);
 					};
 
@@ -11156,11 +11186,7 @@ namespace gaia {
 						ec.flags &= (EntityContainerFlagsType)(~(
 								EntityContainerFlagsType)EntityContainerFlags::Load); // Clear the load flag
 
-						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
-						ec.pArchetype = m_archetypes[archetypeIdx];
-						const uint32_t chunkIdx = (uint32_t)((uintptr_t)ec.pChunk); // Decode the chunk idx
-						ec.pChunk = ec.pArchetype->chunks()[chunkIdx];
-						ec.pEntity = &ec.pChunk->entity_view()[ec.row];
+						load_record_location(ec, EntityContainer::handle(ec));
 					}
 
 					for (auto it = m_recs.pair_record_begin(); it != m_recs.pair_record_end(); ++it) {
@@ -11175,11 +11201,7 @@ namespace gaia {
 						ec.flags &= (EntityContainerFlagsType)(~(
 								EntityContainerFlagsType)EntityContainerFlags::Load); // Clear the load flag
 
-						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
-						ec.pArchetype = m_archetypes[archetypeIdx];
-						const uint32_t chunkIdx = (uint32_t)((uintptr_t)ec.pChunk); // Decode the chunk idx
-						ec.pChunk = ec.pArchetype->chunks()[chunkIdx];
-						ec.pEntity = &ec.pChunk->entity_view()[ec.row];
+						load_record_location(ec, pair.first.entity());
 					}
 				}
 
@@ -11217,6 +11239,9 @@ namespace gaia {
 				for (const auto& ec: m_recs.entities) {
 					GAIA_ASSERT(ec.idx < m_recs.entities.size());
 					GAIA_ASSERT(m_recs.entities.handle(ec.idx) == EntityContainer::handle(ec));
+					// Deleted entities waiting for their record to be freed have no storage
+					if ((ec.flags & EntityContainerFlags::DeleteRequested) != 0)
+						continue;
 					GAIA_ASSERT(ec.pArchetype != nullptr);
 					GAIA_ASSERT(ec.pChunk != nullptr);
 					GAIA_ASSERT(ec.pEntity != nullptr);
@@ -11287,7 +11312,8 @@ namespace gaia {
 					m_aliasToEntity = {};
 					for (auto& ec: m_recs.entities) {
 						const auto entity = EntityContainer::handle(ec);
-						if (entity.pair())
+						// Deleted entities waiting for their record to be freed have no storage
+						if (entity.pair() || ec.pChunk == nullptr)
 							continue;
 
 						const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));

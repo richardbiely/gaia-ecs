@@ -3905,3 +3905,89 @@ TEST_CASE("Serialization - validated runtime patch storage paths") {
 		CHECK(wld.get<RuntimeRejectingOpaque>(entity).value == doctest::Approx(1.0f));
 	}
 }
+
+#if GAIA_USE_SAFE_ENTITY
+TEST_CASE("Serialization - entities referenced by SafeEntity") {
+	auto reuses_id = [](ecs::World& w, ecs::Entity entity) {
+		for (uint32_t i = 0; i < 64; ++i) {
+			if (w.add().id() == entity.id())
+				return true;
+		}
+		return false;
+	};
+
+	// how: 0 = held, 1 = held with a deferred del(), 2 = held and deleted by a cleanup rule
+	for (uint32_t how = 0; how < 3; ++how) {
+		ser::bin_stream buffer;
+		ecs::Entity e;
+		{
+			ecs::World in;
+			e = in.add();
+			const auto parent = in.add();
+			const ecs::SafeEntity held(in, e);
+			if (how == 1)
+				in.del(e);
+			else if (how == 2) {
+				in.child(e, parent);
+				in.del(parent);
+			}
+			in.update();
+			CHECK(in.valid(e) == (how != 2));
+
+			in.set_serializer(buffer);
+			in.save();
+		}
+
+		TestWorld twld;
+		CHECK(wld.load(buffer));
+		// SafeEntity handles do not survive a load. The world's own reference is all that is left.
+		if (how != 2) {
+			CHECK(wld.valid(e));
+			wld.del(e);
+		}
+		twld.update();
+		CHECK_FALSE(wld.valid(e));
+		CHECK(reuses_id(wld, e));
+	}
+
+	SUBCASE("pair whose endpoint a cleanup rule deleted") {
+		ser::bin_stream buffer;
+		ecs::Entity rel;
+		ecs::Entity tgt;
+		ecs::Entity src;
+		{
+			ecs::World in;
+			const auto parent = in.add();
+			rel = in.add();
+			tgt = in.add();
+			src = in.add();
+			in.add(src, ecs::Pair(rel, tgt));
+			in.child(rel, parent);
+			const ecs::SafeEntity held(in, ecs::Pair(rel, tgt));
+			in.del(parent);
+			in.update();
+			CHECK_FALSE(in.valid(rel));
+
+			in.set_serializer(buffer);
+			in.save();
+		}
+
+		TestWorld twld;
+		CHECK(wld.load(buffer));
+		twld.update();
+		CHECK_FALSE(wld.valid(rel));
+		CHECK(wld.valid(tgt));
+		CHECK(wld.valid(src));
+		CHECK_FALSE(wld.has(src, ecs::Pair(rel, tgt)));
+
+		ecs::Entity fresh = ecs::EntityBad;
+		for (uint32_t i = 0; i < 64 && fresh == ecs::EntityBad; ++i) {
+			const auto candidate = wld.add();
+			if (candidate.id() == rel.id())
+				fresh = candidate;
+		}
+		CHECK(fresh != ecs::EntityBad);
+		CHECK_FALSE(wld.has(src, ecs::Pair(fresh, tgt)));
+	}
+}
+#endif
