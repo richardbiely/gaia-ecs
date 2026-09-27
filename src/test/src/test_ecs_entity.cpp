@@ -1027,6 +1027,295 @@ TEST_CASE("Entity validity distinguishes stale handles from recycled live slots"
 	#endif
 #endif
 
+// Deleting an (OnDelete, Delete) tag deletes every archetype holding it at once. Each row must
+// still be deleted the way deleting it on its own would.
+
+//! Creates entities until one reuses the id of \a dead. Returns EntityBad if none does.
+static ecs::Entity add_until_id_reused(ecs::World& w, ecs::Entity dead) {
+	GAIA_FOR(64) {
+		const auto e = w.add();
+		if (e.id() == dead.id())
+			return e;
+	}
+	return ecs::EntityBad;
+}
+
+TEST_CASE("Entity bulk deletion - frees records and recycles ids") {
+	TestWorld twld;
+
+	const auto tag = wld.add();
+	wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	(void)wld.add<Position>();
+	const auto sizeBefore = wld.size();
+
+	cnt::darray<ecs::Entity> rows;
+	GAIA_FOR(100) {
+		const auto e = wld.add();
+		wld.add(e, tag);
+		wld.add<Position>(e, {(float)i, 0, 0});
+		rows.push_back(e);
+	}
+	CHECK(wld.size() == sizeBefore + 100);
+
+	wld.del(tag);
+	twld.update();
+	for (auto e: rows)
+		CHECK_FALSE(wld.valid(e));
+	CHECK(wld.size() == sizeBefore - 1);
+
+	const auto fresh = add_until_id_reused(wld, rows[0]);
+	CHECK(fresh != ecs::EntityBad);
+	if (fresh == ecs::EntityBad)
+		return;
+	CHECK(wld.valid(fresh));
+	CHECK_FALSE(wld.has<Position>(fresh));
+}
+
+TEST_CASE("Entity bulk deletion - names and aliases are released") {
+	TestWorld twld;
+
+	const auto tag = wld.add();
+	wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	const auto named = wld.add();
+	wld.add(named, tag);
+	wld.name(named, "bulk_named");
+	const auto aliased = wld.add();
+	wld.add(aliased, tag);
+	wld.name(aliased, "bulk_aliased");
+	wld.alias(aliased, "bulk_alias");
+
+	wld.del(tag);
+	CHECK(wld.get("bulk_named") == ecs::EntityBad);
+	CHECK(wld.get("bulk_aliased") == ecs::EntityBad);
+	CHECK(wld.alias("bulk_alias") == ecs::EntityBad);
+	twld.update();
+	CHECK_FALSE(wld.valid(named));
+	CHECK_FALSE(wld.valid(aliased));
+
+	// The names are free for new entities.
+	const auto reuse = wld.add();
+	wld.name(reuse, "bulk_named");
+	CHECK(wld.get("bulk_named") == reuse);
+}
+
+TEST_CASE("Entity deletion - alias is released") {
+	TestWorld twld;
+
+	const auto e = wld.add();
+	wld.alias(e, "single_alias");
+	wld.del(e);
+	CHECK(wld.alias("single_alias") == ecs::EntityBad);
+	twld.update();
+	CHECK(wld.alias("single_alias") == ecs::EntityBad);
+}
+
+TEST_CASE("Entity bulk deletion - singleton row") {
+	TestWorld twld;
+
+	const auto tag = wld.add();
+	wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	const auto e = wld.add();
+	wld.add(e, tag);
+	wld.add(e, e);
+	const auto sizeBefore = wld.size();
+
+	wld.del(tag);
+	twld.update();
+	twld.update();
+	CHECK_FALSE(wld.valid(e));
+	CHECK(wld.size() == sizeBefore - 2);
+}
+
+TEST_CASE("Entity bulk deletion - pair targets follow OnDeleteTarget") {
+	TestWorld twld;
+
+	const auto tag = wld.add();
+	wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	const auto likes = wld.add();
+
+	const auto parent = wld.add();
+	wld.add(parent, tag);
+	const auto child = wld.add();
+	wld.add(child, ecs::Pair(ecs::ChildOf, parent));
+	const auto fan = wld.add();
+	wld.add(fan, ecs::Pair(likes, parent));
+
+	wld.del(tag);
+	twld.update();
+	twld.update();
+	CHECK_FALSE(wld.valid(parent));
+	// ChildOf deletes its sources with the target; other relations are removed from them.
+	CHECK_FALSE(wld.valid(child));
+	CHECK(wld.valid(fan));
+	CHECK_FALSE(wld.has(fan, ecs::Pair(likes, ecs::All)));
+
+	// A new entity reusing the parent's id must not inherit its relations.
+	const auto fresh = add_until_id_reused(wld, parent);
+	CHECK(fresh != ecs::EntityBad);
+	if (fresh == ecs::EntityBad)
+		return;
+	CHECK_FALSE(wld.has(fan, ecs::Pair(likes, fresh)));
+	CHECK(wld.query().all(ecs::Pair(likes, fresh)).count() == 0);
+}
+
+TEST_CASE("Entity bulk deletion - row used as a relation and as an id") {
+	TestWorld twld;
+
+	const auto tag = wld.add();
+	wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	const auto rel = wld.add();
+	wld.add(rel, tag);
+	const auto marker = wld.add();
+	wld.add(marker, tag);
+	const auto tgt = wld.add();
+	const auto user = wld.add();
+	wld.add(user, ecs::Pair(rel, tgt));
+	wld.add(user, marker);
+
+	wld.del(tag);
+	twld.update();
+	twld.update();
+	CHECK_FALSE(wld.valid(rel));
+	CHECK_FALSE(wld.valid(marker));
+	CHECK(wld.valid(user));
+	CHECK_FALSE(wld.has(user, ecs::Pair(ecs::All, tgt)));
+	CHECK(wld.valid(tgt));
+}
+
+TEST_CASE("Entity bulk deletion - parent cycle is deleted whole") {
+	TestWorld twld;
+
+	// root -ChildOf-> b -Parent-> a -ChildOf-> root. Deleting root reaches a's archetype through the
+	// cycle while root itself is still being deleted.
+	const auto root = wld.add();
+	const auto a = wld.add();
+	const auto b = wld.add();
+	wld.child(a, root);
+	wld.parent(b, a);
+	wld.child(root, b);
+	const auto sizeBefore = wld.size();
+
+	wld.del(root);
+	CHECK_FALSE(wld.valid(root));
+	CHECK_FALSE(wld.valid(a));
+	CHECK_FALSE(wld.valid(b));
+	twld.update();
+	twld.update();
+	CHECK(wld.size() == sizeBefore - 3);
+}
+
+TEST_CASE("Entity bulk deletion - Parent children follow their parent") {
+	TestWorld twld;
+
+	const auto tag = wld.add();
+	wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	const auto parent = wld.add();
+	wld.add(parent, tag);
+	const auto child = wld.add();
+	wld.parent(child, parent);
+
+	wld.del(tag);
+	twld.update();
+	twld.update();
+	CHECK_FALSE(wld.valid(parent));
+	CHECK_FALSE(wld.valid(child));
+}
+
+TEST_CASE("Entity bulk deletion - non-fragmenting relation target and relation rows") {
+	TestWorld twld;
+
+	const auto tag = wld.add();
+	wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	const auto rel = wld.add();
+	wld.add(rel, ecs::DontFragment);
+	wld.add(rel, ecs::Exclusive);
+
+	// Target row: the source loses the pair.
+	const auto target = wld.add();
+	wld.add(target, tag);
+	const auto source = wld.add();
+	wld.add(source, ecs::Pair(rel, target));
+
+	// Relation row: the source loses every pair of that relation.
+	const auto relRow = wld.add();
+	wld.add(relRow, ecs::DontFragment);
+	wld.add(relRow, ecs::Exclusive);
+	wld.add(relRow, tag);
+	const auto other = wld.add();
+	const auto source2 = wld.add();
+	wld.add(source2, ecs::Pair(relRow, other));
+
+	wld.del(tag);
+	twld.update();
+	twld.update();
+	CHECK_FALSE(wld.valid(target));
+	CHECK_FALSE(wld.valid(relRow));
+	CHECK(wld.valid(source));
+	CHECK(wld.valid(source2));
+	CHECK_FALSE(wld.has(source, ecs::Pair(rel, ecs::All)));
+
+	// New entities reusing the ids must not inherit the pairs.
+	GAIA_FOR(64) {
+		const auto e = wld.add();
+		if (e.id() == target.id())
+			CHECK_FALSE(wld.has(source, ecs::Pair(rel, e)));
+		if (e.id() == relRow.id())
+			CHECK_FALSE(wld.has(source2, ecs::Pair(e, other)));
+	}
+}
+
+#if GAIA_SYSTEMS_ENABLED
+TEST_CASE("Entity deletion - system whose own target rule deletes its archetype is unregistered") {
+	TestWorld twld;
+
+	const auto rel = wld.add();
+	wld.add(rel, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete));
+	uint32_t runs = 0;
+	const auto sys = wld.system()
+											 .all<Position>()
+											 .on_each([&](ecs::Iter& it) {
+												 runs += it.size();
+											 })
+											 .entity();
+	const auto e = wld.add();
+	wld.add<Position>(e, {});
+	wld.update();
+	CHECK(runs == 1);
+
+	// Deleting sys deletes its own archetype through (rel, sys).
+	wld.add(sys, ecs::Pair(rel, sys));
+	wld.del(sys);
+	CHECK_FALSE(wld.valid(sys));
+	CHECK(wld.systems().data_try(sys) == nullptr);
+	runs = 0;
+	twld.update();
+	CHECK(runs == 0);
+}
+#endif
+
+#if GAIA_USE_SAFE_ENTITY
+TEST_CASE("Entity bulk deletion - SafeEntity keeps the record until released") {
+	TestWorld twld;
+
+	const auto tag = wld.add();
+	wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	const auto e = wld.add();
+	wld.add(e, tag);
+	const auto sizeBefore = wld.size();
+	{
+		const auto safe = ecs::SafeEntity(wld, e);
+		wld.del(tag);
+		twld.update();
+		// The row is gone with its archetype, but the handle still owns the record.
+		CHECK_FALSE(wld.valid(e));
+		CHECK(wld.size() == sizeBefore - 1);
+	}
+	twld.update();
+	CHECK_FALSE(wld.valid(e));
+	CHECK(wld.size() == sizeBefore - 2);
+}
+#endif
+
 TEST_CASE("Add - no components") {
 	const uint32_t N = 1'500;
 

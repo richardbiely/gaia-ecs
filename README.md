@@ -1160,6 +1160,8 @@ ecs::Entity player = w.add();
 bool isValid = w.valid(player); // false
 ```
 
+A [cleanup rule](#cleanup-rules) that deletes the entity along with something else, such as its `ChildOf` parent, deletes its components even while an `ecs::SafeEntity` references it. The entity is no longer valid, but its record stays reserved until the last `ecs::SafeEntity` goes out of scope, so the wrapper never touches a recycled entity.
+
 ecs::SafeEntity is fully compatible with ecs::Entity and can be used just like it in all scenarios.
 
 ```cpp
@@ -3038,6 +3040,8 @@ w.add(rabbit, bomb_exploding_on_del);
 // Deleting the bomb will take out all entities associated with it. Rabbit included.
 w.del(bomb_exploding_on_del); 
 ```
+
+An entity deleted by a cleanup rule is deleted the same way as one deleted on its own: its own cleanup rules apply to everything referencing it, its name and alias are released, and its id is recycled. Two exceptions: a rule deletes the entity's components even while an [ecs::SafeEntity](#safeentity) references it, and an entity marked (OnDelete, Error) or (OnDeleteTarget, Error) that a rule reaches is reported as an error and keeps its record.
 
 ### Hierarchies
 

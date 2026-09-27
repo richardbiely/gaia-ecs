@@ -832,6 +832,12 @@ namespace gaia {
 			cnt::set<ArchetypeLookupKey> m_reqArchetypesToDel;
 			//! Entities requested to be deleted
 			cnt::set<EntityLookupKey> m_reqEntitiesToDel;
+			//! Rows of delete-requested archetypes waiting for their own deletion rules
+			cnt::darray<Entity> m_archetypeRowsToDel;
+			//! Nesting depth of deletion requests. Queued archetype rows are deleted when it returns to zero.
+			uint32_t m_archetypeRowDelDepth = 0;
+			//! Record of the archetype row whose cleanup rules are running. It stays valid meanwhile.
+			const EntityContainer* m_pArchetypeRowInRules = nullptr;
 
 #if GAIA_OBSERVERS_ENABLED
 			//! Observers
@@ -1096,10 +1102,22 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Returns whether the record is already in delete-requested state.
-			//! Covers both explicit per-entity deletion and archetype-level forced teardown.
+			//! Covers both explicit per-entity deletion and archetype-level forced teardown. The one
+			//! exception is the archetype row whose cleanup rules are running: like an entity deleted on its
+			//! own, it stays valid until they finish.
 			//! \param ec Entity container record
 			//! \return True if the record is marked for deletion. False otherwise.
-			GAIA_NODISCARD static bool is_req_del(const EntityContainer& ec) {
+			GAIA_NODISCARD bool is_req_del(const EntityContainer& ec) const {
+				if ((ec.flags & EntityContainerFlags::DeleteRequested) != 0)
+					return true;
+				return is_req_del_or_queued(ec) && &ec != m_pArchetypeRowInRules;
+			}
+
+			//! Returns whether the record is delete-requested or waits as a row of a delete-requested
+			//! archetype. Either way, deleting it again must not start another deletion.
+			//! \param ec Entity container record
+			//! \return True if the record is marked or queued for deletion. False otherwise.
+			GAIA_NODISCARD static bool is_req_del_or_queued(const EntityContainer& ec) {
 				if ((ec.flags & EntityContainerFlags::DeleteRequested) != 0)
 					return true;
 				GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) == 0);
@@ -3596,35 +3614,13 @@ namespace gaia {
 				//! Removes a name lookup entry and releases owned storage.
 				//! \param key Name lookup key to remove.
 				void del_name_inter(EntityNameLookupKey key) {
-					const auto it = m_world.m_nameToEntity.find(key);
-					// If the assert is hit it means the pointer to the name string was invalidated or became dangling.
-					// That should not be possible for strings managed internally so the only other option is user-managed
-					// strings are broken.
-					GAIA_ASSERT(it != m_world.m_nameToEntity.end());
-					if (it != m_world.m_nameToEntity.end()) {
-						// Release memory allocated for the string if we own it
-						if (it->first.owned())
-							mem::mem_free((void*)key.str());
-
-						m_world.m_nameToEntity.erase(it);
-					}
+					World::del_name_lookup(m_world.m_nameToEntity, key);
 				}
 
 				//! Removes an alias lookup entry and releases owned storage.
 				//! \param key Alias lookup key to remove.
 				void del_alias_inter(EntityNameLookupKey key) {
-					const auto it = m_world.m_aliasToEntity.find(key);
-					// If the assert is hit it means the pointer to the name string was invalidated or became dangling.
-					// That should not be possible for strings managed internally so the only other option is user-managed
-					// strings are broken.
-					GAIA_ASSERT(it != m_world.m_aliasToEntity.end());
-					if (it != m_world.m_aliasToEntity.end()) {
-						// Release memory allocated for the string if we own it
-						if (it->first.owned())
-							mem::mem_free((void*)key.str());
-
-						m_world.m_aliasToEntity.erase(it);
-					}
+					World::del_name_lookup(m_world.m_aliasToEntity, key);
 				}
 
 				//! Assigns or removes an entity name.
@@ -6709,17 +6705,7 @@ namespace gaia {
 
 				if (!entity.pair()) {
 					cnt::darray_ext<Entity, 64> pairEntities;
-					if (const auto* pTargets = targets(entity)) {
-						for (auto targetKey: *pTargets)
-							pairEntities.push_back(Pair(entity, targetKey.entity()));
-					}
-					if (const auto* pRelations = relations(entity)) {
-						for (auto relationKey: *pRelations) {
-							const auto relation = relationKey.entity();
-							if (relation != entity)
-								pairEntities.push_back(Pair(relation, entity));
-						}
-					}
+					collect_entity_pairs(entity, pairEntities);
 
 					auto& ec = fetch(entity);
 					handle_del_entity(ec, entity, EntitySpan{pairEntities.data(), pairEntities.size()});
@@ -10255,6 +10241,7 @@ namespace gaia {
 					m_queryCache.clear_archetype_tracking();
 					m_reqArchetypesToDel = {};
 					m_reqEntitiesToDel = {};
+					m_archetypeRowsToDel = {};
 					m_entitiesDeleting = {};
 					m_chunksToDel = {};
 					m_archetypesToDel = {};
@@ -10353,7 +10340,7 @@ namespace gaia {
 			//! \param ec Entity record to validate.
 			//! \param entityExpected Complete entity expected at the record location.
 			//! \return True when the record still represents the expected entity.
-			GAIA_NODISCARD static bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) {
+			GAIA_NODISCARD bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) const {
 				if ((ec.flags & EntityContainerFlags::Load) != 0) {
 					return entityExpected.id() == ec.idx && entityExpected.gen() == ec.data.gen &&
 								 entityExpected.entity() == (bool)ec.data.ent && entityExpected.pair() == (bool)ec.data.pair;
@@ -12345,6 +12332,51 @@ namespace gaia {
 				EntityBuilder(*this, entity).del_name();
 			}
 
+			//! Removes a name or alias lookup entry and releases owned storage.
+			//! \param lookup Name or alias lookup map.
+			//! \param key Lookup key to remove.
+			static void del_name_lookup(cnt::map<EntityNameLookupKey, Entity>& lookup, EntityNameLookupKey key) {
+				const auto it = lookup.find(key);
+				// If the assert is hit it means the pointer to the name string was invalidated or became dangling.
+				// That should not be possible for strings managed internally so the only other option is user-managed
+				// strings are broken.
+				GAIA_ASSERT(it != lookup.end());
+				if (it != lookup.end()) {
+					// Release memory allocated for the string if we own it
+					if (it->first.owned())
+						mem::mem_free((void*)key.str());
+
+					lookup.erase(it);
+				}
+			}
+
+			//! Releases the name and alias of an entity whose row is about to be destroyed.
+			//! The row keeps its EntityDesc, so unlike del_name() no archetype move happens.
+			//! \param ec Entity container associated with \a entity.
+			//! \param entity Entity being deleted.
+			void del_entity_names(EntityContainer& ec, Entity entity) {
+				if (entity.pair())
+					return;
+
+				const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
+				if (compIdx == BadIndex)
+					return;
+
+				auto* pDesc = reinterpret_cast<EntityDesc*>(ec.pChunk->comp_ptr_mut_gen<false>(compIdx, ec.row));
+				GAIA_ASSERT(core::check_alignment(pDesc));
+				if (pDesc->name != nullptr) {
+					del_name_lookup(m_nameToEntity, EntityNameLookupKey(pDesc->name, pDesc->name_len, 0));
+					invalidate_scope_path_cache();
+					pDesc->name = nullptr;
+					pDesc->name_len = 0;
+				}
+				if (pDesc->alias != nullptr) {
+					del_name_lookup(m_aliasToEntity, EntityNameLookupKey(pDesc->alias, pDesc->alias_len, 0));
+					pDesc->alias = nullptr;
+					pDesc->alias_len = 0;
+				}
+			}
+
 			//! Deletes an entity along with all data associated with it.
 			//! Ignored for invalid entities or pairs.
 			//! \param entity Entity to delete
@@ -12387,10 +12419,10 @@ namespace gaia {
 #endif
 
 					// Remove the entity from its chunk.
-					// We call del_name first because remove_entity calls component destructors.
+					// We release the names first because remove_entity calls component destructors.
 					// If the call was made inside invalidate_entity we would access a memory location
 					// which has already been destructed which is not nice.
-					del_name(ec, entity);
+					del_entity_names(ec, entity);
 					remove_entity(*ec.pArchetype, *ec.pChunk, ec.row);
 					remove_src_entity_version(entity);
 				}
@@ -12401,34 +12433,37 @@ namespace gaia {
 					invalidate_entity(entity);
 			}
 
-			//! Deletes all entities, and in turn their chunks, from \a archetype.
-			//! If an archetype forming entity is present, the chunk is treated as if it were empty
-			//! and normal dying procedure is applied to it. At the last dying tick the entity is
-			//! deleted so the chunk can be removed.
+			//! Destroys the chunks of the delete-requested \a archetype along with their rows.
+			//! Every row was requested for deletion on its own, so del_finalize_entities frees the records.
 			//! \param archetype Archetype whose entities should be deleted.
 			void del_entities(Archetype& archetype) {
+				// Rows that joined after the request still need their own deletion.
+				for (;;) {
+					cnt::darray<Entity> rows;
+					collect_unrequested_rows(archetype, rows);
+					if (rows.empty())
+						break;
+
+					ArchetypeRowDelScope scope(*this);
+					prepare_del_archetype_rows(archetype, rows);
+					for (const auto entity: rows)
+						m_archetypeRowsToDel.push_back(entity);
+				}
+
 				for (auto* pChunk: archetype.chunks()) {
-					auto ids = pChunk->entity_view();
-					for (auto e: ids) {
+					validate_chunk(pChunk);
+
+					// The rows go with the chunk. Their records wait in m_reqEntitiesToDel.
+					for (auto e: pChunk->entity_view()) {
 						auto* pEc = try_fetch_record(e);
 						if (pEc == nullptr)
 							continue;
 
-						// The archetype is already delete-requested, so valid() fails for its rows and they are
-						// skipped below: chunk release destroys their components but their records stay allocated.
-						// req_del(Archetype&) reset their WeakEntities; this catches rows that arrived since.
-						invalidate_weak_entities(*pEc);
-
-						if (!valid(*pEc, e))
-							continue;
-
-						// We should never end up trying to delete a forbidden-to-delete entity
-						GAIA_ASSERT((pEc->flags & EntityContainerFlags::OnDeleteTarget_Error) == 0);
-
-						del_entity(e, true);
+						GAIA_ASSERT((pEc->flags & EntityContainerFlags::DeleteRequested) != 0);
+						pEc->pArchetype = nullptr;
+						pEc->pChunk = nullptr;
+						pEc->pEntity = nullptr;
 					}
-
-					validate_chunk(pChunk);
 
 					// If the chunk was already dying we need to remove it from the delete list
 					// because we can delete it right away.
@@ -12490,8 +12525,11 @@ namespace gaia {
 			void del_finalize_archetypes() {
 				GAIA_PROF_SCOPE(World::del_finalize_archetypes);
 
-				for (auto& key: m_reqArchetypesToDel) {
-					auto* pArchetype = key.archetype();
+				// Deleting rows that joined late can request more archetypes, so take them one at a time.
+				while (!m_reqArchetypesToDel.empty()) {
+					const auto it = m_reqArchetypesToDel.begin();
+					auto* pArchetype = it->archetype();
+					m_reqArchetypesToDel.erase(it);
 					if (pArchetype == nullptr)
 						continue;
 
@@ -12502,7 +12540,6 @@ namespace gaia {
 					// delete list and picked up by del_empty_archetypes. No need to call deletion from here.
 					// > del_empty_archetype(pArchetype);
 				}
-				m_reqArchetypesToDel.clear();
 			}
 
 			//! Try to delete all requested entities
@@ -12517,6 +12554,15 @@ namespace gaia {
 						++it;
 						continue;
 					}
+
+#if GAIA_USE_SAFE_ENTITY
+					// A cascade deletes the entity's data even while a SafeEntity references it. Keep the record
+					// until the last SafeEntity releases it, so the handle never touches a freed record.
+					if (const auto* pEc = try_fetch_record(e); pEc != nullptr && pEc->refCnt != 0) {
+						++it;
+						continue;
+					}
+#endif
 
 					// Requested entities are partially deleted. We only need to invalidate them.
 					invalidate_entity(e);
@@ -12738,49 +12784,262 @@ namespace gaia {
 				if (archetype.is_req_del())
 					return;
 
-#if GAIA_USE_WEAK_ENTITY
-				// Reset WeakEntities at the request, as the per-entity path does.
-				for (const auto* pChunk: archetype.chunks()) {
-					for (const auto entity: pChunk->entity_view()) {
-						if (auto* pEc = try_fetch_record(entity))
-							invalidate_weak_entities(*pEc);
-					}
-				}
-#endif
-
-				const bool unlinkIsRelations = archetype.pairs_is() != 0;
-				const bool notifyComponents = may_notify_del_entity_components(archetype) && !tearing_down();
-				if (unlinkIsRelations) {
-					for (const auto* pChunk: archetype.chunks()) {
-						for (const auto entity: pChunk->entity_view())
-							unlink_live_is_relations(entity);
-					}
-				}
-
-				if (notifyComponents) {
-					cnt::darray_ext<Entity, 32> entitiesToNotify;
-					for (const auto* pChunk: archetype.chunks()) {
-						for (const auto entity: pChunk->entity_view()) {
-							// Bulk cascade deletion bypasses req_del_inter(), so finish the same
-							// semantic bookkeeping while the entity and its payloads are still readable.
-							if (!entity_deletion_active(entity)) {
-								entity_deletion_enter(entity);
-								entitiesToNotify.push_back(entity);
-							}
-						}
-					}
-
-					// Mark every entity active before callbacks run. A callback can then request
-					// deletion of any entity in this archetype without recursively notifying it.
-					for (const auto entity: entitiesToNotify)
-						notify_del_entity_components(fetch(entity), entity);
-					for (uint32_t i = entitiesToNotify.size(); i > 0; --i)
-						entity_deletion_leave(entitiesToNotify[i - 1]);
-				}
+				cnt::darray<Entity> rows;
+				collect_unrequested_rows(archetype, rows);
+				prepare_del_archetype_rows(archetype, rows);
 
 				archetype.req_del();
 				update_version(m_archetypeDeleteVersion);
 				m_reqArchetypesToDel.insert(ArchetypeLookupKey(archetype.lookup_hash(), &archetype));
+
+				// The rows' own deletion rules move entities between archetypes. They run once the outermost
+				// request has marked every archetype it deletes, so no entity moves out of or into one.
+				GAIA_ASSERT(m_archetypeRowDelDepth != 0);
+				for (const auto entity: rows)
+					m_archetypeRowsToDel.push_back(entity);
+			}
+
+			//! Defers deleting queued archetype rows until the outermost deletion request finishes.
+			class ArchetypeRowDelScope {
+				World& m_world;
+
+			public:
+				explicit ArchetypeRowDelScope(World& world): m_world(world) {
+					++m_world.m_archetypeRowDelDepth;
+				}
+				~ArchetypeRowDelScope() {
+					if (--m_world.m_archetypeRowDelDepth == 0)
+						m_world.req_del_archetype_rows();
+				}
+				ArchetypeRowDelScope(const ArchetypeRowDelScope&) = delete;
+				ArchetypeRowDelScope& operator=(const ArchetypeRowDelScope&) = delete;
+			};
+
+			//! Collects the rows of \a archetype that have not been requested for deletion yet.
+			//! \param archetype Archetype to inspect.
+			//! \param[out] rows Receives the rows.
+			void collect_unrequested_rows(const Archetype& archetype, cnt::darray<Entity>& rows) {
+				for (const auto* pChunk: archetype.chunks()) {
+					for (const auto entity: pChunk->entity_view()) {
+						const auto* pEc = try_fetch_record(entity);
+						if (pEc != nullptr && (pEc->flags & EntityContainerFlags::DeleteRequested) == 0)
+							rows.push_back(entity);
+					}
+				}
+			}
+
+			//! Unlinks the Is relations of archetype rows about to be deleted, unregisters the rows that are
+			//! observers or systems, and notifies their component deletion while they are still readable.
+			//! \param archetype Archetype holding the rows.
+			//! \param rows Rows to prepare.
+			void prepare_del_archetype_rows(const Archetype& archetype, const cnt::darray<Entity>& rows) {
+				if (archetype.pairs_is() != 0) {
+					for (const auto entity: rows)
+						unlink_live_is_relations(entity);
+				}
+
+				// Unregister before notifying, as the per-entity path does. An entity already being deleted on
+				// its own unregisters there.
+				for (const auto entity: rows) {
+					if (!entity_deletion_active(entity))
+						del_entity_registrations(entity);
+				}
+
+				if (!may_notify_del_entity_components(archetype) || tearing_down())
+					return;
+
+				cnt::darray_ext<Entity, 32> entitiesToNotify;
+				for (const auto entity: rows) {
+					if (!entity_deletion_active(entity)) {
+						entity_deletion_enter(entity);
+						entitiesToNotify.push_back(entity);
+					}
+				}
+
+				// Mark every entity active before callbacks run. A callback can then request
+				// deletion of any entity in this archetype without recursively notifying it.
+				for (const auto entity: entitiesToNotify)
+					notify_del_entity_components(fetch(entity), entity);
+				for (uint32_t i = entitiesToNotify.size(); i > 0; --i)
+					entity_deletion_leave(entitiesToNotify[i - 1]);
+			}
+
+			//! Requests deletion of the queued rows of delete-requested archetypes. Their chunks are destroyed
+			//! in bulk, so each row gets everything else deleting it on its own would do: its deletion rules for
+			//! the entities referencing it, name, sparse and non-fragmenting data release, and a queued record
+			//! for del_finalize_entities.
+			void req_del_archetype_rows() {
+				// Requests made by the rows' rules queue more rows for this loop
+				++m_archetypeRowDelDepth;
+				while (!m_archetypeRowsToDel.empty()) {
+					auto rows = GAIA_MOV(m_archetypeRowsToDel);
+					m_archetypeRowsToDel = {};
+					// Grow the queue once rather than rehash it repeatedly while whole archetypes go in
+					m_reqEntitiesToDel.reserve(m_reqEntitiesToDel.size() + rows.size());
+					for (const auto entity: rows)
+						req_del_archetype_row(entity);
+				}
+				--m_archetypeRowDelDepth;
+			}
+
+			//! Requests deletion of one row of a delete-requested archetype. See req_del_archetype_rows.
+			//! \param entity Row prepared by prepare_del_archetype_rows.
+			void req_del_archetype_row(Entity entity) {
+				auto* pEc = try_fetch_record(entity);
+				// A callback or an earlier row's rules may have requested it already. A row that left its
+				// archetype keeps its chunk row, so it is not deleted here.
+				if (pEc == nullptr || (pEc->flags & EntityContainerFlags::DeleteRequested) != 0 || pEc->pArchetype == nullptr ||
+						!pEc->pArchetype->is_req_del())
+					return;
+
+				auto& ec = *pEc;
+				if ((ec.flags & (EntityContainerFlags::OnDelete_Error | EntityContainerFlags::OnDeleteTarget_Error)) != 0) {
+					GAIA_ASSERT2(false, "Trying to delete an entity that is forbidden from being deleted");
+					GAIA_LOG_E(
+							"Trying to delete an entity [%u.%u] that is forbidden from being deleted", entity.id(), entity.gen());
+					// Its chunk goes regardless. Keep the record and everything referencing it untouched.
+					ec.req_del();
+					invalidate_weak_entities(ec);
+					return;
+				}
+
+#if GAIA_USE_SAFE_ENTITY
+				release_world_ref(ec);
+#endif
+
+				// An entity already being deleted on its own applies its rules and deletes its pairs there,
+				// once everything its rules delete is marked. Deleting a pair earlier would remove it from
+				// entities that are about to be deleted, letting them survive.
+				{
+					// The rules resolve the row the way they resolve an entity deleted on its own
+					GAIA_ASSERT(m_pArchetypeRowInRules == nullptr);
+					m_pArchetypeRowInRules = &ec;
+
+					// Also covers an entity whose own target rules deleted its archetype, which returns before
+					// unregistering. Unregistering twice is harmless.
+					del_entity_registrations(entity);
+
+					if (!entity_deletion_active(entity)) {
+						cnt::darray_ext<Entity, 64> pairEntities;
+						if (!entity.pair())
+							collect_entity_pairs(entity, pairEntities);
+
+						entity_deletion_enter(entity);
+						if (!entity.pair())
+							del_entity_target_rules(ec, entity);
+						else if (const auto tgt = try_get(entity.gen()); tgt != EntityBad)
+							del_entity_target_rules(fetch(tgt), tgt);
+						del_entity_id_rules(ec, entity);
+						del_pair_entities(EntitySpan{pairEntities.data(), pairEntities.size()});
+						entity_deletion_leave(entity);
+					}
+
+					m_pArchetypeRowInRules = nullptr;
+				}
+
+				// A structural change made from a callback while the rules ran may have moved the row out. It then
+				// keeps its new chunk row and must not be deleted here.
+				if (ec.pArchetype == nullptr || !ec.pArchetype->is_req_del())
+					return;
+
+#if GAIA_OBSERVERS_ENABLED
+				del_nonfragmenting_relation_source_observed(entity);
+#endif
+				del_nonfragmenting_relation_source(entity);
+				del_entity_names(ec, entity);
+				remove_src_entity_version(entity);
+				del_sparse_components(entity);
+
+				ec.req_del();
+				invalidate_weak_entities(ec);
+				m_reqEntitiesToDel.insert(EntityLookupKey(entity));
+			}
+
+#if GAIA_USE_SAFE_ENTITY
+			//! Drops the reference the world holds on an entity since its creation.
+			//! Afterwards only SafeEntity handles keep its refCnt above zero.
+			//! \param ec Entity container of the entity being deleted.
+			static void release_world_ref(EntityContainer& ec) {
+				if ((ec.flags & EntityContainerFlags::RefDecreased) != 0)
+					return;
+
+				--ec.refCnt;
+				ec.flags |= EntityContainerFlags::RefDecreased;
+			}
+#endif
+
+			//! Collects the exact pairs \a entity takes part in as a relation or target.
+			//! \tparam Container Entity container with push_back.
+			//! \param entity Entity being deleted.
+			//! \param[out] pairEntities Receives the pairs.
+			template <typename Container>
+			void collect_entity_pairs(Entity entity, Container& pairEntities) const {
+				if (const auto* pTargets = targets(entity)) {
+					for (auto targetKey: *pTargets)
+						pairEntities.push_back(Pair(entity, targetKey.entity()));
+				}
+				if (const auto* pRelations = relations(entity)) {
+					for (auto relationKey: *pRelations) {
+						const auto relation = relationKey.entity();
+						if (relation != entity)
+							pairEntities.push_back(Pair(relation, entity));
+					}
+				}
+			}
+
+			//! Applies the OnDeleteTarget rule of \a entity to every entity with a pair targeting it.
+			//! \param ec Entity container of the entity being deleted.
+			//! \param entity Entity being deleted.
+			void del_entity_target_rules(const EntityContainer& ec, Entity entity) {
+				const bool deleteTargets = (ec.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0 ||
+																	 has_nonfragmenting_relation_target_cond(entity, Pair(OnDeleteTarget, Delete));
+#if GAIA_OBSERVERS_ENABLED
+				cnt::darray<Entity> cascadeTargets;
+				if (deleteTargets)
+					collect_delete_cascade_sources(entity, Pair(OnDeleteTarget, Delete), cascadeTargets);
+				auto cascadeDelDiffCtx = ObserverRegistry::DiffDispatchCtx{};
+				if (!cascadeTargets.empty()) {
+					cascadeDelDiffCtx = m_observers.prepare_diff(
+							*this, ObserverEvent::OnDel, EntitySpan{cascadeTargets.data(), cascadeTargets.size()},
+							EntitySpan{cascadeTargets.data(), cascadeTargets.size()});
+				}
+#endif
+
+				if (deleteTargets) {
+					// Delete all entities referencing this one as a relationship pair's target
+					req_del_entities_with(Pair(All, entity), Pair(OnDeleteTarget, Delete));
+				} else {
+					// Remove from all entities referencing this one as a relationship pair's target
+					rem_from_entities(Pair(All, entity));
+				}
+
+#if GAIA_OBSERVERS_ENABLED
+				m_observers.finish_diff(*this, GAIA_MOV(cascadeDelDiffCtx));
+#endif
+			}
+
+			//! Unregisters \a entity as an observer or system.
+			//! \param entity Entity being deleted.
+			void del_entity_registrations([[maybe_unused]] Entity entity) {
+#if GAIA_OBSERVERS_ENABLED
+				observers().del(*this, entity);
+#endif
+#if GAIA_SYSTEMS_ENABLED
+				systems().del(entity);
+#endif
+			}
+
+			//! Applies the OnDelete rule of \a entity to every entity holding it as an id.
+			//! \param ec Entity container of the entity being deleted.
+			//! \param entity Entity being deleted.
+			void del_entity_id_rules(const EntityContainer& ec, Entity entity) {
+				if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
+					// Delete all references to the entity
+					req_del_entities_with(entity);
+				} else {
+					// Entities are only removed by default
+					rem_from_entities(entity);
+				}
 			}
 
 			//! Requests deletion without acquiring observer reentrancy state.
@@ -12788,9 +13047,15 @@ namespace gaia {
 			//! \param ec Entity container associated with \a entity.
 			//! \param entity Entity to request for deletion.
 			void req_del_inter(EntityContainer& ec, Entity entity) {
-				if (is_req_del(ec))
+				// req_del_archetype_rows deletes the rows of delete-requested archetypes
+				if (is_req_del_or_queued(ec))
 					return;
 
+#if GAIA_USE_SAFE_ENTITY
+				// Cascades request deletion directly. del_finalize_entities keeps the record while
+				// a SafeEntity still references it.
+				release_world_ref(ec);
+#endif
 				unlink_live_is_relations(entity);
 #if GAIA_OBSERVERS_ENABLED
 				del_nonfragmenting_relation_source_observed(entity);
@@ -13050,6 +13315,7 @@ namespace gaia {
 			//! \param entity Entity whose referrers should be deleted.
 			void req_del_entities_with(Entity entity) {
 				GAIA_PROF_SCOPE(World::req_del_entities_with);
+				ArchetypeRowDelScope scope(*this);
 
 				GAIA_ASSERT(entity != Pair(All, All));
 
@@ -13111,6 +13377,7 @@ namespace gaia {
 			//! \param visited Recursion guard.
 			void req_del_entities_with(Entity entity, Pair cond, cnt::set<EntityLookupKey>& visited) {
 				GAIA_PROF_SCOPE(World::req_del_entities_with);
+				ArchetypeRowDelScope scope(*this);
 
 				GAIA_ASSERT(entity != Pair(All, All));
 				if (!visited.insert(EntityLookupKey(entity)).second)
@@ -13532,6 +13799,7 @@ namespace gaia {
 			//! \param pairEntities Pair entities to delete after the entity passes deletion checks.
 			void handle_del_entity(EntityContainer& ec, Entity entity, EntitySpan pairEntities) {
 				GAIA_PROF_SCOPE(World::handle_del_entity);
+				ArchetypeRowDelScope scope(*this);
 
 				GAIA_ASSERT(!is_wildcard(entity));
 				if (entity_deletion_active(entity))
@@ -13563,10 +13831,7 @@ namespace gaia {
 
 #if GAIA_USE_SAFE_ENTITY
 					// Decrement the ref count at this point.
-					if ((ec.flags & EntityContainerFlags::RefDecreased) == 0) {
-						--ec.refCnt;
-						ec.flags |= EntityContainerFlags::RefDecreased;
-					}
+					release_world_ref(ec);
 
 					// Don't delete so long something still references us
 					if (ec.refCnt != 0)
@@ -13575,51 +13840,17 @@ namespace gaia {
 
 					entity_deletion_enter(entity);
 
-					if (hasLiveTarget) {
-						const auto& ecTgt = fetch(tgt);
-						if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0 ||
-								has_nonfragmenting_relation_target_cond(tgt, Pair(OnDeleteTarget, Delete))) {
-#if GAIA_OBSERVERS_ENABLED
-							cnt::darray<Entity> cascadeTargets;
-							collect_delete_cascade_sources(tgt, Pair(OnDeleteTarget, Delete), cascadeTargets);
-							auto cascadeDelDiffCtx =
-									cascadeTargets.empty()
-											? ObserverRegistry::DiffDispatchCtx{}
-											: m_observers.prepare_diff(
-														*this, ObserverEvent::OnDel, EntitySpan{cascadeTargets.data(), cascadeTargets.size()},
-														EntitySpan{cascadeTargets.data(), cascadeTargets.size()});
-#endif
-							// Delete all entities referencing this one as a relationship pair's target
-							req_del_entities_with(Pair(All, tgt), Pair(OnDeleteTarget, Delete));
-#if GAIA_OBSERVERS_ENABLED
-							m_observers.finish_diff(*this, GAIA_MOV(cascadeDelDiffCtx));
-#endif
-						} else {
-							// Remove from all entities referencing this one as a relationship pair's target
-							rem_from_entities(Pair(All, tgt));
-						}
-					}
+					if (hasLiveTarget)
+						del_entity_target_rules(fetch(tgt), tgt);
 
 					// This entity has been requested to be deleted already. Nothing more for us to do here
-					if (is_req_del(ec)) {
+					if (is_req_del_or_queued(ec)) {
 						entity_deletion_leave(entity);
 						return;
 					}
 
-#if GAIA_OBSERVERS_ENABLED
-					observers().del(*this, entity);
-#endif
-#if GAIA_SYSTEMS_ENABLED
-					systems().del(entity);
-#endif
-
-					if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
-						// Delete all references to the entity
-						req_del_entities_with(entity);
-					} else {
-						// Entities are only removed by default
-						rem_from_entities(entity);
-					}
+					del_entity_registrations(entity);
+					del_entity_id_rules(ec, entity);
 				} else {
 					if ((ec.flags & EntityContainerFlags::OnDelete_Error) != 0) {
 						GAIA_ASSERT2(false, "Trying to delete an entity that is forbidden from being deleted");
@@ -13640,10 +13871,7 @@ namespace gaia {
 
 #if GAIA_USE_SAFE_ENTITY
 					// Decrement the ref count at this point.
-					if ((ec.flags & EntityContainerFlags::RefDecreased) == 0) {
-						--ec.refCnt;
-						ec.flags |= EntityContainerFlags::RefDecreased;
-					}
+					release_world_ref(ec);
 
 					// Don't delete so long something still references us
 					if (ec.refCnt != 0)
@@ -13652,53 +13880,17 @@ namespace gaia {
 
 					entity_deletion_enter(entity);
 
-					const bool deleteTargets = (ec.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0 ||
-																		 has_nonfragmenting_relation_target_cond(entity, Pair(OnDeleteTarget, Delete));
-					cnt::darray<Entity> cascadeTargets;
-					if (deleteTargets)
-						collect_delete_cascade_sources(entity, Pair(OnDeleteTarget, Delete), cascadeTargets);
-#if GAIA_OBSERVERS_ENABLED
-					auto cascadeDelDiffCtx = ObserverRegistry::DiffDispatchCtx{};
-					if (!cascadeTargets.empty()) {
-						cascadeDelDiffCtx = m_observers.prepare_diff(
-								*this, ObserverEvent::OnDel, EntitySpan{cascadeTargets.data(), cascadeTargets.size()},
-								EntitySpan{cascadeTargets.data(), cascadeTargets.size()});
-					}
-#endif
-
-					if (deleteTargets) {
-						// Delete all entities referencing this one as a relationship pair's target
-						req_del_entities_with(Pair(All, entity), Pair(OnDeleteTarget, Delete));
-					} else {
-						// Remove from all entities referencing this one as a relationship pair's target
-						rem_from_entities(Pair(All, entity));
-					}
-
-#if GAIA_OBSERVERS_ENABLED
-					m_observers.finish_diff(*this, GAIA_MOV(cascadeDelDiffCtx));
-#endif
+					del_entity_target_rules(ec, entity);
 
 					// This entity is has been requested to be deleted already. Nothing more for us to do here
-					if (is_req_del(ec)) {
+					if (is_req_del_or_queued(ec)) {
 						del_pair_entities(pairEntities);
 						entity_deletion_leave(entity);
 						return;
 					}
 
-#if GAIA_OBSERVERS_ENABLED
-					observers().del(*this, entity);
-#endif
-#if GAIA_SYSTEMS_ENABLED
-					systems().del(entity);
-#endif
-
-					if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
-						// Delete all references to the entity
-						req_del_entities_with(entity);
-					} else {
-						// Entities are only removed by default
-						rem_from_entities(entity);
-					}
+					del_entity_registrations(entity);
+					del_entity_id_rules(ec, entity);
 				}
 
 				del_pair_entities(pairEntities);
@@ -13917,9 +14109,12 @@ namespace gaia {
 					// If the deleted entity is itself a sparse-storage component, drop its store.
 					del_sparse_component_store(entity);
 
-					// If this is a singleton entity its archetype needs to be deleted
-					if ((ec.flags & EntityContainerFlags::IsSingleton) != 0)
+					// If this is a singleton entity its archetype needs to be deleted,
+					// unless the archetype went first
+					if ((ec.flags & EntityContainerFlags::IsSingleton) != 0 && ec.pArchetype != nullptr) {
+						ArchetypeRowDelScope scope(*this);
 						req_del(*ec.pArchetype);
+					}
 
 					ec.pArchetype = nullptr;
 					ec.pChunk = nullptr;
@@ -14142,7 +14337,7 @@ namespace gaia {
 						continue;
 					}
 					if (!valid(entity)) {
-						GAIA_ASSERT(is_req_del(*pEc));
+						GAIA_ASSERT(is_req_del_or_queued(*pEc));
 						continue;
 					}
 					GAIA_ASSERT(pEc->pChunk == pChunk);
@@ -14155,7 +14350,7 @@ namespace gaia {
 						continue;
 					const Entity entity(ec.idx, ec.data.gen, ec.data.ent != 0, false);
 					if (!valid(entity)) {
-						GAIA_ASSERT(is_req_del(ec));
+						GAIA_ASSERT(is_req_del_or_queued(ec));
 						continue;
 					}
 					GAIA_ASSERT(ec.row < entities.size());
@@ -14170,7 +14365,7 @@ namespace gaia {
 						continue;
 					const auto entity = pair.first.entity();
 					if (!valid(entity)) {
-						GAIA_ASSERT(is_req_del(ec));
+						GAIA_ASSERT(is_req_del_or_queued(ec));
 						continue;
 					}
 					GAIA_ASSERT(ec.row < entities.size());
@@ -15053,6 +15248,7 @@ namespace gaia {
 			// Remove all archetypes with no chunks. We don't want any leftovers after
 			// archetype movements.
 			{
+				ArchetypeRowDelScope scope(*this);
 				for (uint32_t i = 1; i < m_archetypes.size(); ++i) {
 					auto* pArchetype = m_archetypes[i];
 					if (!pArchetype->chunks().empty())
