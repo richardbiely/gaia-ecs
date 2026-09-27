@@ -68007,8 +68007,14 @@ namespace gaia {
 			//! Monotonic stamp used with m_entityVisitStamps for O(1) per-call dedup.
 			mutable uint64_t m_entityVisitStamp = 0;
 
+			//! Deepest m_entitiesDeleting searched linearly. Deeper stacks are mirrored in m_entitiesDeletingSet.
+			static constexpr uint32_t EntitiesDeletingScanMax = 16;
 			//! Active entity-deletion stack used to suppress duplicate reentrant deletion.
-			cnt::darray_ext<Entity, 16> m_entitiesDeleting;
+			cnt::darray_ext<Entity, EntitiesDeletingScanMax> m_entitiesDeleting;
+			//! Mirrors m_entitiesDeleting while it is deeper than EntitiesDeletingScanMax, and is empty otherwise.
+			//! Bulk archetype deletion puts every row on the stack at once, so a linear scan would be quadratic.
+			//! Shallow stacks, the per-entity case, skip the hashing.
+			cnt::set<EntityLookupKey> m_entitiesDeletingSet;
 			//! Array of chunks to delete
 			cnt::darray<ArchetypeChunkPair> m_chunksToDel;
 			//! Array of archetypes to delete
@@ -68275,6 +68281,9 @@ namespace gaia {
 			//! \param entity Entity to inspect.
 			//! \return True when deletion is active for \a entity.
 			GAIA_NODISCARD bool entity_deletion_active(Entity entity) const {
+				if GAIA_UNLIKELY (m_entitiesDeleting.size() > EntitiesDeletingScanMax)
+					return m_entitiesDeletingSet.contains(EntityLookupKey(entity));
+
 				for (auto deleting: m_entitiesDeleting) {
 					if (deleting == entity)
 						return true;
@@ -68287,6 +68296,8 @@ namespace gaia {
 			void entity_deletion_enter(Entity entity) {
 				GAIA_ASSERT(!entity_deletion_active(entity));
 				m_entitiesDeleting.push_back(entity);
+				if GAIA_UNLIKELY (m_entitiesDeleting.size() > EntitiesDeletingScanMax)
+					entity_deletion_set_enter();
 			}
 
 			//! Removes \a entity from the active deletion stack.
@@ -68294,7 +68305,30 @@ namespace gaia {
 			void entity_deletion_leave([[maybe_unused]] Entity entity) {
 				GAIA_ASSERT(!m_entitiesDeleting.empty());
 				GAIA_ASSERT(m_entitiesDeleting.back() == entity);
+				if GAIA_UNLIKELY (m_entitiesDeleting.size() > EntitiesDeletingScanMax)
+					entity_deletion_set_leave();
 				m_entitiesDeleting.pop_back();
+			}
+
+			//! Adds the entity just pushed on a deep m_entitiesDeleting to m_entitiesDeletingSet. The push that
+			//! crosses EntitiesDeletingScanMax adds the whole stack. Kept out of line so the shallow path stays small.
+			GAIA_NOINLINE void entity_deletion_set_enter() {
+				if (m_entitiesDeleting.size() == EntitiesDeletingScanMax + 1) {
+					for (auto deleting: m_entitiesDeleting)
+						m_entitiesDeletingSet.insert(EntityLookupKey(deleting));
+				} else
+					m_entitiesDeletingSet.insert(EntityLookupKey(m_entitiesDeleting.back()));
+			}
+
+			//! Removes the top of a deep m_entitiesDeleting from m_entitiesDeletingSet before it is popped. The pop
+			//! that returns to EntitiesDeletingScanMax empties the set entry by entry, as clear() would cost as much
+			//! as the capacity a bulk deletion left behind.
+			GAIA_NOINLINE void entity_deletion_set_leave() {
+				if (m_entitiesDeleting.size() == EntitiesDeletingScanMax + 1) {
+					for (auto deleting: m_entitiesDeleting)
+						m_entitiesDeletingSet.erase(EntityLookupKey(deleting));
+				} else
+					m_entitiesDeletingSet.erase(EntityLookupKey(m_entitiesDeleting.back()));
 			}
 
 			//! Returns whether \a entity is marked DontFragment.
@@ -77352,6 +77386,7 @@ namespace gaia {
 					m_reqEntitiesToDel = {};
 					m_archetypeRowsToDel = {};
 					m_entitiesDeleting = {};
+					m_entitiesDeletingSet = {};
 					m_chunksToDel = {};
 					m_archetypesToDel = {};
 				}

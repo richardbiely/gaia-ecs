@@ -1430,6 +1430,64 @@ TEST_CASE("Entity bulk deletion - prefab deleted with its instances") {
 	}
 }
 
+#if GAIA_OBSERVERS_ENABLED
+TEST_CASE("Entity bulk deletion - OnDel observer on many rows") {
+	// More rows than the deletion guard scans linearly, so the guard switches to its hashed mirror
+	constexpr uint32_t N = 100;
+	TestWorld twld;
+
+	const auto tag = wld.add();
+	wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	cnt::darr<ecs::Entity> rows;
+	for (uint32_t i = 0; i < N; ++i) {
+		const auto e = wld.add();
+		wld.add<Position>(e, {(float)i, 0, 0});
+		wld.add(e, tag);
+		rows.push_back(e);
+	}
+	const auto extra = wld.add();
+	wld.add<Position>(extra, {});
+
+	uint32_t hits = 0;
+	bool bulk = true;
+	bool extraDeleted = false;
+	wld.observer()
+			.all<Position>()
+			.event(ecs::ObserverEvent::OnDel)
+			.on_each([&](ecs::Iter& it) {
+				hits += it.size();
+				if (!bulk)
+					return;
+				// Rows being deleted are guarded against a second notification
+				for (auto e: rows)
+					wld.del(e);
+				// A nested deletion of an unrelated entity while every row is on the guard
+				if (!extraDeleted) {
+					extraDeleted = true;
+					wld.del(extra);
+				}
+			})
+			.entity();
+
+	wld.del(tag);
+	twld.update();
+
+	CHECK(hits == N + 1);
+	CHECK_FALSE(wld.valid(extra));
+	for (auto e: rows)
+		CHECK_FALSE(wld.valid(e));
+
+	// The guard is back to its shallow state and still suppresses nothing it should not
+	bulk = false;
+	const auto after = wld.add();
+	wld.add<Position>(after, {});
+	wld.del(after);
+	twld.update();
+	CHECK(hits == N + 2);
+	CHECK_FALSE(wld.valid(after));
+}
+#endif
+
 #if GAIA_USE_SAFE_ENTITY
 TEST_CASE("Entity bulk deletion - SafeEntity keeps the record until released") {
 	TestWorld twld;
