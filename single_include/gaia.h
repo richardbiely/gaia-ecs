@@ -80076,10 +80076,9 @@ namespace gaia {
 							collect_entity_pairs(entity, pairEntities);
 
 						entity_deletion_enter(entity);
+						// A pair row does not apply its target's OnDeleteTarget rules. Deleting the target does.
 						if (!entity.pair())
 							del_entity_target_rules(ec, entity);
-						else if (const auto tgt = try_get(entity.gen()); tgt != EntityBad)
-							del_entity_target_rules(fetch(tgt), tgt);
 						del_entity_id_rules(ec, entity);
 						del_pair_entities(EntitySpan{pairEntities.data(), pairEntities.size()});
 						entity_deletion_leave(entity);

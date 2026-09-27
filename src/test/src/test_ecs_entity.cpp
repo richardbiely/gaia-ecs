@@ -1198,8 +1198,9 @@ TEST_CASE("Entity bulk deletion - names and aliases are released") {
 TEST_CASE("Entity deletion - a pair leaves other pairs with its target alone") {
 	// Deleting a pair, or its relation, must not apply the target's OnDeleteTarget rules. Those belong
 	// to deleting the target itself.
-	GAIA_FOR(2) {
-		const bool delRelation = i == 0;
+	// how: 0 = del(relation), 1 = del(pair), 2 = a cleanup rule deletes the pairs' own archetype rows
+	GAIA_FOR(3) {
+		const uint32_t how = i;
 		TestWorld twld;
 
 		const auto parent = wld.add();
@@ -1216,11 +1217,17 @@ TEST_CASE("Entity deletion - a pair leaves other pairs with its target alone") {
 		wld.add(src, ecs::Pair(rel, tgt));
 		wld.add(other, ecs::Pair(rel2, tgt));
 
-		if (delRelation)
+		if (how == 0)
 			wld.del(rel);
-		else {
+		else if (how == 1) {
 			wld.del(ecs::Pair(rel, parent));
 			wld.del(ecs::Pair(rel, tgt));
+		} else {
+			const auto tag = wld.add();
+			wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+			wld.add(ecs::Pair(rel, parent), tag);
+			wld.add(ecs::Pair(rel, tgt), tag);
+			wld.del(tag);
 		}
 		twld.update();
 
