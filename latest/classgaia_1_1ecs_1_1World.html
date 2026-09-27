@@ -165,6 +165,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</t
 <tr class="memitem:a05dc2ba218a8155a3090e809641b18e8" id="r_a05dc2ba218a8155a3090e809641b18e8"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const EntityContainer &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a05dc2ba218a8155a3090e809641b18e8">fetch</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a05dc2ba218a8155a3090e809641b18e8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the internal record for <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a05dc2ba218a8155a3090e809641b18e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5daeba1d415b525e4679b7859329b01e" id="r_a5daeba1d415b525e4679b7859329b01e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a5daeba1d415b525e4679b7859329b01e">is_req_del</a> (const EntityContainer &amp;ec) const</td></tr>
+<tr class="memdesc:a5daeba1d415b525e4679b7859329b01e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether the record is already in delete-requested state. Covers both explicit per-entity deletion and archetype-level forced teardown. The one exception is the archetype row whose cleanup rules are running: like an entity deleted on its own, it stays valid until they finish.  <br /></td></tr>
+<tr class="separator:a5daeba1d415b525e4679b7859329b01e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1fced15c918fb482960ce9f3551107bc" id="r_a1fced15c918fb482960ce9f3551107bc"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const EntityContainer *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a1fced15c918fb482960ce9f3551107bc">try_live_record</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a1fced15c918fb482960ce9f3551107bc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a record that is present and not delete-requested. This is the one-lookup replacement for <code><a class="el" href="classgaia_1_1ecs_1_1World.html#a7f38da2b090f678111ea544b54c5f9a8" title="Checks if entity is valid.">valid()</a></code> followed by <code><a class="el" href="classgaia_1_1ecs_1_1World.html#a5425de9078c310dc6cd992aa4303be54" title="Returns the internal record for entity.">fetch()</a></code>.  <br /></td></tr>
 <tr class="separator:a1fced15c918fb482960ce9f3551107bc"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -180,6 +183,14 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</t
 <tr class="memitem:a6774d1f65aade3e9b71829390706d4d7" id="r_a6774d1f65aade3e9b71829390706d4d7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6774d1f65aade3e9b71829390706d4d7">entity_deletion_leave</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a6774d1f65aade3e9b71829390706d4d7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes <em>entity</em> from the active deletion stack.  <br /></td></tr>
 <tr class="separator:a6774d1f65aade3e9b71829390706d4d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a69f7e93e6bc8fec649139155ac4b7338" id="r_a69f7e93e6bc8fec649139155ac4b7338"><td class="memItemLeft" align="right" valign="top"><a id="a69f7e93e6bc8fec649139155ac4b7338" name="a69f7e93e6bc8fec649139155ac4b7338"></a>
+GAIA_NOINLINE void&#160;</td><td class="memItemRight" valign="bottom"><b>entity_deletion_set_enter</b> ()</td></tr>
+<tr class="memdesc:a69f7e93e6bc8fec649139155ac4b7338"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds the entity just pushed on a deep m_entitiesDeleting to m_entitiesDeletingSet. The push that crosses EntitiesDeletingScanMax adds the whole stack. Kept out of line so the shallow path stays small. <br /></td></tr>
+<tr class="separator:a69f7e93e6bc8fec649139155ac4b7338"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac403f9e3f225122797c011030655d58e" id="r_ac403f9e3f225122797c011030655d58e"><td class="memItemLeft" align="right" valign="top"><a id="ac403f9e3f225122797c011030655d58e" name="ac403f9e3f225122797c011030655d58e"></a>
+GAIA_NOINLINE void&#160;</td><td class="memItemRight" valign="bottom"><b>entity_deletion_set_leave</b> ()</td></tr>
+<tr class="memdesc:ac403f9e3f225122797c011030655d58e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes the top of a deep m_entitiesDeleting from m_entitiesDeletingSet before it is popped. The pop that returns to EntitiesDeletingScanMax empties the set entry by entry, as <a class="el" href="classgaia_1_1ecs_1_1World.html#a3cf286552485bcbf9bbdc49b7ce4713b" title="Removes any component or entity attached to entity.">clear()</a> would cost as much as the capacity a bulk deletion left behind. <br /></td></tr>
+<tr class="separator:ac403f9e3f225122797c011030655d58e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa7fd7f2406bece2c286f7398acc779e6" id="r_aa7fd7f2406bece2c286f7398acc779e6"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aa7fd7f2406bece2c286f7398acc779e6">is_dont_fragment</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:aa7fd7f2406bece2c286f7398acc779e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>entity</em> is marked DontFragment.  <br /></td></tr>
 <tr class="separator:aa7fd7f2406bece2c286f7398acc779e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -1011,9 +1022,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>invalidate_sorted_que
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:ac6c1b4da9a3bdcc7e299b82d27ad646c" id="r_ac6c1b4da9a3bdcc7e299b82d27ad646c"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ac6c1b4da9a3bdcc7e299b82d27ad646c">is_req_del</a> (const EntityContainer &amp;ec)</td></tr>
-<tr class="memdesc:ac6c1b4da9a3bdcc7e299b82d27ad646c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether the record is already in delete-requested state. Covers both explicit per-entity deletion and archetype-level forced teardown.  <br /></td></tr>
-<tr class="separator:ac6c1b4da9a3bdcc7e299b82d27ad646c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a81d2161fd7d44577fdd0d268989e9d75" id="r_a81d2161fd7d44577fdd0d268989e9d75"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a81d2161fd7d44577fdd0d268989e9d75">is_req_del_or_queued</a> (const EntityContainer &amp;ec)</td></tr>
+<tr class="memdesc:a81d2161fd7d44577fdd0d268989e9d75"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether the record is delete-requested or waits as a row of a delete-requested archetype. Either way, deleting it again must not start another deletion.  <br /></td></tr>
+<tr class="separator:a81d2161fd7d44577fdd0d268989e9d75"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad7ea32faaa6320b799383c71c3e6312f" id="r_ad7ea32faaa6320b799383c71c3e6312f"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:ad7ea32faaa6320b799383c71c3e6312f"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad7ea32faaa6320b799383c71c3e6312f">supports_sparse_component_storage</a> ()</td></tr>
 <tr class="memdesc:ad7ea32faaa6320b799383c71c3e6312f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sparse storage supports plain components and exact relationship pairs. SoA layouts stay on the normal archetype path.  <br /></td></tr>
@@ -6704,8 +6715,8 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 
 </div>
 </div>
-<a id="ac6c1b4da9a3bdcc7e299b82d27ad646c" name="ac6c1b4da9a3bdcc7e299b82d27ad646c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac6c1b4da9a3bdcc7e299b82d27ad646c">&#9670;&#160;</a></span>is_req_del()</h2>
+<a id="a5daeba1d415b525e4679b7859329b01e" name="a5daeba1d415b525e4679b7859329b01e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5daeba1d415b525e4679b7859329b01e">&#9670;&#160;</a></span>is_req_del()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -6714,7 +6725,42 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">static GAIA_NODISCARD bool gaia::ecs::World::is_req_del </td>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::is_req_del </td>
+          <td>(</td>
+          <td class="paramtype">const EntityContainer &amp;&#160;</td>
+          <td class="paramname"><em>ec</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether the record is already in delete-requested state. Covers both explicit per-entity deletion and archetype-level forced teardown. The one exception is the archetype row whose cleanup rules are running: like an entity deleted on its own, it stays valid until they finish. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ec</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> container record </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if the record is marked for deletion. False otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a81d2161fd7d44577fdd0d268989e9d75" name="a81d2161fd7d44577fdd0d268989e9d75"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a81d2161fd7d44577fdd0d268989e9d75">&#9670;&#160;</a></span>is_req_del_or_queued()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD bool gaia::ecs::World::is_req_del_or_queued </td>
           <td>(</td>
           <td class="paramtype">const EntityContainer &amp;&#160;</td>
           <td class="paramname"><em>ec</em></td><td>)</td>
@@ -6728,14 +6774,14 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 </table>
 </div><div class="memdoc">
 
-<p>Returns whether the record is already in delete-requested state. Covers both explicit per-entity deletion and archetype-level forced teardown. </p>
+<p>Returns whether the record is delete-requested or waits as a row of a delete-requested archetype. Either way, deleting it again must not start another deletion. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">ec</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html" title="Identifier of an entity or component instance in the world. Packs the entity index,...">Entity</a> container record </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>True if the record is marked for deletion. False otherwise. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>True if the record is marked or queued for deletion. False otherwise. </dd></dl>
 
 </div>
 </div>

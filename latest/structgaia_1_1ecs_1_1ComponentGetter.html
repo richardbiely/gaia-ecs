@@ -150,6 +150,10 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ad1dd78bf7ed9d6a05eb953dd8400804b" id="r_ad1dd78bf7ed9d6a05eb953dd8400804b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html#ad1dd78bf7ed9d6a05eb953dd8400804b">get_raw_field</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, uint32_t fieldIdx) const</td></tr>
 <tr class="memdesc:ad1dd78bf7ed9d6a05eb953dd8400804b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns one read-only SoA field value for a runtime component on this entity.  <br /></td></tr>
 <tr class="separator:ad1dd78bf7ed9d6a05eb953dd8400804b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abb919550729f83d58aa7614093183639" id="r_abb919550729f83d58aa7614093183639"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:abb919550729f83d58aa7614093183639"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html#abb919550729f83d58aa7614093183639">get</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> type) const</td></tr>
+<tr class="memdesc:abb919550729f83d58aa7614093183639"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a typed component value selected by a runtime component entity.  <br /></td></tr>
+<tr class="separator:abb919550729f83d58aa7614093183639"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
@@ -234,7 +238,7 @@ uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>m_row</b></td></t
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
 <a id="a76539992c27bf9a5570b97754c114ccd" name="a76539992c27bf9a5570b97754c114ccd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a76539992c27bf9a5570b97754c114ccd">&#9670;&#160;</a></span>get() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a76539992c27bf9a5570b97754c114ccd">&#9670;&#160;</a></span>get() <span class="overload">[1/3]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -270,7 +274,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="abb919550729f83d58aa7614093183639" name="abb919550729f83d58aa7614093183639"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#abb919550729f83d58aa7614093183639">&#9670;&#160;</a></span>get() <span class="overload">[2/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#abb919550729f83d58aa7614093183639">&#9670;&#160;</a></span>get() <span class="overload">[2/3]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -301,6 +305,41 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Value stored in the selected component. </dd></dl>
+
+</div>
+</div>
+<a id="abb919550729f83d58aa7614093183639" name="abb919550729f83d58aa7614093183639"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abb919550729f83d58aa7614093183639">&#9670;&#160;</a></span>get() <span class="overload">[3/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::ComponentGetter::get </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>type</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Returns a typed component value selected by a runtime component entity. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> type represented by <code>type</code>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">type</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> entity selecting the payload. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Read-only component value or proxy for the getter's entity. </dd></dl>
 
 </div>
 </div>

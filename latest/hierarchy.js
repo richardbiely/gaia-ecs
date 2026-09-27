@@ -98,6 +98,7 @@ var hierarchy =
     [ "gaia::cnt::darr< uint8_t >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr_ext< T, N, Allocator >", "classgaia_1_1cnt_1_1darr__ext.html", null ],
     [ "gaia::cnt::darr_ext< gaia::ecs::Entity, 16 >", "classgaia_1_1cnt_1_1darr__ext.html", null ],
+    [ "gaia::cnt::darr_ext< gaia::ecs::Entity, EntitiesDeletingScanMax >", "classgaia_1_1cnt_1_1darr__ext.html", null ],
     [ "gaia::cnt::darr_ext_soa< T, N, Allocator >", "classgaia_1_1cnt_1_1darr__ext__soa.html", null ],
     [ "gaia::cnt::darr_soa< T, Allocator >", "classgaia_1_1cnt_1_1darr__soa.html", null ],
     [ "gaia::ecs::QueryCtx::Data", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html", null ],

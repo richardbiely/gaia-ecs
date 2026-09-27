@@ -1053,7 +1053,27 @@ SafeEntity</h4>
 <div class="line"><span class="comment">// Internally, w.del(player) is called.</span></div>
 <div class="line"><span class="comment">// ... it&#39;s not safe to use player at this point anymore.</span></div>
 <div class="line"><span class="keywordtype">bool</span> isValid = w.valid(player); <span class="comment">// false</span></div>
-</div><!-- fragment --><p>ecs::SafeEntity is fully compatible with ecs::Entity and can be used just like it in all scenarios.</p>
+</div><!-- fragment --><p>A <a class="el" href="index.html#cleanup-rules">cleanup rule</a> that deletes the entity along with something else, such as its <code>ChildOf</code> parent, deletes its components even while an <code>ecs::SafeEntity</code> references it. The entity is no longer valid, but its record stays reserved until the last <code>ecs::SafeEntity</code> goes out of scope, so the wrapper never touches a recycled entity.</p>
+<p>An <code>ecs::SafeEntity</code> on a pair also holds its relation and its target. A pair id names its endpoints by id only, so the pair can only stay valid while both endpoints do, and while their ids cannot name anything else.</p>
+<div class="fragment"><div class="line">ecs::World w;</div>
+<div class="line">ecs::Entity likes = w.add();</div>
+<div class="line">ecs::Entity apples = w.add();</div>
+<div class="line">ecs::Entity player = w.add();</div>
+<div class="line">w.add(player, ecs::Pair(likes, apples));</div>
+<div class="line">{</div>
+<div class="line">  <span class="keyword">auto</span> pairSafe = ecs::SafeEntity(w, ecs::Pair(likes, apples));</div>
+<div class="line">  <span class="comment">// Deleting an endpoint waits for pairSafe, the same way deleting the pair would.</span></div>
+<div class="line">  w.del(likes);</div>
+<div class="line">  <span class="keywordtype">bool</span> isValid = w.valid(likes); <span class="comment">// true</span></div>
+<div class="line">  <span class="keywordtype">bool</span> hasPair = w.has(player, ecs::Pair(likes, apples)); <span class="comment">// true</span></div>
+<div class="line">}</div>
+<div class="line"><span class="comment">// pairSafe released its references. likes is deleted, and the pair with it.</span></div>
+<div class="line"><span class="keywordtype">bool</span> isValid = w.valid(likes); <span class="comment">// false</span></div>
+</div><!-- fragment --><p>A cleanup rule that deletes an endpoint deletes the pair as well, removing it from every entity that has it. As with an entity, the endpoint's and the pair's records stay reserved until the last <code>ecs::SafeEntity</code> goes out of scope, so no new entity reusing the endpoint's id can match the old pair.</p>
+<p>Just like an entity holding an <code>ecs::SafeEntity</code> on itself, an entity holding an <code>ecs::SafeEntity</code> on a pair that names it keeps itself alive against <code>del()</code>. Only a cleanup rule, or releasing the handle, deletes it.</p>
+<p><code>ecs::SafeEntity</code> can live inside a component. Cleaning up or destroying the world drops such references without deleting anything. When destroying such a component releases the last reference, for example because its entity is deleted or the component is removed, the entity it held is deleted once the operation that destroyed the component is done: right after the outermost <code>del()</code> returns, otherwise at the next <code>update()</code>. The same applies to a reference released inside query iteration.</p>
+<p>Saving a world does not save <code>ecs::SafeEntity</code> references. A handle stored in a component loads empty. After loading, an entity can be deleted normally whatever held it before, an entity whose deletion waited for handles loads as a live entity, and one a cleanup rule already deleted finishes deleting at the next <code>update()</code>. An <code>ecs::SafeEntity</code> held outside the world must go out of scope before the world is cleaned up or destroyed. Unlike <code>ecs::WeakEntity</code>, it is not tracked, so it cannot be reset and would release a reference on whatever entity later reuses its id, or on a world that no longer exists.</p>
+<p>ecs::SafeEntity is fully compatible with ecs::Entity and can be used just like it in all scenarios.</p>
 <div class="fragment"><div class="line">ecs::World w;</div>
 <div class="line">ecs::Entity player = w.add();</div>
 <div class="line"><span class="keyword">auto</span> playerSafe = ecs::SafeEntity(w, player);</div>
@@ -2554,7 +2574,8 @@ Cleanup rules</h3>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Deleting the bomb will take out all entities associated with it. Rabbit included.</span></div>
 <div class="line">w.del(bomb_exploding_on_del); </div>
-</div><!-- fragment --><h3><a class="anchor" id="hierarchies"></a>
+</div><!-- fragment --><p>An entity deleted by a cleanup rule is deleted the same way as one deleted on its own: its own cleanup rules apply to everything referencing it, its name and alias are released, and its id is recycled. Two exceptions: a rule deletes the entity's components even while an <a class="el" href="index.html#safeentity">ecs::SafeEntity</a> references it, and an entity marked (OnDelete, Error) or (OnDeleteTarget, Error) that a rule reaches is reported as an error and keeps its record.</p>
+<h3><a class="anchor" id="hierarchies"></a>
 Hierarchies</h3>
 <p>Two different hierarchy styles are supported: <code>ChildOf</code> and <code>Parent</code>. If you are not sure which one to use, start with <code>Parent</code>.</p>
 <p><code>ChildOf</code> entity can be used to express a physical hierarchy. It uses the (OnDeleteTarget, Delete) relationship so if the parent is deleted, all its children are deleted as well.</p>

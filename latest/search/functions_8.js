@@ -38,10 +38,11 @@ var searchData=
   ['is_5fnon_5ffragmenting_5fdirect_5fterm_35',['is_non_fragmenting_direct_term',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a8ff92b6f9c33b18a7ec916d073a9db08',1,'gaia::ecs::detail::QueryImpl']]],
   ['is_5foverflowed_36',['is_overflowed',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1TraversedSourcePayload.html#acf13837075a9fb9e0224f2673117a42b',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState::TraversedSourcePayload']]],
   ['is_5fparent_37',['is_parent',['../classgaia_1_1ecs_1_1World.html#affcc3be3aa368ccad922db0131ece550',1,'gaia::ecs::World']]],
-  ['is_5freq_5fdel_38',['is_req_del',['../classgaia_1_1ecs_1_1Archetype.html#a918a1ce260c8e0980f1bf731dc7e01d1',1,'gaia::ecs::Archetype::is_req_del()'],['../classgaia_1_1ecs_1_1World.html#ac6c1b4da9a3bdcc7e299b82d27ad646c',1,'gaia::ecs::World::is_req_del()']]],
-  ['is_5fsemi_39',['is_semi',['../classgaia_1_1ecs_1_1Chunk.html#a56188531a8fb9de52eb0caa990d3ca3c',1,'gaia::ecs::Chunk']]],
-  ['is_5fset_40',['is_set',['../classgaia_1_1mt_1_1Event.html#aec01bfc2d370dd6fa35783c5c1fe477d',1,'gaia::mt::Event']]],
-  ['item_5fcount_41',['item_count',['../structgaia_1_1cnt_1_1ilist.html#abe9eba634c0754ac8c3c159f81ed4c09',1,'gaia::cnt::ilist::item_count()'],['../structgaia_1_1cnt_1_1paged__ilist.html#a2365bfc373090375f41f778c6b5cd878',1,'gaia::cnt::paged_ilist::item_count()']]],
-  ['items_42',['items',['../classgaia_1_1cnt_1_1bitset.html#ad48d7be1ef6dddf4b86ee178464ba7aa',1,'gaia::cnt::bitset']]],
-  ['iter_5fmode_5fconstraints_43',['iter_mode_constraints',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a417851145f11d503093031fade3719ac',1,'gaia::ecs::detail::QueryImpl']]]
+  ['is_5freq_5fdel_38',['is_req_del',['../classgaia_1_1ecs_1_1Archetype.html#a918a1ce260c8e0980f1bf731dc7e01d1',1,'gaia::ecs::Archetype::is_req_del()'],['../classgaia_1_1ecs_1_1World.html#a5daeba1d415b525e4679b7859329b01e',1,'gaia::ecs::World::is_req_del(const EntityContainer &amp;ec) const']]],
+  ['is_5freq_5fdel_5for_5fqueued_39',['is_req_del_or_queued',['../classgaia_1_1ecs_1_1World.html#a81d2161fd7d44577fdd0d268989e9d75',1,'gaia::ecs::World']]],
+  ['is_5fsemi_40',['is_semi',['../classgaia_1_1ecs_1_1Chunk.html#a56188531a8fb9de52eb0caa990d3ca3c',1,'gaia::ecs::Chunk']]],
+  ['is_5fset_41',['is_set',['../classgaia_1_1mt_1_1Event.html#aec01bfc2d370dd6fa35783c5c1fe477d',1,'gaia::mt::Event']]],
+  ['item_5fcount_42',['item_count',['../structgaia_1_1cnt_1_1ilist.html#abe9eba634c0754ac8c3c159f81ed4c09',1,'gaia::cnt::ilist::item_count()'],['../structgaia_1_1cnt_1_1paged__ilist.html#a2365bfc373090375f41f778c6b5cd878',1,'gaia::cnt::paged_ilist::item_count()']]],
+  ['items_43',['items',['../classgaia_1_1cnt_1_1bitset.html#ad48d7be1ef6dddf4b86ee178464ba7aa',1,'gaia::cnt::bitset']]],
+  ['iter_5fmode_5fconstraints_44',['iter_mode_constraints',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a417851145f11d503093031fade3719ac',1,'gaia::ecs::detail::QueryImpl']]]
 ];
