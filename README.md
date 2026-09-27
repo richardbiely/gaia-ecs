@@ -1162,6 +1162,8 @@ bool isValid = w.valid(player); // false
 
 A [cleanup rule](#cleanup-rules) that deletes the entity along with something else, such as its `ChildOf` parent, deletes its components even while an `ecs::SafeEntity` references it. The entity is no longer valid, but its record stays reserved until the last `ecs::SafeEntity` goes out of scope, so the wrapper never touches a recycled entity.
 
+`ecs::SafeEntity` can live inside a component. Cleaning up or destroying the world drops such references without deleting anything. An `ecs::SafeEntity` held outside the world must go out of scope before the world is cleaned up or destroyed. Unlike `ecs::WeakEntity`, it is not tracked, so it cannot be reset and would release a reference on whatever entity later reuses its id, or on a world that no longer exists.
+
 ecs::SafeEntity is fully compatible with ecs::Entity and can be used just like it in all scenarios.
 
 ```cpp

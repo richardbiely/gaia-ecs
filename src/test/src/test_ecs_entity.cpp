@@ -416,6 +416,51 @@ TEST_CASE("Entity safe") {
 		CHECK_FALSE(wld.has(e));
 	}
 
+	SUBCASE("component survives world cleanup and destruction") {
+		struct SafeComponent {
+			ecs::SafeEntity entity;
+		};
+
+		// 0 = live target, 1 = deleted target, 2 = ChildOf child of a deleted parent
+		auto setup = [](ecs::World& w, uint32_t targetState) {
+			auto e = w.add();
+			auto holder = w.add();
+			w.add<SafeComponent>(holder, {ecs::SafeEntity(w, e)});
+			if (targetState == 1)
+				w.del(e);
+			else if (targetState == 2) {
+				auto parent = w.add();
+				w.child(e, parent);
+				w.del(parent);
+			}
+			w.update();
+		};
+
+		GAIA_FOR(3) {
+			// World destruction
+			{
+				ecs::World w;
+				setup(w, i);
+			}
+
+			// World cleanup, then the world stays usable
+			{
+				ecs::World w;
+				setup(w, i);
+				w.cleanup();
+
+				auto e = w.add();
+				auto holder = w.add();
+				w.add<SafeComponent>(holder, {ecs::SafeEntity(w, e)});
+				w.del(e);
+				CHECK(w.valid(e));
+				w.del(holder);
+				w.update();
+				CHECK_FALSE(w.valid(e));
+			}
+		}
+	}
+
 	SUBCASE("copy move serialize and compare helpers") {
 		TestWorld twld;
 

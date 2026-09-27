@@ -36849,10 +36849,15 @@ namespace gaia {
 				if GAIA_UNLIKELY (m_w == nullptr)
 					return;
 
-				auto& ec = fetch_mut(*m_w, m_entity);
-				GAIA_ASSERT(ec.refCnt > 0);
-				--ec.refCnt;
-				if (ec.refCnt == 0)
+				// World cleanup and destruction clear every record before they destroy components,
+				// so a SafeEntity stored in a component finds no record there and has nothing to release.
+				auto* pEc = try_fetch_mut(*m_w, m_entity);
+				if GAIA_UNLIKELY (pEc == nullptr)
+					return;
+
+				GAIA_ASSERT(pEc->refCnt > 0);
+				--pEc->refCnt;
+				if (pEc->refCnt == 0)
 					del(*m_w, m_entity);
 			}
 
