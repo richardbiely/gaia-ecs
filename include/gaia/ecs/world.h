@@ -13875,8 +13875,8 @@ namespace gaia {
 
 					entity_deletion_enter(entity);
 
-					if (hasLiveTarget)
-						del_entity_target_rules(fetch(tgt), tgt);
+					// The target's OnDeleteTarget rules are not applied here. They cover every (*, target) pair,
+					// such as ChildOf children, and belong to deleting the target, which applies them itself.
 
 					// This entity has been requested to be deleted already. Nothing more for us to do here
 					if (is_req_del_or_queued(ec)) {

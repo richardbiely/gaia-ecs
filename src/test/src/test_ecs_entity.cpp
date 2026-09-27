@@ -1195,6 +1195,54 @@ TEST_CASE("Entity bulk deletion - names and aliases are released") {
 	CHECK(wld.get("bulk_named") == reuse);
 }
 
+TEST_CASE("Entity deletion - a pair leaves other pairs with its target alone") {
+	// Deleting a pair, or its relation, must not apply the target's OnDeleteTarget rules. Those belong
+	// to deleting the target itself.
+	GAIA_FOR(2) {
+		const bool delRelation = i == 0;
+		TestWorld twld;
+
+		const auto parent = wld.add();
+		const auto child = wld.add();
+		wld.child(child, parent);
+		const auto rel = wld.add();
+		const auto rel2 = wld.add();
+		const auto src = wld.add();
+		const auto other = wld.add();
+		wld.add(src, ecs::Pair(rel, parent));
+		wld.add(other, ecs::Pair(rel2, parent));
+		// A target without delete rules, whose pairs are removed rather than deleted
+		const auto tgt = wld.add();
+		wld.add(src, ecs::Pair(rel, tgt));
+		wld.add(other, ecs::Pair(rel2, tgt));
+
+		if (delRelation)
+			wld.del(rel);
+		else {
+			wld.del(ecs::Pair(rel, parent));
+			wld.del(ecs::Pair(rel, tgt));
+		}
+		twld.update();
+
+		CHECK(wld.valid(parent));
+		CHECK(wld.valid(src));
+		CHECK_FALSE(wld.has(src, ecs::Pair(rel, parent)));
+		// The ChildOf child and the sibling pair are untouched
+		CHECK(wld.valid(child));
+		CHECK(wld.has(child, ecs::Pair(ecs::ChildOf, parent)));
+		CHECK(wld.valid(other));
+		CHECK(wld.has(other, ecs::Pair(rel2, parent)));
+		CHECK_FALSE(wld.has(src, ecs::Pair(rel, tgt)));
+		CHECK(wld.has(other, ecs::Pair(rel2, tgt)));
+
+		// Deleting the target itself still applies its rules
+		wld.del(parent);
+		twld.update();
+		CHECK_FALSE(wld.valid(child));
+		CHECK_FALSE(wld.has(other, ecs::Pair(rel2, parent)));
+	}
+}
+
 TEST_CASE("Entity deletion - alias is released") {
 	TestWorld twld;
 
