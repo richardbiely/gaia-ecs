@@ -4997,7 +4997,7 @@ Parameter | Description
 **BUILD_TESTING** | Registers available example smoke tests with CTest when examples are built (ON by default)
 **GAIA_GENERATE_CC** | Exports `compile_commands.json` and copies it to `ninja/compile_commands.json` for tooling when the active generator supports it
 **GAIA_GENERATE_DOCS** | Builds the [documentation](#documentation)
-**GAIA_GENERATE_SINGLE_HEADER** | Generates a [single-header](#single-header) version of the framework
+**GAIA_GENERATE_SINGLE_HEADER** | Generates a [single-header](#single-header) version of the framework (`ON` by default when Gaia is the top-level project)
 **GAIA_FORMAT_SINGLE_HEADER** | Formats the generated single header with `clang-format` when available (`ON` by default)
 **GAIA_PROFILER_CPU** | Enables CPU [profiling](#profiling) features
 **GAIA_PROFILER_MEM** | Enabled memory [profiling](#profiling) features
@@ -5042,8 +5042,8 @@ On Windows you can call:
 
 Default behavior is to format the generated header when `clang-format` is available. Use `--no-format` to skip the formatting pass.
 
-Creation of the single header can be automated via `-DGAIA_GENERATE_SINGLE_HEADER=ON` (ON by default).
-The generator always reads and writes inside the Gaia source tree (`PROJECT_SOURCE_DIR`), so it still works when Gaia is added with FetchContent or `add_subdirectory`.
+Creation of the single header can be automated via `-DGAIA_GENERATE_SINGLE_HEADER=ON` (ON by default when Gaia is the top-level project).
+Projects that add Gaia with FetchContent or `add_subdirectory` compile the committed header unless they turn the option on. The generator reads and writes inside the Gaia source tree (`PROJECT_SOURCE_DIR`), so regenerating leaves their checkout of Gaia modified, and FetchContent then fails to update it once the header changes upstream.
 
 Formatting is controlled by `-DGAIA_FORMAT_SINGLE_HEADER=ON/OFF` and defaults to `ON`.
 If formatting is enabled but `clang-format` is not available the header is still generated, it just skips the formatting pass.

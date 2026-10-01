@@ -6,7 +6,11 @@
 # Formatting is optional and enabled by default when clang-format is available.
 # ---------------------------------------------------------------------------
 
-option(GAIA_GENERATE_SINGLE_HEADER "Generate the single file header automatically." ON)
+# Projects that add Gaia with FetchContent or add_subdirectory compile the committed header by default.
+# Regenerating it modifies their checkout of Gaia, which FetchContent then fails to update once the header
+# changes upstream.
+string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}" GAIA_IS_TOP_LEVEL)
+option(GAIA_GENERATE_SINGLE_HEADER "Generate the single file header automatically." ${GAIA_IS_TOP_LEVEL})
 option(GAIA_FORMAT_SINGLE_HEADER "Format the generated single header with clang-format when available." ON)
 
 if(GAIA_GENERATE_SINGLE_HEADER)
