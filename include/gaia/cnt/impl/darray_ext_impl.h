@@ -410,7 +410,7 @@ namespace gaia {
 			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
 				GAIA_ASSERT(pos >= data());
-				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+				GAIA_ASSERT(pos <= iterator(data() + size()));
 
 				T value(arg);
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
@@ -438,7 +438,7 @@ namespace gaia {
 			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
 				GAIA_ASSERT(pos >= data());
-				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+				GAIA_ASSERT(pos <= iterator(data() + size()));
 
 				T value(GAIA_MOV(arg));
 				const auto idxSrc = (size_type)core::distance(begin(), pos);

@@ -975,6 +975,21 @@ void lvalue_insert_test(const T& first, const T& insertedValue, const T& third, 
 }
 
 template <typename Container>
+void end_insert_test() {
+	Container arr;
+	auto it = arr.insert(arr.end(), 1U);
+	CHECK(it == arr.begin());
+	arr.push_back(2U);
+	const uint32_t third = 3U;
+	it = arr.insert(arr.end(), third);
+	CHECK(it == arr.begin() + 2);
+	it = arr.insert(arr.end(), 4U);
+	CHECK(it == arr.begin() + 3);
+	CHECK(arr.size() == 4);
+	GAIA_FOR(4) CHECK(arr[i] == i + 1U);
+}
+
+template <typename Container>
 void soa_mutation_test() {
 	using T = typename Container::value_type;
 	const T values[] = {{1, 11, 21}, {2, 12, 22}, {3, 13, 23}, {4, 14, 24}, {5, 15, 25}, {6, 16, 26}};
@@ -1205,6 +1220,13 @@ TEST_CASE("Containers - forward iterator range construction") {
 TEST_CASE("Containers - dynamic lvalue insertion") {
 	lvalue_insert_test<cnt::darr<uint32_t>>(1U, 2U, 3U, 4U);
 	lvalue_insert_test<cnt::darr_ext<uint32_t, 4>>(1U, 2U, 3U, 4U);
+}
+
+TEST_CASE("Containers - insertion at the end") {
+	end_insert_test<cnt::darr<uint32_t>>();
+	end_insert_test<cnt::darr_ext<uint32_t, 2>>();
+	end_insert_test<cnt::darr_ext<uint32_t, 8>>();
+	end_insert_test<cnt::sarr_ext<uint32_t, 8>>();
 }
 
 TEST_CASE("Containers - SoA mutation iterators") {
