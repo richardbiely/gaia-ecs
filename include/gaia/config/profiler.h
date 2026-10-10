@@ -119,7 +119,7 @@ namespace tracy {
 		static constexpr ___tracy_source_location_data TracyConcat(__tracy_source_location, __LINE__) {                    \
 			name "", function, __FILE__, uint32_t(__LINE__), 0,                                                              \
 		}
-	#define TRACY_ZoneEnd() tracy::ZoneEnd
+	#define TRACY_ZoneEnd() tracy::ZoneEnd()
 
 	#define GAIA_PROF_START_IMPL(name, function)                                                                         \
 		TRACY_ZoneBegin(name, function);                                                                                   \
