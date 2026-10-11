@@ -1181,6 +1181,16 @@ TEST_CASE("Containers - SoA resize fill") {
 	resizable_arr_soa_resize_fill_test<cnt::sarr_ext_soa<PositionSoA, 16>>(16);
 }
 
+TEST_CASE("Containers - SoA resize within capacity") {
+	cnt::darr_soa<PositionSoA> arr;
+	arr.reserve(16);
+	arr.resize(4, PositionSoA{1, 2, 3});
+	arr.resize(12, PositionSoA{4, 5, 6});
+	CHECK(arr.size() == 12);
+	GAIA_FOR(4) CHECK(arr[i] == PositionSoA{1, 2, 3});
+	GAIA_FOR2(4, 12) CHECK(arr[i] == PositionSoA{4, 5, 6});
+}
+
 TEST_CASE("Containers - SoA iterator subtraction") {
 	cnt::sarr_soa<PositionSoA, 4> fixed;
 	GAIA_EACH(fixed) fixed[i] = {(float)i + 1.0f, (float)i + 2.0f, (float)i + 3.0f};

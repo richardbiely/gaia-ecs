@@ -13091,7 +13091,7 @@ namespace gaia {
 
 				// Resizing to a bigger size but still within allocated capacity
 				if (count <= m_cap) {
-					view_policy::mem_pop_block(m_pData, m_cap, m_cnt, count - m_cnt);
+					view_policy::mem_push_block(m_pData, m_cap, m_cnt, count - m_cnt);
 
 					m_cnt = count;
 					return;
