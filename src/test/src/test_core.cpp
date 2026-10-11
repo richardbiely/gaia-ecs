@@ -1011,6 +1011,9 @@ void resize_policy_test(Make&& make) {
 	CHECK(filled[4] == make(8));
 }
 
+//! Inserts at end() into an empty and a non-empty container, by copy and by move: each value lands
+//! last and insert returns an iterator to it.
+//! \tparam Container Array type under test, holding uint32_t values.
 template <typename Container>
 void end_insert_test() {
 	Container arr;
