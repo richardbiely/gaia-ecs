@@ -6,8 +6,31 @@
 
 namespace gaia {
 	namespace cnt {
+		//! How a dynamic array's resize() grows its capacity once the new size outgrows it.
+		enum class ResizePolicy : uint8_t {
+			//! Allocate exactly the new size.
+			Exact,
+			//! Grow capacity by half again, as appending does, or to the new size when that is larger,
+			//! so growing an array a few elements at a time relocates it only a logarithmic number of
+			//! times.
+			Scale,
+		};
+
 		//! \cond INTERNAL
 		namespace detail {
+			//! Capacity a dynamic array's resize() allocates for \a count values once they outgrow
+			//! \a cap.
+			//! \tparam SizeType Size type of the array.
+			//! \param policy How capacity grows: exactly to \a count, or by half again.
+			//! \param cap Current capacity, smaller than \a count.
+			//! \param count Number of values the array holds after the resize.
+			//! \return \a count for ResizePolicy::Exact; the larger of \a count and one and a half
+			//! times \a cap for ResizePolicy::Scale.
+			template <typename SizeType>
+			GAIA_NODISCARD constexpr SizeType resize_capacity(ResizePolicy policy, SizeType cap, SizeType count) noexcept {
+				return policy == ResizePolicy::Scale ? core::get_max(count, (SizeType)((cap * 3 + 1) / 2)) : count;
+			}
+
 			//! Stably compacts an array using assignment, then destroys the discarded AoS tail.
 			//! SoA moves fields through the existing memory helper without destroying AoS objects.
 			//! The caller adjusts sanitizer annotations after this function returns.

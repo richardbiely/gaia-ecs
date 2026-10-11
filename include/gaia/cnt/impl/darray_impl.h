@@ -222,7 +222,8 @@ namespace gaia {
 
 			//! Changes the number of elements.
 			//! \param count Number of elements.
-			void resize(size_type count) {
+			//! \param policy How capacity grows when \a count exceeds it.
+			void resize(size_type count, ResizePolicy policy = ResizePolicy::Exact) {
 				if (count == m_cnt)
 					return;
 
@@ -258,9 +259,10 @@ namespace gaia {
 					return;
 				}
 
+				const auto cap = detail::resize_capacity(policy, m_cap, count);
 				auto* pDataOld = m_pData;
-				m_pData = view_policy::template alloc<Allocator>(count);
-				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, count, count);
+				m_pData = view_policy::template alloc<Allocator>(cap);
+				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, cap, count);
 				// Move old data to the new location
 				mem::move_ctor_elements<T>(m_pData, pDataOld, m_cnt);
 				// Default-construct new items
@@ -268,28 +270,29 @@ namespace gaia {
 				// Release old memory
 				view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 
-				m_cap = count;
+				m_cap = cap;
 				m_cnt = count;
 			}
 
 			//! Changes the size and initializes new elements from a value.
 			//! \param count Number of elements.
 			//! \param value Value assigned to each new element.
-			void resize(size_type count, const_reference value) {
+			//! \param policy How capacity grows when \a count exceeds it.
+			void resize(size_type count, const_reference value, ResizePolicy policy = ResizePolicy::Exact) {
 				if (count <= m_cnt) {
-					resize(count);
+					resize(count, policy);
 					return;
 				}
 				const auto oldCount = m_cnt;
 				if constexpr (std::is_copy_constructible_v<value_type>) {
 					const value_type valueCopy = value;
-					resize(count);
+					resize(count, policy);
 					for (size_type i = oldCount; i < m_cnt; ++i)
 						operator[](i) = valueCopy;
 				} else {
 					value_type valueCopy;
 					valueCopy = value;
-					resize(count);
+					resize(count, policy);
 					for (size_type i = oldCount; i < m_cnt; ++i)
 						operator[](i) = valueCopy;
 				}

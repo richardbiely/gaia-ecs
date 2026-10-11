@@ -285,7 +285,8 @@ namespace gaia {
 
 			//! Changes the number of elements.
 			//! \param count Number of elements.
-			void resize(size_type count) {
+			//! \param policy How capacity grows when \a count exceeds it.
+			void resize(size_type count, ResizePolicy policy = ResizePolicy::Exact) {
 				if (count == m_cnt)
 					return;
 
@@ -309,9 +310,10 @@ namespace gaia {
 					return;
 				}
 
+				const auto cap = detail::resize_capacity(policy, m_cap, count);
 				auto* pDataOld = m_pDataHeap;
-				m_pDataHeap = view_policy::template alloc<Allocator>(count);
-				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, count, count);
+				m_pDataHeap = view_policy::template alloc<Allocator>(cap);
+				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, cap, count);
 				auto* pDataNew = reinterpret_cast<pointer>(m_pDataHeap);
 				if (pDataOld != nullptr) {
 					mem::move_ctor_elements<T>(m_pDataHeap, pDataOld, m_cnt);
@@ -324,7 +326,7 @@ namespace gaia {
 
 				core::call_ctor_n(&pDataNew[m_cnt], count - m_cnt);
 
-				m_cap = count;
+				m_cap = cap;
 				m_cnt = count;
 				m_pData = m_pDataHeap;
 			}
@@ -332,21 +334,22 @@ namespace gaia {
 			//! Changes the size and initializes new elements from a value.
 			//! \param count Number of elements.
 			//! \param value Value assigned to each new element.
-			void resize(size_type count, const_reference value) {
+			//! \param policy How capacity grows when \a count exceeds it.
+			void resize(size_type count, const_reference value, ResizePolicy policy = ResizePolicy::Exact) {
 				if (count <= m_cnt) {
-					resize(count);
+					resize(count, policy);
 					return;
 				}
 				const auto oldCount = m_cnt;
 				if constexpr (std::is_copy_constructible_v<value_type>) {
 					const value_type valueCopy = value;
-					resize(count);
+					resize(count, policy);
 					for (size_type i = oldCount; i < m_cnt; ++i)
 						operator[](i) = valueCopy;
 				} else {
 					value_type valueCopy;
 					valueCopy = value;
-					resize(count);
+					resize(count, policy);
 					for (size_type i = oldCount; i < m_cnt; ++i)
 						operator[](i) = valueCopy;
 				}

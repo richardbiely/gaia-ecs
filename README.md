@@ -4474,7 +4474,7 @@ contiguous read-only field array. See [Iteration](#iteration) for the supported 
 ## Containers
 
 Gaia dynamic arrays (`cnt::darray` and `cnt::darray_ext`) keep only `size()` live elements.
-`reserve()` allocates capacity without default-constructing spare values. Growth relocates live values and releases their old storage.
+`reserve()` allocates capacity without default-constructing spare values. Growth relocates live values and releases their old storage. `resize()` past capacity allocates exactly the new size by default; `resize(count, cnt::ResizePolicy::Scale)` grows capacity by half again instead, as appending does, so growing an array a few elements at a time relocates it only a logarithmic number of times. The SoA variants take the same policy.
 `retain()` preserves survivor order, keeps assignment destinations alive during compaction, then destroys the removed tail. It scans once, moves each displaced survivor once, and updates the size directly without entering the capacity-growth path. Range erasure supports overlapping suffix shifts.
 Append, emplacement, insertion, and fill-resize may use values from the same array. Those inputs are consumed before relocation or shifting invalidates them.
 `shrink_to_fit()` releases unused heap capacity. Extended arrays return to inline storage when `size()` fits, including empty arrays.
