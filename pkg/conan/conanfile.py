@@ -17,7 +17,6 @@ class GaiaConan(ConanFile):
     homepage = "https://github.com/richardbiely/gaia-ecs"
     url = "https://github.com/conan-io/conan-center-index"
     topics = ("gamedev", "performance", "entity", "ecs", "dod", "data-oriented-design", "data-oriented", "entity-framework", "entity-component-system", "cpp17")
-    exports_sources = "LICENSE", "single_include/*"
     no_copy_source = True
     settings = "os", "arch", "compiler", "build_type"
 

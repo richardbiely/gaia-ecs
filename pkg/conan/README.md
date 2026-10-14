@@ -50,7 +50,10 @@ Use this checklist when preparing a ConanCenter submission:
 1. Cut and verify the Gaia-ECS release tag first.
 2. Confirm the release tarball URL and SHA-256 in [`pkg/conan/conandata.yml`](./conandata.yml).
 3. Run `conan create pkg/conan --build=missing -s build_type=Release -s compiler.cppstd=17` locally or in CI.
-4. Copy the recipe into the ConanCenter recipe layout and adapt it to ConanCenter policy if needed.
+4. Update `recipes/gaia-ecs` in ConanCenter, not just the version entries:
+   - Remove superseded versions from `config.yml` and `all/conandata.yml`. A version bump should leave only the versions still worth building. Binaries that were already published stay available.
+   - Make `all/conanfile.py` package exactly what upstream `install()` ships, which is `single_include/gaia.h` in `include/`. The ConanCenter recipe uses `CMakeToolchain` with `GAIA_GENERATE_SINGLE_HEADER=False`, then `cmake.install()`, then removes `lib/`. If `install()` changes in [`CMakeLists.txt`](../../CMakeLists.txt), update the recipe to match.
+   - Run `conan create recipes/gaia-ecs/all --version=<version>` in the `conan-center-index` checkout.
 5. Open a pull request against `conan-io/conan-center-index`.
 6. Wait for ConanCenter review and CI before treating the package as publicly available there.
 
