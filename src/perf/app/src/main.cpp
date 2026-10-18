@@ -128,7 +128,7 @@ constexpr float MaxDelta = 0.033f;
 
 float CalculateDelta(picobench::state& state) {
 	state.stop_timer();
-	const float d = static_cast<float>((double)RAND_MAX / (MaxDelta - MinDelta));
+	const float d = static_cast<float>((double)RAND_MAX / (double)(MaxDelta - MinDelta));
 	float delta = MinDelta + (static_cast<float>(rand()) / d);
 	state.start_timer();
 	return delta;
@@ -241,7 +241,7 @@ namespace sys {
 					auto data = it.view_mut<DataComponent>(0);
 					auto update = [](DataComponent& data) {
 						data.thingy = (data.thingy + 1) % 1'000'000;
-						data.dingy += 0.0001f * dt;
+						data.dingy += (double)(0.0001f * dt);
 						data.mingy = !data.mingy;
 						data.numgy = data.rng();
 					};

@@ -739,7 +739,7 @@ void BM_HierarchyBatch_QueryChunkRaw(picobench::state& state) {
 
 				if constexpr (UsePtr) {
 					const auto recs = pChunk->comp_rec_view();
-					const auto* p = (const Position*)recs[pChunk->comp_idx(posComp)].pData + from;
+					const auto* p = (const Position*)(const void*)recs[pChunk->comp_idx(posComp)].pData + from;
 					const auto cnt = (uint32_t)(to - from);
 					GAIA_FOR(cnt) {
 						sum += p[i].x;

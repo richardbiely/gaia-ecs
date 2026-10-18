@@ -51,7 +51,7 @@ constexpr float MaxDelta = 0.033f;
 
 float CalculateDelta(picobench::state& state) {
 	state.stop_timer();
-	const float d = static_cast<float>((double)RAND_MAX / (MaxDelta - MinDelta));
+	const float d = static_cast<float>((double)RAND_MAX / (double)(MaxDelta - MinDelta));
 	float delta = MinDelta + (static_cast<float>(rand()) / d);
 	state.start_timer();
 	return delta;
@@ -383,7 +383,7 @@ void BM_ECS_ReadHealthArchRawOnly(picobench::state& state) {
 					continue;
 
 				const auto recs = pChunk->comp_rec_view();
-				const auto* h = (const Health*)recs[pChunk->comp_idx(healthComp)].pData + from;
+				const auto* h = (const Health*)(const void*)recs[pChunk->comp_idx(healthComp)].pData + from;
 				const auto cnt = (uint32_t)(to - from);
 				GAIA_FOR(cnt) {
 					if (h[i].value > 0)
@@ -509,8 +509,8 @@ void BM_ECS_UpdatePositionOnlyChunkPtrRawBase(picobench::state& state) {
 
 				const auto posIdx = pChunk->comp_idx(posComp);
 				const auto recs = pChunk->comp_rec_view();
-				auto* p = (Position*)recs[posIdx].pData + from;
-				const auto* v = (const Velocity*)recs[pChunk->comp_idx(velComp)].pData + from;
+				auto* p = (Position*)(void*)recs[posIdx].pData + from;
+				const auto* v = (const Velocity*)(const void*)recs[pChunk->comp_idx(velComp)].pData + from;
 				const auto cnt = (uint32_t)(to - from);
 				GAIA_FOR(cnt) {
 					p[i].x += v[i].x * cdt;
@@ -599,8 +599,8 @@ void BM_ECS_UpdatePositionOnlyEachArch(picobench::state& state) {
 
 				const auto posIdx = pChunk->comp_idx(posComp);
 				const auto recs = pChunk->comp_rec_view();
-				auto* p = (Position*)recs[posIdx].pData + from;
-				const auto* v = (const Velocity*)recs[pChunk->comp_idx(velComp)].pData + from;
+				auto* p = (Position*)(void*)recs[posIdx].pData + from;
+				const auto* v = (const Velocity*)(const void*)recs[pChunk->comp_idx(velComp)].pData + from;
 				const auto cnt = (uint32_t)(to - from);
 				GAIA_FOR(cnt) {
 					p[i].x += v[i].x * cdt;
@@ -866,8 +866,8 @@ void BM_ECS_PositionVelocityChunkPtrRaw(picobench::state& state, Func func) {
 					continue;
 
 				const auto recs = pChunk->comp_rec_view();
-				auto* p = (Position*)recs[pChunk->comp_idx(posComp)].pData + from;
-				const auto* v = (const Velocity*)recs[pChunk->comp_idx(velComp)].pData + from;
+				auto* p = (Position*)(void*)recs[pChunk->comp_idx(posComp)].pData + from;
+				const auto* v = (const Velocity*)(const void*)recs[pChunk->comp_idx(velComp)].pData + from;
 				func(p, v, (uint32_t)(to - from), sum);
 			}
 		}
@@ -962,8 +962,8 @@ void BM_ECS_UpdatePositionFixedDeltaWithReadbackChunkPtrRawRestrictLocalSumBase(
 
 				const auto posIdx = pChunk->comp_idx(posComp);
 				const auto recs = pChunk->comp_rec_view();
-				auto* p = (Position*)recs[posIdx].pData + from;
-				const auto* v = (const Velocity*)recs[pChunk->comp_idx(velComp)].pData + from;
+				auto* p = (Position*)(void*)recs[posIdx].pData + from;
+				const auto* v = (const Velocity*)(const void*)recs[pChunk->comp_idx(velComp)].pData + from;
 				sum += UpdatePositionFixedDeltaWithReadbackRestrictLocalSum(p, v, (uint32_t)(to - from));
 				if constexpr (FinishWrites)
 					pChunk->finish_write(posIdx, from, to);
@@ -1344,7 +1344,7 @@ void BM_ECS_ReadVelocityChunkPtrRawOnly(picobench::state& state) {
 					continue;
 
 				const auto recs = pChunk->comp_rec_view();
-				const auto* v = (const Velocity*)recs[pChunk->comp_idx(velComp)].pData + from;
+				const auto* v = (const Velocity*)(const void*)recs[pChunk->comp_idx(velComp)].pData + from;
 				const auto cnt = (uint32_t)(to - from);
 				GAIA_FOR(cnt) {
 					sum += v[i].x + v[i].y + v[i].z;

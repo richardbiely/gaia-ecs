@@ -35,7 +35,7 @@ void BM_Query_SelectiveAll_BroadFirst(picobench::state& state) {
 		w.add(e, tags[i]);
 		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
 		if ((i & 31U) == 0U)
-			w.add<Health>(e, {(int32_t)i});
+			w.add<Health>(e, {(int32_t)i, 0});
 	}
 
 	auto q = w.query().all<Position>().all<Health>();
@@ -176,8 +176,8 @@ void BM_Query_ReadWrite_2Comp_EachArchLocalAccum(picobench::state& state) {
 
 				const auto posIdx = pChunk->comp_idx(posComp);
 				const auto recs = pChunk->comp_rec_view();
-				auto* p = (Position*)recs[posIdx].pData + from;
-				const auto* v = (const Velocity*)recs[pChunk->comp_idx(velComp)].pData + from;
+				auto* p = (Position*)(void*)recs[posIdx].pData + from;
+				const auto* v = (const Velocity*)(const void*)recs[pChunk->comp_idx(velComp)].pData + from;
 				sum += query_update_position_readback_sum(p, v, (uint32_t)(to - from));
 				pChunk->finish_write(posIdx, from, to);
 			}

@@ -2,7 +2,7 @@
 add_compile_definitions(GAIA_DEBUG=0)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${picobench_SOURCE_DIR}/include)
+include_directories(SYSTEM ${picobench_SOURCE_DIR}/include)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)

@@ -134,7 +134,7 @@ namespace {
 
 			uint32_t sum = 0;
 			GAIA_FOR(InvokeOps) {
-				sum += func((int32_t)i, 3);
+				sum += (uint32_t)func((int32_t)i, 3);
 			}
 
 			gaia::dont_optimize(sum);
@@ -155,7 +155,7 @@ namespace {
 
 			uint32_t sum = 0;
 			GAIA_FOR(InvokeOps) {
-				sum += invoke_erased_once(func, (int32_t)i, 3);
+				sum += (uint32_t)invoke_erased_once(func, (int32_t)i, 3);
 			}
 
 			gaia::dont_optimize(sum);
@@ -171,7 +171,7 @@ namespace {
 			GAIA_FOR(ConstructOps) {
 				TFunc func(callable);
 				gaia::dont_optimize(func);
-				sum += func((int32_t)i, 2);
+				sum += (uint32_t)func((int32_t)i, 2);
 			}
 
 			gaia::dont_optimize(sum);
@@ -194,7 +194,7 @@ namespace {
 				gaia::dont_optimize(pStorage);
 				auto* pCallable = new (pStorage) TCallable(callable);
 				gaia::dont_optimize(pCallable);
-				sum += (*pCallable)((int32_t)i, 2);
+				sum += (uint32_t)(*pCallable)((int32_t)i, 2);
 				pCallable->~TCallable();
 
 				if constexpr (UseMoveFuncStorage && sizeof(TCallable) <= mem::SmallBlockMaxSize)
@@ -262,7 +262,7 @@ namespace {
 				gaia::dont_optimize(pStorage);
 				auto* pCallable = new (pStorage) TCallable(callable);
 				gaia::dont_optimize(pCallable);
-				sum += (*pCallable)((int32_t)i, 2);
+				sum += (uint32_t)(*pCallable)((int32_t)i, 2);
 				pCallable->~TCallable();
 
 				if constexpr (UseSmallBlock && sizeof(TCallable) <= mem::SmallBlockMaxSize)
