@@ -1288,6 +1288,9 @@ namespace gaia {
 				}
 
 				//! Adds all grouping invalidation relations to the dependency set.
+				//! Built-in grouping functions are recognized by address. A custom function with identical code may share
+				//! that address under linker identical code folding (e.g. MSVC /OPT:ICF) and is then treated as built-in,
+				//! which is harmless because its behavior is identical.
 				void add_group_deps() {
 					deps.set_dep_flag(DependencyHasGroup);
 

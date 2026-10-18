@@ -1350,6 +1350,8 @@ TEST_CASE("Query - dependency metadata") {
 	CHECK(depsGrouped.relations_view().size() == 1);
 	CHECK(core::has(depsGrouped.relations_view(), eats));
 
+	// The body must differ from group_by_func_default. Built-in grouping functions are recognized by address and
+	// linkers with identical code folding (MSVC /OPT:ICF) give identical functions one address.
 	auto custom_group_by = []([[maybe_unused]] const ecs::World& world, const ecs::Archetype& archetype,
 														ecs::Entity groupBy) {
 		if (archetype.pairs() > 0) {
@@ -1358,7 +1360,7 @@ TEST_CASE("Query - dependency metadata") {
 				if (!id.pair() || id.id() != groupBy.id())
 					continue;
 
-				return id.gen();
+				return ecs::GroupId(id.gen() + 1);
 			}
 		}
 
