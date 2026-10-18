@@ -703,7 +703,7 @@ namespace gaia {
 				nameTmp[ct_name.size()] = 0;
 
 				auto strip_prefix = [&](const char* prefix, uint32_t prefixLen) {
-					if (nameTmpLen <= prefixLen || strncmp(nameTmp, prefix, prefixLen) != 0)
+					if (nameTmpLen <= prefixLen || memcmp(nameTmp, prefix, prefixLen) != 0)
 						return;
 
 					memmove(nameTmp, nameTmp + prefixLen, nameTmpLen - prefixLen + 1);
