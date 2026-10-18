@@ -1312,6 +1312,32 @@ TEST_CASE("Containers - reverse array iteration") {
 	reverse_array_test<cnt::darr_ext_soa<PositionSoA, 4>>(soaValues);
 }
 
+//! Counts copies so tests can prove that rvalues are moved through generic forwarding code.
+struct CopyCounted {
+	inline static uint32_t copies = 0;
+	CopyCounted() = default;
+	CopyCounted(const CopyCounted&) {
+		++copies;
+	}
+	CopyCounted(CopyCounted&&) noexcept = default;
+	CopyCounted& operator=(const CopyCounted&) {
+		++copies;
+		return *this;
+	}
+	CopyCounted& operator=(CopyCounted&&) noexcept = default;
+};
+
+TEST_CASE("Containers - map emplace moves rvalue values") {
+	cnt::map<uint32_t, CopyCounted> m;
+
+	CopyCounted::copies = 0;
+	m.try_emplace(1U, CopyCounted{});
+	m.emplace(2U, CopyCounted{});
+	GAIA_FOR(64) m.try_emplace(i + 3U, CopyCounted{});
+	CHECK(m.size() == 66);
+	CHECK(CopyCounted::copies == 0);
+}
+
 //------------------------------------------------------------------------------
 // Signals
 //------------------------------------------------------------------------------
