@@ -18,9 +18,9 @@ namespace {
 	using CmdBufRelPair = ecs::pair<CmdBufRelPayload, CmdBufRelTarget>;
 
 	struct CmdBufCtorTag {
-		inline static const void* instance = nullptr;
+		inline static uint32_t constructed = 0;
 		CmdBufCtorTag() {
-			instance = this;
+			++constructed;
 		}
 	};
 
@@ -2717,11 +2717,11 @@ TEST_CASE_TEMPLATE("CommandBuffer - recorded component order", CmdBuffer, ecs::C
 		wld.add<CmdBufCtorTag>(e);
 		cb.template del<CmdBufCtorTag>(e);
 		cb.template add<CmdBufCtorTag>(e);
-		CmdBufCtorTag::instance = nullptr;
+		CmdBufCtorTag::constructed = 0;
 		cb.commit();
 		CHECK(wld.has<CmdBufCtorTag>(e));
 		CHECK(wld.valid(e));
-		CHECK(CmdBufCtorTag::instance == nullptr);
+		CHECK(CmdBufCtorTag::constructed == 0);
 	}
 
 	SUBCASE("In-place replacement initializes fields omitted by a custom serializer") {

@@ -2704,7 +2704,7 @@ TEST_CASE("Containers - sringbuffer") {
 
 TEST_CASE("Containers - ilist") {
 	struct EntityContainer: cnt::ilist_item {
-		int value;
+		int value = 0;
 
 		EntityContainer() = default;
 		EntityContainer(uint32_t index, uint32_t generation): cnt::ilist_item(index, generation) {}
