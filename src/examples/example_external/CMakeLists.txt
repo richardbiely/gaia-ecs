@@ -13,7 +13,7 @@ add_executable(${PROJ_NAME} src/main.cpp)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-target_link_libraries(${PROJ_NAME} gaia::gaia)
+target_link_libraries(${PROJ_NAME} PRIVATE gaia::gaia)
 target_link_libraries(${PROJ_NAME} PRIVATE Threads::Threads)
 
 set(PROJ_TARGET "run")
