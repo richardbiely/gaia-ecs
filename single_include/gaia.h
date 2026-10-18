@@ -31030,9 +31030,12 @@ namespace gaia {
 #elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
 				auto nativeHandle = m_workers[workerIdx - 1];
 
-				char threadName[16]{};
-				GAIA_STRFMT(threadName, 16, "worker_%s_%u", workerKind, workerIdx);
+				// Linux limits thread names to 15 characters plus the terminator. Format the full name
+				// and cut it explicitly, so the limit is not left to a silently truncating snprintf.
+				char threadName[32]{};
+				GAIA_STRFMT(threadName, 32, "worker_%s_%u", workerKind, workerIdx);
 				GAIA_PROF_THREAD_NAME(threadName);
+				threadName[15] = 0;
 				auto ret = pthread_setname_np(nativeHandle, threadName);
 				if (ret != 0)
 					GAIA_LOG_W("Issue setting name for worker %s thread %u!", workerKind, workerIdx);
