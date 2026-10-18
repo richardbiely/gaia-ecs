@@ -49403,6 +49403,8 @@ namespace gaia {
 						else
 							match_archetype_or<Style>(ctx);
 					}
+					// idsToMatchData lived inside the loop. Do not leave the context pointing at it.
+					ctx.idsToMatch = {};
 
 					return true;
 				}
