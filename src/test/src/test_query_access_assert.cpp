@@ -13,8 +13,11 @@ static bool assertionExpected = false;
 }
 	#define GAIA_ASSERT(condition)                                                                                       \
 		{                                                                                                                  \
+			GAIA_MSVC_WARNING_PUSH()                                                                                         \
+			GAIA_MSVC_WARNING_DISABLE(4127)                                                                                  \
 			if (!(condition))                                                                                                \
 				query_access_assert(#condition);                                                                               \
+			GAIA_MSVC_WARNING_POP()                                                                                          \
 		}
 	#define GAIA_ASSERT2(condition, message) GAIA_ASSERT(condition)
 #endif
