@@ -194,7 +194,12 @@ else()
       enable_cxx_compiler_flag_if_supported("-Wconversion")
     endif()
     enable_cxx_compiler_flag_if_supported("-Wsign-conversion")
-    enable_cxx_compiler_flag_if_supported("-Wnull-dereference")
+    # GCC -Wnull-dereference runs after inlining and flags every reference returned
+    # from a lookup whose non-null contract is only checked by GAIA_ASSERT, which
+    # optimized builds compile out. Clang checks this in the front end and stays clean.
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+      enable_cxx_compiler_flag_if_supported("-Wnull-dereference")
+    endif()
     enable_cxx_compiler_flag_if_supported("-Wdouble-promotion")
     enable_cxx_compiler_flag_if_supported("-Wformat=2")
     enable_cxx_compiler_flag_if_supported("-Wimplicit-fallthrough")
