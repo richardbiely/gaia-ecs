@@ -17974,7 +17974,7 @@ namespace robin_hood {
 				}
 			}
 
-			GAIA_NOINLINE void throwOverflowError() const {
+			[[noreturn]] GAIA_NOINLINE void throwOverflowError() const {
 	#if ROBIN_HOOD(HAS_EXCEPTIONS)
 				throw std::overflow_error("robin_hood::map overflow");
 	#else
@@ -18062,7 +18062,6 @@ namespace robin_hood {
 				}
 
 				throwOverflowError();
-				return {};
 			}
 
 			template <typename OtherKey, typename Mapped>
