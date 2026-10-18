@@ -86303,8 +86303,9 @@ namespace gaia {
 				ser::json_str path(parent);
 				path.append('[');
 				char idx[16]{};
-				const auto len = (uint32_t)snprintf(idx, sizeof(idx), "%u", index);
-				path.append(idx, len);
+				const int len = snprintf(idx, sizeof(idx), "%u", index);
+				if (len > 0)
+					path.append(idx, (uint32_t)len);
 				path.append(']');
 				return path;
 			}
