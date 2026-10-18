@@ -584,6 +584,12 @@ namespace gaia {
 
 	} // namespace cnt
 
+	namespace core {
+		//! sarr_ext never holds more than N items.
+		template <typename T, cnt::sarr_ext_detail::size_type N>
+		struct fixed_capacity<cnt::sarr_ext<T, N>>: std::integral_constant<uint32_t, (uint32_t)N> {};
+	} // namespace core
+
 } // namespace gaia
 
 //! \cond INTERNAL

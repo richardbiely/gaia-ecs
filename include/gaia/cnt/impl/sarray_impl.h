@@ -336,6 +336,12 @@ namespace gaia {
 		sarr(T, U...) -> sarr<T, 1 + (uint32_t)sizeof...(U)>;
 
 	} // namespace cnt
+
+	namespace core {
+		//! sarr always holds exactly N items.
+		template <typename T, cnt::sarr_detail::size_type N>
+		struct fixed_capacity<cnt::sarr<T, N>>: std::integral_constant<uint32_t, (uint32_t)N> {};
+	} // namespace core
 } // namespace gaia
 
 //! \cond INTERNAL

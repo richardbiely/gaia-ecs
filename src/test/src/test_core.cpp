@@ -3670,7 +3670,7 @@ void sort_descending(C&& arr) {
 	{
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
 			arr[i] = i;
-		core::sort(arr.begin(), arr.end(), core::is_greater<TValue>(), [&](uint32_t a, uint32_t b) {
+		core::sort<C::extent>(arr.begin(), arr.end(), core::is_greater<TValue>(), [&](uint32_t a, uint32_t b) {
 			core::swap(arr[a], arr[b]);
 		});
 		for (uint32_t i = 1; i < arr.size(); ++i)
@@ -3715,7 +3715,7 @@ void sort_ascending(C&& arr) {
 	{
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
 			arr[i] = i;
-		core::sort(arr.begin(), arr.end(), core::is_smaller<TValue>(), [&](uint32_t a, uint32_t b) {
+		core::sort<C::extent>(arr.begin(), arr.end(), core::is_smaller<TValue>(), [&](uint32_t a, uint32_t b) {
 			core::swap(arr[a], arr[b]);
 		});
 		for (uint32_t i = 1; i < arr.size(); ++i)
