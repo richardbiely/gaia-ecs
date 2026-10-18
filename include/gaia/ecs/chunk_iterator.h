@@ -1168,11 +1168,14 @@ namespace gaia {
 					m_pQueryAccess = pQueryAccess;
 				}
 
-				//! Rejects payload access through an explicitly presence-only query field.
+				//! Rejects out-of-range query field indices and payload access through an explicitly presence-only query field.
 				//! \param termIdx Authored query field index.
 				//! \param fallbackId Typed payload id used by unmapped inherited accessors.
 				void assert_term_access(uint32_t termIdx, Entity fallbackId = EntityBad) const {
-					if (m_pQueryAccess == nullptr || !m_pQueryAccess->has_match_terms())
+					if (m_pQueryAccess == nullptr)
+						return;
+					GAIA_ASSERT(termIdx < m_pQueryAccess->idsCnt && "Query field index out of range");
+					if (!m_pQueryAccess->has_match_terms())
 						return;
 
 					GAIA_FOR(m_pQueryAccess->idsCnt) {

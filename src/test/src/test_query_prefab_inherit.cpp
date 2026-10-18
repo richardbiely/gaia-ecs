@@ -446,7 +446,7 @@ TEST_CASE("Prefab - inherited Iter query writes local overrides") {
 	float xRead = 0.0f;
 	uint32_t rowsRead = 0;
 	qRead.each([&](ecs::Iter& it) {
-		auto posView = it.view_any<Position>(1);
+		auto posView = it.view_any<Position>(0);
 		GAIA_EACH(it) {
 			xRead += posView[i].x;
 			++rowsRead;
@@ -457,7 +457,7 @@ TEST_CASE("Prefab - inherited Iter query writes local overrides") {
 
 	auto qWrite = wld.query().all<Position&>();
 	qWrite.each([&](ecs::Iter& it) {
-		auto posView = it.view_any_mut<Position>(1);
+		auto posView = it.view_any_mut<Position>(0);
 		GAIA_EACH(it) {
 			posView[i].x += 4.0f;
 		}
@@ -490,7 +490,7 @@ TEST_CASE("Prefab - inherited Iter query swaps inherited payload across archetyp
 	cnt::darray<int32_t> firstXs;
 	auto q = wld.query().all<Position>();
 	q.each([&](ecs::Iter& it) {
-		auto posView = it.view_any<Position>(1);
+		auto posView = it.view_any<Position>(0);
 		CHECK(posView.data() == nullptr);
 		CHECK(it.size() == 1);
 		++batchCnt;
@@ -526,7 +526,7 @@ TEST_CASE("Prefab - inherited Iter SoA query writes local overrides") {
 	float xRead = 0.0f;
 	float yRead = 0.0f;
 	qRead.each([&](ecs::Iter& it) {
-		auto posView = it.view_any<PositionSoA>(1);
+		auto posView = it.view_any<PositionSoA>(0);
 		auto xs = posView.template get<0>();
 		auto ys = posView.template get<1>();
 		GAIA_EACH(it) {
@@ -539,7 +539,7 @@ TEST_CASE("Prefab - inherited Iter SoA query writes local overrides") {
 
 	auto qWrite = wld.query().all<PositionSoA&>();
 	qWrite.each([&](ecs::Iter& it) {
-		auto posView = it.view_any_mut<PositionSoA>(1);
+		auto posView = it.view_any_mut<PositionSoA>(0);
 		auto xs = posView.template set<0>();
 		auto ys = posView.template set<1>();
 		GAIA_EACH(it) {
