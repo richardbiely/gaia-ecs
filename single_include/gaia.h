@@ -29432,9 +29432,14 @@ namespace gaia {
 			//! Marks a job as executing on the worker identified by \a workerIdx.
 			//! \param jobData Job to transition.
 			//! \param workerIdx Worker executing the job.
+			//! \note The store is sequentially consistent on purpose. ThreadPool::run() reads
+			//!       ThreadPool::m_blockedInWorkUntil right after this call while ThreadPool::wait()
+			//!       sets its bit there and then re-reads the job state. Both sides must not observe
+			//!       the old value or the waiter sleeps on the futex forever. A release store allows
+			//!       StoreLoad reordering on x86 (it does not on ARM64, where stlr/ldar are ordered).
 			static void executing(JobContainer& jobData, uint32_t workerIdx) {
 				GAIA_ASSERT(processing(const_cast<const JobContainer&>(jobData)));
-				jobData.state.store(JobState::Executing | workerIdx, std::memory_order_release);
+				jobData.state.store(JobState::Executing | workerIdx, std::memory_order_seq_cst);
 #if GAIA_LOG_JOB_STATES
 				GAIA_LOG_N("JobHandle %u.%u - EXECUTING", jobData.idx, jobData.gen);
 #endif
