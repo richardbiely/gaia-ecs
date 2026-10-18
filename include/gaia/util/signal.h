@@ -66,6 +66,9 @@ namespace gaia {
 		template <typename Ret, typename... Args>
 		class delegate<Ret(Args...)> {
 			using func_type = Ret(const void*, Args...);
+			//! Declared type of the I-th delegate argument, used to forward tuple elements with their original category.
+			template <std::size_t I>
+			using arg_t = std::tuple_element_t<I, std::tuple<Args...>>;
 
 			func_type* m_fnc = nullptr;
 			const void* m_ctx = nullptr;
@@ -217,7 +220,7 @@ namespace gaia {
 			GAIA_NODISCARD auto wrap(std::index_sequence<Index...>) noexcept {
 				return [](const void*, Args... args) {
 					[[maybe_unused]] const auto argsFwd = std::forward_as_tuple(GAIA_FWD(args)...);
-					return Ret(invoke(FuncToBind, GAIA_FWD(std::get<Index>(argsFwd))...));
+					return Ret(invoke(FuncToBind, GAIA_FWD_AS(arg_t<Index>, std::get<Index>(argsFwd))...));
 				};
 			}
 
@@ -227,7 +230,7 @@ namespace gaia {
 				return [](const void* ctx, Args... args) {
 					[[maybe_unused]] const auto argsFwd = std::forward_as_tuple(GAIA_FWD(args)...);
 					auto pType = static_cast<Type*>(const_cast<const_or_not_type>(ctx));
-					return Ret(invoke(FuncToBind, *pType, GAIA_FWD(std::get<Index>(argsFwd))...));
+					return Ret(invoke(FuncToBind, *pType, GAIA_FWD_AS(arg_t<Index>, std::get<Index>(argsFwd))...));
 				};
 			}
 
@@ -237,7 +240,7 @@ namespace gaia {
 				return [](const void* ctx, Args... args) {
 					[[maybe_unused]] const auto argsFwd = std::forward_as_tuple(GAIA_FWD(args)...);
 					auto pType = static_cast<Type*>(const_cast<const_or_not_type>(ctx));
-					return Ret(invoke(FuncToBind, pType, GAIA_FWD(std::get<Index>(argsFwd))...));
+					return Ret(invoke(FuncToBind, pType, GAIA_FWD_AS(arg_t<Index>, std::get<Index>(argsFwd))...));
 				};
 			}
 		};

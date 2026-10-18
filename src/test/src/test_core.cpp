@@ -1406,6 +1406,27 @@ TEST_CASE("Delegates") {
 	}
 }
 
+void take_copy_counted(CopyCounted) {}
+
+struct CopyCountedSink {
+	void take(CopyCounted) {}
+};
+
+TEST_CASE("Delegates - by-value arguments are moved to callables taking fewer parameters") {
+	// Binding a callable with fewer parameters than the delegate goes through the tuple-forwarding path.
+	util::delegate<void(CopyCounted, uint32_t)> d;
+	d.bind<take_copy_counted>();
+	CopyCounted::copies = 0;
+	d(CopyCounted{}, 1U);
+	CHECK(CopyCounted::copies == 0);
+
+	CopyCountedSink sink;
+	d.bind<&CopyCountedSink::take>(sink);
+	CopyCounted::copies = 0;
+	d(CopyCounted{}, 1U);
+	CHECK(CopyCounted::copies == 0);
+}
+
 TEST_CASE("Signals") {
 	TestWorld twld;
 	auto e1 = wld.add();
