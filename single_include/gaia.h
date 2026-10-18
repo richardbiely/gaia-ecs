@@ -91729,12 +91729,17 @@ namespace gaia {
 
 					GAIA_PROF_SCOPE(cmdbuf::commit);
 
-					if constexpr (!Optimize) {
+					if constexpr (!Optimize)
 						replay_plain();
-						clear();
-						return;
-					}
+					else
+						commit_optimized();
+					clear();
+				}
 
+			private:
+				//! Replays queued operations with entity allocation first, merged component operations next and
+				//! entity deletions last. See commit() for the merging rules.
+				void commit_optimized() {
 					// Build flags + allocate entities
 					if (m_nextTemp > 0) {
 						GAIA_PROF_SCOPE(cmdbuf::alloc);
@@ -91948,8 +91953,6 @@ namespace gaia {
 						if (m_world.valid(entity))
 							m_world.del(entity);
 					}
-
-					clear();
 				}
 			};
 		} // namespace detail
