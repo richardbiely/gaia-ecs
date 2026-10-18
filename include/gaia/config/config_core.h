@@ -225,7 +225,15 @@ namespace gaia {
 //! Replacement for std::forward.
 //! Rather than an intrinsic, older compilers would treat it an an ordinary function.
 //! As a result, compilation times were longer and performance slower in non-optimized builds.
+//! \warning Only valid when \a x names a forwarding-reference or by-value parameter. The type is taken from
+//!          decltype(x), which for any other expression (e.g. std::get<I>(tuple)) is the expression's own
+//!          reference type, so rvalues come out as lvalues and get copied. Use GAIA_FWD_AS there.
 #define GAIA_FWD(x) static_cast<decltype(x)&&>(x)
+//! Replacement for std::forward<T>(x) with the type given explicitly.
+//! Use it to forward expressions that are not parameter names, e.g. elements of a forwarding tuple,
+//! where only \a T still says whether the original argument was an rvalue.
+//! \note \a T must not contain unparenthesized commas. Wrap such types in an alias first.
+#define GAIA_FWD_AS(T, x) static_cast<T&&>(x)
 	//! Wrapper around std::launder.
 #define GAIA_ACC(x) std::launder(x)
 
