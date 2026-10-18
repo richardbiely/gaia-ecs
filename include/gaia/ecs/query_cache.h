@@ -906,8 +906,10 @@ namespace gaia {
 			//! \return True on first visit in the current pass.
 			GAIA_NODISCARD bool mark_create_query_handle(QueryHandle handle) {
 				const auto handleId = (uint32_t)handle.id();
+				// darray::resize() leaves trivial types uninitialized. Zero-fill new slots explicitly,
+				// otherwise recycled heap memory may already hold the current stamp and the query gets skipped.
 				if (handleId >= m_createQueryHandleStampById.size())
-					m_createQueryHandleStampById.resize(handleId + 1);
+					m_createQueryHandleStampById.resize(handleId + 1, 0U);
 
 				auto& stamp = m_createQueryHandleStampById[handleId];
 				if (stamp == m_createQueryHandleStamp)
