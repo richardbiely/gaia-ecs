@@ -385,13 +385,18 @@ namespace gaia {
 			}
 
 			//! Appends \a size characters from \a data.
+			//! Appends that would push the length past 32 bits are rejected.
 			//! \param data Source pointer.
 			//! \param size Number of characters to append.
 			void append(const char* data, uint32_t size) {
 				const auto oldSize = this->size();
+				// The length is 32-bit. A wrapping sum would shrink the buffer right before the copy.
+				GAIA_ASSERT(size <= (uint32_t)-1 - oldSize);
+				if (size == 0 || size > (uint32_t)-1 - oldSize)
+					return;
+
 				m_data.resize(oldSize + size);
-				if (size > 0)
-					memcpy(m_data.data() + oldSize, data, size);
+				memcpy(m_data.data() + oldSize, data, size);
 			}
 
 			//! Appends \a view contents.
