@@ -2,7 +2,7 @@
 #include "registry.h"
 
 void BM_ComponentAdd_Velocity(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 	cnt::darray<ecs::Entity> entities;
 
 	for (auto _: state) {
@@ -29,7 +29,7 @@ void BM_ComponentAdd_Velocity(picobench::state& state) {
 }
 
 void BM_ComponentRemove_Velocity(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 	cnt::darray<ecs::Entity> entities;
 
 	for (auto _: state) {
@@ -47,7 +47,7 @@ void BM_ComponentRemove_Velocity(picobench::state& state) {
 }
 
 void BM_ComponentToggle_Frozen(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 	cnt::darray<ecs::Entity> entities;
 	ecs::World w;
 	create_linear_entities<true, true, false, false, false>(w, entities, n);
@@ -69,7 +69,7 @@ void BM_ComponentToggle_Frozen(picobench::state& state) {
 //! Benchmarks repeated creation, emptying, and GC of chunk-heavy archetypes.
 //! This exercises World's deferred chunk-delete queue maintenance.
 void BM_World_ChunkDeleteQueue_GC(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 
 	struct ChunkQueueBenchTag {};
 
@@ -96,7 +96,7 @@ void BM_World_ChunkDeleteQueue_GC(picobench::state& state) {
 }
 
 void BM_World_As(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 	cnt::darray<ecs::Entity> entities;
 
 	for (auto _: state) {
@@ -122,7 +122,7 @@ void BM_World_As(picobench::state& state) {
 }
 
 void BM_World_Is(picobench::state& state) {
-	const uint32_t n = (uint32_t)state.input_data();
+	const uint32_t n = bench_entities(state);
 	ecs::World w;
 	const auto root = w.add();
 	cnt::darray<ecs::Entity> entities;
