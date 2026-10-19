@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <limits>
+#include <thread>
 
 //------------------------------------------------------------------------------
 // Multithreading
@@ -2358,6 +2359,70 @@ TEST_CASE("Multithreading - Update auto-delete with workers") {
 	tp.wait(syncHandle);
 	tp.del(syncHandle);
 	CHECK(executed.load(std::memory_order_relaxed) == Jobs);
+}
+
+namespace {
+	//! State shared with the ThreadPool test hook used by the job completion ordering test.
+	struct FinalizeStall {
+		inline static mt::JobHandle sync = mt::JobNull;
+		inline static std::thread::id mainThread{};
+		inline static std::atomic_bool claimed{false};
+		inline static std::atomic_bool waitReturned{false};
+		inline static std::atomic_bool sawEarlyReturn{false};
+		inline static std::atomic_bool done{false};
+
+		//! Stalls the first child finishing on a worker thread right before it publishes Done,
+		//! then records whether the main thread already returned from waiting on the sync job.
+		static void hook(mt::JobHandle jobHandle) {
+			if (jobHandle == sync || std::this_thread::get_id() == mainThread)
+				return;
+			if (claimed.exchange(true))
+				return;
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			sawEarlyReturn = waitReturned.load();
+			done = true;
+		}
+	};
+} // namespace
+
+TEST_CASE("Multithreading - A job is done before its dependents can complete") {
+	// Mirrors a parallel ECS system: children feed one sync job, and the caller deletes every child as soon
+	// as the sync job is done. A child used to signal the sync job before publishing its own Done state, so
+	// the sync job could complete while a child was still finishing. The caller then deleted a running job.
+	auto& tp = mt::ThreadPool::get();
+	const auto threads = tp.hw_thread_cnt();
+	tp.set_max_workers(threads, threads);
+
+	constexpr uint32_t Children = 16;
+	mt::JobHandle handles[Children + 1];
+	for (uint32_t i = 0; i < Children; ++i) {
+		mt::Job job;
+		job.flags = mt::JobCreationFlags::ManualDelete;
+		job.func = []() {};
+		handles[i] = tp.add(GAIA_MOV(job));
+	}
+	mt::Job sync;
+	sync.flags = mt::JobCreationFlags::ManualDelete;
+	handles[Children] = tp.add(GAIA_MOV(sync));
+	tp.dep(std::span(handles, Children), handles[Children]);
+
+	FinalizeStall::sync = handles[Children];
+	FinalizeStall::mainThread = std::this_thread::get_id();
+	mt::ThreadPool::s_testBeforeFinalize = &FinalizeStall::hook;
+
+	tp.submit(std::span(handles, Children + 1));
+	tp.wait(handles[Children]);
+	FinalizeStall::waitReturned = true;
+	while (FinalizeStall::claimed && !FinalizeStall::done)
+		std::this_thread::yield();
+
+	mt::ThreadPool::s_testBeforeFinalize = nullptr;
+	CHECK(FinalizeStall::claimed);
+	CHECK_FALSE(FinalizeStall::sawEarlyReturn);
+
+	for (auto handle: handles)
+		tp.del(handle);
 }
 
 TEST_CASE("Multithreading - Handle reuse mixed delete modes") {

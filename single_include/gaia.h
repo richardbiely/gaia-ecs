@@ -29983,6 +29983,23 @@ namespace gaia {
 			//! unrelated background jobs are running does not move existing job containers.
 			GAIA_PROF_MUTEX(SpinLock, m_jobAllocMtx);
 
+#if GAIA_ECS_TEST_HOOKS
+		public:
+			//! Test hook invoked right before a finished job publishes its Done state.
+			//! Lets tests stall a job inside that window to check what other threads may observe.
+			inline static void (*s_testBeforeFinalize)(JobHandle jobHandle) = nullptr;
+#endif
+
+		private:
+			//! Calls the test hook installed in s_testBeforeFinalize. Does nothing outside test builds.
+			//! \param jobHandle Job about to publish its Done state.
+			static void test_before_finalize([[maybe_unused]] JobHandle jobHandle) {
+#if GAIA_ECS_TEST_HOOKS
+				if (s_testBeforeFinalize != nullptr)
+					s_testBeforeFinalize(jobHandle);
+#endif
+			}
+
 		private:
 			ThreadPool() {
 				m_stop.store(false);
@@ -31371,37 +31388,28 @@ namespace gaia {
 				return (jobData.flags & JobCreationFlags::Background) != 0U;
 			}
 
-			uint32_t signal_edges(JobContainer& jobData, JobHandle* pReadyHandles) {
-				const auto max = jobData.edges.depCnt;
-
-				// Nothing to do if there are no dependencies
-				if (max == 0)
-					return 0;
-
-				// One dependency
-				if (max == 1) {
-					auto depHandle = jobData.edges.dep;
-#if GAIA_LOG_JOB_STATES
-					GAIA_LOG_N("SIGNAL %u.%u -> %u.%u", jobData.idx, jobData.gen, depHandle.id(), depHandle.gen());
-#endif
-
-					// See the conditions can't be satisfied for us to submit the job we skip
-					auto& depData = m_jobManager.data(depHandle);
-					if (!JobManager::signal_edge(depData))
-						return 0;
-
-					pReadyHandles[0] = depHandle;
-					return 1;
+			//! Copies the outgoing dependency edges of \a jobData into \a pEdges.
+			//! \param jobData Job whose edges to copy.
+			//! \param pEdges Output array with room for jobData.edges.depCnt handles.
+			static void copy_edges(const JobContainer& jobData, JobHandle* pEdges) {
+				const auto cnt = jobData.edges.depCnt;
+				if (cnt == 1) {
+					pEdges[0] = jobData.edges.dep;
+					return;
 				}
+				GAIA_FOR(cnt) pEdges[i] = jobData.edges.pDeps[i];
+			}
 
-				// Multiple dependencies. The array has to be set
-				GAIA_ASSERT(jobData.edges.pDeps != nullptr);
-
+			//! Signals every job in \a edges that one of its prerequisites completed.
+			//! \param edges Dependent jobs to signal.
+			//! \param pReadyHandles Output for the jobs that became ready. May alias edges.data().
+			//! \return Number of jobs written to \a pReadyHandles.
+			uint32_t signal_edges(std::span<const JobHandle> edges, JobHandle* pReadyHandles) {
 				uint32_t cnt = 0;
-				GAIA_FOR(max) {
-					auto depHandle = jobData.edges.pDeps[i];
-
-					// See if all conditions were satisfied for us to submit the job
+				for (const auto depHandle: edges) {
+#if GAIA_LOG_JOB_STATES
+					GAIA_LOG_N("SIGNAL -> %u.%u", depHandle.id(), depHandle.gen());
+#endif
 					auto& depData = m_jobManager.data(depHandle);
 					if (!JobManager::signal_edge(depData))
 						continue;
@@ -31516,17 +31524,25 @@ namespace gaia {
 				m_jobManager.run(jobData);
 
 				if (jobData.edges.depCnt == 0) {
+					test_before_finalize(jobHandle);
 					JobManager::finalize(jobData);
 				} else {
-					// Resolve outgoing edges before publishing completion so the job can be reused safely.
-					auto* pReadyHandles = (JobHandle*)alloca(sizeof(JobHandle) * jobData.edges.depCnt);
-					const auto readyHandlesCnt = signal_edges(jobData, pReadyHandles);
+					// Copy the outgoing edges first. Once Done is published, whoever owns this job may delete it,
+					// which frees the edge storage and recycles the slot.
+					const auto edgeCnt = jobData.edges.depCnt;
+					auto* pEdges = (JobHandle*)alloca(sizeof(JobHandle) * edgeCnt);
+					copy_edges(jobData, pEdges);
 					if (!manualDelete)
 						JobManager::free_edges(jobData);
+
+					// Publish completion before signaling dependents. A dependent made ready here can run and
+					// finish, and whoever waits for it may then delete this job (e.g. the children of a parallel
+					// job once its sync job is done). This job must already be Done by then.
+					test_before_finalize(jobHandle);
 					JobManager::finalize(jobData);
 
-					// Dependents can only start after the prerequisite has published its final state.
-					process(std::span(pReadyHandles, readyHandlesCnt), ctx);
+					const auto readyCnt = signal_edges(std::span<const JobHandle>(pEdges, edgeCnt), pEdges);
+					process(std::span(pEdges, readyCnt), ctx);
 				}
 
 				// Signal we finished
