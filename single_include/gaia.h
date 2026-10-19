@@ -39033,7 +39033,8 @@ namespace gaia {
 
 			//! Returns true if the provided version is newer than the one stored internally.
 			//! Use when checking if there was a movement in data in the world. E.g. if an entity
-			//! was added, removed or moved in its archetype.
+			//! was added, removed or moved in its archetype, or enabled or disabled.
+			//! Component writes do not affect it. Use changed(requiredVersion, compIdx) for those.
 			//! \param requiredVersion Version to compare against.
 			//! \return True when the stored chunk version is newer.
 			GAIA_NODISCARD bool changed(uint32_t requiredVersion) const {
@@ -39064,8 +39065,9 @@ namespace gaia {
 			//! Update the version of a component at the index \param compIdx
 			GAIA_FORCEINLINE void update_world_version(uint32_t compIdx) {
 				auto versions = comp_version_view_mut();
-				// Automatically treat the entity as changed.
-				versions[0] = m_header.worldVersion;
+				// Only the component's own slot is stamped. The chunk-wide slot at index 0 tracks structural
+				// changes. Parallel systems may write different components of one chunk at the same time,
+				// so a write must not touch state shared with other components.
 				// Do +1 because index 0 is reserved for the entity version number.
 				versions[compIdx + 1] = m_header.worldVersion;
 				// Sorted queries keyed by this component can invalidate their cached order immediately.
