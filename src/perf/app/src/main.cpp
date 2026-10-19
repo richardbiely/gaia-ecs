@@ -217,7 +217,7 @@ namespace sys {
 		world
 				.system() //
 				.name("DamageSystem")
-				.all<HealthComponent>()
+				.all<HealthComponent&>()
 				.all<DamageComponent>()
 				.on_each([](ecs::Iter& it) {
 					auto health = it.view_mut<HealthComponent>(0);
@@ -236,7 +236,7 @@ namespace sys {
 		world
 				.system() //
 				.name("DataSystem")
-				.all<DataComponent>()
+				.all<DataComponent&>()
 				.on_each([](ecs::Iter& it) {
 					auto data = it.view_mut<DataComponent>(0);
 					auto update = [](DataComponent& data) {
@@ -256,7 +256,7 @@ namespace sys {
 		world
 				.system() //
 				.name("HealthSystem")
-				.all<HealthComponent>()
+				.all<HealthComponent&>()
 				.on_each([](ecs::Iter& it) {
 					auto health = it.view_mut<HealthComponent>(0);
 					const auto cnt = it.size();
@@ -331,7 +331,7 @@ namespace sys {
 		world
 				.system() //
 				.name("MovementSystem")
-				.all<PositionComponent>()
+				.all<PositionComponent&>()
 				.all<VelocityComponent>()
 				.on_each([](ecs::Iter& it) {
 					auto position = it.view_mut<PositionComponent>(0);
@@ -350,7 +350,7 @@ namespace sys {
 		world
 				.system() //
 				.name("MovementSystemSoA")
-				.all<SoAPositionComponent>()
+				.all<SoAPositionComponent&>()
 				.all<SoAVelocityComponent>()
 				.on_each([](ecs::Iter& it) {
 					auto vp = it.view_mut<SoAPositionComponent>(0); // read-write access to PositionSoA
@@ -413,7 +413,7 @@ namespace sys {
 		world
 				.system() //
 				.name("SpriteSystem")
-				.all<SpriteComponent>()
+				.all<SpriteComponent&>()
 				.all<PlayerComponent>()
 				.all<HealthComponent>()
 				.on_each([](ecs::Iter& it) {
