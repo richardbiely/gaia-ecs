@@ -628,7 +628,7 @@ $(document).ready(function(){initNavTree('component__cache__item_8h_source.html'
 <div class="line"><a id="l00703" name="l00703"></a><span class="lineno">  703</span>        nameTmp[ct_name.size()] = 0;</div>
 <div class="line"><a id="l00704" name="l00704"></a><span class="lineno">  704</span> </div>
 <div class="line"><a id="l00705" name="l00705"></a><span class="lineno">  705</span>        <span class="keyword">auto</span> strip_prefix = [&amp;](<span class="keyword">const</span> <span class="keywordtype">char</span>* prefix, uint32_t prefixLen) {</div>
-<div class="line"><a id="l00706" name="l00706"></a><span class="lineno">  706</span>          <span class="keywordflow">if</span> (nameTmpLen &lt;= prefixLen || strncmp(nameTmp, prefix, prefixLen) != 0)</div>
+<div class="line"><a id="l00706" name="l00706"></a><span class="lineno">  706</span>          <span class="keywordflow">if</span> (nameTmpLen &lt;= prefixLen || memcmp(nameTmp, prefix, prefixLen) != 0)</div>
 <div class="line"><a id="l00707" name="l00707"></a><span class="lineno">  707</span>            <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l00708" name="l00708"></a><span class="lineno">  708</span> </div>
 <div class="line"><a id="l00709" name="l00709"></a><span class="lineno">  709</span>          memmove(nameTmp, nameTmp + prefixLen, nameTmpLen - prefixLen + 1);</div>

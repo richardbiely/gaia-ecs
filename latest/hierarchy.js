@@ -227,6 +227,11 @@ var hierarchy =
       ] ],
       [ "gaia::core::reverse_iterator_tag", "structgaia_1_1core_1_1reverse__iterator__tag.html", null ]
     ] ],
+    [ "std::integral_constant", null, [
+      [ "gaia::core::fixed_capacity< C >", "structgaia_1_1core_1_1fixed__capacity.html", null ],
+      [ "gaia::core::fixed_capacity< cnt::sarr< T, N > >", "structgaia_1_1core_1_1fixed__capacity_3_01cnt_1_1sarr_3_01T_00_01N_01_4_01_4.html", null ],
+      [ "gaia::core::fixed_capacity< cnt::sarr_ext< T, N > >", "structgaia_1_1core_1_1fixed__capacity_3_01cnt_1_1sarr__ext_3_01T_00_01N_01_4_01_4.html", null ]
+    ] ],
     [ "gaia::ecs::Component::InternalData", "structgaia_1_1ecs_1_1Component_1_1InternalData.html", null ],
     [ "gaia::ecs::Entity::InternalData", "structgaia_1_1ecs_1_1Entity_1_1InternalData.html", null ],
     [ "gaia::ecs::Is_", "structgaia_1_1ecs_1_1Is__.html", null ],

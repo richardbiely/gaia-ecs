@@ -147,7 +147,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>clear</b> ()</td></tr
 <tr class="memdesc:a513a49a9461ed6f33e7edab9f3c7cce9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Replaces contents with literal <em>lit</em>.  <br /></td></tr>
 <tr class="separator:a513a49a9461ed6f33e7edab9f3c7cce9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5466f59245d69ee7bbc1422577ce5e8e" id="r_a5466f59245d69ee7bbc1422577ce5e8e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1util_1_1str.html#a5466f59245d69ee7bbc1422577ce5e8e">append</a> (const char *<a class="el" href="structgaia_1_1util_1_1str.html#a85b8418ecd6d6147353347725d7c30a3">data</a>, uint32_t <a class="el" href="structgaia_1_1util_1_1str.html#a21c58260f322cf45966c72395f2f1b8e">size</a>)</td></tr>
-<tr class="memdesc:a5466f59245d69ee7bbc1422577ce5e8e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Appends <em>size</em> characters from <em>data</em>.  <br /></td></tr>
+<tr class="memdesc:a5466f59245d69ee7bbc1422577ce5e8e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Appends <em>size</em> characters from <em>data</em>. Appends that would push the length past 32 bits are rejected.  <br /></td></tr>
 <tr class="separator:a5466f59245d69ee7bbc1422577ce5e8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a118dcb0a48351ee380fe807f566e35d2" id="r_a118dcb0a48351ee380fe807f566e35d2"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1util_1_1str.html#a118dcb0a48351ee380fe807f566e35d2">append</a> (<a class="el" href="structgaia_1_1util_1_1str__view.html">str_view</a> <a class="el" href="structgaia_1_1util_1_1str.html#a76fc00e7a68ac94fbb337b92a000a895">view</a>)</td></tr>
 <tr class="memdesc:a118dcb0a48351ee380fe807f566e35d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Appends <em>view</em> contents.  <br /></td></tr>
@@ -396,7 +396,7 @@ template&lt;size_t N&gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Appends <em>size</em> characters from <em>data</em>. </p>
+<p>Appends <em>size</em> characters from <em>data</em>. Appends that would push the length past 32 bits are rejected. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">data</td><td>Source pointer. </td></tr>

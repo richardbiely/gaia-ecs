@@ -862,104 +862,106 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00903" name="l00903"></a><span class="lineno">  903</span> </div>
 <div class="line"><a id="l00907" name="l00907"></a><span class="lineno">  907</span>      GAIA_NODISCARD <span class="keywordtype">bool</span> mark_create_query_handle(QueryHandle handle) {</div>
 <div class="line"><a id="l00908" name="l00908"></a><span class="lineno">  908</span>        <span class="keyword">const</span> <span class="keyword">auto</span> handleId = (uint32_t)handle.id();</div>
-<div class="line"><a id="l00909" name="l00909"></a><span class="lineno">  909</span>        <span class="keywordflow">if</span> (handleId &gt;= m_createQueryHandleStampById.size())</div>
-<div class="line"><a id="l00910" name="l00910"></a><span class="lineno">  910</span>          m_createQueryHandleStampById.resize(handleId + 1);</div>
-<div class="line"><a id="l00911" name="l00911"></a><span class="lineno">  911</span> </div>
-<div class="line"><a id="l00912" name="l00912"></a><span class="lineno">  912</span>        <span class="keyword">auto</span>&amp; stamp = m_createQueryHandleStampById[handleId];</div>
-<div class="line"><a id="l00913" name="l00913"></a><span class="lineno">  913</span>        <span class="keywordflow">if</span> (stamp == m_createQueryHandleStamp)</div>
-<div class="line"><a id="l00914" name="l00914"></a><span class="lineno">  914</span>          <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
-<div class="line"><a id="l00915" name="l00915"></a><span class="lineno">  915</span> </div>
-<div class="line"><a id="l00916" name="l00916"></a><span class="lineno">  916</span>        stamp = m_createQueryHandleStamp;</div>
-<div class="line"><a id="l00917" name="l00917"></a><span class="lineno">  917</span>        <span class="keywordflow">return</span> <span class="keyword">true</span>;</div>
-<div class="line"><a id="l00918" name="l00918"></a><span class="lineno">  918</span>      }</div>
-<div class="line"><a id="l00919" name="l00919"></a><span class="lineno">  919</span> </div>
-<div class="line"><a id="l00923" name="l00923"></a><span class="lineno">  923</span>      <span class="keywordtype">void</span> add_archetype_query_pair(<span class="keyword">const</span> Archetype* pArchetype, QueryHandle handle) {</div>
-<div class="line"><a id="l00924" name="l00924"></a><span class="lineno">  924</span>        <span class="keyword">const</span> <span class="keyword">auto</span> archetypeKey = ArchetypeIdLookupKey(pArchetype-&gt;id(), pArchetype-&gt;id_hash());</div>
-<div class="line"><a id="l00925" name="l00925"></a><span class="lineno">  925</span>        <span class="keyword">const</span> <span class="keyword">auto</span> it = m_archetypeToQuery.find(archetypeKey);</div>
-<div class="line"><a id="l00926" name="l00926"></a><span class="lineno">  926</span>        <span class="keywordflow">if</span> (it == m_archetypeToQuery.end()) {</div>
-<div class="line"><a id="l00927" name="l00927"></a><span class="lineno">  927</span>          m_archetypeToQuery.try_emplace(archetypeKey, cnt::darray&lt;QueryHandle&gt;{handle});</div>
-<div class="line"><a id="l00928" name="l00928"></a><span class="lineno">  928</span>          <span class="keywordflow">return</span>;</div>
-<div class="line"><a id="l00929" name="l00929"></a><span class="lineno">  929</span>        }</div>
-<div class="line"><a id="l00930" name="l00930"></a><span class="lineno">  930</span> </div>
-<div class="line"><a id="l00931" name="l00931"></a><span class="lineno">  931</span>        <span class="keyword">auto</span>&amp; handles = it-&gt;second;</div>
-<div class="line"><a id="l00932" name="l00932"></a><span class="lineno">  932</span>        <span class="comment">// Callers only register a &lt;query, archetype&gt; edge after they proved that edge is new.</span></div>
-<div class="line"><a id="l00933" name="l00933"></a><span class="lineno">  933</span>        GAIA_ASSERT(!core::has(handles, handle));</div>
-<div class="line"><a id="l00934" name="l00934"></a><span class="lineno">  934</span>        handles.push_back(handle);</div>
-<div class="line"><a id="l00935" name="l00935"></a><span class="lineno">  935</span>      }</div>
-<div class="line"><a id="l00936" name="l00936"></a><span class="lineno">  936</span> </div>
-<div class="line"><a id="l00940" name="l00940"></a><span class="lineno">  940</span>      <span class="keywordtype">void</span> del_archetype_query_pair(<span class="keyword">const</span> Archetype* pArchetype, QueryHandle handle) {</div>
-<div class="line"><a id="l00941" name="l00941"></a><span class="lineno">  941</span>        <span class="keyword">auto</span> it = m_archetypeToQuery.find(ArchetypeIdLookupKey(pArchetype-&gt;id(), pArchetype-&gt;id_hash()));</div>
-<div class="line"><a id="l00942" name="l00942"></a><span class="lineno">  942</span>        <span class="keywordflow">if</span> (it == m_archetypeToQuery.end())</div>
-<div class="line"><a id="l00943" name="l00943"></a><span class="lineno">  943</span>          <span class="keywordflow">return</span>;</div>
-<div class="line"><a id="l00944" name="l00944"></a><span class="lineno">  944</span> </div>
-<div class="line"><a id="l00945" name="l00945"></a><span class="lineno">  945</span>        <span class="keyword">auto</span>&amp; handles = it-&gt;second;</div>
-<div class="line"><a id="l00946" name="l00946"></a><span class="lineno">  946</span>        <span class="keyword">const</span> <span class="keyword">auto</span> idx = core::get_index(handles, handle);</div>
-<div class="line"><a id="l00947" name="l00947"></a><span class="lineno">  947</span>        GAIA_ASSERT(idx != BadIndex);</div>
-<div class="line"><a id="l00948" name="l00948"></a><span class="lineno">  948</span>        core::swap_erase(handles, idx);</div>
-<div class="line"><a id="l00949" name="l00949"></a><span class="lineno">  949</span>        <span class="keywordflow">if</span> (handles.empty())</div>
-<div class="line"><a id="l00950" name="l00950"></a><span class="lineno">  950</span>          m_archetypeToQuery.erase(it);</div>
-<div class="line"><a id="l00951" name="l00951"></a><span class="lineno">  951</span>      }</div>
-<div class="line"><a id="l00952" name="l00952"></a><span class="lineno">  952</span> </div>
-<div class="line"><a id="l00955" name="l00955"></a><span class="lineno">  955</span>      <span class="keywordtype">void</span> unregister_query_archetypes(QueryHandle handle) {</div>
-<div class="line"><a id="l00956" name="l00956"></a><span class="lineno">  956</span>        <span class="keyword">auto</span> it = m_queryToArchetype.find(QueryHandleLookupKey(handle));</div>
-<div class="line"><a id="l00957" name="l00957"></a><span class="lineno">  957</span>        <span class="keywordflow">if</span> (it == m_queryToArchetype.end())</div>
-<div class="line"><a id="l00958" name="l00958"></a><span class="lineno">  958</span>          <span class="keywordflow">return</span>;</div>
-<div class="line"><a id="l00959" name="l00959"></a><span class="lineno">  959</span> </div>
-<div class="line"><a id="l00960" name="l00960"></a><span class="lineno">  960</span>        <span class="keyword">const</span> <span class="keyword">auto</span>&amp; tracked = it-&gt;second.archetypes;</div>
-<div class="line"><a id="l00961" name="l00961"></a><span class="lineno">  961</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>* pArchetype: tracked)</div>
-<div class="line"><a id="l00962" name="l00962"></a><span class="lineno">  962</span>          del_archetype_query_pair(pArchetype, handle);</div>
-<div class="line"><a id="l00963" name="l00963"></a><span class="lineno">  963</span> </div>
-<div class="line"><a id="l00964" name="l00964"></a><span class="lineno">  964</span>        m_queryToArchetype.erase(it);</div>
-<div class="line"><a id="l00965" name="l00965"></a><span class="lineno">  965</span>      }</div>
-<div class="line"><a id="l00966" name="l00966"></a><span class="lineno">  966</span> </div>
-<div class="line"><a id="l00971" name="l00971"></a><span class="lineno">  971</span>      <span class="keywordtype">void</span> register_query_archetype(QueryHandle handle, <span class="keyword">const</span> Archetype* pArchetype, uint32_t syncedRevision) {</div>
-<div class="line"><a id="l00972" name="l00972"></a><span class="lineno">  972</span>        <span class="keyword">auto</span> [trackedIt, inserted] = m_queryToArchetype.try_emplace(QueryHandleLookupKey(handle));</div>
-<div class="line"><a id="l00973" name="l00973"></a><span class="lineno">  973</span>        <span class="keyword">auto</span>&amp; tracked = trackedIt-&gt;second.archetypes;</div>
-<div class="line"><a id="l00974" name="l00974"></a><span class="lineno">  974</span> </div>
-<div class="line"><a id="l00975" name="l00975"></a><span class="lineno">  975</span>        <span class="comment">// Newly-created archetypes and sync_archetype_cache() both route through a deduplicated edge set,</span></div>
-<div class="line"><a id="l00976" name="l00976"></a><span class="lineno">  976</span>        <span class="comment">// so reverse-index registration can append directly instead of re-scanning tracked archetypes.</span></div>
-<div class="line"><a id="l00977" name="l00977"></a><span class="lineno">  977</span>        GAIA_ASSERT(inserted || !core::has(tracked, pArchetype));</div>
-<div class="line"><a id="l00978" name="l00978"></a><span class="lineno">  978</span>        tracked.push_back(pArchetype);</div>
-<div class="line"><a id="l00979" name="l00979"></a><span class="lineno">  979</span>        trackedIt-&gt;second.syncedRevision = syncedRevision;</div>
-<div class="line"><a id="l00980" name="l00980"></a><span class="lineno">  980</span>        add_archetype_query_pair(pArchetype, handle);</div>
-<div class="line"><a id="l00981" name="l00981"></a><span class="lineno">  981</span>      }</div>
-<div class="line"><a id="l00982" name="l00982"></a><span class="lineno">  982</span> </div>
-<div class="line"><a id="l00986" name="l00986"></a><span class="lineno">  986</span>      <span class="keywordtype">void</span> add_rel_query_pair(Entity relation, QueryHandle handle) {</div>
-<div class="line"><a id="l00987" name="l00987"></a><span class="lineno">  987</span>        <span class="keyword">const</span> <span class="keyword">auto</span> key = EntityLookupKey(relation);</div>
-<div class="line"><a id="l00988" name="l00988"></a><span class="lineno">  988</span>        <span class="keyword">const</span> <span class="keyword">auto</span> it = m_relationToQuery.find(key);</div>
-<div class="line"><a id="l00989" name="l00989"></a><span class="lineno">  989</span>        <span class="keywordflow">if</span> (it == m_relationToQuery.end()) {</div>
-<div class="line"><a id="l00990" name="l00990"></a><span class="lineno">  990</span>          m_relationToQuery.try_emplace(key, cnt::darray&lt;QueryHandle&gt;{handle});</div>
-<div class="line"><a id="l00991" name="l00991"></a><span class="lineno">  991</span>          <span class="keywordflow">return</span>;</div>
-<div class="line"><a id="l00992" name="l00992"></a><span class="lineno">  992</span>        }</div>
-<div class="line"><a id="l00993" name="l00993"></a><span class="lineno">  993</span> </div>
-<div class="line"><a id="l00994" name="l00994"></a><span class="lineno">  994</span>        <span class="keyword">auto</span>&amp; handles = it-&gt;second;</div>
-<div class="line"><a id="l00995" name="l00995"></a><span class="lineno">  995</span>        <span class="keywordflow">if</span> (!core::has(handles, handle))</div>
-<div class="line"><a id="l00996" name="l00996"></a><span class="lineno">  996</span>          handles.push_back(handle);</div>
-<div class="line"><a id="l00997" name="l00997"></a><span class="lineno">  997</span>      }</div>
-<div class="line"><a id="l00998" name="l00998"></a><span class="lineno">  998</span> </div>
-<div class="line"><a id="l01002" name="l01002"></a><span class="lineno"> 1002</span>      <span class="keywordtype">void</span> del_rel_query_pair(Entity relation, QueryHandle handle) {</div>
-<div class="line"><a id="l01003" name="l01003"></a><span class="lineno"> 1003</span>        <span class="keyword">auto</span> it = m_relationToQuery.find(EntityLookupKey(relation));</div>
-<div class="line"><a id="l01004" name="l01004"></a><span class="lineno"> 1004</span>        <span class="keywordflow">if</span> (it == m_relationToQuery.end())</div>
-<div class="line"><a id="l01005" name="l01005"></a><span class="lineno"> 1005</span>          <span class="keywordflow">return</span>;</div>
-<div class="line"><a id="l01006" name="l01006"></a><span class="lineno"> 1006</span> </div>
-<div class="line"><a id="l01007" name="l01007"></a><span class="lineno"> 1007</span>        <span class="keyword">auto</span>&amp; handles = it-&gt;second;</div>
-<div class="line"><a id="l01008" name="l01008"></a><span class="lineno"> 1008</span>        core::swap_erase(handles, core::get_index(handles, handle));</div>
-<div class="line"><a id="l01009" name="l01009"></a><span class="lineno"> 1009</span>        <span class="keywordflow">if</span> (handles.empty())</div>
-<div class="line"><a id="l01010" name="l01010"></a><span class="lineno"> 1010</span>          m_relationToQuery.erase(it);</div>
-<div class="line"><a id="l01011" name="l01011"></a><span class="lineno"> 1011</span>      }</div>
-<div class="line"><a id="l01012" name="l01012"></a><span class="lineno"> 1012</span> </div>
-<div class="line"><a id="l01016" name="l01016"></a><span class="lineno"> 1016</span>      <span class="keywordtype">void</span> add_rel_to_query_pairs(<span class="keyword">const</span> QueryCtx&amp; ctx, QueryHandle handle) {</div>
-<div class="line"><a id="l01017" name="l01017"></a><span class="lineno"> 1017</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span> relation: ctx.data.deps.relations_view())</div>
-<div class="line"><a id="l01018" name="l01018"></a><span class="lineno"> 1018</span>          add_rel_query_pair(relation, handle);</div>
-<div class="line"><a id="l01019" name="l01019"></a><span class="lineno"> 1019</span>      }</div>
-<div class="line"><a id="l01020" name="l01020"></a><span class="lineno"> 1020</span> </div>
-<div class="line"><a id="l01024" name="l01024"></a><span class="lineno"> 1024</span>      <span class="keywordtype">void</span> del_rel_to_query_pairs(<span class="keyword">const</span> QueryCtx&amp; ctx, QueryHandle handle) {</div>
-<div class="line"><a id="l01025" name="l01025"></a><span class="lineno"> 1025</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span> relation: ctx.data.deps.relations_view())</div>
-<div class="line"><a id="l01026" name="l01026"></a><span class="lineno"> 1026</span>          del_rel_query_pair(relation, handle);</div>
-<div class="line"><a id="l01027" name="l01027"></a><span class="lineno"> 1027</span>      }</div>
-<div class="line"><a id="l01028" name="l01028"></a><span class="lineno"> 1028</span>    };</div>
-<div class="line"><a id="l01029" name="l01029"></a><span class="lineno"> 1029</span>  } <span class="comment">// namespace ecs</span></div>
-<div class="line"><a id="l01030" name="l01030"></a><span class="lineno"> 1030</span>} <span class="comment">// namespace gaia</span></div>
+<div class="line"><a id="l00909" name="l00909"></a><span class="lineno">  909</span>        <span class="comment">// darray::resize() leaves trivial types uninitialized. Zero-fill new slots explicitly,</span></div>
+<div class="line"><a id="l00910" name="l00910"></a><span class="lineno">  910</span>        <span class="comment">// otherwise recycled heap memory may already hold the current stamp and the query gets skipped.</span></div>
+<div class="line"><a id="l00911" name="l00911"></a><span class="lineno">  911</span>        <span class="keywordflow">if</span> (handleId &gt;= m_createQueryHandleStampById.size())</div>
+<div class="line"><a id="l00912" name="l00912"></a><span class="lineno">  912</span>          m_createQueryHandleStampById.resize(handleId + 1, 0U);</div>
+<div class="line"><a id="l00913" name="l00913"></a><span class="lineno">  913</span> </div>
+<div class="line"><a id="l00914" name="l00914"></a><span class="lineno">  914</span>        <span class="keyword">auto</span>&amp; stamp = m_createQueryHandleStampById[handleId];</div>
+<div class="line"><a id="l00915" name="l00915"></a><span class="lineno">  915</span>        <span class="keywordflow">if</span> (stamp == m_createQueryHandleStamp)</div>
+<div class="line"><a id="l00916" name="l00916"></a><span class="lineno">  916</span>          <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00917" name="l00917"></a><span class="lineno">  917</span> </div>
+<div class="line"><a id="l00918" name="l00918"></a><span class="lineno">  918</span>        stamp = m_createQueryHandleStamp;</div>
+<div class="line"><a id="l00919" name="l00919"></a><span class="lineno">  919</span>        <span class="keywordflow">return</span> <span class="keyword">true</span>;</div>
+<div class="line"><a id="l00920" name="l00920"></a><span class="lineno">  920</span>      }</div>
+<div class="line"><a id="l00921" name="l00921"></a><span class="lineno">  921</span> </div>
+<div class="line"><a id="l00925" name="l00925"></a><span class="lineno">  925</span>      <span class="keywordtype">void</span> add_archetype_query_pair(<span class="keyword">const</span> Archetype* pArchetype, QueryHandle handle) {</div>
+<div class="line"><a id="l00926" name="l00926"></a><span class="lineno">  926</span>        <span class="keyword">const</span> <span class="keyword">auto</span> archetypeKey = ArchetypeIdLookupKey(pArchetype-&gt;id(), pArchetype-&gt;id_hash());</div>
+<div class="line"><a id="l00927" name="l00927"></a><span class="lineno">  927</span>        <span class="keyword">const</span> <span class="keyword">auto</span> it = m_archetypeToQuery.find(archetypeKey);</div>
+<div class="line"><a id="l00928" name="l00928"></a><span class="lineno">  928</span>        <span class="keywordflow">if</span> (it == m_archetypeToQuery.end()) {</div>
+<div class="line"><a id="l00929" name="l00929"></a><span class="lineno">  929</span>          m_archetypeToQuery.try_emplace(archetypeKey, cnt::darray&lt;QueryHandle&gt;{handle});</div>
+<div class="line"><a id="l00930" name="l00930"></a><span class="lineno">  930</span>          <span class="keywordflow">return</span>;</div>
+<div class="line"><a id="l00931" name="l00931"></a><span class="lineno">  931</span>        }</div>
+<div class="line"><a id="l00932" name="l00932"></a><span class="lineno">  932</span> </div>
+<div class="line"><a id="l00933" name="l00933"></a><span class="lineno">  933</span>        <span class="keyword">auto</span>&amp; handles = it-&gt;second;</div>
+<div class="line"><a id="l00934" name="l00934"></a><span class="lineno">  934</span>        <span class="comment">// Callers only register a &lt;query, archetype&gt; edge after they proved that edge is new.</span></div>
+<div class="line"><a id="l00935" name="l00935"></a><span class="lineno">  935</span>        GAIA_ASSERT(!core::has(handles, handle));</div>
+<div class="line"><a id="l00936" name="l00936"></a><span class="lineno">  936</span>        handles.push_back(handle);</div>
+<div class="line"><a id="l00937" name="l00937"></a><span class="lineno">  937</span>      }</div>
+<div class="line"><a id="l00938" name="l00938"></a><span class="lineno">  938</span> </div>
+<div class="line"><a id="l00942" name="l00942"></a><span class="lineno">  942</span>      <span class="keywordtype">void</span> del_archetype_query_pair(<span class="keyword">const</span> Archetype* pArchetype, QueryHandle handle) {</div>
+<div class="line"><a id="l00943" name="l00943"></a><span class="lineno">  943</span>        <span class="keyword">auto</span> it = m_archetypeToQuery.find(ArchetypeIdLookupKey(pArchetype-&gt;id(), pArchetype-&gt;id_hash()));</div>
+<div class="line"><a id="l00944" name="l00944"></a><span class="lineno">  944</span>        <span class="keywordflow">if</span> (it == m_archetypeToQuery.end())</div>
+<div class="line"><a id="l00945" name="l00945"></a><span class="lineno">  945</span>          <span class="keywordflow">return</span>;</div>
+<div class="line"><a id="l00946" name="l00946"></a><span class="lineno">  946</span> </div>
+<div class="line"><a id="l00947" name="l00947"></a><span class="lineno">  947</span>        <span class="keyword">auto</span>&amp; handles = it-&gt;second;</div>
+<div class="line"><a id="l00948" name="l00948"></a><span class="lineno">  948</span>        <span class="keyword">const</span> <span class="keyword">auto</span> idx = core::get_index(handles, handle);</div>
+<div class="line"><a id="l00949" name="l00949"></a><span class="lineno">  949</span>        GAIA_ASSERT(idx != BadIndex);</div>
+<div class="line"><a id="l00950" name="l00950"></a><span class="lineno">  950</span>        core::swap_erase(handles, idx);</div>
+<div class="line"><a id="l00951" name="l00951"></a><span class="lineno">  951</span>        <span class="keywordflow">if</span> (handles.empty())</div>
+<div class="line"><a id="l00952" name="l00952"></a><span class="lineno">  952</span>          m_archetypeToQuery.erase(it);</div>
+<div class="line"><a id="l00953" name="l00953"></a><span class="lineno">  953</span>      }</div>
+<div class="line"><a id="l00954" name="l00954"></a><span class="lineno">  954</span> </div>
+<div class="line"><a id="l00957" name="l00957"></a><span class="lineno">  957</span>      <span class="keywordtype">void</span> unregister_query_archetypes(QueryHandle handle) {</div>
+<div class="line"><a id="l00958" name="l00958"></a><span class="lineno">  958</span>        <span class="keyword">auto</span> it = m_queryToArchetype.find(QueryHandleLookupKey(handle));</div>
+<div class="line"><a id="l00959" name="l00959"></a><span class="lineno">  959</span>        <span class="keywordflow">if</span> (it == m_queryToArchetype.end())</div>
+<div class="line"><a id="l00960" name="l00960"></a><span class="lineno">  960</span>          <span class="keywordflow">return</span>;</div>
+<div class="line"><a id="l00961" name="l00961"></a><span class="lineno">  961</span> </div>
+<div class="line"><a id="l00962" name="l00962"></a><span class="lineno">  962</span>        <span class="keyword">const</span> <span class="keyword">auto</span>&amp; tracked = it-&gt;second.archetypes;</div>
+<div class="line"><a id="l00963" name="l00963"></a><span class="lineno">  963</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>* pArchetype: tracked)</div>
+<div class="line"><a id="l00964" name="l00964"></a><span class="lineno">  964</span>          del_archetype_query_pair(pArchetype, handle);</div>
+<div class="line"><a id="l00965" name="l00965"></a><span class="lineno">  965</span> </div>
+<div class="line"><a id="l00966" name="l00966"></a><span class="lineno">  966</span>        m_queryToArchetype.erase(it);</div>
+<div class="line"><a id="l00967" name="l00967"></a><span class="lineno">  967</span>      }</div>
+<div class="line"><a id="l00968" name="l00968"></a><span class="lineno">  968</span> </div>
+<div class="line"><a id="l00973" name="l00973"></a><span class="lineno">  973</span>      <span class="keywordtype">void</span> register_query_archetype(QueryHandle handle, <span class="keyword">const</span> Archetype* pArchetype, uint32_t syncedRevision) {</div>
+<div class="line"><a id="l00974" name="l00974"></a><span class="lineno">  974</span>        <span class="keyword">auto</span> [trackedIt, inserted] = m_queryToArchetype.try_emplace(QueryHandleLookupKey(handle));</div>
+<div class="line"><a id="l00975" name="l00975"></a><span class="lineno">  975</span>        <span class="keyword">auto</span>&amp; tracked = trackedIt-&gt;second.archetypes;</div>
+<div class="line"><a id="l00976" name="l00976"></a><span class="lineno">  976</span> </div>
+<div class="line"><a id="l00977" name="l00977"></a><span class="lineno">  977</span>        <span class="comment">// Newly-created archetypes and sync_archetype_cache() both route through a deduplicated edge set,</span></div>
+<div class="line"><a id="l00978" name="l00978"></a><span class="lineno">  978</span>        <span class="comment">// so reverse-index registration can append directly instead of re-scanning tracked archetypes.</span></div>
+<div class="line"><a id="l00979" name="l00979"></a><span class="lineno">  979</span>        GAIA_ASSERT(inserted || !core::has(tracked, pArchetype));</div>
+<div class="line"><a id="l00980" name="l00980"></a><span class="lineno">  980</span>        tracked.push_back(pArchetype);</div>
+<div class="line"><a id="l00981" name="l00981"></a><span class="lineno">  981</span>        trackedIt-&gt;second.syncedRevision = syncedRevision;</div>
+<div class="line"><a id="l00982" name="l00982"></a><span class="lineno">  982</span>        add_archetype_query_pair(pArchetype, handle);</div>
+<div class="line"><a id="l00983" name="l00983"></a><span class="lineno">  983</span>      }</div>
+<div class="line"><a id="l00984" name="l00984"></a><span class="lineno">  984</span> </div>
+<div class="line"><a id="l00988" name="l00988"></a><span class="lineno">  988</span>      <span class="keywordtype">void</span> add_rel_query_pair(Entity relation, QueryHandle handle) {</div>
+<div class="line"><a id="l00989" name="l00989"></a><span class="lineno">  989</span>        <span class="keyword">const</span> <span class="keyword">auto</span> key = EntityLookupKey(relation);</div>
+<div class="line"><a id="l00990" name="l00990"></a><span class="lineno">  990</span>        <span class="keyword">const</span> <span class="keyword">auto</span> it = m_relationToQuery.find(key);</div>
+<div class="line"><a id="l00991" name="l00991"></a><span class="lineno">  991</span>        <span class="keywordflow">if</span> (it == m_relationToQuery.end()) {</div>
+<div class="line"><a id="l00992" name="l00992"></a><span class="lineno">  992</span>          m_relationToQuery.try_emplace(key, cnt::darray&lt;QueryHandle&gt;{handle});</div>
+<div class="line"><a id="l00993" name="l00993"></a><span class="lineno">  993</span>          <span class="keywordflow">return</span>;</div>
+<div class="line"><a id="l00994" name="l00994"></a><span class="lineno">  994</span>        }</div>
+<div class="line"><a id="l00995" name="l00995"></a><span class="lineno">  995</span> </div>
+<div class="line"><a id="l00996" name="l00996"></a><span class="lineno">  996</span>        <span class="keyword">auto</span>&amp; handles = it-&gt;second;</div>
+<div class="line"><a id="l00997" name="l00997"></a><span class="lineno">  997</span>        <span class="keywordflow">if</span> (!core::has(handles, handle))</div>
+<div class="line"><a id="l00998" name="l00998"></a><span class="lineno">  998</span>          handles.push_back(handle);</div>
+<div class="line"><a id="l00999" name="l00999"></a><span class="lineno">  999</span>      }</div>
+<div class="line"><a id="l01000" name="l01000"></a><span class="lineno"> 1000</span> </div>
+<div class="line"><a id="l01004" name="l01004"></a><span class="lineno"> 1004</span>      <span class="keywordtype">void</span> del_rel_query_pair(Entity relation, QueryHandle handle) {</div>
+<div class="line"><a id="l01005" name="l01005"></a><span class="lineno"> 1005</span>        <span class="keyword">auto</span> it = m_relationToQuery.find(EntityLookupKey(relation));</div>
+<div class="line"><a id="l01006" name="l01006"></a><span class="lineno"> 1006</span>        <span class="keywordflow">if</span> (it == m_relationToQuery.end())</div>
+<div class="line"><a id="l01007" name="l01007"></a><span class="lineno"> 1007</span>          <span class="keywordflow">return</span>;</div>
+<div class="line"><a id="l01008" name="l01008"></a><span class="lineno"> 1008</span> </div>
+<div class="line"><a id="l01009" name="l01009"></a><span class="lineno"> 1009</span>        <span class="keyword">auto</span>&amp; handles = it-&gt;second;</div>
+<div class="line"><a id="l01010" name="l01010"></a><span class="lineno"> 1010</span>        core::swap_erase(handles, core::get_index(handles, handle));</div>
+<div class="line"><a id="l01011" name="l01011"></a><span class="lineno"> 1011</span>        <span class="keywordflow">if</span> (handles.empty())</div>
+<div class="line"><a id="l01012" name="l01012"></a><span class="lineno"> 1012</span>          m_relationToQuery.erase(it);</div>
+<div class="line"><a id="l01013" name="l01013"></a><span class="lineno"> 1013</span>      }</div>
+<div class="line"><a id="l01014" name="l01014"></a><span class="lineno"> 1014</span> </div>
+<div class="line"><a id="l01018" name="l01018"></a><span class="lineno"> 1018</span>      <span class="keywordtype">void</span> add_rel_to_query_pairs(<span class="keyword">const</span> QueryCtx&amp; ctx, QueryHandle handle) {</div>
+<div class="line"><a id="l01019" name="l01019"></a><span class="lineno"> 1019</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span> relation: ctx.data.deps.relations_view())</div>
+<div class="line"><a id="l01020" name="l01020"></a><span class="lineno"> 1020</span>          add_rel_query_pair(relation, handle);</div>
+<div class="line"><a id="l01021" name="l01021"></a><span class="lineno"> 1021</span>      }</div>
+<div class="line"><a id="l01022" name="l01022"></a><span class="lineno"> 1022</span> </div>
+<div class="line"><a id="l01026" name="l01026"></a><span class="lineno"> 1026</span>      <span class="keywordtype">void</span> del_rel_to_query_pairs(<span class="keyword">const</span> QueryCtx&amp; ctx, QueryHandle handle) {</div>
+<div class="line"><a id="l01027" name="l01027"></a><span class="lineno"> 1027</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span> relation: ctx.data.deps.relations_view())</div>
+<div class="line"><a id="l01028" name="l01028"></a><span class="lineno"> 1028</span>          del_rel_query_pair(relation, handle);</div>
+<div class="line"><a id="l01029" name="l01029"></a><span class="lineno"> 1029</span>      }</div>
+<div class="line"><a id="l01030" name="l01030"></a><span class="lineno"> 1030</span>    };</div>
+<div class="line"><a id="l01031" name="l01031"></a><span class="lineno"> 1031</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l01032" name="l01032"></a><span class="lineno"> 1032</span>} <span class="comment">// namespace gaia</span></div>
 <div class="ttc" id="astructgaia_1_1cnt_1_1to__page__storage__id_html_a01ec6130e8003748a676e6af7209b264"><div class="ttname"><a href="structgaia_1_1cnt_1_1to__page__storage__id.html#a01ec6130e8003748a676e6af7209b264">gaia::cnt::to_page_storage_id::get</a></div><div class="ttdeci">static page_storage_id get(const T &amp;item) noexcept</div><div class="ttdoc">Applies the default conversion for an item.</div><div class="ttdef"><b>Definition</b> paged_storage.h:47</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->

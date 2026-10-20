@@ -194,9 +194,9 @@ $(document).ready(function(){initNavTree('command__buffer_8h_source.html',''); i
 <div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>        };</div>
 <div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span> </div>
 <div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>        <a class="code hl_class" href="classgaia_1_1ecs_1_1World.html">ecs::World</a>&amp; m_world;</div>
-<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray_ext&lt;Op, 128&gt;</a> m_ops;</div>
-<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray_ext&lt;Entity, 128&gt;</a> m_temp2real;</div>
-<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::dbitset&lt;mem::DefaultAllocatorAdaptor&gt;</a> m_tmpFlags;</div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray_ext&lt;Op, 128&gt;</a> m_ops;</div>
+<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray_ext&lt;Entity, 128&gt;</a> m_temp2real;</div>
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::dbitset&lt;mem::DefaultAllocatorAdaptor&gt;</a> m_tmpFlags;</div>
 <div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>        uint32_t m_nextTemp = 0;</div>
 <div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>        <span class="keywordtype">bool</span> m_needsSort = <span class="keyword">false</span>;</div>
 <div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span> </div>
@@ -491,7 +491,7 @@ $(document).ready(function(){initNavTree('command__buffer_8h_source.html',''); i
 <div class="line"><a id="l00490" name="l00490"></a><span class="lineno">  490</span>            <span class="keywordflow">return</span> e;</div>
 <div class="line"><a id="l00491" name="l00491"></a><span class="lineno">  491</span> </div>
 <div class="line"><a id="l00492" name="l00492"></a><span class="lineno">  492</span>          <span class="keyword">const</span> <span class="keyword">auto</span> ti = e.id();</div>
-<div class="line"><a id="l00493" name="l00493"></a><span class="lineno">  493</span>          <span class="keywordflow">if</span> (ti &lt; m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>())</div>
+<div class="line"><a id="l00493" name="l00493"></a><span class="lineno">  493</span>          <span class="keywordflow">if</span> (ti &lt; m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>())</div>
 <div class="line"><a id="l00494" name="l00494"></a><span class="lineno">  494</span>            <span class="keywordflow">return</span> m_temp2real[ti];</div>
 <div class="line"><a id="l00495" name="l00495"></a><span class="lineno">  495</span> </div>
 <div class="line"><a id="l00496" name="l00496"></a><span class="lineno">  496</span>          <span class="keywordflow">return</span> EntityBad;</div>
@@ -523,7 +523,7 @@ $(document).ready(function(){initNavTree('command__buffer_8h_source.html',''); i
 <div class="line"><a id="l00529" name="l00529"></a><span class="lineno">  529</span>          }</div>
 <div class="line"><a id="l00530" name="l00530"></a><span class="lineno">  530</span> </div>
 <div class="line"><a id="l00531" name="l00531"></a><span class="lineno">  531</span>          cnt::darray_ext&lt;uint32_t, 16&gt; tempIds;</div>
-<div class="line"><a id="l00532" name="l00532"></a><span class="lineno">  532</span>          <span class="keywordflow">for</span> (uint32_t j = firstIdx; j &lt; m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>(); ++j) {</div>
+<div class="line"><a id="l00532" name="l00532"></a><span class="lineno">  532</span>          <span class="keywordflow">for</span> (uint32_t j = firstIdx; j &lt; m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>(); ++j) {</div>
 <div class="line"><a id="l00533" name="l00533"></a><span class="lineno">  533</span>            <span class="keyword">const</span> Op&amp; op = m_ops[j];</div>
 <div class="line"><a id="l00534" name="l00534"></a><span class="lineno">  534</span>            <span class="keywordflow">if</span> (op.type != OpType::INSTANTIATE_ENTITY || op.other != first.other || op.pairTarget != first.pairTarget)</div>
 <div class="line"><a id="l00535" name="l00535"></a><span class="lineno">  535</span>              <span class="keywordflow">continue</span>;</div>
@@ -531,7 +531,7 @@ $(document).ready(function(){initNavTree('command__buffer_8h_source.html',''); i
 <div class="line"><a id="l00537" name="l00537"></a><span class="lineno">  537</span>              <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l00538" name="l00538"></a><span class="lineno">  538</span> </div>
 <div class="line"><a id="l00539" name="l00539"></a><span class="lineno">  539</span>            <span class="keyword">const</span> uint32_t ti = op.target.id();</div>
-<div class="line"><a id="l00540" name="l00540"></a><span class="lineno">  540</span>            <span class="keywordflow">if</span> (ti &gt;= m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>() || m_temp2real[ti] != EntityBad || is_canceled_temp(ti))</div>
+<div class="line"><a id="l00540" name="l00540"></a><span class="lineno">  540</span>            <span class="keywordflow">if</span> (ti &gt;= m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>() || m_temp2real[ti] != EntityBad || is_canceled_temp(ti))</div>
 <div class="line"><a id="l00541" name="l00541"></a><span class="lineno">  541</span>              <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l00542" name="l00542"></a><span class="lineno">  542</span> </div>
 <div class="line"><a id="l00543" name="l00543"></a><span class="lineno">  543</span>            tempIds.push_back(ti);</div>
@@ -854,7 +854,7 @@ $(document).ready(function(){initNavTree('command__buffer_8h_source.html',''); i
 <div class="line"><a id="l00894" name="l00894"></a><span class="lineno">  894</span> </div>
 <div class="line"><a id="l00899" name="l00899"></a><span class="lineno">  899</span>        GAIA_NODISCARD <span class="keywordtype">bool</span> is_canceled_temp(uint32_t idx)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l00900" name="l00900"></a><span class="lineno">  900</span>          <span class="keyword">const</span> uint32_t base = idx * 3;</div>
-<div class="line"><a id="l00901" name="l00901"></a><span class="lineno">  901</span>          <span class="keywordflow">if</span> (base + 2 &gt;= m_tmpFlags.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>())</div>
+<div class="line"><a id="l00901" name="l00901"></a><span class="lineno">  901</span>          <span class="keywordflow">if</span> (base + 2 &gt;= m_tmpFlags.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>())</div>
 <div class="line"><a id="l00902" name="l00902"></a><span class="lineno">  902</span>            <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
 <div class="line"><a id="l00903" name="l00903"></a><span class="lineno">  903</span> </div>
 <div class="line"><a id="l00904" name="l00904"></a><span class="lineno">  904</span>          <span class="keyword">const</span> <span class="keywordtype">bool</span> destroy = m_tmpFlags.test(base);</div>
@@ -865,7 +865,7 @@ $(document).ready(function(){initNavTree('command__buffer_8h_source.html',''); i
 <div class="line"><a id="l00909" name="l00909"></a><span class="lineno">  909</span>        }</div>
 <div class="line"><a id="l00910" name="l00910"></a><span class="lineno">  910</span> </div>
 <div class="line"><a id="l00913" name="l00913"></a><span class="lineno">  913</span>        GAIA_NODISCARD Entity add_temp() {</div>
-<div class="line"><a id="l00914" name="l00914"></a><span class="lineno">  914</span>          m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#aedbe48d997d5322d37ae60522bac9449">push_back</a>(EntityBad);</div>
+<div class="line"><a id="l00914" name="l00914"></a><span class="lineno">  914</span>          m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(EntityBad);</div>
 <div class="line"><a id="l00915" name="l00915"></a><span class="lineno">  915</span>          Entity tmp(m_nextTemp++, 0, <span class="keyword">true</span>, <span class="keyword">false</span>);</div>
 <div class="line"><a id="l00916" name="l00916"></a><span class="lineno">  916</span>          <span class="comment">// Use the unused flag to mark temporary entities</span></div>
 <div class="line"><a id="l00917" name="l00917"></a><span class="lineno">  917</span>          tmp.data.tmp = 1;</div>
@@ -889,16 +889,16 @@ $(document).ready(function(){initNavTree('command__buffer_8h_source.html',''); i
 <div class="line"><a id="l00939" name="l00939"></a><span class="lineno">  939</span>        }</div>
 <div class="line"><a id="l00940" name="l00940"></a><span class="lineno">  940</span> </div>
 <div class="line"><a id="l00943" name="l00943"></a><span class="lineno">  943</span>        <span class="keywordtype">void</span> check_sort(<span class="keyword">const</span> Op&amp; op) {</div>
-<div class="line"><a id="l00944" name="l00944"></a><span class="lineno">  944</span>          <span class="keywordflow">if</span> (!m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#ad484d16336501853a8256c842ed77fb6">empty</a>() &amp;&amp; less_op_key(op, m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a7244366ffc02ed6266a4a2ac549f9217">back</a>()))</div>
+<div class="line"><a id="l00944" name="l00944"></a><span class="lineno">  944</span>          <span class="keywordflow">if</span> (!m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#af99589ac6b1e4e6ff20f89f6f8b2e3d2">empty</a>() &amp;&amp; less_op_key(op, m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#acf0cf26dfd22edeba0eada331827ee35">back</a>()))</div>
 <div class="line"><a id="l00945" name="l00945"></a><span class="lineno">  945</span>            m_needsSort = <span class="keyword">true</span>;</div>
 <div class="line"><a id="l00946" name="l00946"></a><span class="lineno">  946</span>        }</div>
 <div class="line"><a id="l00947" name="l00947"></a><span class="lineno">  947</span> </div>
 <div class="line"><a id="l00950" name="l00950"></a><span class="lineno">  950</span>        <span class="keywordtype">void</span> push_op(Op&amp;&amp; op) {</div>
 <div class="line"><a id="l00951" name="l00951"></a><span class="lineno">  951</span>          <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (Optimize) {</div>
-<div class="line"><a id="l00952" name="l00952"></a><span class="lineno">  952</span>            op.order = m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>();</div>
+<div class="line"><a id="l00952" name="l00952"></a><span class="lineno">  952</span>            op.order = m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>();</div>
 <div class="line"><a id="l00953" name="l00953"></a><span class="lineno">  953</span>            check_sort(op);</div>
 <div class="line"><a id="l00954" name="l00954"></a><span class="lineno">  954</span>          }</div>
-<div class="line"><a id="l00955" name="l00955"></a><span class="lineno">  955</span>          m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#aedbe48d997d5322d37ae60522bac9449">push_back</a>(GAIA_MOV(op));</div>
+<div class="line"><a id="l00955" name="l00955"></a><span class="lineno">  955</span>          m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">push_back</a>(GAIA_MOV(op));</div>
 <div class="line"><a id="l00956" name="l00956"></a><span class="lineno">  956</span>        }</div>
 <div class="line"><a id="l00957" name="l00957"></a><span class="lineno">  957</span> </div>
 <div class="line"><a id="l00961" name="l00961"></a><span class="lineno">  961</span>        <span class="keywordtype">void</span> replay_plain() {</div>
@@ -926,8 +926,8 @@ $(document).ready(function(){initNavTree('command__buffer_8h_source.html',''); i
 <div class="line"><a id="l00983" name="l00983"></a><span class="lineno">  983</span>        }</div>
 <div class="line"><a id="l00984" name="l00984"></a><span class="lineno">  984</span> </div>
 <div class="line"><a id="l00986" name="l00986"></a><span class="lineno">  986</span>        <span class="keywordtype">void</span> clear() {</div>
-<div class="line"><a id="l00987" name="l00987"></a><span class="lineno">  987</span>          m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a74ceba8209c397c3d16ddd73ea530cf1">clear</a>();</div>
-<div class="line"><a id="l00988" name="l00988"></a><span class="lineno">  988</span>          m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a74ceba8209c397c3d16ddd73ea530cf1">clear</a>();</div>
+<div class="line"><a id="l00987" name="l00987"></a><span class="lineno">  987</span>          m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#abf08708c1514c2d803782dbc1d17aed3">clear</a>();</div>
+<div class="line"><a id="l00988" name="l00988"></a><span class="lineno">  988</span>          m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#abf08708c1514c2d803782dbc1d17aed3">clear</a>();</div>
 <div class="line"><a id="l00989" name="l00989"></a><span class="lineno">  989</span>          m_tmpFlags.reset();</div>
 <div class="line"><a id="l00990" name="l00990"></a><span class="lineno">  990</span>          m_nextTemp = 0;</div>
 <div class="line"><a id="l00991" name="l00991"></a><span class="lineno">  991</span>          m_data.<a class="code hl_function" href="classgaia_1_1ser_1_1bin__stream.html#a7670a0b470457883ba84f1501c8d0716">reset</a>();</div>
@@ -940,272 +940,273 @@ $(document).ready(function(){initNavTree('command__buffer_8h_source.html',''); i
 <div class="line"><a id="l01008" name="l01008"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ae09c25e0d46adb42274641baf36e2a9a"> 1008</a></span>        <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ae09c25e0d46adb42274641baf36e2a9a">commit</a>() {</div>
 <div class="line"><a id="l01009" name="l01009"></a><span class="lineno"> 1009</span>          <a class="code hl_struct" href="structgaia_1_1core_1_1lock__scope.html">core::lock_scope</a> lock(m_acc);</div>
 <div class="line"><a id="l01010" name="l01010"></a><span class="lineno"> 1010</span> </div>
-<div class="line"><a id="l01011" name="l01011"></a><span class="lineno"> 1011</span>          <span class="keywordflow">if</span> (m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#ad484d16336501853a8256c842ed77fb6">empty</a>())</div>
+<div class="line"><a id="l01011" name="l01011"></a><span class="lineno"> 1011</span>          <span class="keywordflow">if</span> (m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#af99589ac6b1e4e6ff20f89f6f8b2e3d2">empty</a>())</div>
 <div class="line"><a id="l01012" name="l01012"></a><span class="lineno"> 1012</span>            <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l01013" name="l01013"></a><span class="lineno"> 1013</span> </div>
 <div class="line"><a id="l01014" name="l01014"></a><span class="lineno"> 1014</span>          GAIA_PROF_SCOPE(cmdbuf::commit);</div>
 <div class="line"><a id="l01015" name="l01015"></a><span class="lineno"> 1015</span> </div>
-<div class="line"><a id="l01016" name="l01016"></a><span class="lineno"> 1016</span>          <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (!Optimize) {</div>
+<div class="line"><a id="l01016" name="l01016"></a><span class="lineno"> 1016</span>          <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (!Optimize)</div>
 <div class="line"><a id="l01017" name="l01017"></a><span class="lineno"> 1017</span>            replay_plain();</div>
-<div class="line"><a id="l01018" name="l01018"></a><span class="lineno"> 1018</span>            clear();</div>
-<div class="line"><a id="l01019" name="l01019"></a><span class="lineno"> 1019</span>            <span class="keywordflow">return</span>;</div>
-<div class="line"><a id="l01020" name="l01020"></a><span class="lineno"> 1020</span>          }</div>
-<div class="line"><a id="l01021" name="l01021"></a><span class="lineno"> 1021</span> </div>
-<div class="line"><a id="l01022" name="l01022"></a><span class="lineno"> 1022</span>          <span class="comment">// Build flags + allocate entities</span></div>
-<div class="line"><a id="l01023" name="l01023"></a><span class="lineno"> 1023</span>          <span class="keywordflow">if</span> (m_nextTemp &gt; 0) {</div>
-<div class="line"><a id="l01024" name="l01024"></a><span class="lineno"> 1024</span>            GAIA_PROF_SCOPE(cmdbuf::alloc);</div>
-<div class="line"><a id="l01025" name="l01025"></a><span class="lineno"> 1025</span> </div>
-<div class="line"><a id="l01026" name="l01026"></a><span class="lineno"> 1026</span>            <span class="comment">// Bit layout for each temporary entity:</span></div>
-<div class="line"><a id="l01027" name="l01027"></a><span class="lineno"> 1027</span>            <span class="comment">// bit 0 -&gt; marked for destruction (DEL_ENTITY recorded)</span></div>
-<div class="line"><a id="l01028" name="l01028"></a><span class="lineno"> 1028</span>            <span class="comment">// bit 1 -&gt; used as a relation target (appeared as target in component ops)</span></div>
-<div class="line"><a id="l01029" name="l01029"></a><span class="lineno"> 1029</span>            <span class="comment">// bit 2 -&gt; used as a relation source / dependency (appeared as other in component ops)</span></div>
-<div class="line"><a id="l01030" name="l01030"></a><span class="lineno"> 1030</span>            m_tmpFlags.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a1ab8190cf0fb45168fa4a84c056cac44">resize</a>(m_nextTemp * 3);</div>
-<div class="line"><a id="l01031" name="l01031"></a><span class="lineno"> 1031</span> </div>
-<div class="line"><a id="l01032" name="l01032"></a><span class="lineno"> 1032</span>            <span class="comment">// Pre-map surviving temps for ADD/CPY/INSTANTIATE (avoid allocating canceled temps)</span></div>
-<div class="line"><a id="l01033" name="l01033"></a><span class="lineno"> 1033</span>            <span class="keywordflow">if</span> (m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>() &lt; m_nextTemp) {</div>
-<div class="line"><a id="l01034" name="l01034"></a><span class="lineno"> 1034</span>              <span class="keyword">const</span> <span class="keyword">auto</span> from = m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>();</div>
-<div class="line"><a id="l01035" name="l01035"></a><span class="lineno"> 1035</span>              m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a1ab8190cf0fb45168fa4a84c056cac44">resize</a>(m_nextTemp);</div>
-<div class="line"><a id="l01036" name="l01036"></a><span class="lineno"> 1036</span>              GAIA_FOR2(from, m_nextTemp) m_temp2real[i] = EntityBad;</div>
-<div class="line"><a id="l01037" name="l01037"></a><span class="lineno"> 1037</span>            }</div>
-<div class="line"><a id="l01038" name="l01038"></a><span class="lineno"> 1038</span> </div>
-<div class="line"><a id="l01039" name="l01039"></a><span class="lineno"> 1039</span>            <span class="comment">// Build all flags</span></div>
-<div class="line"><a id="l01040" name="l01040"></a><span class="lineno"> 1040</span>            <span class="keywordflow">for</span> (<span class="keyword">const</span> Op&amp; o: m_ops) {</div>
-<div class="line"><a id="l01041" name="l01041"></a><span class="lineno"> 1041</span>              <span class="comment">// Set flag bits</span></div>
-<div class="line"><a id="l01042" name="l01042"></a><span class="lineno"> 1042</span>              <span class="keywordflow">if</span> (is_tmp(o.target)) {</div>
-<div class="line"><a id="l01043" name="l01043"></a><span class="lineno"> 1043</span>                <span class="keyword">const</span> uint32_t ti = o.target.id();</div>
-<div class="line"><a id="l01044" name="l01044"></a><span class="lineno"> 1044</span> </div>
-<div class="line"><a id="l01045" name="l01045"></a><span class="lineno"> 1045</span>                <span class="keywordflow">if</span> (o.type == OpType::DEL_ENTITY)</div>
-<div class="line"><a id="l01046" name="l01046"></a><span class="lineno"> 1046</span>                  m_tmpFlags.set((ti * 3) + 0, <span class="keyword">true</span>);</div>
-<div class="line"><a id="l01047" name="l01047"></a><span class="lineno"> 1047</span>                <span class="keywordflow">else</span> <span class="keywordflow">if</span> (is_rel(o.type))</div>
-<div class="line"><a id="l01048" name="l01048"></a><span class="lineno"> 1048</span>                  m_tmpFlags.set((ti * 3) + 1, <span class="keyword">true</span>);</div>
-<div class="line"><a id="l01049" name="l01049"></a><span class="lineno"> 1049</span>              }</div>
-<div class="line"><a id="l01050" name="l01050"></a><span class="lineno"> 1050</span> </div>
-<div class="line"><a id="l01051" name="l01051"></a><span class="lineno"> 1051</span>              <span class="keywordflow">if</span> (is_tmp(o.other) &amp;&amp; o.other.id() &lt; m_tmpFlags.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>())</div>
-<div class="line"><a id="l01052" name="l01052"></a><span class="lineno"> 1052</span>                m_tmpFlags.set((o.other.id() * 3) + 2, <span class="keyword">true</span>);</div>
-<div class="line"><a id="l01053" name="l01053"></a><span class="lineno"> 1053</span>              <span class="keywordflow">if</span> (is_tmp(o.pairTarget) &amp;&amp; o.pairTarget.id() &lt; m_tmpFlags.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>())</div>
-<div class="line"><a id="l01054" name="l01054"></a><span class="lineno"> 1054</span>                m_tmpFlags.set((o.pairTarget.id() * 3) + 2, <span class="keyword">true</span>);</div>
-<div class="line"><a id="l01055" name="l01055"></a><span class="lineno"> 1055</span>            }</div>
-<div class="line"><a id="l01056" name="l01056"></a><span class="lineno"> 1056</span> </div>
-<div class="line"><a id="l01057" name="l01057"></a><span class="lineno"> 1057</span>            <span class="comment">// Allocate real entities for the surviving temporaries</span></div>
-<div class="line"><a id="l01058" name="l01058"></a><span class="lineno"> 1058</span>            <span class="keywordflow">for</span> (uint32_t i = 0; i &lt; m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>(); ++i) {</div>
-<div class="line"><a id="l01059" name="l01059"></a><span class="lineno"> 1059</span>              <span class="keyword">const</span> Op&amp; o = m_ops[i];</div>
-<div class="line"><a id="l01060" name="l01060"></a><span class="lineno"> 1060</span>              <span class="keywordflow">if</span> (!is_tmp(o.target))</div>
-<div class="line"><a id="l01061" name="l01061"></a><span class="lineno"> 1061</span>                <span class="keywordflow">continue</span>;</div>
-<div class="line"><a id="l01062" name="l01062"></a><span class="lineno"> 1062</span> </div>
-<div class="line"><a id="l01063" name="l01063"></a><span class="lineno"> 1063</span>              <span class="keyword">const</span> uint32_t ti = o.target.id();</div>
-<div class="line"><a id="l01064" name="l01064"></a><span class="lineno"> 1064</span>              <span class="keywordflow">if</span> (is_canceled_temp(ti) || m_temp2real[ti] != EntityBad)</div>
-<div class="line"><a id="l01065" name="l01065"></a><span class="lineno"> 1065</span>                <span class="keywordflow">continue</span>;</div>
-<div class="line"><a id="l01066" name="l01066"></a><span class="lineno"> 1066</span> </div>
-<div class="line"><a id="l01067" name="l01067"></a><span class="lineno"> 1067</span>              <span class="keywordflow">if</span> (o.type == OpType::ADD_ENTITY) {</div>
-<div class="line"><a id="l01068" name="l01068"></a><span class="lineno"> 1068</span>                m_temp2real[ti] = m_world.<a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#ab8bd53290dcfc173d1f860f87f449985">add</a>();</div>
-<div class="line"><a id="l01069" name="l01069"></a><span class="lineno"> 1069</span>              } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (o.type == OpType::CPY_ENTITY) {</div>
-<div class="line"><a id="l01070" name="l01070"></a><span class="lineno"> 1070</span>                <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> src = resolve(o.other);</div>
-<div class="line"><a id="l01071" name="l01071"></a><span class="lineno"> 1071</span>                <span class="keywordflow">if</span> (src != EntityBad)</div>
-<div class="line"><a id="l01072" name="l01072"></a><span class="lineno"> 1072</span>                  m_temp2real[ti] = m_world.<a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a87c296ea168b0ce48377f6b9972f6046">copy</a>(src);</div>
-<div class="line"><a id="l01073" name="l01073"></a><span class="lineno"> 1073</span>              } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (o.type == OpType::INSTANTIATE_ENTITY) {</div>
-<div class="line"><a id="l01074" name="l01074"></a><span class="lineno"> 1074</span>                allocate_instantiate_group(i);</div>
-<div class="line"><a id="l01075" name="l01075"></a><span class="lineno"> 1075</span>              }</div>
-<div class="line"><a id="l01076" name="l01076"></a><span class="lineno"> 1076</span>            }</div>
-<div class="line"><a id="l01077" name="l01077"></a><span class="lineno"> 1077</span>          }</div>
-<div class="line"><a id="l01078" name="l01078"></a><span class="lineno"> 1078</span> </div>
-<div class="line"><a id="l01079" name="l01079"></a><span class="lineno"> 1079</span>          <span class="comment">// Sort by (target, other), reduce each component group, apply relations.</span></div>
-<div class="line"><a id="l01080" name="l01080"></a><span class="lineno"> 1080</span>          <span class="comment">// Preserve recorded order within each component group and each target&#39;s pair operations.</span></div>
-<div class="line"><a id="l01081" name="l01081"></a><span class="lineno"> 1081</span>          <span class="keywordflow">if</span> (m_needsSort) {</div>
-<div class="line"><a id="l01082" name="l01082"></a><span class="lineno"> 1082</span>            GAIA_PROF_SCOPE(cmdbuf::sort);</div>
+<div class="line"><a id="l01018" name="l01018"></a><span class="lineno"> 1018</span>          <span class="keywordflow">else</span></div>
+<div class="line"><a id="l01019" name="l01019"></a><span class="lineno"> 1019</span>            commit_optimized();</div>
+<div class="line"><a id="l01020" name="l01020"></a><span class="lineno"> 1020</span>          clear();</div>
+<div class="line"><a id="l01021" name="l01021"></a><span class="lineno"> 1021</span>        }</div>
+</div>
+<div class="line"><a id="l01022" name="l01022"></a><span class="lineno"> 1022</span> </div>
+<div class="line"><a id="l01023" name="l01023"></a><span class="lineno"> 1023</span>      <span class="keyword">private</span>:</div>
+<div class="line"><a id="l01026" name="l01026"></a><span class="lineno"> 1026</span>        <span class="keywordtype">void</span> commit_optimized() {</div>
+<div class="line"><a id="l01027" name="l01027"></a><span class="lineno"> 1027</span>          <span class="comment">// Build flags + allocate entities</span></div>
+<div class="line"><a id="l01028" name="l01028"></a><span class="lineno"> 1028</span>          <span class="keywordflow">if</span> (m_nextTemp &gt; 0) {</div>
+<div class="line"><a id="l01029" name="l01029"></a><span class="lineno"> 1029</span>            GAIA_PROF_SCOPE(cmdbuf::alloc);</div>
+<div class="line"><a id="l01030" name="l01030"></a><span class="lineno"> 1030</span> </div>
+<div class="line"><a id="l01031" name="l01031"></a><span class="lineno"> 1031</span>            <span class="comment">// Bit layout for each temporary entity:</span></div>
+<div class="line"><a id="l01032" name="l01032"></a><span class="lineno"> 1032</span>            <span class="comment">// bit 0 -&gt; marked for destruction (DEL_ENTITY recorded)</span></div>
+<div class="line"><a id="l01033" name="l01033"></a><span class="lineno"> 1033</span>            <span class="comment">// bit 1 -&gt; used as a relation target (appeared as target in component ops)</span></div>
+<div class="line"><a id="l01034" name="l01034"></a><span class="lineno"> 1034</span>            <span class="comment">// bit 2 -&gt; used as a relation source / dependency (appeared as other in component ops)</span></div>
+<div class="line"><a id="l01035" name="l01035"></a><span class="lineno"> 1035</span>            m_tmpFlags.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ab65651d7e45de1924093c4db30758c63">resize</a>(m_nextTemp * 3);</div>
+<div class="line"><a id="l01036" name="l01036"></a><span class="lineno"> 1036</span> </div>
+<div class="line"><a id="l01037" name="l01037"></a><span class="lineno"> 1037</span>            <span class="comment">// Pre-map surviving temps for ADD/CPY/INSTANTIATE (avoid allocating canceled temps)</span></div>
+<div class="line"><a id="l01038" name="l01038"></a><span class="lineno"> 1038</span>            <span class="keywordflow">if</span> (m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>() &lt; m_nextTemp) {</div>
+<div class="line"><a id="l01039" name="l01039"></a><span class="lineno"> 1039</span>              <span class="keyword">const</span> <span class="keyword">auto</span> from = m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>();</div>
+<div class="line"><a id="l01040" name="l01040"></a><span class="lineno"> 1040</span>              m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ab65651d7e45de1924093c4db30758c63">resize</a>(m_nextTemp);</div>
+<div class="line"><a id="l01041" name="l01041"></a><span class="lineno"> 1041</span>              GAIA_FOR2(from, m_nextTemp) m_temp2real[i] = EntityBad;</div>
+<div class="line"><a id="l01042" name="l01042"></a><span class="lineno"> 1042</span>            }</div>
+<div class="line"><a id="l01043" name="l01043"></a><span class="lineno"> 1043</span> </div>
+<div class="line"><a id="l01044" name="l01044"></a><span class="lineno"> 1044</span>            <span class="comment">// Build all flags</span></div>
+<div class="line"><a id="l01045" name="l01045"></a><span class="lineno"> 1045</span>            <span class="keywordflow">for</span> (<span class="keyword">const</span> Op&amp; o: m_ops) {</div>
+<div class="line"><a id="l01046" name="l01046"></a><span class="lineno"> 1046</span>              <span class="comment">// Set flag bits</span></div>
+<div class="line"><a id="l01047" name="l01047"></a><span class="lineno"> 1047</span>              <span class="keywordflow">if</span> (is_tmp(o.target)) {</div>
+<div class="line"><a id="l01048" name="l01048"></a><span class="lineno"> 1048</span>                <span class="keyword">const</span> uint32_t ti = o.target.id();</div>
+<div class="line"><a id="l01049" name="l01049"></a><span class="lineno"> 1049</span> </div>
+<div class="line"><a id="l01050" name="l01050"></a><span class="lineno"> 1050</span>                <span class="keywordflow">if</span> (o.type == OpType::DEL_ENTITY)</div>
+<div class="line"><a id="l01051" name="l01051"></a><span class="lineno"> 1051</span>                  m_tmpFlags.set((ti * 3) + 0, <span class="keyword">true</span>);</div>
+<div class="line"><a id="l01052" name="l01052"></a><span class="lineno"> 1052</span>                <span class="keywordflow">else</span> <span class="keywordflow">if</span> (is_rel(o.type))</div>
+<div class="line"><a id="l01053" name="l01053"></a><span class="lineno"> 1053</span>                  m_tmpFlags.set((ti * 3) + 1, <span class="keyword">true</span>);</div>
+<div class="line"><a id="l01054" name="l01054"></a><span class="lineno"> 1054</span>              }</div>
+<div class="line"><a id="l01055" name="l01055"></a><span class="lineno"> 1055</span> </div>
+<div class="line"><a id="l01056" name="l01056"></a><span class="lineno"> 1056</span>              <span class="keywordflow">if</span> (is_tmp(o.other) &amp;&amp; o.other.id() &lt; m_tmpFlags.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>())</div>
+<div class="line"><a id="l01057" name="l01057"></a><span class="lineno"> 1057</span>                m_tmpFlags.set((o.other.id() * 3) + 2, <span class="keyword">true</span>);</div>
+<div class="line"><a id="l01058" name="l01058"></a><span class="lineno"> 1058</span>              <span class="keywordflow">if</span> (is_tmp(o.pairTarget) &amp;&amp; o.pairTarget.id() &lt; m_tmpFlags.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>())</div>
+<div class="line"><a id="l01059" name="l01059"></a><span class="lineno"> 1059</span>                m_tmpFlags.set((o.pairTarget.id() * 3) + 2, <span class="keyword">true</span>);</div>
+<div class="line"><a id="l01060" name="l01060"></a><span class="lineno"> 1060</span>            }</div>
+<div class="line"><a id="l01061" name="l01061"></a><span class="lineno"> 1061</span> </div>
+<div class="line"><a id="l01062" name="l01062"></a><span class="lineno"> 1062</span>            <span class="comment">// Allocate real entities for the surviving temporaries</span></div>
+<div class="line"><a id="l01063" name="l01063"></a><span class="lineno"> 1063</span>            <span class="keywordflow">for</span> (uint32_t i = 0; i &lt; m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>(); ++i) {</div>
+<div class="line"><a id="l01064" name="l01064"></a><span class="lineno"> 1064</span>              <span class="keyword">const</span> Op&amp; o = m_ops[i];</div>
+<div class="line"><a id="l01065" name="l01065"></a><span class="lineno"> 1065</span>              <span class="keywordflow">if</span> (!is_tmp(o.target))</div>
+<div class="line"><a id="l01066" name="l01066"></a><span class="lineno"> 1066</span>                <span class="keywordflow">continue</span>;</div>
+<div class="line"><a id="l01067" name="l01067"></a><span class="lineno"> 1067</span> </div>
+<div class="line"><a id="l01068" name="l01068"></a><span class="lineno"> 1068</span>              <span class="keyword">const</span> uint32_t ti = o.target.id();</div>
+<div class="line"><a id="l01069" name="l01069"></a><span class="lineno"> 1069</span>              <span class="keywordflow">if</span> (is_canceled_temp(ti) || m_temp2real[ti] != EntityBad)</div>
+<div class="line"><a id="l01070" name="l01070"></a><span class="lineno"> 1070</span>                <span class="keywordflow">continue</span>;</div>
+<div class="line"><a id="l01071" name="l01071"></a><span class="lineno"> 1071</span> </div>
+<div class="line"><a id="l01072" name="l01072"></a><span class="lineno"> 1072</span>              <span class="keywordflow">if</span> (o.type == OpType::ADD_ENTITY) {</div>
+<div class="line"><a id="l01073" name="l01073"></a><span class="lineno"> 1073</span>                m_temp2real[ti] = m_world.<a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#ab8bd53290dcfc173d1f860f87f449985">add</a>();</div>
+<div class="line"><a id="l01074" name="l01074"></a><span class="lineno"> 1074</span>              } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (o.type == OpType::CPY_ENTITY) {</div>
+<div class="line"><a id="l01075" name="l01075"></a><span class="lineno"> 1075</span>                <span class="keyword">const</span> Entity src = resolve(o.other);</div>
+<div class="line"><a id="l01076" name="l01076"></a><span class="lineno"> 1076</span>                <span class="keywordflow">if</span> (src != EntityBad)</div>
+<div class="line"><a id="l01077" name="l01077"></a><span class="lineno"> 1077</span>                  m_temp2real[ti] = m_world.<a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a87c296ea168b0ce48377f6b9972f6046">copy</a>(src);</div>
+<div class="line"><a id="l01078" name="l01078"></a><span class="lineno"> 1078</span>              } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (o.type == OpType::INSTANTIATE_ENTITY) {</div>
+<div class="line"><a id="l01079" name="l01079"></a><span class="lineno"> 1079</span>                allocate_instantiate_group(i);</div>
+<div class="line"><a id="l01080" name="l01080"></a><span class="lineno"> 1080</span>              }</div>
+<div class="line"><a id="l01081" name="l01081"></a><span class="lineno"> 1081</span>            }</div>
+<div class="line"><a id="l01082" name="l01082"></a><span class="lineno"> 1082</span>          }</div>
 <div class="line"><a id="l01083" name="l01083"></a><span class="lineno"> 1083</span> </div>
-<div class="line"><a id="l01084" name="l01084"></a><span class="lineno"> 1084</span>            m_needsSort = <span class="keyword">false</span>;</div>
-<div class="line"><a id="l01085" name="l01085"></a><span class="lineno"> 1085</span>            core::sort(m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a760918dcbd8222c8d4a2ba8c9552bc95">begin</a>(), m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#afe8dd95c07aabc3a74eb97d3b9f7a0b6">end</a>(), [](<span class="keyword">const</span> Op&amp; a, <span class="keyword">const</span> Op&amp; b) {</div>
-<div class="line"><a id="l01086" name="l01086"></a><span class="lineno"> 1086</span>              if (less_op_key(a, b))</div>
-<div class="line"><a id="l01087" name="l01087"></a><span class="lineno"> 1087</span>                return true;</div>
-<div class="line"><a id="l01088" name="l01088"></a><span class="lineno"> 1088</span>              if (less_op_key(b, a))</div>
-<div class="line"><a id="l01089" name="l01089"></a><span class="lineno"> 1089</span>                return false;</div>
-<div class="line"><a id="l01090" name="l01090"></a><span class="lineno"> 1090</span>              return a.order &lt; b.order;</div>
-<div class="line"><a id="l01091" name="l01091"></a><span class="lineno"> 1091</span>            });</div>
-<div class="line"><a id="l01092" name="l01092"></a><span class="lineno"> 1092</span>          }</div>
-<div class="line"><a id="l01093" name="l01093"></a><span class="lineno"> 1093</span> </div>
-<div class="line"><a id="l01094" name="l01094"></a><span class="lineno"> 1094</span>          <span class="comment">// Replay batched operations</span></div>
-<div class="line"><a id="l01095" name="l01095"></a><span class="lineno"> 1095</span>          <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> lastKey = EntityBad;</div>
-<div class="line"><a id="l01096" name="l01096"></a><span class="lineno"> 1096</span>          <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> lastResolved = EntityBad;</div>
-<div class="line"><a id="l01097" name="l01097"></a><span class="lineno"> 1097</span>          <span class="keyword">auto</span> resolve_cached = [&amp;](<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> e) {</div>
-<div class="line"><a id="l01098" name="l01098"></a><span class="lineno"> 1098</span>            <span class="keywordflow">if</span> (e == lastKey)</div>
-<div class="line"><a id="l01099" name="l01099"></a><span class="lineno"> 1099</span>              <span class="keywordflow">return</span> lastResolved;</div>
-<div class="line"><a id="l01100" name="l01100"></a><span class="lineno"> 1100</span>            lastKey = e;</div>
-<div class="line"><a id="l01101" name="l01101"></a><span class="lineno"> 1101</span>            <span class="keywordflow">return</span> lastResolved = resolve(e);</div>
-<div class="line"><a id="l01102" name="l01102"></a><span class="lineno"> 1102</span>          };</div>
-<div class="line"><a id="l01103" name="l01103"></a><span class="lineno"> 1103</span> </div>
-<div class="line"><a id="l01104" name="l01104"></a><span class="lineno"> 1104</span>          <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray_ext&lt;Entity, 16&gt;</a> deleteTargets;</div>
-<div class="line"><a id="l01105" name="l01105"></a><span class="lineno"> 1105</span>          {</div>
-<div class="line"><a id="l01106" name="l01106"></a><span class="lineno"> 1106</span>            GAIA_PROF_SCOPE(cmdbuf::merges);</div>
-<div class="line"><a id="l01107" name="l01107"></a><span class="lineno"> 1107</span>            <span class="keywordflow">for</span> (uint32_t p = 0; p &lt; m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>();) {</div>
-<div class="line"><a id="l01108" name="l01108"></a><span class="lineno"> 1108</span>              GAIA_PROF_SCOPE(cmdbuf::merge);</div>
-<div class="line"><a id="l01109" name="l01109"></a><span class="lineno"> 1109</span> </div>
-<div class="line"><a id="l01110" name="l01110"></a><span class="lineno"> 1110</span>              <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> tgtKey = m_ops[p].target;</div>
-<div class="line"><a id="l01111" name="l01111"></a><span class="lineno"> 1111</span> </div>
-<div class="line"><a id="l01112" name="l01112"></a><span class="lineno"> 1112</span>              <span class="keyword">const</span> <span class="keywordtype">bool</span> tgtIsTemp = is_tmp(tgtKey);</div>
-<div class="line"><a id="l01113" name="l01113"></a><span class="lineno"> 1113</span>              <span class="keyword">const</span> uint32_t ti = tgtIsTemp ? tgtKey.<a class="code hl_function" href="structgaia_1_1ecs_1_1Entity.html#a98b011ff18f3b75836f45254a8f3d546">id</a>() : 0u;</div>
-<div class="line"><a id="l01114" name="l01114"></a><span class="lineno"> 1114</span>              <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> tgtReal =</div>
-<div class="line"><a id="l01115" name="l01115"></a><span class="lineno"> 1115</span>                  tgtIsTemp ? (ti &lt; m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>() ? m_temp2real[ti] : EntityBad) : resolve_cached(tgtKey);</div>
+<div class="line"><a id="l01084" name="l01084"></a><span class="lineno"> 1084</span>          <span class="comment">// Sort by (target, other), reduce each component group, apply relations.</span></div>
+<div class="line"><a id="l01085" name="l01085"></a><span class="lineno"> 1085</span>          <span class="comment">// Preserve recorded order within each component group and each target&#39;s pair operations.</span></div>
+<div class="line"><a id="l01086" name="l01086"></a><span class="lineno"> 1086</span>          <span class="keywordflow">if</span> (m_needsSort) {</div>
+<div class="line"><a id="l01087" name="l01087"></a><span class="lineno"> 1087</span>            GAIA_PROF_SCOPE(cmdbuf::sort);</div>
+<div class="line"><a id="l01088" name="l01088"></a><span class="lineno"> 1088</span> </div>
+<div class="line"><a id="l01089" name="l01089"></a><span class="lineno"> 1089</span>            m_needsSort = <span class="keyword">false</span>;</div>
+<div class="line"><a id="l01090" name="l01090"></a><span class="lineno"> 1090</span>            core::sort(m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a733b540a909a20f3f478d5e2879ef707">begin</a>(), m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">end</a>(), [](<span class="keyword">const</span> Op&amp; a, <span class="keyword">const</span> Op&amp; b) {</div>
+<div class="line"><a id="l01091" name="l01091"></a><span class="lineno"> 1091</span>              if (less_op_key(a, b))</div>
+<div class="line"><a id="l01092" name="l01092"></a><span class="lineno"> 1092</span>                return true;</div>
+<div class="line"><a id="l01093" name="l01093"></a><span class="lineno"> 1093</span>              if (less_op_key(b, a))</div>
+<div class="line"><a id="l01094" name="l01094"></a><span class="lineno"> 1094</span>                return false;</div>
+<div class="line"><a id="l01095" name="l01095"></a><span class="lineno"> 1095</span>              return a.order &lt; b.order;</div>
+<div class="line"><a id="l01096" name="l01096"></a><span class="lineno"> 1096</span>            });</div>
+<div class="line"><a id="l01097" name="l01097"></a><span class="lineno"> 1097</span>          }</div>
+<div class="line"><a id="l01098" name="l01098"></a><span class="lineno"> 1098</span> </div>
+<div class="line"><a id="l01099" name="l01099"></a><span class="lineno"> 1099</span>          <span class="comment">// Replay batched operations</span></div>
+<div class="line"><a id="l01100" name="l01100"></a><span class="lineno"> 1100</span>          Entity lastKey = EntityBad;</div>
+<div class="line"><a id="l01101" name="l01101"></a><span class="lineno"> 1101</span>          Entity lastResolved = EntityBad;</div>
+<div class="line"><a id="l01102" name="l01102"></a><span class="lineno"> 1102</span>          <span class="keyword">auto</span> resolve_cached = [&amp;](Entity e) {</div>
+<div class="line"><a id="l01103" name="l01103"></a><span class="lineno"> 1103</span>            <span class="keywordflow">if</span> (e == lastKey)</div>
+<div class="line"><a id="l01104" name="l01104"></a><span class="lineno"> 1104</span>              <span class="keywordflow">return</span> lastResolved;</div>
+<div class="line"><a id="l01105" name="l01105"></a><span class="lineno"> 1105</span>            lastKey = e;</div>
+<div class="line"><a id="l01106" name="l01106"></a><span class="lineno"> 1106</span>            <span class="keywordflow">return</span> lastResolved = resolve(e);</div>
+<div class="line"><a id="l01107" name="l01107"></a><span class="lineno"> 1107</span>          };</div>
+<div class="line"><a id="l01108" name="l01108"></a><span class="lineno"> 1108</span> </div>
+<div class="line"><a id="l01109" name="l01109"></a><span class="lineno"> 1109</span>          cnt::darray_ext&lt;Entity, 16&gt; deleteTargets;</div>
+<div class="line"><a id="l01110" name="l01110"></a><span class="lineno"> 1110</span>          {</div>
+<div class="line"><a id="l01111" name="l01111"></a><span class="lineno"> 1111</span>            GAIA_PROF_SCOPE(cmdbuf::merges);</div>
+<div class="line"><a id="l01112" name="l01112"></a><span class="lineno"> 1112</span>            <span class="keywordflow">for</span> (uint32_t p = 0; p &lt; m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>();) {</div>
+<div class="line"><a id="l01113" name="l01113"></a><span class="lineno"> 1113</span>              GAIA_PROF_SCOPE(cmdbuf::merge);</div>
+<div class="line"><a id="l01114" name="l01114"></a><span class="lineno"> 1114</span> </div>
+<div class="line"><a id="l01115" name="l01115"></a><span class="lineno"> 1115</span>              <span class="keyword">const</span> Entity tgtKey = m_ops[p].target;</div>
 <div class="line"><a id="l01116" name="l01116"></a><span class="lineno"> 1116</span> </div>
-<div class="line"><a id="l01117" name="l01117"></a><span class="lineno"> 1117</span>              <span class="comment">// Range for this target</span></div>
-<div class="line"><a id="l01118" name="l01118"></a><span class="lineno"> 1118</span>              uint32_t q = p;</div>
-<div class="line"><a id="l01119" name="l01119"></a><span class="lineno"> 1119</span>              <span class="keywordtype">bool</span> hasDelEntity = <span class="keyword">false</span>;</div>
-<div class="line"><a id="l01120" name="l01120"></a><span class="lineno"> 1120</span>              <span class="keywordflow">while</span> (q &lt; m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>() &amp;&amp; m_ops[q].target == tgtKey) {</div>
-<div class="line"><a id="l01121" name="l01121"></a><span class="lineno"> 1121</span>                <span class="keywordflow">if</span> (m_ops[q].type == OpType::DEL_ENTITY)</div>
-<div class="line"><a id="l01122" name="l01122"></a><span class="lineno"> 1122</span>                  hasDelEntity = <span class="keyword">true</span>;</div>
-<div class="line"><a id="l01123" name="l01123"></a><span class="lineno"> 1123</span>                ++q;</div>
-<div class="line"><a id="l01124" name="l01124"></a><span class="lineno"> 1124</span>              }</div>
-<div class="line"><a id="l01125" name="l01125"></a><span class="lineno"> 1125</span> </div>
-<div class="line"><a id="l01126" name="l01126"></a><span class="lineno"> 1126</span>              <span class="comment">// Skip canceled or non-existent temporary entities</span></div>
-<div class="line"><a id="l01127" name="l01127"></a><span class="lineno"> 1127</span>              <span class="keywordflow">if</span> (tgtReal == EntityBad) {</div>
-<div class="line"><a id="l01128" name="l01128"></a><span class="lineno"> 1128</span>                p = q;</div>
-<div class="line"><a id="l01129" name="l01129"></a><span class="lineno"> 1129</span>                <span class="keywordflow">continue</span>;</div>
-<div class="line"><a id="l01130" name="l01130"></a><span class="lineno"> 1130</span>              }</div>
-<div class="line"><a id="l01131" name="l01131"></a><span class="lineno"> 1131</span>              <span class="keywordflow">if</span> (tgtIsTemp &amp;&amp; is_canceled_temp(ti)) {</div>
-<div class="line"><a id="l01132" name="l01132"></a><span class="lineno"> 1132</span>                p = q;</div>
-<div class="line"><a id="l01133" name="l01133"></a><span class="lineno"> 1133</span>                <span class="keywordflow">continue</span>;</div>
-<div class="line"><a id="l01134" name="l01134"></a><span class="lineno"> 1134</span>              }</div>
-<div class="line"><a id="l01135" name="l01135"></a><span class="lineno"> 1135</span> </div>
-<div class="line"><a id="l01136" name="l01136"></a><span class="lineno"> 1136</span>              <span class="keywordflow">if</span> GAIA_UNLIKELY (m_ops[p].other != m_ops[q - 1].other &amp;&amp;</div>
-<div class="line"><a id="l01137" name="l01137"></a><span class="lineno"> 1137</span>                  (m_ops[p].type != OpType::SET_COMPONENT || m_ops[q - 1].type != OpType::SET_COMPONENT) &amp;&amp;</div>
-<div class="line"><a id="l01138" name="l01138"></a><span class="lineno"> 1138</span>                  replay_batch(p, q, tgtReal) &amp;&amp; p == q) {</div>
-<div class="line"><a id="l01139" name="l01139"></a><span class="lineno"> 1139</span>                <span class="keywordflow">if</span> (hasDelEntity)</div>
-<div class="line"><a id="l01140" name="l01140"></a><span class="lineno"> 1140</span>                  deleteTargets.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#aedbe48d997d5322d37ae60522bac9449">push_back</a>(tgtReal);</div>
-<div class="line"><a id="l01141" name="l01141"></a><span class="lineno"> 1141</span>                p = q;</div>
-<div class="line"><a id="l01142" name="l01142"></a><span class="lineno"> 1142</span>                <span class="keywordflow">continue</span>;</div>
-<div class="line"><a id="l01143" name="l01143"></a><span class="lineno"> 1143</span>              }</div>
-<div class="line"><a id="l01144" name="l01144"></a><span class="lineno"> 1144</span> </div>
-<div class="line"><a id="l01145" name="l01145"></a><span class="lineno"> 1145</span>              <span class="comment">// Emit relation groups.</span></div>
-<div class="line"><a id="l01146" name="l01146"></a><span class="lineno"> 1146</span>              <span class="comment">// Inside [p..q) range (same target), process groups by &#39;other&#39;.</span></div>
-<div class="line"><a id="l01147" name="l01147"></a><span class="lineno"> 1147</span>              <span class="comment">// We perform per-component reduction.</span></div>
-<div class="line"><a id="l01148" name="l01148"></a><span class="lineno"> 1148</span>              <span class="keywordflow">for</span> (uint32_t i = p; i &lt; q;) {</div>
-<div class="line"><a id="l01149" name="l01149"></a><span class="lineno"> 1149</span>                <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> othKey = m_ops[i].other;</div>
-<div class="line"><a id="l01150" name="l01150"></a><span class="lineno"> 1150</span>                <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> pairTargetKey = m_ops[i].pairTarget;</div>
-<div class="line"><a id="l01151" name="l01151"></a><span class="lineno"> 1151</span>                <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> othReal = resolve_object(m_ops[i]);</div>
-<div class="line"><a id="l01152" name="l01152"></a><span class="lineno"> 1152</span> </div>
-<div class="line"><a id="l01153" name="l01153"></a><span class="lineno"> 1153</span>                <span class="comment">// Group ops with same (target, other)</span></div>
-<div class="line"><a id="l01154" name="l01154"></a><span class="lineno"> 1154</span>                uint32_t j = i + 1;</div>
-<div class="line"><a id="l01155" name="l01155"></a><span class="lineno"> 1155</span>                <span class="keywordflow">while</span> (j &lt; q &amp;&amp; m_ops[j].other == othKey &amp;&amp; m_ops[j].pairTarget == pairTargetKey)</div>
-<div class="line"><a id="l01156" name="l01156"></a><span class="lineno"> 1156</span>                  ++j;</div>
+<div class="line"><a id="l01117" name="l01117"></a><span class="lineno"> 1117</span>              <span class="keyword">const</span> <span class="keywordtype">bool</span> tgtIsTemp = is_tmp(tgtKey);</div>
+<div class="line"><a id="l01118" name="l01118"></a><span class="lineno"> 1118</span>              <span class="keyword">const</span> uint32_t ti = tgtIsTemp ? tgtKey.id() : 0u;</div>
+<div class="line"><a id="l01119" name="l01119"></a><span class="lineno"> 1119</span>              <span class="keyword">const</span> Entity tgtReal =</div>
+<div class="line"><a id="l01120" name="l01120"></a><span class="lineno"> 1120</span>                  tgtIsTemp ? (ti &lt; m_temp2real.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>() ? m_temp2real[ti] : EntityBad) : resolve_cached(tgtKey);</div>
+<div class="line"><a id="l01121" name="l01121"></a><span class="lineno"> 1121</span> </div>
+<div class="line"><a id="l01122" name="l01122"></a><span class="lineno"> 1122</span>              <span class="comment">// Range for this target</span></div>
+<div class="line"><a id="l01123" name="l01123"></a><span class="lineno"> 1123</span>              uint32_t q = p;</div>
+<div class="line"><a id="l01124" name="l01124"></a><span class="lineno"> 1124</span>              <span class="keywordtype">bool</span> hasDelEntity = <span class="keyword">false</span>;</div>
+<div class="line"><a id="l01125" name="l01125"></a><span class="lineno"> 1125</span>              <span class="keywordflow">while</span> (q &lt; m_ops.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>() &amp;&amp; m_ops[q].target == tgtKey) {</div>
+<div class="line"><a id="l01126" name="l01126"></a><span class="lineno"> 1126</span>                <span class="keywordflow">if</span> (m_ops[q].type == OpType::DEL_ENTITY)</div>
+<div class="line"><a id="l01127" name="l01127"></a><span class="lineno"> 1127</span>                  hasDelEntity = <span class="keyword">true</span>;</div>
+<div class="line"><a id="l01128" name="l01128"></a><span class="lineno"> 1128</span>                ++q;</div>
+<div class="line"><a id="l01129" name="l01129"></a><span class="lineno"> 1129</span>              }</div>
+<div class="line"><a id="l01130" name="l01130"></a><span class="lineno"> 1130</span> </div>
+<div class="line"><a id="l01131" name="l01131"></a><span class="lineno"> 1131</span>              <span class="comment">// Skip canceled or non-existent temporary entities</span></div>
+<div class="line"><a id="l01132" name="l01132"></a><span class="lineno"> 1132</span>              <span class="keywordflow">if</span> (tgtReal == EntityBad) {</div>
+<div class="line"><a id="l01133" name="l01133"></a><span class="lineno"> 1133</span>                p = q;</div>
+<div class="line"><a id="l01134" name="l01134"></a><span class="lineno"> 1134</span>                <span class="keywordflow">continue</span>;</div>
+<div class="line"><a id="l01135" name="l01135"></a><span class="lineno"> 1135</span>              }</div>
+<div class="line"><a id="l01136" name="l01136"></a><span class="lineno"> 1136</span>              <span class="keywordflow">if</span> (tgtIsTemp &amp;&amp; is_canceled_temp(ti)) {</div>
+<div class="line"><a id="l01137" name="l01137"></a><span class="lineno"> 1137</span>                p = q;</div>
+<div class="line"><a id="l01138" name="l01138"></a><span class="lineno"> 1138</span>                <span class="keywordflow">continue</span>;</div>
+<div class="line"><a id="l01139" name="l01139"></a><span class="lineno"> 1139</span>              }</div>
+<div class="line"><a id="l01140" name="l01140"></a><span class="lineno"> 1140</span> </div>
+<div class="line"><a id="l01141" name="l01141"></a><span class="lineno"> 1141</span>              <span class="keywordflow">if</span> GAIA_UNLIKELY (m_ops[p].other != m_ops[q - 1].other &amp;&amp;</div>
+<div class="line"><a id="l01142" name="l01142"></a><span class="lineno"> 1142</span>                  (m_ops[p].type != OpType::SET_COMPONENT || m_ops[q - 1].type != OpType::SET_COMPONENT) &amp;&amp;</div>
+<div class="line"><a id="l01143" name="l01143"></a><span class="lineno"> 1143</span>                  replay_batch(p, q, tgtReal) &amp;&amp; p == q) {</div>
+<div class="line"><a id="l01144" name="l01144"></a><span class="lineno"> 1144</span>                <span class="keywordflow">if</span> (hasDelEntity)</div>
+<div class="line"><a id="l01145" name="l01145"></a><span class="lineno"> 1145</span>                  deleteTargets.push_back(tgtReal);</div>
+<div class="line"><a id="l01146" name="l01146"></a><span class="lineno"> 1146</span>                p = q;</div>
+<div class="line"><a id="l01147" name="l01147"></a><span class="lineno"> 1147</span>                <span class="keywordflow">continue</span>;</div>
+<div class="line"><a id="l01148" name="l01148"></a><span class="lineno"> 1148</span>              }</div>
+<div class="line"><a id="l01149" name="l01149"></a><span class="lineno"> 1149</span> </div>
+<div class="line"><a id="l01150" name="l01150"></a><span class="lineno"> 1150</span>              <span class="comment">// Emit relation groups.</span></div>
+<div class="line"><a id="l01151" name="l01151"></a><span class="lineno"> 1151</span>              <span class="comment">// Inside [p..q) range (same target), process groups by &#39;other&#39;.</span></div>
+<div class="line"><a id="l01152" name="l01152"></a><span class="lineno"> 1152</span>              <span class="comment">// We perform per-component reduction.</span></div>
+<div class="line"><a id="l01153" name="l01153"></a><span class="lineno"> 1153</span>              <span class="keywordflow">for</span> (uint32_t i = p; i &lt; q;) {</div>
+<div class="line"><a id="l01154" name="l01154"></a><span class="lineno"> 1154</span>                <span class="keyword">const</span> Entity othKey = m_ops[i].other;</div>
+<div class="line"><a id="l01155" name="l01155"></a><span class="lineno"> 1155</span>                <span class="keyword">const</span> Entity pairTargetKey = m_ops[i].pairTarget;</div>
+<div class="line"><a id="l01156" name="l01156"></a><span class="lineno"> 1156</span>                <span class="keyword">const</span> Entity othReal = resolve_object(m_ops[i]);</div>
 <div class="line"><a id="l01157" name="l01157"></a><span class="lineno"> 1157</span> </div>
-<div class="line"><a id="l01158" name="l01158"></a><span class="lineno"> 1158</span>                <span class="keywordflow">if</span> (tgtReal != EntityBad) {</div>
-<div class="line"><a id="l01159" name="l01159"></a><span class="lineno"> 1159</span>                  <span class="keyword">const</span> uint32_t groupSize = j - i;</div>
-<div class="line"><a id="l01160" name="l01160"></a><span class="lineno"> 1160</span>                  <span class="comment">// Fast path - single op</span></div>
-<div class="line"><a id="l01161" name="l01161"></a><span class="lineno"> 1161</span>                  <span class="keywordflow">if</span> (groupSize == 1) {</div>
-<div class="line"><a id="l01162" name="l01162"></a><span class="lineno"> 1162</span>                    replay_op(m_ops[i], tgtReal, othReal);</div>
-<div class="line"><a id="l01163" name="l01163"></a><span class="lineno"> 1163</span>                  }</div>
-<div class="line"><a id="l01164" name="l01164"></a><span class="lineno"> 1164</span>                  <span class="comment">// Slow path: merge multiple ops</span></div>
-<div class="line"><a id="l01165" name="l01165"></a><span class="lineno"> 1165</span>                  <span class="keywordflow">else</span> {</div>
-<div class="line"><a id="l01166" name="l01166"></a><span class="lineno"> 1166</span>                    uint8_t mask = 0;</div>
-<div class="line"><a id="l01167" name="l01167"></a><span class="lineno"> 1167</span>                    uint32_t dataPos = 0;</div>
-<div class="line"><a id="l01168" name="l01168"></a><span class="lineno"> 1168</span> </div>
-<div class="line"><a id="l01169" name="l01169"></a><span class="lineno"> 1169</span>                    <span class="keywordflow">for</span> (uint32_t k = i; k &lt; j; ++k) {</div>
-<div class="line"><a id="l01170" name="l01170"></a><span class="lineno"> 1170</span>                      <span class="keyword">const</span> Op&amp; op = m_ops[k];</div>
-<div class="line"><a id="l01171" name="l01171"></a><span class="lineno"> 1171</span>                      <span class="keywordflow">switch</span> (op.type) {</div>
-<div class="line"><a id="l01172" name="l01172"></a><span class="lineno"> 1172</span>                        <span class="keywordflow">case</span> OpType::ADD_COMPONENT:</div>
-<div class="line"><a id="l01173" name="l01173"></a><span class="lineno"> 1173</span>                          mask |= F_ADD;</div>
-<div class="line"><a id="l01174" name="l01174"></a><span class="lineno"> 1174</span>                          <span class="keywordflow">break</span>;</div>
-<div class="line"><a id="l01175" name="l01175"></a><span class="lineno"> 1175</span>                        <span class="keywordflow">case</span> OpType::ADD_COMPONENT_DATA:</div>
-<div class="line"><a id="l01176" name="l01176"></a><span class="lineno"> 1176</span>                          mask |= F_ADD_DATA;</div>
-<div class="line"><a id="l01177" name="l01177"></a><span class="lineno"> 1177</span>                          dataPos = op.off;</div>
-<div class="line"><a id="l01178" name="l01178"></a><span class="lineno"> 1178</span>                          <span class="keywordflow">break</span>;</div>
-<div class="line"><a id="l01179" name="l01179"></a><span class="lineno"> 1179</span>                        <span class="keywordflow">case</span> OpType::SET_COMPONENT:</div>
-<div class="line"><a id="l01180" name="l01180"></a><span class="lineno"> 1180</span>                          mask |= F_SET;</div>
-<div class="line"><a id="l01181" name="l01181"></a><span class="lineno"> 1181</span>                          dataPos = op.off;</div>
-<div class="line"><a id="l01182" name="l01182"></a><span class="lineno"> 1182</span>                          <span class="keywordflow">break</span>;</div>
-<div class="line"><a id="l01183" name="l01183"></a><span class="lineno"> 1183</span>                        <span class="keywordflow">case</span> OpType::DEL_COMPONENT:</div>
-<div class="line"><a id="l01184" name="l01184"></a><span class="lineno"> 1184</span>                          <span class="comment">// A delete discards payloads from the preceding component lifetime.</span></div>
-<div class="line"><a id="l01185" name="l01185"></a><span class="lineno"> 1185</span>                          mask = F_DEL;</div>
-<div class="line"><a id="l01186" name="l01186"></a><span class="lineno"> 1186</span>                          <span class="keywordflow">break</span>;</div>
-<div class="line"><a id="l01187" name="l01187"></a><span class="lineno"> 1187</span>                        <span class="keywordflow">default</span>:</div>
-<div class="line"><a id="l01188" name="l01188"></a><span class="lineno"> 1188</span>                          <span class="keywordflow">break</span>;</div>
-<div class="line"><a id="l01189" name="l01189"></a><span class="lineno"> 1189</span>                      }</div>
-<div class="line"><a id="l01190" name="l01190"></a><span class="lineno"> 1190</span>                    }</div>
-<div class="line"><a id="l01191" name="l01191"></a><span class="lineno"> 1191</span> </div>
-<div class="line"><a id="l01192" name="l01192"></a><span class="lineno"> 1192</span>                    <span class="keyword">const</span> <span class="keywordtype">bool</span> hasAdd = mask &amp; F_ADD;</div>
-<div class="line"><a id="l01193" name="l01193"></a><span class="lineno"> 1193</span>                    <span class="keyword">const</span> <span class="keywordtype">bool</span> hasAddData = mask &amp; F_ADD_DATA;</div>
-<div class="line"><a id="l01194" name="l01194"></a><span class="lineno"> 1194</span>                    <span class="keyword">const</span> <span class="keywordtype">bool</span> hasSet = mask &amp; F_SET;</div>
-<div class="line"><a id="l01195" name="l01195"></a><span class="lineno"> 1195</span>                    <span class="keyword">const</span> <span class="keywordtype">bool</span> hasDel = mask &amp; F_DEL;</div>
+<div class="line"><a id="l01158" name="l01158"></a><span class="lineno"> 1158</span>                <span class="comment">// Group ops with same (target, other)</span></div>
+<div class="line"><a id="l01159" name="l01159"></a><span class="lineno"> 1159</span>                uint32_t j = i + 1;</div>
+<div class="line"><a id="l01160" name="l01160"></a><span class="lineno"> 1160</span>                <span class="keywordflow">while</span> (j &lt; q &amp;&amp; m_ops[j].other == othKey &amp;&amp; m_ops[j].pairTarget == pairTargetKey)</div>
+<div class="line"><a id="l01161" name="l01161"></a><span class="lineno"> 1161</span>                  ++j;</div>
+<div class="line"><a id="l01162" name="l01162"></a><span class="lineno"> 1162</span> </div>
+<div class="line"><a id="l01163" name="l01163"></a><span class="lineno"> 1163</span>                <span class="keywordflow">if</span> (tgtReal != EntityBad) {</div>
+<div class="line"><a id="l01164" name="l01164"></a><span class="lineno"> 1164</span>                  <span class="keyword">const</span> uint32_t groupSize = j - i;</div>
+<div class="line"><a id="l01165" name="l01165"></a><span class="lineno"> 1165</span>                  <span class="comment">// Fast path - single op</span></div>
+<div class="line"><a id="l01166" name="l01166"></a><span class="lineno"> 1166</span>                  <span class="keywordflow">if</span> (groupSize == 1) {</div>
+<div class="line"><a id="l01167" name="l01167"></a><span class="lineno"> 1167</span>                    replay_op(m_ops[i], tgtReal, othReal);</div>
+<div class="line"><a id="l01168" name="l01168"></a><span class="lineno"> 1168</span>                  }</div>
+<div class="line"><a id="l01169" name="l01169"></a><span class="lineno"> 1169</span>                  <span class="comment">// Slow path: merge multiple ops</span></div>
+<div class="line"><a id="l01170" name="l01170"></a><span class="lineno"> 1170</span>                  <span class="keywordflow">else</span> {</div>
+<div class="line"><a id="l01171" name="l01171"></a><span class="lineno"> 1171</span>                    uint8_t mask = 0;</div>
+<div class="line"><a id="l01172" name="l01172"></a><span class="lineno"> 1172</span>                    uint32_t dataPos = 0;</div>
+<div class="line"><a id="l01173" name="l01173"></a><span class="lineno"> 1173</span> </div>
+<div class="line"><a id="l01174" name="l01174"></a><span class="lineno"> 1174</span>                    <span class="keywordflow">for</span> (uint32_t k = i; k &lt; j; ++k) {</div>
+<div class="line"><a id="l01175" name="l01175"></a><span class="lineno"> 1175</span>                      <span class="keyword">const</span> Op&amp; op = m_ops[k];</div>
+<div class="line"><a id="l01176" name="l01176"></a><span class="lineno"> 1176</span>                      <span class="keywordflow">switch</span> (op.type) {</div>
+<div class="line"><a id="l01177" name="l01177"></a><span class="lineno"> 1177</span>                        <span class="keywordflow">case</span> OpType::ADD_COMPONENT:</div>
+<div class="line"><a id="l01178" name="l01178"></a><span class="lineno"> 1178</span>                          mask |= F_ADD;</div>
+<div class="line"><a id="l01179" name="l01179"></a><span class="lineno"> 1179</span>                          <span class="keywordflow">break</span>;</div>
+<div class="line"><a id="l01180" name="l01180"></a><span class="lineno"> 1180</span>                        <span class="keywordflow">case</span> OpType::ADD_COMPONENT_DATA:</div>
+<div class="line"><a id="l01181" name="l01181"></a><span class="lineno"> 1181</span>                          mask |= F_ADD_DATA;</div>
+<div class="line"><a id="l01182" name="l01182"></a><span class="lineno"> 1182</span>                          dataPos = op.off;</div>
+<div class="line"><a id="l01183" name="l01183"></a><span class="lineno"> 1183</span>                          <span class="keywordflow">break</span>;</div>
+<div class="line"><a id="l01184" name="l01184"></a><span class="lineno"> 1184</span>                        <span class="keywordflow">case</span> OpType::SET_COMPONENT:</div>
+<div class="line"><a id="l01185" name="l01185"></a><span class="lineno"> 1185</span>                          mask |= F_SET;</div>
+<div class="line"><a id="l01186" name="l01186"></a><span class="lineno"> 1186</span>                          dataPos = op.off;</div>
+<div class="line"><a id="l01187" name="l01187"></a><span class="lineno"> 1187</span>                          <span class="keywordflow">break</span>;</div>
+<div class="line"><a id="l01188" name="l01188"></a><span class="lineno"> 1188</span>                        <span class="keywordflow">case</span> OpType::DEL_COMPONENT:</div>
+<div class="line"><a id="l01189" name="l01189"></a><span class="lineno"> 1189</span>                          <span class="comment">// A delete discards payloads from the preceding component lifetime.</span></div>
+<div class="line"><a id="l01190" name="l01190"></a><span class="lineno"> 1190</span>                          mask = F_DEL;</div>
+<div class="line"><a id="l01191" name="l01191"></a><span class="lineno"> 1191</span>                          <span class="keywordflow">break</span>;</div>
+<div class="line"><a id="l01192" name="l01192"></a><span class="lineno"> 1192</span>                        <span class="keywordflow">default</span>:</div>
+<div class="line"><a id="l01193" name="l01193"></a><span class="lineno"> 1193</span>                          <span class="keywordflow">break</span>;</div>
+<div class="line"><a id="l01194" name="l01194"></a><span class="lineno"> 1194</span>                      }</div>
+<div class="line"><a id="l01195" name="l01195"></a><span class="lineno"> 1195</span>                    }</div>
 <div class="line"><a id="l01196" name="l01196"></a><span class="lineno"> 1196</span> </div>
-<div class="line"><a id="l01197" name="l01197"></a><span class="lineno"> 1197</span>                    <span class="comment">// 1) DEL present: reduce the surviving component lifetime.</span></div>
-<div class="line"><a id="l01198" name="l01198"></a><span class="lineno"> 1198</span>                    <span class="comment">// Replay in order when World policies or observable side effects require it.</span></div>
-<div class="line"><a id="l01199" name="l01199"></a><span class="lineno"> 1199</span>                    <span class="keywordflow">if</span> (hasDel) {</div>
-<div class="line"><a id="l01200" name="l01200"></a><span class="lineno"> 1200</span>                      replay_merged(i, j, tgtReal, othReal, mask, dataPos);</div>
-<div class="line"><a id="l01201" name="l01201"></a><span class="lineno"> 1201</span>                    }</div>
-<div class="line"><a id="l01202" name="l01202"></a><span class="lineno"> 1202</span>                    <span class="comment">// 2) ADD_WITH_DATA or ADD+SET = ADD_WITH_DATA</span></div>
-<div class="line"><a id="l01203" name="l01203"></a><span class="lineno"> 1203</span>                    <span class="keywordflow">else</span> <span class="keywordflow">if</span> (hasAddData || (hasAdd &amp;&amp; hasSet)) {</div>
-<div class="line"><a id="l01204" name="l01204"></a><span class="lineno"> 1204</span>                      replay_add_data(tgtReal, othReal, dataPos);</div>
-<div class="line"><a id="l01205" name="l01205"></a><span class="lineno"> 1205</span>                    }</div>
-<div class="line"><a id="l01206" name="l01206"></a><span class="lineno"> 1206</span>                    <span class="comment">// 3) ADD only</span></div>
-<div class="line"><a id="l01207" name="l01207"></a><span class="lineno"> 1207</span>                    <span class="keywordflow">else</span> <span class="keywordflow">if</span> (hasAdd) {</div>
-<div class="line"><a id="l01208" name="l01208"></a><span class="lineno"> 1208</span>                      replay_add(tgtReal, othReal);</div>
-<div class="line"><a id="l01209" name="l01209"></a><span class="lineno"> 1209</span>                    }</div>
-<div class="line"><a id="l01210" name="l01210"></a><span class="lineno"> 1210</span>                    <span class="comment">// 4) SET only</span></div>
-<div class="line"><a id="l01211" name="l01211"></a><span class="lineno"> 1211</span>                    <span class="keywordflow">else</span> <span class="keywordflow">if</span> (hasSet) {</div>
-<div class="line"><a id="l01212" name="l01212"></a><span class="lineno"> 1212</span>                      replay_data(tgtReal, othReal, dataPos);</div>
-<div class="line"><a id="l01213" name="l01213"></a><span class="lineno"> 1213</span>                    }</div>
-<div class="line"><a id="l01214" name="l01214"></a><span class="lineno"> 1214</span>                  }</div>
-<div class="line"><a id="l01215" name="l01215"></a><span class="lineno"> 1215</span>                }</div>
-<div class="line"><a id="l01216" name="l01216"></a><span class="lineno"> 1216</span> </div>
-<div class="line"><a id="l01217" name="l01217"></a><span class="lineno"> 1217</span>                <span class="comment">// Advance to next component group</span></div>
-<div class="line"><a id="l01218" name="l01218"></a><span class="lineno"> 1218</span>                i = j;</div>
-<div class="line"><a id="l01219" name="l01219"></a><span class="lineno"> 1219</span>              }</div>
-<div class="line"><a id="l01220" name="l01220"></a><span class="lineno"> 1220</span> </div>
-<div class="line"><a id="l01221" name="l01221"></a><span class="lineno"> 1221</span>              <span class="comment">// Apply deletions after every relationship operation so sorting target groups cannot</span></div>
-<div class="line"><a id="l01222" name="l01222"></a><span class="lineno"> 1222</span>              <span class="comment">// invalidate an endpoint that a later group still needs to resolve.</span></div>
-<div class="line"><a id="l01223" name="l01223"></a><span class="lineno"> 1223</span>              <span class="keywordflow">if</span> (hasDelEntity)</div>
-<div class="line"><a id="l01224" name="l01224"></a><span class="lineno"> 1224</span>                deleteTargets.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#aedbe48d997d5322d37ae60522bac9449">push_back</a>(tgtReal);</div>
+<div class="line"><a id="l01197" name="l01197"></a><span class="lineno"> 1197</span>                    <span class="keyword">const</span> <span class="keywordtype">bool</span> hasAdd = mask &amp; F_ADD;</div>
+<div class="line"><a id="l01198" name="l01198"></a><span class="lineno"> 1198</span>                    <span class="keyword">const</span> <span class="keywordtype">bool</span> hasAddData = mask &amp; F_ADD_DATA;</div>
+<div class="line"><a id="l01199" name="l01199"></a><span class="lineno"> 1199</span>                    <span class="keyword">const</span> <span class="keywordtype">bool</span> hasSet = mask &amp; F_SET;</div>
+<div class="line"><a id="l01200" name="l01200"></a><span class="lineno"> 1200</span>                    <span class="keyword">const</span> <span class="keywordtype">bool</span> hasDel = mask &amp; F_DEL;</div>
+<div class="line"><a id="l01201" name="l01201"></a><span class="lineno"> 1201</span> </div>
+<div class="line"><a id="l01202" name="l01202"></a><span class="lineno"> 1202</span>                    <span class="comment">// 1) DEL present: reduce the surviving component lifetime.</span></div>
+<div class="line"><a id="l01203" name="l01203"></a><span class="lineno"> 1203</span>                    <span class="comment">// Replay in order when World policies or observable side effects require it.</span></div>
+<div class="line"><a id="l01204" name="l01204"></a><span class="lineno"> 1204</span>                    <span class="keywordflow">if</span> (hasDel) {</div>
+<div class="line"><a id="l01205" name="l01205"></a><span class="lineno"> 1205</span>                      replay_merged(i, j, tgtReal, othReal, mask, dataPos);</div>
+<div class="line"><a id="l01206" name="l01206"></a><span class="lineno"> 1206</span>                    }</div>
+<div class="line"><a id="l01207" name="l01207"></a><span class="lineno"> 1207</span>                    <span class="comment">// 2) ADD_WITH_DATA or ADD+SET = ADD_WITH_DATA</span></div>
+<div class="line"><a id="l01208" name="l01208"></a><span class="lineno"> 1208</span>                    <span class="keywordflow">else</span> <span class="keywordflow">if</span> (hasAddData || (hasAdd &amp;&amp; hasSet)) {</div>
+<div class="line"><a id="l01209" name="l01209"></a><span class="lineno"> 1209</span>                      replay_add_data(tgtReal, othReal, dataPos);</div>
+<div class="line"><a id="l01210" name="l01210"></a><span class="lineno"> 1210</span>                    }</div>
+<div class="line"><a id="l01211" name="l01211"></a><span class="lineno"> 1211</span>                    <span class="comment">// 3) ADD only</span></div>
+<div class="line"><a id="l01212" name="l01212"></a><span class="lineno"> 1212</span>                    <span class="keywordflow">else</span> <span class="keywordflow">if</span> (hasAdd) {</div>
+<div class="line"><a id="l01213" name="l01213"></a><span class="lineno"> 1213</span>                      replay_add(tgtReal, othReal);</div>
+<div class="line"><a id="l01214" name="l01214"></a><span class="lineno"> 1214</span>                    }</div>
+<div class="line"><a id="l01215" name="l01215"></a><span class="lineno"> 1215</span>                    <span class="comment">// 4) SET only</span></div>
+<div class="line"><a id="l01216" name="l01216"></a><span class="lineno"> 1216</span>                    <span class="keywordflow">else</span> <span class="keywordflow">if</span> (hasSet) {</div>
+<div class="line"><a id="l01217" name="l01217"></a><span class="lineno"> 1217</span>                      replay_data(tgtReal, othReal, dataPos);</div>
+<div class="line"><a id="l01218" name="l01218"></a><span class="lineno"> 1218</span>                    }</div>
+<div class="line"><a id="l01219" name="l01219"></a><span class="lineno"> 1219</span>                  }</div>
+<div class="line"><a id="l01220" name="l01220"></a><span class="lineno"> 1220</span>                }</div>
+<div class="line"><a id="l01221" name="l01221"></a><span class="lineno"> 1221</span> </div>
+<div class="line"><a id="l01222" name="l01222"></a><span class="lineno"> 1222</span>                <span class="comment">// Advance to next component group</span></div>
+<div class="line"><a id="l01223" name="l01223"></a><span class="lineno"> 1223</span>                i = j;</div>
+<div class="line"><a id="l01224" name="l01224"></a><span class="lineno"> 1224</span>              }</div>
 <div class="line"><a id="l01225" name="l01225"></a><span class="lineno"> 1225</span> </div>
-<div class="line"><a id="l01226" name="l01226"></a><span class="lineno"> 1226</span>              <span class="comment">// Advance to next target group</span></div>
-<div class="line"><a id="l01227" name="l01227"></a><span class="lineno"> 1227</span>              p = q;</div>
-<div class="line"><a id="l01228" name="l01228"></a><span class="lineno"> 1228</span>            }</div>
-<div class="line"><a id="l01229" name="l01229"></a><span class="lineno"> 1229</span>          }</div>
-<div class="line"><a id="l01230" name="l01230"></a><span class="lineno"> 1230</span>          <span class="keywordflow">for</span> (<span class="keyword">auto</span> entity: deleteTargets) {</div>
-<div class="line"><a id="l01231" name="l01231"></a><span class="lineno"> 1231</span>            <span class="keywordflow">if</span> (m_world.<a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a7f38da2b090f678111ea544b54c5f9a8">valid</a>(entity))</div>
-<div class="line"><a id="l01232" name="l01232"></a><span class="lineno"> 1232</span>              m_world.<a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a546e93622641d482c66a430e11a601ef">del</a>(entity);</div>
-<div class="line"><a id="l01233" name="l01233"></a><span class="lineno"> 1233</span>          }</div>
-<div class="line"><a id="l01234" name="l01234"></a><span class="lineno"> 1234</span> </div>
-<div class="line"><a id="l01235" name="l01235"></a><span class="lineno"> 1235</span>          clear();</div>
-<div class="line"><a id="l01236" name="l01236"></a><span class="lineno"> 1236</span>        }</div>
+<div class="line"><a id="l01226" name="l01226"></a><span class="lineno"> 1226</span>              <span class="comment">// Apply deletions after every relationship operation so sorting target groups cannot</span></div>
+<div class="line"><a id="l01227" name="l01227"></a><span class="lineno"> 1227</span>              <span class="comment">// invalidate an endpoint that a later group still needs to resolve.</span></div>
+<div class="line"><a id="l01228" name="l01228"></a><span class="lineno"> 1228</span>              <span class="keywordflow">if</span> (hasDelEntity)</div>
+<div class="line"><a id="l01229" name="l01229"></a><span class="lineno"> 1229</span>                deleteTargets.push_back(tgtReal);</div>
+<div class="line"><a id="l01230" name="l01230"></a><span class="lineno"> 1230</span> </div>
+<div class="line"><a id="l01231" name="l01231"></a><span class="lineno"> 1231</span>              <span class="comment">// Advance to next target group</span></div>
+<div class="line"><a id="l01232" name="l01232"></a><span class="lineno"> 1232</span>              p = q;</div>
+<div class="line"><a id="l01233" name="l01233"></a><span class="lineno"> 1233</span>            }</div>
+<div class="line"><a id="l01234" name="l01234"></a><span class="lineno"> 1234</span>          }</div>
+<div class="line"><a id="l01235" name="l01235"></a><span class="lineno"> 1235</span>          <span class="keywordflow">for</span> (<span class="keyword">auto</span> entity: deleteTargets) {</div>
+<div class="line"><a id="l01236" name="l01236"></a><span class="lineno"> 1236</span>            <span class="keywordflow">if</span> (m_world.<a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a7f38da2b090f678111ea544b54c5f9a8">valid</a>(entity))</div>
+<div class="line"><a id="l01237" name="l01237"></a><span class="lineno"> 1237</span>              m_world.<a class="code hl_function" href="classgaia_1_1ecs_1_1World.html#a546e93622641d482c66a430e11a601ef">del</a>(entity);</div>
+<div class="line"><a id="l01238" name="l01238"></a><span class="lineno"> 1238</span>          }</div>
+<div class="line"><a id="l01239" name="l01239"></a><span class="lineno"> 1239</span>        }</div>
+<div class="line"><a id="l01240" name="l01240"></a><span class="lineno"> 1240</span>      };</div>
 </div>
-<div class="line"><a id="l01237" name="l01237"></a><span class="lineno"> 1237</span>      };</div>
-</div>
-<div class="line"><a id="l01238" name="l01238"></a><span class="lineno"> 1238</span>    } <span class="comment">// namespace detail</span></div>
-<div class="line"><a id="l01239" name="l01239"></a><span class="lineno"> 1239</span> </div>
-<div class="line"><a id="l01241" name="l01241"></a><span class="lineno"> 1241</span>    <span class="keyword">using </span>CommandBufferST = detail::CommandBuffer&lt;AccessContextST&gt;;</div>
-<div class="line"><a id="l01243" name="l01243"></a><span class="lineno"> 1243</span>    <span class="keyword">using </span>CommandBufferMT = detail::CommandBuffer&lt;AccessContextMT&gt;;</div>
-<div class="line"><a id="l01245" name="l01245"></a><span class="lineno"> 1245</span>    <span class="keyword">using </span>CommandBufferPlainST = detail::CommandBuffer&lt;AccessContextST, false&gt;;</div>
-<div class="line"><a id="l01248" name="l01248"></a><span class="lineno"> 1248</span>    <span class="keyword">using </span>CommandBufferPlainMT = detail::CommandBuffer&lt;AccessContextMT, false&gt;;</div>
-<div class="line"><a id="l01249" name="l01249"></a><span class="lineno"> 1249</span> </div>
-<div class="line"><a id="l01253" name="l01253"></a><span class="lineno"> 1253</span>    <span class="keyword">inline</span> CommandBufferST* cmd_buffer_st_create(World&amp; world) {</div>
-<div class="line"><a id="l01254" name="l01254"></a><span class="lineno"> 1254</span>      <span class="keywordflow">return</span> <span class="keyword">new</span> CommandBufferST(world);</div>
-<div class="line"><a id="l01255" name="l01255"></a><span class="lineno"> 1255</span>    }</div>
-<div class="line"><a id="l01258" name="l01258"></a><span class="lineno"> 1258</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> cmd_buffer_destroy(CommandBufferST&amp; cmdBuffer) {</div>
-<div class="line"><a id="l01259" name="l01259"></a><span class="lineno"> 1259</span>      <span class="keyword">delete</span> &amp;cmdBuffer;</div>
-<div class="line"><a id="l01260" name="l01260"></a><span class="lineno"> 1260</span>    }</div>
-<div class="line"><a id="l01263" name="l01263"></a><span class="lineno"> 1263</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> cmd_buffer_commit(CommandBufferST&amp; cmdBuffer) {</div>
-<div class="line"><a id="l01264" name="l01264"></a><span class="lineno"> 1264</span>      cmdBuffer.commit();</div>
-<div class="line"><a id="l01265" name="l01265"></a><span class="lineno"> 1265</span>    }</div>
-<div class="line"><a id="l01266" name="l01266"></a><span class="lineno"> 1266</span> </div>
-<div class="line"><a id="l01270" name="l01270"></a><span class="lineno"> 1270</span>    <span class="keyword">inline</span> CommandBufferMT* cmd_buffer_mt_create(World&amp; world) {</div>
-<div class="line"><a id="l01271" name="l01271"></a><span class="lineno"> 1271</span>      <span class="keywordflow">return</span> <span class="keyword">new</span> CommandBufferMT(world);</div>
-<div class="line"><a id="l01272" name="l01272"></a><span class="lineno"> 1272</span>    }</div>
-<div class="line"><a id="l01275" name="l01275"></a><span class="lineno"> 1275</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> cmd_buffer_destroy(CommandBufferMT&amp; cmdBuffer) {</div>
-<div class="line"><a id="l01276" name="l01276"></a><span class="lineno"> 1276</span>      <span class="keyword">delete</span> &amp;cmdBuffer;</div>
-<div class="line"><a id="l01277" name="l01277"></a><span class="lineno"> 1277</span>    }</div>
-<div class="line"><a id="l01280" name="l01280"></a><span class="lineno"> 1280</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> cmd_buffer_commit(CommandBufferMT&amp; cmdBuffer) {</div>
-<div class="line"><a id="l01281" name="l01281"></a><span class="lineno"> 1281</span>      cmdBuffer.commit();</div>
-<div class="line"><a id="l01282" name="l01282"></a><span class="lineno"> 1282</span>    }</div>
-<div class="line"><a id="l01283" name="l01283"></a><span class="lineno"> 1283</span>  } <span class="comment">// namespace ecs</span></div>
-<div class="line"><a id="l01284" name="l01284"></a><span class="lineno"> 1284</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:28</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_a1ab8190cf0fb45168fa4a84c056cac44"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#a1ab8190cf0fb45168fa4a84c056cac44">gaia::cnt::darr::resize</a></div><div class="ttdeci">void resize(size_type count, ResizePolicy policy=ResizePolicy::Exact)</div><div class="ttdoc">Changes the number of elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:226</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_a69f6838ce66038a9aac1cfe8a72a22e7"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">gaia::cnt::darr::size</a></div><div class="ttdeci">GAIA_NODISCARD size_type size() const noexcept</div><div class="ttdoc">Returns the number of elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:492</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_a7244366ffc02ed6266a4a2ac549f9217"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#a7244366ffc02ed6266a4a2ac549f9217">gaia::cnt::darr::back</a></div><div class="ttdeci">GAIA_NODISCARD decltype(auto) back() noexcept</div><div class="ttdoc">Accesses the last element.</div><div class="ttdef"><b>Definition</b> darray_impl.h:530</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_a74ceba8209c397c3d16ddd73ea530cf1"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#a74ceba8209c397c3d16ddd73ea530cf1">gaia::cnt::darr::clear</a></div><div class="ttdeci">void clear() noexcept</div><div class="ttdoc">Removes all elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:456</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_a760918dcbd8222c8d4a2ba8c9552bc95"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#a760918dcbd8222c8d4a2ba8c9552bc95">gaia::cnt::darr::begin</a></div><div class="ttdeci">GAIA_NODISCARD auto begin() noexcept</div><div class="ttdoc">Returns an iterator to the first element.</div><div class="ttdef"><b>Definition</b> darray_impl.h:544</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_ad484d16336501853a8256c842ed77fb6"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#ad484d16336501853a8256c842ed77fb6">gaia::cnt::darr::empty</a></div><div class="ttdeci">GAIA_NODISCARD bool empty() const noexcept</div><div class="ttdoc">Checks whether the container has no elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:498</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_aedbe48d997d5322d37ae60522bac9449"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#aedbe48d997d5322d37ae60522bac9449">gaia::cnt::darr::push_back</a></div><div class="ttdeci">void push_back(const T &amp;arg)</div><div class="ttdoc">Appends an element.</div><div class="ttdef"><b>Definition</b> darray_impl.h:303</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_afe8dd95c07aabc3a74eb97d3b9f7a0b6"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#afe8dd95c07aabc3a74eb97d3b9f7a0b6">gaia::cnt::darr::end</a></div><div class="ttdeci">GAIA_NODISCARD auto end() noexcept</div><div class="ttdoc">Returns an iterator one past the last element.</div><div class="ttdef"><b>Definition</b> darray_impl.h:580</div></div>
+<div class="line"><a id="l01241" name="l01241"></a><span class="lineno"> 1241</span>    } <span class="comment">// namespace detail</span></div>
+<div class="line"><a id="l01242" name="l01242"></a><span class="lineno"> 1242</span> </div>
+<div class="line"><a id="l01244" name="l01244"></a><span class="lineno"> 1244</span>    <span class="keyword">using </span>CommandBufferST = detail::CommandBuffer&lt;AccessContextST&gt;;</div>
+<div class="line"><a id="l01246" name="l01246"></a><span class="lineno"> 1246</span>    <span class="keyword">using </span>CommandBufferMT = detail::CommandBuffer&lt;AccessContextMT&gt;;</div>
+<div class="line"><a id="l01248" name="l01248"></a><span class="lineno"> 1248</span>    <span class="keyword">using </span>CommandBufferPlainST = detail::CommandBuffer&lt;AccessContextST, false&gt;;</div>
+<div class="line"><a id="l01251" name="l01251"></a><span class="lineno"> 1251</span>    <span class="keyword">using </span>CommandBufferPlainMT = detail::CommandBuffer&lt;AccessContextMT, false&gt;;</div>
+<div class="line"><a id="l01252" name="l01252"></a><span class="lineno"> 1252</span> </div>
+<div class="line"><a id="l01256" name="l01256"></a><span class="lineno"> 1256</span>    <span class="keyword">inline</span> CommandBufferST* cmd_buffer_st_create(World&amp; world) {</div>
+<div class="line"><a id="l01257" name="l01257"></a><span class="lineno"> 1257</span>      <span class="keywordflow">return</span> <span class="keyword">new</span> CommandBufferST(world);</div>
+<div class="line"><a id="l01258" name="l01258"></a><span class="lineno"> 1258</span>    }</div>
+<div class="line"><a id="l01261" name="l01261"></a><span class="lineno"> 1261</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> cmd_buffer_destroy(CommandBufferST&amp; cmdBuffer) {</div>
+<div class="line"><a id="l01262" name="l01262"></a><span class="lineno"> 1262</span>      <span class="keyword">delete</span> &amp;cmdBuffer;</div>
+<div class="line"><a id="l01263" name="l01263"></a><span class="lineno"> 1263</span>    }</div>
+<div class="line"><a id="l01266" name="l01266"></a><span class="lineno"> 1266</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> cmd_buffer_commit(CommandBufferST&amp; cmdBuffer) {</div>
+<div class="line"><a id="l01267" name="l01267"></a><span class="lineno"> 1267</span>      cmdBuffer.commit();</div>
+<div class="line"><a id="l01268" name="l01268"></a><span class="lineno"> 1268</span>    }</div>
+<div class="line"><a id="l01269" name="l01269"></a><span class="lineno"> 1269</span> </div>
+<div class="line"><a id="l01273" name="l01273"></a><span class="lineno"> 1273</span>    <span class="keyword">inline</span> CommandBufferMT* cmd_buffer_mt_create(World&amp; world) {</div>
+<div class="line"><a id="l01274" name="l01274"></a><span class="lineno"> 1274</span>      <span class="keywordflow">return</span> <span class="keyword">new</span> CommandBufferMT(world);</div>
+<div class="line"><a id="l01275" name="l01275"></a><span class="lineno"> 1275</span>    }</div>
+<div class="line"><a id="l01278" name="l01278"></a><span class="lineno"> 1278</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> cmd_buffer_destroy(CommandBufferMT&amp; cmdBuffer) {</div>
+<div class="line"><a id="l01279" name="l01279"></a><span class="lineno"> 1279</span>      <span class="keyword">delete</span> &amp;cmdBuffer;</div>
+<div class="line"><a id="l01280" name="l01280"></a><span class="lineno"> 1280</span>    }</div>
+<div class="line"><a id="l01283" name="l01283"></a><span class="lineno"> 1283</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> cmd_buffer_commit(CommandBufferMT&amp; cmdBuffer) {</div>
+<div class="line"><a id="l01284" name="l01284"></a><span class="lineno"> 1284</span>      cmdBuffer.commit();</div>
+<div class="line"><a id="l01285" name="l01285"></a><span class="lineno"> 1285</span>    }</div>
+<div class="line"><a id="l01286" name="l01286"></a><span class="lineno"> 1286</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l01287" name="l01287"></a><span class="lineno"> 1287</span>} <span class="comment">// namespace gaia</span></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html">gaia::cnt::darr_ext</a></div><div class="ttdoc">Array of elements of type.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:31</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_a0aad625ff8fb437840b8edf2ffa69c7b"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">gaia::cnt::darr_ext::size</a></div><div class="ttdeci">GAIA_NODISCARD size_type size() const noexcept</div><div class="ttdoc">Returns the number of elements.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:561</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_a733b540a909a20f3f478d5e2879ef707"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#a733b540a909a20f3f478d5e2879ef707">gaia::cnt::darr_ext::begin</a></div><div class="ttdeci">GAIA_NODISCARD auto begin() noexcept</div><div class="ttdoc">Returns an iterator to the first element.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:613</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_a93e5cfe9333763112c16b1e36f4060ed"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#a93e5cfe9333763112c16b1e36f4060ed">gaia::cnt::darr_ext::push_back</a></div><div class="ttdeci">void push_back(const T &amp;arg)</div><div class="ttdoc">Appends an element.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:360</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_a9d7ee71e00a6229f312df783b4f57ae1"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#a9d7ee71e00a6229f312df783b4f57ae1">gaia::cnt::darr_ext::end</a></div><div class="ttdeci">GAIA_NODISCARD auto end() noexcept</div><div class="ttdoc">Returns an iterator one past the last element.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:649</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_ab65651d7e45de1924093c4db30758c63"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#ab65651d7e45de1924093c4db30758c63">gaia::cnt::darr_ext::resize</a></div><div class="ttdeci">void resize(size_type count, ResizePolicy policy=ResizePolicy::Exact)</div><div class="ttdoc">Changes the number of elements.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:289</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_abf08708c1514c2d803782dbc1d17aed3"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#abf08708c1514c2d803782dbc1d17aed3">gaia::cnt::darr_ext::clear</a></div><div class="ttdeci">void clear() noexcept</div><div class="ttdoc">Removes all elements.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:518</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_acf0cf26dfd22edeba0eada331827ee35"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#acf0cf26dfd22edeba0eada331827ee35">gaia::cnt::darr_ext::back</a></div><div class="ttdeci">GAIA_NODISCARD decltype(auto) back() noexcept</div><div class="ttdoc">Accesses the last element.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:599</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_af99589ac6b1e4e6ff20f89f6f8b2e3d2"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#af99589ac6b1e4e6ff20f89f6f8b2e3d2">gaia::cnt::darr_ext::empty</a></div><div class="ttdeci">GAIA_NODISCARD bool empty() const noexcept</div><div class="ttdoc">Checks whether the container has no elements.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:567</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1World_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html">gaia::ecs::World</a></div><div class="ttdoc">Owns entities, components, archetypes, queries, observers, and systems.</div><div class="ttdef"><b>Definition</b> world.h:80</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1World_html_a2c59f79c96cea126de927adb9a0751cd"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html#a2c59f79c96cea126de927adb9a0751cd">gaia::ecs::World::comp_cache</a></div><div class="ttdeci">GAIA_NODISCARD const ComponentCache &amp; comp_cache() const</div><div class="ttdoc">Returns read-only access to the world component cache.</div><div class="ttdef"><b>Definition</b> world.h:3855</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1World_html_a5425de9078c310dc6cd992aa4303be54"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html#a5425de9078c310dc6cd992aa4303be54">gaia::ecs::World::fetch</a></div><div class="ttdeci">GAIA_NODISCARD EntityContainer &amp; fetch(Entity entity)</div><div class="ttdoc">Returns the internal record for entity.</div><div class="ttdef"><b>Definition</b> world.h:1064</div></div>
@@ -1255,7 +1256,7 @@ $(document).ready(function(){initNavTree('command__buffer_8h_source.html',''); i
 <div class="ttc" id="aclassgaia_1_1ser_1_1bin__stream_html"><div class="ttname"><a href="classgaia_1_1ser_1_1bin__stream.html">gaia::ser::bin_stream</a></div><div class="ttdoc">Default in-memory binary backend used by ECS world/runtime serialization. Provides aligned raw read/w...</div><div class="ttdef"><b>Definition</b> ser_binary.h:12</div></div>
 <div class="ttc" id="aclassgaia_1_1ser_1_1bin__stream_html_a6fc6e01b624ea4ffb531b47ffa347c67"><div class="ttname"><a href="classgaia_1_1ser_1_1bin__stream.html#a6fc6e01b624ea4ffb531b47ffa347c67">gaia::ser::bin_stream::tell</a></div><div class="ttdeci">uint32_t tell() const</div><div class="ttdoc">Returns current stream cursor position in bytes.</div><div class="ttdef"><b>Definition</b> ser_binary.h:48</div></div>
 <div class="ttc" id="aclassgaia_1_1ser_1_1bin__stream_html_a7670a0b470457883ba84f1501c8d0716"><div class="ttname"><a href="classgaia_1_1ser_1_1bin__stream.html#a7670a0b470457883ba84f1501c8d0716">gaia::ser::bin_stream::reset</a></div><div class="ttdeci">void reset()</div><div class="ttdoc">Clears buffered data and resets stream position.</div><div class="ttdef"><b>Definition</b> ser_binary.h:43</div></div>
-<div class="ttc" id="astructgaia_1_1core_1_1lock__scope_html"><div class="ttname"><a href="structgaia_1_1core_1_1lock__scope.html">gaia::core::lock_scope</a></div><div class="ttdoc">RAII helper that calls lock() on construction and unlock() on destruction.</div><div class="ttdef"><b>Definition</b> utility.h:180</div></div>
+<div class="ttc" id="astructgaia_1_1core_1_1lock__scope_html"><div class="ttname"><a href="structgaia_1_1core_1_1lock__scope.html">gaia::core::lock_scope</a></div><div class="ttdoc">RAII helper that calls lock() on construction and unlock() on destruction.</div><div class="ttdef"><b>Definition</b> utility.h:187</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1AccessContextMT_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1AccessContextMT.html">gaia::ecs::AccessContextMT</a></div><div class="ttdoc">Multi-threaded command-buffer access guard backed by a spin lock.</div><div class="ttdef"><b>Definition</b> command_buffer.h:31</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1AccessContextMT_html_a83ff6cea13b35929088415e661224379"><div class="ttname"><a href="structgaia_1_1ecs_1_1AccessContextMT.html#a83ff6cea13b35929088415e661224379">gaia::ecs::AccessContextMT::m_lock</a></div><div class="ttdeci">mt::SpinLock m_lock</div><div class="ttdoc">Spin lock serializing command-buffer access across worker threads.</div><div class="ttdef"><b>Definition</b> command_buffer.h:33</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1AccessContextMT_html_ac99950766e04155938741b84551280a1"><div class="ttname"><a href="structgaia_1_1ecs_1_1AccessContextMT.html#ac99950766e04155938741b84551280a1">gaia::ecs::AccessContextMT::lock</a></div><div class="ttdeci">void lock()</div><div class="ttdoc">Acquires the access guard.</div><div class="ttdef"><b>Definition</b> command_buffer.h:36</div></div>

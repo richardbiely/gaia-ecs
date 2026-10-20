@@ -124,15 +124,15 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1Chunk.html',''); i
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
 <tr class="memitem:a480cd63731b49f264a8cb561e43ce0f6" id="r_a480cd63731b49f264a8cb561e43ce0f6"><td class="memItemLeft" align="right" valign="top"><a id="a480cd63731b49f264a8cb561e43ce0f6" name="a480cd63731b49f264a8cb561e43ce0f6"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>EntityArray</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray_ext</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, ChunkHeader::MAX_COMPONENTS &gt;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>EntityArray</b> = <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::sarray_ext</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, ChunkHeader::MAX_COMPONENTS &gt;</td></tr>
 <tr class="memdesc:a480cd63731b49f264a8cb561e43ce0f6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fixed-size array of entity identifiers held by the chunk. <br /></td></tr>
 <tr class="separator:a480cd63731b49f264a8cb561e43ce0f6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aafc74d15d0526dffa1980e26a710107e" id="r_aafc74d15d0526dffa1980e26a710107e"><td class="memItemLeft" align="right" valign="top"><a id="aafc74d15d0526dffa1980e26a710107e" name="aafc74d15d0526dffa1980e26a710107e"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>ComponentArray</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray_ext</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a>, ChunkHeader::MAX_COMPONENTS &gt;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>ComponentArray</b> = <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::sarray_ext</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a>, ChunkHeader::MAX_COMPONENTS &gt;</td></tr>
 <tr class="memdesc:aafc74d15d0526dffa1980e26a710107e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fixed-size array of component descriptors for the chunk columns. <br /></td></tr>
 <tr class="separator:aafc74d15d0526dffa1980e26a710107e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4de174403b1a835de521bbf7aae54efb" id="r_a4de174403b1a835de521bbf7aae54efb"><td class="memItemLeft" align="right" valign="top"><a id="a4de174403b1a835de521bbf7aae54efb" name="a4de174403b1a835de521bbf7aae54efb"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>ComponentOffsetArray</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray_ext</a>&lt; ChunkDataOffset, ChunkHeader::MAX_COMPONENTS &gt;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>ComponentOffsetArray</b> = <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::sarray_ext</a>&lt; ChunkDataOffset, ChunkHeader::MAX_COMPONENTS &gt;</td></tr>
 <tr class="memdesc:a4de174403b1a835de521bbf7aae54efb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fixed-size array of byte offsets into the chunk data area, one per column. <br /></td></tr>
 <tr class="separator:a4de174403b1a835de521bbf7aae54efb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
@@ -416,7 +416,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>revive</b> ()</td></t
 <tr class="memdesc:a07bdcfaadf6035a43fae85934213b4aa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of entities in the chunk.  <br /></td></tr>
 <tr class="separator:a07bdcfaadf6035a43fae85934213b4aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaa7734edea9ce62028af6f11fe47353e" id="r_aaa7734edea9ce62028af6f11fe47353e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#aaa7734edea9ce62028af6f11fe47353e">changed</a> (uint32_t requiredVersion) const</td></tr>
-<tr class="memdesc:aaa7734edea9ce62028af6f11fe47353e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true if the provided version is newer than the one stored internally. Use when checking if there was a movement in data in the world. E.g. if an entity was added, removed or moved in its archetype.  <br /></td></tr>
+<tr class="memdesc:aaa7734edea9ce62028af6f11fe47353e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true if the provided version is newer than the one stored internally. Use when checking if there was a movement in data in the world. E.g. if an entity was added, removed or moved in its archetype, or enabled or disabled. <a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> writes do not affect it. Use changed(requiredVersion, compIdx) for those.  <br /></td></tr>
 <tr class="separator:aaa7734edea9ce62028af6f11fe47353e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9322561426017874fbf20d9edd8c301c" id="r_a9322561426017874fbf20d9edd8c301c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a9322561426017874fbf20d9edd8c301c">changed</a> (uint32_t requiredVersion, uint32_t compIdx) const</td></tr>
 <tr class="memdesc:a9322561426017874fbf20d9edd8c301c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true if the provided version is newer than the one stored internally.  <br /></td></tr>
@@ -670,7 +670,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p>Returns true if the provided version is newer than the one stored internally. Use when checking if there was a movement in data in the world. E.g. if an entity was added, removed or moved in its archetype. </p>
+<p>Returns true if the provided version is newer than the one stored internally. Use when checking if there was a movement in data in the world. E.g. if an entity was added, removed or moved in its archetype, or enabled or disabled. <a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> writes do not affect it. Use changed(requiredVersion, compIdx) for those. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">requiredVersion</td><td>Version to compare against. </td></tr>
