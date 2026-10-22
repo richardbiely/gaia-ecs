@@ -1879,6 +1879,45 @@ TEST_CASE("Multithreading - Background wait runs without background workers") {
 	tp.del(backgroundHandle);
 }
 
+TEST_CASE("Multithreading - done polls a background job without waiting") {
+	auto& tp = mt::ThreadPool::get();
+	tp.set_max_workers(2, 2);
+	tp.set_background_workers(1);
+
+	std::atomic_bool releaseBackground = false;
+	// Plain memory the job writes: done() must make it visible to the main thread.
+	uint32_t result = 0;
+
+	mt::Job backgroundJob;
+	backgroundJob.flags = mt::JobCreationFlags::ManualDelete;
+	backgroundJob.func = [&]() {
+		while (!releaseBackground.load(std::memory_order_acquire))
+			std::this_thread::yield();
+		result = 42;
+	};
+
+	const auto backgroundHandle = tp.sched_background(GAIA_MOV(backgroundJob));
+	GAIA_FOR(16) {
+		CHECK_FALSE(tp.done(backgroundHandle));
+		tp.update();
+	}
+
+	releaseBackground.store(true, std::memory_order_release);
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+	bool finished = false;
+	while (!(finished = tp.done(backgroundHandle)) && std::chrono::steady_clock::now() < deadline)
+		std::this_thread::yield();
+
+	CHECK(finished);
+	CHECK(result == 42);
+	// A finished job stays done until it is deleted.
+	CHECK(tp.done(backgroundHandle));
+
+	tp.wait(backgroundHandle);
+	tp.del(backgroundHandle);
+	tp.set_background_workers(0);
+}
+
 TEST_CASE("Multithreading - ScheduleParallel") {
 	auto& tp = mt::ThreadPool::get();
 

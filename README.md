@@ -4662,6 +4662,16 @@ tp.wait(handle);
 tp.del(handle);
 ```
 
+When the main thread should pick the result up whenever it is ready instead of waiting for it, poll the job once per frame with `ThreadPool::done`. It never blocks and never runs a job, and once it returns true everything the job wrote is visible to the calling thread. Only `ManualDelete` jobs can be polled, because an automatically deleted job releases its handle when it finishes.
+
+```cpp
+// Every frame:
+if (tp.done(handle)) {
+  UseTextureChunk();
+  tp.del(handle);
+}
+```
+
 Background workers are separate from frame workers, but both groups share the thread pool's worker limit. `ThreadPool::workers` reports frame workers only, and `ThreadPool::background_workers` reports background workers only. Background jobs still use `JobPriority` for OS thread priority and QoS hints, but they do not age into frame queues and frame workers do not steal from background queues.
 
 ### Threads

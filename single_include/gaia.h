@@ -30923,6 +30923,22 @@ namespace gaia {
 				return pHandles[jobs];
 			}
 
+			//! Checks whether \a jobHandle finished executing, without waiting and without running any job.
+			//! Once it returns true, everything the job wrote is visible to the calling thread. This lets the main
+			//! thread poll multi-frame background work once per frame and collect it when it is ready.
+			//! \param jobHandle A ManualDelete job that was submitted and not deleted yet. An automatically deleted
+			//!                  job releases its handle when it finishes, so it can not be polled.
+			//! \return True when the job is done.
+			//! \warning Must be called from the effective main thread.
+			GAIA_NODISCARD bool done(JobHandle jobHandle) const {
+				GAIA_ASSERT(main_thread());
+				GAIA_ASSERT(jobHandle != (JobHandle)JobNull_t{});
+
+				const auto& jobData = m_jobManager.data(jobHandle);
+				GAIA_ASSERT(jobData.data.gen == jobHandle.gen());
+				return JobManager::done(jobData);
+			}
+
 			//! Wait until a job associated with the jobHandle finishes executing.
 			//! Cleans up any job allocations and dependencies associated with \a jobHandle.
 			//! The calling thread participates in frame job processing until \a jobHandle is done.
