@@ -3,7 +3,9 @@
 #include "gaia/config/config.h"
 
 #if GAIA_PLATFORM_WINDOWS
-	#include <windows.h>
+	#include <climits>
+
+	#include "gaia/mt/win32.h"
 #elif GAIA_PLATFORM_APPLE
 	#include <TargetConditionals.h>
 	#include <dispatch/dispatch.h>
@@ -34,8 +36,8 @@ namespace gaia {
 			//! \param count Initial count on semaphore.
 			void init(int32_t count) {
 #if GAIA_PLATFORM_WINDOWS
-				m_handle = (void*)::CreateSemaphoreExW(NULL, count, INT_MAX, NULL, 0, SEMAPHORE_ALL_ACCESS);
-				GAIA_ASSERT(m_handle != NULL);
+				m_handle = ::CreateSemaphoreExW(nullptr, count, INT_MAX, nullptr, 0, win32::SemaphoreAllAccess);
+				GAIA_ASSERT(m_handle != nullptr);
 #elif GAIA_PLATFORM_APPLE
 				m_handle = dispatch_semaphore_create(count);
 				GAIA_ASSERT(m_handle != nullptr);
@@ -48,9 +50,9 @@ namespace gaia {
 			//! Destroys the semaphore.
 			void done() {
 #if GAIA_PLATFORM_WINDOWS
-				if (m_handle != NULL) {
-					::CloseHandle((HANDLE)m_handle);
-					m_handle = NULL;
+				if (m_handle != nullptr) {
+					::CloseHandle(m_handle);
+					m_handle = nullptr;
 				}
 #elif GAIA_PLATFORM_APPLE
 				// NOTE: Dispatch objects are reference counted.
@@ -79,8 +81,8 @@ namespace gaia {
 				GAIA_ASSERT(count > 0);
 
 #if GAIA_PLATFORM_WINDOWS
-				[[maybe_unused]] LONG prev = 0;
-				[[maybe_unused]] BOOL res = ::ReleaseSemaphore(m_handle, count, &prev);
+				[[maybe_unused]] long prev = 0;
+				[[maybe_unused]] int res = ::ReleaseSemaphore(m_handle, count, &prev);
 				GAIA_ASSERT(res != 0);
 #elif GAIA_PLATFORM_APPLE
 				do {
@@ -100,10 +102,10 @@ namespace gaia {
 			//! \return True when a permit was acquired successfully.
 			bool wait() {
 #if GAIA_PLATFORM_WINDOWS
-				GAIA_ASSERT(m_handle != (void*)ERROR_INVALID_HANDLE);
-				DWORD ret = ::WaitForSingleObject(m_handle, INFINITE);
-				GAIA_ASSERT(ret == WAIT_OBJECT_0);
-				return (ret == WAIT_OBJECT_0);
+				GAIA_ASSERT(m_handle != nullptr);
+				const unsigned long ret = ::WaitForSingleObject(m_handle, win32::Infinite);
+				GAIA_ASSERT(ret == win32::WaitObject0);
+				return (ret == win32::WaitObject0);
 #elif GAIA_PLATFORM_APPLE
 				const auto res = dispatch_semaphore_wait(m_handle, DISPATCH_TIME_FOREVER);
 				GAIA_ASSERT(res == 0);

@@ -28047,7 +28047,87 @@ namespace gaia {
 
 #if GAIA_PLATFORM_WINDOWS
 	#include <cstdio>
-	#include <windows.h>
+	#include <cstdlib>
+
+	#if GAIA_PLATFORM_WINDOWS
+
+		#include <cstdint>
+
+//! \cond
+// The Win32 API Gaia calls, without <windows.h>. Including <windows.h> from a public header would
+// leak its macros (near, far, small, min, max, ERROR, CreateWindow, ...) into every translation unit
+// of the program. Each function is declared exactly as the Windows SDK declares it, so programs
+// may still include <windows.h> before or after Gaia.
+struct _SECURITY_ATTRIBUTES;
+struct HINSTANCE__;
+
+extern "C" {
+__declspec(dllimport) void* __stdcall CreateSemaphoreExW(
+		_SECURITY_ATTRIBUTES* lpSemaphoreAttributes, long lInitialCount, long lMaximumCount, const wchar_t* lpName,
+		unsigned long dwFlags, unsigned long dwDesiredAccess);
+__declspec(dllimport) int __stdcall ReleaseSemaphore(void* hSemaphore, long lReleaseCount, long* lpPreviousCount);
+__declspec(dllimport) unsigned long __stdcall WaitForSingleObject(void* hHandle, unsigned long dwMilliseconds);
+__declspec(dllimport) int __stdcall CloseHandle(void* hObject);
+__declspec(dllimport) HINSTANCE__* __stdcall GetModuleHandleA(const char* lpModuleName);
+__declspec(dllimport) intptr_t(__stdcall* __stdcall GetProcAddress(HINSTANCE__* hModule, const char* lpProcName))();
+}
+//! \endcond
+
+namespace gaia {
+	namespace mt {
+		namespace win32 {
+			//! SEMAPHORE_ALL_ACCESS
+			inline constexpr unsigned long SemaphoreAllAccess = 0x1F0003UL;
+			//! INFINITE
+			inline constexpr unsigned long Infinite = 0xFFFFFFFFUL;
+			//! WAIT_OBJECT_0
+			inline constexpr unsigned long WaitObject0 = 0UL;
+
+			//! RelationProcessorCore of LOGICAL_PROCESSOR_RELATIONSHIP
+			inline constexpr int RelationProcessorCore = 0;
+			//! Byte offset of PROCESSOR_RELATIONSHIP::EfficiencyClass in SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX.
+			//! The relationship and the size come first, and the union after them is 8-byte aligned.
+			inline constexpr uint32_t ProcessorInfoEfficiencyClassOffset = 9;
+
+			//! ThreadPowerThrottling of THREAD_INFORMATION_CLASS
+			inline constexpr int ThreadPowerThrottling = 3;
+			//! THREAD_POWER_THROTTLING_CURRENT_VERSION
+			inline constexpr unsigned long ThreadPowerThrottlingCurrentVersion = 1UL;
+			//! THREAD_POWER_THROTTLING_EXECUTION_SPEED
+			inline constexpr unsigned long ThreadPowerThrottlingExecutionSpeed = 0x1UL;
+
+			//! Mirrors THREAD_POWER_THROTTLING_STATE.
+			struct ThreadPowerThrottlingState {
+				unsigned long Version;
+				unsigned long ControlMask;
+				unsigned long StateMask;
+			};
+
+			//! GetLogicalProcessorInformationEx with its enum and struct parameters as int and void*.
+			using GetLogicalProcessorInformationExFunc = int(__stdcall*)(int, void*, unsigned long*);
+			//! SetThreadInformation with its enum parameter as int.
+			using SetThreadInformationFunc = int(__stdcall*)(void*, int, void*, unsigned long);
+			//! SetThreadDescription.
+			using SetThreadDescriptionFunc = long(__stdcall*)(void*, const wchar_t*);
+
+			//! Looks a function up in kernel32.dll. Functions that take Win32 enums are called through
+			//! these lookups, because an enum without a fixed underlying type cannot be declared here
+			//! the way the Windows SDK declares it.
+			//! \tparam Func Function pointer type to return.
+			//! \param name Exported function name.
+			//! \return The function, or nullptr when this Windows version does not export it.
+			template <typename Func>
+			inline Func kernel32_func(const char* name) {
+				HINSTANCE__* module = ::GetModuleHandleA("kernel32.dll");
+				if (module == nullptr)
+					return nullptr;
+				return reinterpret_cast<Func>(reinterpret_cast<void*>(::GetProcAddress(module, name)));
+			}
+		} // namespace win32
+	} // namespace mt
+} // namespace gaia
+
+	#endif
 #endif
 
 #define GAIA_THREAD_OFF 0
@@ -29701,7 +29781,8 @@ namespace gaia {
 #include <atomic>
 
 #if GAIA_PLATFORM_WINDOWS
-	#include <windows.h>
+	#include <climits>
+
 #elif GAIA_PLATFORM_APPLE
 	#include <TargetConditionals.h>
 	#include <dispatch/dispatch.h>
@@ -29732,8 +29813,8 @@ namespace gaia {
 			//! \param count Initial count on semaphore.
 			void init(int32_t count) {
 #if GAIA_PLATFORM_WINDOWS
-				m_handle = (void*)::CreateSemaphoreExW(NULL, count, INT_MAX, NULL, 0, SEMAPHORE_ALL_ACCESS);
-				GAIA_ASSERT(m_handle != NULL);
+				m_handle = ::CreateSemaphoreExW(nullptr, count, INT_MAX, nullptr, 0, win32::SemaphoreAllAccess);
+				GAIA_ASSERT(m_handle != nullptr);
 #elif GAIA_PLATFORM_APPLE
 				m_handle = dispatch_semaphore_create(count);
 				GAIA_ASSERT(m_handle != nullptr);
@@ -29746,9 +29827,9 @@ namespace gaia {
 			//! Destroys the semaphore.
 			void done() {
 #if GAIA_PLATFORM_WINDOWS
-				if (m_handle != NULL) {
-					::CloseHandle((HANDLE)m_handle);
-					m_handle = NULL;
+				if (m_handle != nullptr) {
+					::CloseHandle(m_handle);
+					m_handle = nullptr;
 				}
 #elif GAIA_PLATFORM_APPLE
 				// NOTE: Dispatch objects are reference counted.
@@ -29777,8 +29858,8 @@ namespace gaia {
 				GAIA_ASSERT(count > 0);
 
 #if GAIA_PLATFORM_WINDOWS
-				[[maybe_unused]] LONG prev = 0;
-				[[maybe_unused]] BOOL res = ::ReleaseSemaphore(m_handle, count, &prev);
+				[[maybe_unused]] long prev = 0;
+				[[maybe_unused]] int res = ::ReleaseSemaphore(m_handle, count, &prev);
 				GAIA_ASSERT(res != 0);
 #elif GAIA_PLATFORM_APPLE
 				do {
@@ -29798,10 +29879,10 @@ namespace gaia {
 			//! \return True when a permit was acquired successfully.
 			bool wait() {
 #if GAIA_PLATFORM_WINDOWS
-				GAIA_ASSERT(m_handle != (void*)ERROR_INVALID_HANDLE);
-				DWORD ret = ::WaitForSingleObject(m_handle, INFINITE);
-				GAIA_ASSERT(ret == WAIT_OBJECT_0);
-				return (ret == WAIT_OBJECT_0);
+				GAIA_ASSERT(m_handle != nullptr);
+				const unsigned long ret = ::WaitForSingleObject(m_handle, win32::Infinite);
+				GAIA_ASSERT(ret == win32::WaitObject0);
+				return (ret == win32::WaitObject0);
 #elif GAIA_PLATFORM_APPLE
 				const auto res = dispatch_semaphore_wait(m_handle, DISPATCH_TIME_FOREVER);
 				GAIA_ASSERT(res == 0);
@@ -29911,18 +29992,6 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
-#if GAIA_PLATFORM_WINDOWS
-		extern "C" typedef HRESULT(WINAPI* TOSApiFunc_SetThreadDescription)(HANDLE, PCWSTR);
-
-	#pragma pack(push, 8)
-		typedef struct tagTHREADNAME_INFO {
-			DWORD dwType; // Must be 0x1000.
-			LPCSTR szName; // Pointer to name (in user addr space).
-			DWORD dwThreadID; // Thread ID (-1=caller thread).
-			DWORD dwFlags; // Reserved for future use, must be zero.
-		} THREADNAME_INFO;
-	#pragma pack(pop)
-#endif
 
 		namespace detail {
 			//! Worker context for threads allocated by our thread pool
@@ -30767,19 +30836,24 @@ namespace gaia {
 					++cpuIndex;
 				}
 #elif GAIA_PLATFORM_WINDOWS
-				DWORD length = 0;
+				const auto getProcessorInfo =
+						win32::kernel32_func<win32::GetLogicalProcessorInformationExFunc>("GetLogicalProcessorInformationEx");
+				if (getProcessorInfo == nullptr)
+					return 0;
+
+				unsigned long length = 0;
 
 				// First, determine required buffer size
-				if (!GetLogicalProcessorInformationEx(RelationProcessorCore, nullptr, &length))
+				if (!getProcessorInfo(win32::RelationProcessorCore, nullptr, &length))
 					return 0;
 
 				// Allocate enough memory
-				auto* pBuffer = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)malloc(length);
+				auto* pBuffer = (char*)malloc(length);
 				if (pBuffer == nullptr)
 					return 0;
 
 				// Retrieve the data
-				if (!GetLogicalProcessorInformationEx(RelationProcessorCore, pBuffer, &length)) {
+				if (!getProcessorInfo(win32::RelationProcessorCore, pBuffer, &length)) {
 					free(pBuffer);
 					return 0;
 				}
@@ -30797,15 +30871,22 @@ namespace gaia {
 				// On homogenous architectures, the value is always 0 so rather than calculating the number of efficiency
 				// cores, we would calculate the number of performance cores. For the sake of correctness, if all cores return
 				// 0, we use 0 for the number of efficiency cores.
-				for (char* ptr = (char*)pBuffer; ptr < (char*)pBuffer + length;
-						 ptr += ((SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)ptr)->Size) {
-					auto* entry = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)ptr;
-					if (entry->Relationship == RelationProcessorCore) {
-						if (entry->Processor.EfficiencyClass == 0)
+				// Each SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX entry starts with its relationship and its size.
+				for (const char* ptr = pBuffer; ptr < pBuffer + length;) {
+					int relationship = 0;
+					unsigned long size = 0;
+					memcpy(&relationship, ptr, sizeof(relationship));
+					memcpy(&size, ptr + sizeof(relationship), sizeof(size));
+					if (size == 0)
+						break;
+					if (relationship == win32::RelationProcessorCore) {
+						const auto efficiencyClass = (uint8_t)ptr[win32::ProcessorInfoEfficiencyClassOffset];
+						if (efficiencyClass == 0)
 							++efficiencyCores;
 						else
 							++heterogenousCnt;
 					}
+					ptr += size;
 				}
 
 				if (heterogenousCnt == 0)
@@ -31014,26 +31095,30 @@ namespace gaia {
 
 			void set_thread_priority([[maybe_unused]] uint32_t workerIdx, [[maybe_unused]] JobPriority priority) {
 #if GAIA_PLATFORM_WINDOWS
-				HANDLE nativeHandle = (HANDLE)m_workers[workerIdx - 1].native_handle();
+				void* nativeHandle = (void*)m_workers[workerIdx - 1].native_handle();
 
-				THREAD_POWER_THROTTLING_STATE state{};
-				state.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
+				const auto setThreadInfo = win32::kernel32_func<win32::SetThreadInformationFunc>("SetThreadInformation");
+				if (setThreadInfo == nullptr)
+					return;
+
+				win32::ThreadPowerThrottlingState state{};
+				state.Version = win32::ThreadPowerThrottlingCurrentVersion;
 				if (priority == JobPriority::High) {
 					// HighQoS
 					// Turn EXECUTION_SPEED throttling off.
 					// ControlMask selects the mechanism and StateMask is set to zero as mechanisms should be turned off.
-					state.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
+					state.ControlMask = win32::ThreadPowerThrottlingExecutionSpeed;
 					state.StateMask = 0;
 				} else {
 					// EcoQoS
 					// Turn EXECUTION_SPEED throttling on.
 					// ControlMask selects the mechanism and StateMask declares which mechanism should be on or off.
-					state.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
-					state.StateMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
+					state.ControlMask = win32::ThreadPowerThrottlingExecutionSpeed;
+					state.StateMask = win32::ThreadPowerThrottlingExecutionSpeed;
 				}
 
-				BOOL ret = SetThreadInformation(nativeHandle, ThreadPowerThrottling, &state, sizeof(state));
-				if (ret != TRUE) {
+				const int ret = setThreadInfo(nativeHandle, win32::ThreadPowerThrottling, &state, sizeof(state));
+				if (ret == 0) {
 					GAIA_LOG_W("SetThreadInformation failed for thread %u", workerIdx);
 					return;
 				}
@@ -31090,37 +31175,18 @@ namespace gaia {
 				GAIA_STRFMT(threadName, 16, "worker_%s_%u", workerKind, workerIdx);
 				GAIA_PROF_THREAD_NAME(threadName);
 #elif GAIA_PLATFORM_WINDOWS
-				auto nativeHandle = (HANDLE)m_workers[workerIdx - 1].native_handle();
+				void* nativeHandle = (void*)m_workers[workerIdx - 1].native_handle();
 				const wchar_t* workerKindW = background ? L"BG" : prio == JobPriority::High ? L"HI" : L"LO";
 
-				TOSApiFunc_SetThreadDescription pSetThreadDescFunc = nullptr;
-				if (auto* pModule = GetModuleHandleA("kernel32.dll")) {
-					auto* pFunc = GetProcAddress(pModule, "SetThreadDescription");
-					pSetThreadDescFunc = reinterpret_cast<TOSApiFunc_SetThreadDescription>(reinterpret_cast<void*>(pFunc));
-				}
+				const auto pSetThreadDescFunc = win32::kernel32_func<win32::SetThreadDescriptionFunc>("SetThreadDescription");
 				if (pSetThreadDescFunc != nullptr) {
 					wchar_t threadName[16]{};
 					swprintf_s(threadName, L"worker_%s_%u", workerKindW, workerIdx);
 
-					auto hr = pSetThreadDescFunc(nativeHandle, threadName);
-					if (FAILED(hr)) {
+					const long hr = pSetThreadDescFunc(nativeHandle, threadName);
+					if (hr < 0) {
 						GAIA_LOG_W("Issue setting name for worker %s thread %u!", workerKind, workerIdx);
 					}
-				} else {
-	#if defined _MSC_VER
-					char threadName[16]{};
-					GAIA_STRFMT(threadName, 16, "worker_%s_%u", workerKind, workerIdx);
-
-					THREADNAME_INFO info{};
-					info.dwType = 0x1000;
-					info.szName = threadName;
-					info.dwThreadID = GetThreadId(nativeHandle);
-
-					__try {
-						RaiseException(0x406D1388, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
-					} __except (EXCEPTION_EXECUTE_HANDLER) {
-					}
-	#endif
 				}
 #elif GAIA_PLATFORM_APPLE
 				char threadName[16]{};

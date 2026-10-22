@@ -19,6 +19,10 @@ set(GAIA_TEST_SOURCES
 	src/test_parent.cpp
 	src/test_storage.cpp
 )
+if(WIN32)
+	# Checks Gaia's own Win32 declarations against the Windows SDK.
+	list(APPEND GAIA_TEST_SOURCES src/test_win32.cpp)
+endif()
 
 function(gaia_configure_test_target target_name)
 	add_executable(${target_name} ${GAIA_TEST_SOURCES})
