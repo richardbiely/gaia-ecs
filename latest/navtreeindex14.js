@@ -1,5 +1,6 @@
 var NAVTREEINDEX14 =
 {
+"structgaia_1_1mem_1_1data__view__policy__get_3_01DataLayout_1_1SoA_00_01ValueType_01_4.html":[9,0,0,3,16],
 "structgaia_1_1mem_1_1data__view__policy__get__idx.html":[9,0,0,3,19],
 "structgaia_1_1mem_1_1data__view__policy__set.html":[9,0,0,3,20],
 "structgaia_1_1mem_1_1data__view__policy__set_3_01DataLayout_1_1AoS_00_01ValueType_01_4.html":[9,0,0,3,21],

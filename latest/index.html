@@ -3824,6 +3824,12 @@ Background jobs</h3>
 <div class="line"><span class="comment">// Later, when the result is needed:</span></div>
 <div class="line">tp.wait(handle);</div>
 <div class="line">tp.del(handle);</div>
+</div><!-- fragment --><p>When the main thread should pick the result up whenever it is ready instead of waiting for it, poll the job once per frame with <code>ThreadPool::done</code>. It never blocks and never runs a job, and once it returns true everything the job wrote is visible to the calling thread. Only <code>ManualDelete</code> jobs can be polled, because an automatically deleted job releases its handle when it finishes.</p>
+<div class="fragment"><div class="line"><span class="comment">// Every frame:</span></div>
+<div class="line"><span class="keywordflow">if</span> (tp.done(handle)) {</div>
+<div class="line">  UseTextureChunk();</div>
+<div class="line">  tp.del(handle);</div>
+<div class="line">}</div>
 </div><!-- fragment --><p>Background workers are separate from frame workers, but both groups share the thread pool's worker limit. <code>ThreadPool::workers</code> reports frame workers only, and <code>ThreadPool::background_workers</code> reports background workers only. Background jobs still use <code>JobPriority</code> for OS thread priority and QoS hints, but they do not age into frame queues and frame workers do not steal from background queues.</p>
 <h3><a class="anchor" id="threads"></a>
 Threads</h3>

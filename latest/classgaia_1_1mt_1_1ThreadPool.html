@@ -203,6 +203,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>make_main_thread</b> 
 <tr class="memitem:a104b8eb7b657174c0e4a721b63a34f42" id="r_a104b8eb7b657174c0e4a721b63a34f42"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a104b8eb7b657174c0e4a721b63a34f42">sched_par</a> (<a class="el" href="structgaia_1_1mt_1_1JobParallelRef.html">JobParallelRef</a> job, uint32_t itemsToProcess, uint32_t groupSize)</td></tr>
 <tr class="memdesc:a104b8eb7b657174c0e4a721b63a34f42"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedules a non-owning parallel job descriptor on worker threads.  <br /></td></tr>
 <tr class="separator:a104b8eb7b657174c0e4a721b63a34f42"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad9024adc7e01356464b3111a549261b8" id="r_ad9024adc7e01356464b3111a549261b8"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#ad9024adc7e01356464b3111a549261b8">done</a> (<a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobHandle) const</td></tr>
+<tr class="memdesc:ad9024adc7e01356464b3111a549261b8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether <em>jobHandle</em> finished executing, without waiting and without running any job. Once it returns true, everything the job wrote is visible to the calling thread. This lets the main thread poll multi-frame background work once per frame and collect it when it is ready.  <br /></td></tr>
+<tr class="separator:ad9024adc7e01356464b3111a549261b8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abae2dc1ab79367b708af43dfa2cae810" id="r_abae2dc1ab79367b708af43dfa2cae810"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#abae2dc1ab79367b708af43dfa2cae810">wait</a> (<a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobHandle)</td></tr>
 <tr class="memdesc:abae2dc1ab79367b708af43dfa2cae810"><td class="mdescLeft">&#160;</td><td class="mdescRight">Wait until a job associated with the jobHandle finishes executing. Cleans up any job allocations and dependencies associated with <em>jobHandle</em>. The calling thread participates in frame job processing until <em>jobHandle</em> is done. For background jobs, the calling thread only runs background work when no background workers are configured.  <br /></td></tr>
 <tr class="separator:abae2dc1ab79367b708af43dfa2cae810"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -528,6 +531,42 @@ This must be called from the main thread. </dd></dl>
 <dl class="section warning"><dt>Warning</dt><dd>This must be called before any of the listed jobs are scheduled. </dd>
 <dd>
 This must be called from the main thread. </dd></dl>
+
+</div>
+</div>
+<a id="ad9024adc7e01356464b3111a549261b8" name="ad9024adc7e01356464b3111a549261b8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad9024adc7e01356464b3111a549261b8">&#9670;&#160;</a></span>done()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::mt::ThreadPool::done </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td>
+          <td class="paramname"><em>jobHandle</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether <em>jobHandle</em> finished executing, without waiting and without running any job. Once it returns true, everything the job wrote is visible to the calling thread. This lets the main thread poll multi-frame background work once per frame and collect it when it is ready. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">jobHandle</td><td>A ManualDelete job that was submitted and not deleted yet. An automatically deleted job releases its handle when it finishes, so it can not be polled. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the job is done. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>Must be called from the effective main thread. </dd></dl>
 
 </div>
 </div>

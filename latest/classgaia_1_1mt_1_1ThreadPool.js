@@ -7,6 +7,7 @@ var classgaia_1_1mt_1_1ThreadPool =
     [ "dep", "classgaia_1_1mt_1_1ThreadPool.html#ad6b39ffc5339d878f52938789fc5df7b", null ],
     [ "dep_refresh", "classgaia_1_1mt_1_1ThreadPool.html#a8275230ff1471e58c9922630c4b3ed0d", null ],
     [ "dep_refresh", "classgaia_1_1mt_1_1ThreadPool.html#a7ca40ef0d480aa0b72c97949d2d4aa50", null ],
+    [ "done", "classgaia_1_1mt_1_1ThreadPool.html#ad9024adc7e01356464b3111a549261b8", null ],
     [ "get", "classgaia_1_1mt_1_1ThreadPool.html#a8915adfb194f3a0af9b89d1a7d82ddfc", null ],
     [ "hw_efficiency_cores_cnt", "classgaia_1_1mt_1_1ThreadPool.html#ab247efbd1d071cf8788803558cd23e28", null ],
     [ "hw_thread_cnt", "classgaia_1_1mt_1_1ThreadPool.html#af6c4d24769c05292c533b2827f024cfe", null ],

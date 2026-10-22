@@ -1,5 +1,6 @@
 var NAVTREEINDEX13 =
 {
+"structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ac0d958a6be0bca9200801b0f99356ecb":[9,0,0,2,0,1,12],
 "structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ac7a0c9a8f56594d86e166683d1c65668":[9,0,0,2,0,1,14],
 "structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ace3b5c05622e819f9c9043c6db4e93a2":[9,0,0,2,0,1,13],
 "structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ad78f1987c21ae1409e610546d25cde0d":[9,0,0,2,0,1,19],
@@ -248,6 +249,5 @@ var NAVTREEINDEX13 =
 "structgaia_1_1mem_1_1data__view__policy__get.html":[9,0,0,3,14],
 "structgaia_1_1mem_1_1data__view__policy__get_3_01DataLayout_1_1AoS_00_01ValueType_01_4.html":[9,0,0,3,15],
 "structgaia_1_1mem_1_1data__view__policy__get_3_01DataLayout_1_1SoA16_00_01ValueType_01_4.html":[9,0,0,3,17],
-"structgaia_1_1mem_1_1data__view__policy__get_3_01DataLayout_1_1SoA8_00_01ValueType_01_4.html":[9,0,0,3,18],
-"structgaia_1_1mem_1_1data__view__policy__get_3_01DataLayout_1_1SoA_00_01ValueType_01_4.html":[9,0,0,3,16]
+"structgaia_1_1mem_1_1data__view__policy__get_3_01DataLayout_1_1SoA8_00_01ValueType_01_4.html":[9,0,0,3,18]
 };
