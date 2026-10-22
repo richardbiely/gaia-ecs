@@ -268,12 +268,15 @@ namespace gaia {
 				pData->kind = SchedTokenKind::Single;
 				pData->handles.resize(1);
 
+				auto func = [pCtx = pDesc->pCtx, invoke = pDesc->invoke]() {
+					invoke(pCtx);
+				};
+				static_assert(mt::JobFunc::stores_inline<decltype(func)>(), "Scheduler jobs must not allocate");
+
 				mt::Job job;
 				job.priority = exec_prio(pDesc->execType);
 				job.flags = job_creation_flags(pDesc->flags);
-				job.func = [pCtx = pDesc->pCtx, invoke = pDesc->invoke]() {
-					invoke(pCtx);
-				};
+				job.func = GAIA_MOV(func);
 
 				pData->handles[0] = mt::ThreadPool::get().add(GAIA_MOV(job));
 				return make_sched_token(pData);
@@ -318,12 +321,15 @@ namespace gaia {
 					const uint32_t idxStart = jobIndex * groupSize;
 					const uint32_t idxEnd = core::get_min(idxStart + groupSize, pDesc->itemCount);
 
+					auto func = [pCtx = pDesc->pCtx, invoke = pDesc->invoke, idxStart, idxEnd]() {
+						invoke(pCtx, idxStart, idxEnd);
+					};
+					static_assert(mt::JobFunc::stores_inline<decltype(func)>(), "Scheduler jobs must not allocate");
+
 					mt::Job job;
 					job.priority = prio;
 					job.flags = job_creation_flags(pDesc->flags);
-					job.func = [desc = *pDesc, idxStart, idxEnd]() {
-						desc.invoke(desc.pCtx, idxStart, idxEnd);
-					};
+					job.func = GAIA_MOV(func);
 					pData->handles[jobIndex] = tp.add(GAIA_MOV(job));
 				}
 				{

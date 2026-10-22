@@ -84,8 +84,8 @@ namespace gaia {
 			JobCreationFlags flags;
 			//! Dependency graph
 			JobEdges edges;
-			//! Function to execute when running the job
-			util::SmallFunc func;
+			//! Function to execute when running the job. See Job::func for when it is destroyed.
+			JobFunc func;
 
 			JobContainer() = default;
 			~JobContainer() = default;
@@ -146,7 +146,8 @@ namespace gaia {
 
 		//! Handle identifying a shared callback used by parallel jobs.
 		struct ParallelCallbackHandle {
-			static constexpr uint32_t IdMask = uint32_t(-1);
+			//! Every live callback is referenced by at least one live job, so callbacks never outnumber jobs.
+			static constexpr uint32_t IdMask = JobHandle::IdMask;
 
 			uint32_t m_id = IdMask;
 			uint32_t m_gen = 0;
@@ -231,12 +232,16 @@ namespace gaia {
 		class JobManager {
 			using JobDataLayout = cnt::paged_ilist<JobContainer, JobHandle>;
 			static constexpr uint32_t JobDataPageCount = JobDataLayout::page_count_for_capacity(JobHandle::IdMask);
+			using ParallelCallbackLayout = cnt::paged_ilist<ParallelCallbackRecord, ParallelCallbackHandle>;
+			static constexpr uint32_t ParallelCallbackPageCount =
+					ParallelCallbackLayout::page_count_for_capacity(ParallelCallbackHandle::IdMask);
 
 			//! Paged implicit list of jobs with a fixed page table.
 			//! Payload pages are still allocated lazily, but the page table never moves while background jobs are running.
 			cnt::paged_ilist<JobContainer, JobHandle, JobDataPageCount> m_jobData;
-			//! Shared callback records for parallel jobs.
-			cnt::ilist<ParallelCallbackRecord, ParallelCallbackHandle> m_parallelCallbacks;
+			//! Shared callback records for parallel jobs, paged with a fixed page table for the same reason as m_jobData:
+			//! workers invoke and release records without the job allocation lock while new records are allocated.
+			cnt::paged_ilist<ParallelCallbackRecord, ParallelCallbackHandle, ParallelCallbackPageCount> m_parallelCallbacks;
 
 		public:
 			//! Checks whether \a jobHandle identifies its current live job.
@@ -291,23 +296,30 @@ namespace gaia {
 			//! Invalidates \a jobHandle by resetting its index in the job pool.
 			//! Every time a job is deallocated its generation is increased by one.
 			//! \param jobHandle Job handle.
+			//! \return The job's callable, moved out of the slot. Destroy it after releasing the lock that serializes
+			//!         job-pool access so its destructor never runs under that lock.
 			//! \warning Caller must serialize job-pool allocation/free access.
-			void free_job(JobHandle jobHandle) {
+			GAIA_NODISCARD JobFunc free_job(JobHandle jobHandle) {
 				auto& jobData = m_jobData.payload_unsafe(jobHandle.id());
 				GAIA_ASSERT(is_clear(jobData) || done(jobData));
+				JobFunc func = GAIA_MOV(jobData.func);
 				free_edges(jobData);
 				jobData.state.store(JobState::Released, std::memory_order_release);
 				jobData.data.gen = (jobHandle.gen() + 1) & JobHandle::GenMask;
 				m_jobData.free_keep_live(jobHandle);
+				return func;
 			}
 
 			//! Releases a shared callback record.
 			//! \param handle Handle of the callback record to free.
-			void free_parallel_callback(ParallelCallbackHandle handle) {
+			//! \return The record's callback, moved out. Destroy it after releasing the lock that serializes
+			//!         job-pool access so its destructor never runs under that lock.
+			GAIA_NODISCARD JobArgsFunc free_parallel_callback(ParallelCallbackHandle handle) {
 				auto& record = m_parallelCallbacks[handle.id()];
-				record.callback.reset();
+				JobArgsFunc callback = GAIA_MOV(record.callback);
 				record.refs.store(0, std::memory_order_relaxed);
 				m_parallelCallbacks.free(handle);
+				return callback;
 			}
 
 			//! Resets the job pool.

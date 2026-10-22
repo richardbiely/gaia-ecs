@@ -4634,6 +4634,8 @@ tp.wait(handle);
 tp.del(handle);
 ```
 
+A job owns its callable until the job is deleted. A default job destroys the callable, and everything it captured, on the thread that ran it before the job is reported done, so captures must be safe to destroy there. A `ManualDelete` job keeps its callable for reuse until `ThreadPool::del()`. Callables larger than `mt::JobFunc::InlineSize` bytes are allocated on the heap.
+
 ### Background jobs
 
 Frame jobs are expected to finish within the frame that owns them. Work that can legitimately span multiple frames, such as asset streaming, cache building, or other engine-side background tasks, can be routed to background workers instead.

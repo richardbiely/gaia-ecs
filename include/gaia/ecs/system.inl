@@ -83,10 +83,13 @@ namespace gaia {
 			GAIA_NODISCARD mt::JobHandle job_handle(World& world) {
 				if (jobHandle == (mt::JobHandle)mt::JobNull_t{}) {
 					auto& tp = mt::ThreadPool::get();
-					mt::Job syncJob;
-					syncJob.func = [this, &world]() {
+					auto func = [this, &world]() {
 						exec(world);
 					};
+					static_assert(mt::JobFunc::stores_inline<decltype(func)>(), "System jobs must not allocate");
+
+					mt::Job syncJob;
+					syncJob.func = GAIA_MOV(func);
 					syncJob.flags = mt::JobCreationFlags::ManualDelete;
 					jobHandle = tp.add(GAIA_MOV(syncJob));
 				}

@@ -425,43 +425,92 @@ namespace gaia {
 				if (!m_jobManager.release_parallel_callback_ref(handle))
 					return;
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
-				core::lock_scope lock(mtx);
-				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+				// Destroyed once the lock is released so the callback's destructor may use the thread pool.
+				JobArgsFunc callback;
+				{
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
+					core::lock_scope lock(mtx);
+					GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
 
-				m_jobManager.free_parallel_callback(handle);
+					callback = m_jobManager.free_parallel_callback(handle);
+				}
 			}
 
 			void release_job(JobHandle jobHandle) {
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
-				core::lock_scope lock(mtx);
-				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+				// run() already ended the callable's lifetime. What is left, a trivially destructible callable or heap
+				// storage, is released once the lock is released.
+				JobFunc func;
+				{
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
+					core::lock_scope lock(mtx);
+					GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
 
-				m_jobManager.free_job(jobHandle);
+					func = m_jobManager.free_job(jobHandle);
+				}
+			}
+
+			//! Creates the job callable that runs items [\a idxStart, \a idxEnd) of the shared parallel callback
+			//! \a callbackHandle and then drops this job's reference to it.
+			//! \param callbackHandle Shared callback of the parallel job.
+			//! \param idxStart First item index processed by the job.
+			//! \param idxEnd One-past-the-last item index processed by the job.
+			//! \return Callable stored inline in the job.
+			GAIA_NODISCARD JobFunc
+			parallel_group_func(ParallelCallbackHandle callbackHandle, uint32_t idxStart, uint32_t idxEnd) {
+				auto func = [this, callbackHandle, idxStart, idxEnd]() {
+					JobArgs args;
+					args.idxStart = idxStart;
+					args.idxEnd = idxEnd;
+					m_jobManager.invoke_parallel_callback(callbackHandle, args);
+					release_parallel_callback(callbackHandle);
+				};
+				static_assert(JobFunc::stores_inline<decltype(func)>(), "Parallel group jobs must not allocate");
+				return JobFunc(GAIA_MOV(func));
+			}
+
+			//! Creates the job callable that runs items [\a idxStart, \a idxEnd) of the non-owning parallel job \a job.
+			//! \param job Non-owning parallel job descriptor.
+			//! \param idxStart First item index processed by the job.
+			//! \param idxEnd One-past-the-last item index processed by the job.
+			//! \return Callable stored inline in the job.
+			GAIA_NODISCARD static JobFunc parallel_group_func(const JobParallelRef& job, uint32_t idxStart, uint32_t idxEnd) {
+				auto func = [pCtx = job.pCtx, invoke = job.invoke, idxStart, idxEnd]() {
+					JobArgs args;
+					args.idxStart = idxStart;
+					args.idxEnd = idxEnd;
+					invoke(pCtx, args);
+				};
+				static_assert(JobFunc::stores_inline<decltype(func)>(), "Parallel group jobs must not allocate");
+				return JobFunc(GAIA_MOV(func));
 			}
 
 		public:
 			//! Deletes a job handle \a jobHandle from the threadpool.
+			//! The job's callable, and everything it captured, is destroyed on the calling thread.
 			//! \param jobHandle Completed or clear job to delete.
 			//! \warning Job handle must not be used by any worker thread and can not be used
 			//!          by any active job handles as a dependency.
 			void del([[maybe_unused]] JobHandle jobHandle) {
 				GAIA_ASSERT(jobHandle != (JobHandle)JobNull_t{});
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
-				core::lock_scope lock(mtx);
-				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
-				if (!m_jobManager.valid(jobHandle))
-					return;
+				// Destroyed once the lock is released so the callable's destructor may use the thread pool.
+				JobFunc func;
+				{
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
+					core::lock_scope lock(mtx);
+					GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+					if (!m_jobManager.valid(jobHandle))
+						return;
 
 #if GAIA_ASSERT_ENABLED
-				{
-					const auto& jobData = m_jobManager.data(jobHandle);
-					GAIA_ASSERT(jobData.state == 0 || m_jobManager.done(jobData));
-				}
+					{
+						const auto& jobData = m_jobManager.data(jobHandle);
+						GAIA_ASSERT(jobData.state == 0 || m_jobManager.done(jobData));
+					}
 #endif
 
-				m_jobManager.free_job(jobHandle);
+					func = m_jobManager.free_job(jobHandle);
+				}
 			}
 
 			//! Pushes \a jobHandles into the internal queue so worker threads
@@ -664,22 +713,25 @@ namespace gaia {
 				// the reason for that is so let's stay silent.
 				if (jobs == 1) {
 					const uint32_t groupJobIdxEnd = groupSize < itemsToProcess ? groupSize : itemsToProcess;
-					auto groupFunc = GAIA_MOV(job.func);
-					auto groupJobFunc = [func = GAIA_MOV(groupFunc), groupJobIdxEnd]() mutable {
+					// The only job owns the callback directly. The closure is larger than JobFunc::InlineSize, so it is
+					// allocated on the general heap and destroyed by the worker once the job ran. That is cheaper than a
+					// shared callback record, which would take the job allocation lock twice.
+					auto groupJobFunc = [func = GAIA_MOV(job.func), groupJobIdxEnd]() {
 						JobArgs args;
 						args.idxStart = 0;
 						args.idxEnd = groupJobIdxEnd;
 						func(args);
 					};
-
 					auto handle = add(Job{GAIA_MOV(groupJobFunc), prio, JobCreationFlags::Default});
 					submit(handle);
 					return handle;
 				}
 
-				// Multiple jobs need to be parallelized.
-				// Create a sync job and assign it as their dependency.
+				// Multiple jobs need to be parallelized. They share the callback through the callback pool. The last job
+				// to finish with it destroys it, before that job is reported done. Each job stores only an inline callable.
 				auto callbackHandle = add_parallel_callback(GAIA_MOV(job.func), jobs);
+
+				// Create a sync job and assign it as their dependency.
 
 				auto* pHandles = (JobHandle*)alloca(sizeof(JobHandle) * (jobs + 1));
 				std::span<JobHandle> handles(pHandles, jobs + 1);
@@ -697,16 +749,8 @@ namespace gaia {
 					const uint32_t groupJobIdxEnd =
 							core::get_min(groupSize, itemsToProcess - groupJobIdxStart) + groupJobIdxStart;
 
-					auto groupJobFunc = [this, callbackHandle, groupJobIdxStart, groupJobIdxEnd]() {
-						JobArgs args;
-						args.idxStart = groupJobIdxStart;
-						args.idxEnd = groupJobIdxEnd;
-						m_jobManager.invoke_parallel_callback(callbackHandle, args);
-						release_parallel_callback(callbackHandle);
-					};
-
 					auto& jobData = m_jobManager.data(pHandles[jobIndex]);
-					jobData.func = util::SmallFunc::create(GAIA_MOV(groupJobFunc));
+					jobData.func = parallel_group_func(callbackHandle, groupJobIdxStart, groupJobIdxEnd);
 					jobData.prio = prio;
 				}
 				// Sync job
@@ -759,16 +803,7 @@ namespace gaia {
 
 				if (jobs == 1) {
 					const uint32_t groupJobIdxEnd = groupSize < itemsToProcess ? groupSize : itemsToProcess;
-					auto* pCtx = job.pCtx;
-					auto invoke = job.invoke;
-					auto groupJobFunc = [pCtx, invoke, groupJobIdxEnd]() {
-						JobArgs args;
-						args.idxStart = 0;
-						args.idxEnd = groupJobIdxEnd;
-						invoke(pCtx, args);
-					};
-
-					auto handle = add(Job{GAIA_MOV(groupJobFunc), prio, JobCreationFlags::Default});
+					auto handle = add(Job{parallel_group_func(job, 0, groupJobIdxEnd), prio, JobCreationFlags::Default});
 					submit(handle);
 					return handle;
 				}
@@ -788,17 +823,8 @@ namespace gaia {
 					const uint32_t groupJobIdxEnd =
 							core::get_min(groupSize, itemsToProcess - groupJobIdxStart) + groupJobIdxStart;
 
-					auto* pCtx = job.pCtx;
-					auto invoke = job.invoke;
-					auto groupJobFunc = [pCtx, invoke, groupJobIdxStart, groupJobIdxEnd]() {
-						JobArgs args;
-						args.idxStart = groupJobIdxStart;
-						args.idxEnd = groupJobIdxEnd;
-						invoke(pCtx, args);
-					};
-
 					auto& jobData = m_jobManager.data(pHandles[jobIndex]);
-					jobData.func = util::SmallFunc::create(GAIA_MOV(groupJobFunc));
+					jobData.func = parallel_group_func(job, groupJobIdxStart, groupJobIdxEnd);
 					jobData.prio = prio;
 				}
 				{
@@ -1661,6 +1687,13 @@ namespace gaia {
 
 				// Run the functor associated with the job
 				m_jobManager.run(jobData);
+
+				// An automatically deleted job can never run again. End its callable's lifetime, and that of everything it
+				// captured, now on this thread, so nobody can see the job done while its captures are still alive. Only a
+				// callable with a non-trivial destructor has anything to end. Its storage is released with the job slot,
+				// after Done, which keeps the work between the job body and Done to a minimum.
+				if (!manualDelete)
+					jobData.func.finish();
 
 				if (jobData.edges.depCnt == 0) {
 					test_before_finalize(jobHandle);

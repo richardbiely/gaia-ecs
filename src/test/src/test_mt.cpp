@@ -2465,3 +2465,331 @@ TEST_CASE("Multithreading - Handle reuse mixed delete modes") {
 	CHECK(autoCnt.load(std::memory_order_relaxed) == Iters);
 	CHECK(manualCnt.load(std::memory_order_relaxed) == Iters);
 }
+
+//! Job capture that counts its own destruction. A moved-from instance does not count, so the counter tells how
+//! many captures were actually destroyed.
+struct JobCaptureProbe {
+	std::atomic_uint32_t* pDtors = nullptr;
+
+	explicit JobCaptureProbe(std::atomic_uint32_t& dtors): pDtors(&dtors) {}
+	JobCaptureProbe(JobCaptureProbe&& other) noexcept: pDtors(other.pDtors) {
+		other.pDtors = nullptr;
+	}
+	JobCaptureProbe(const JobCaptureProbe&) = delete;
+	JobCaptureProbe& operator=(const JobCaptureProbe&) = delete;
+	JobCaptureProbe& operator=(JobCaptureProbe&&) = delete;
+	~JobCaptureProbe() {
+		if (pDtors != nullptr)
+			pDtors->fetch_add(1, std::memory_order_relaxed);
+	}
+};
+
+//! Payload that pushes a job callable past the inline storage.
+struct JobLargeCapture {
+	uint8_t bytes[64]{};
+};
+
+//! Job capture whose destructor deletes another job.
+struct JobDeletingCapture {
+	mt::JobHandle other = mt::JobNull;
+
+	explicit JobDeletingCapture(mt::JobHandle handle): other(handle) {}
+	JobDeletingCapture(JobDeletingCapture&& rhs) noexcept: other(rhs.other) {
+		rhs.other = mt::JobNull;
+	}
+	JobDeletingCapture(const JobDeletingCapture&) = delete;
+	JobDeletingCapture& operator=(const JobDeletingCapture&) = delete;
+	JobDeletingCapture& operator=(JobDeletingCapture&&) = delete;
+	~JobDeletingCapture() {
+		if (other != mt::JobNull)
+			mt::ThreadPool::get().del(other);
+	}
+};
+
+TEST_CASE("Multithreading - Job callables store small callables inline") {
+	std::atomic_uint32_t dtors = 0;
+	uint32_t calls = 0;
+
+	auto small = [&calls]() {
+		++calls;
+	};
+	auto large = [probe = JobCaptureProbe(dtors), payload = JobLargeCapture{}, &calls]() {
+		calls += 1U + (uint32_t)payload.bytes[0];
+	};
+	static_assert(mt::JobFunc::stores_inline<decltype(small)>());
+	static_assert(!mt::JobFunc::stores_inline<decltype(large)>());
+
+	mt::JobFunc smallFunc = small;
+	smallFunc();
+	CHECK(calls == 1);
+
+	{
+		mt::JobFunc largeFunc = GAIA_MOV(large);
+		mt::JobFunc moved = GAIA_MOV(largeFunc);
+		CHECK_FALSE((bool)largeFunc);
+		CHECK((bool)moved);
+		moved();
+		CHECK(calls == 2);
+		CHECK(dtors.load(std::memory_order_relaxed) == 0);
+
+		moved.reset();
+		CHECK_FALSE((bool)moved);
+		CHECK(dtors.load(std::memory_order_relaxed) == 1);
+	}
+	CHECK(dtors.load(std::memory_order_relaxed) == 1);
+
+	mt::JobArgsFunc argsFunc = [&calls](const mt::JobArgs& args) {
+		calls += args.idxEnd - args.idxStart;
+	};
+	argsFunc(mt::JobArgs{3, 8});
+	CHECK(calls == 7);
+
+	// finish() ends the callable's lifetime. Heap storage stays, and can still be moved, until reset() releases it.
+	{
+		std::atomic_uint32_t finished = 0;
+		mt::JobFunc heapFunc = [probe = JobCaptureProbe(finished), payload = JobLargeCapture{}]() {
+			(void)payload;
+		};
+		heapFunc.finish();
+		CHECK(finished.load(std::memory_order_relaxed) == 1);
+		CHECK((bool)heapFunc);
+
+		mt::JobFunc moved = GAIA_MOV(heapFunc);
+		CHECK_FALSE((bool)heapFunc);
+		CHECK((bool)moved);
+		moved.reset();
+		CHECK_FALSE((bool)moved);
+		CHECK(finished.load(std::memory_order_relaxed) == 1);
+
+		mt::JobFunc inlineFunc = [probe = JobCaptureProbe(finished)]() {};
+		inlineFunc.finish();
+		CHECK(finished.load(std::memory_order_relaxed) == 2);
+		CHECK_FALSE((bool)inlineFunc);
+	}
+}
+
+TEST_CASE("Multithreading - Auto-deleted job destroys its captures before it is done") {
+	auto& tp = mt::ThreadPool::get();
+	tp.set_max_workers(2, 2);
+
+	for (uint32_t storage = 0; storage < 2; ++storage) {
+		CAPTURE(storage);
+
+		std::atomic_uint32_t dtors = 0;
+		std::atomic_uint32_t ran = 0;
+		std::atomic_uint32_t dtorsSeenByDependent = UINT32_MAX;
+
+		mt::Job job;
+		if (storage == 0) {
+			auto func = [probe = JobCaptureProbe(dtors), &ran]() {
+				ran.fetch_add(1, std::memory_order_relaxed);
+			};
+			static_assert(mt::JobFunc::stores_inline<decltype(func)>());
+			job.func = GAIA_MOV(func);
+		} else {
+			auto func = [probe = JobCaptureProbe(dtors), payload = JobLargeCapture{}, &ran]() {
+				ran.fetch_add(1U + (uint32_t)payload.bytes[0], std::memory_order_relaxed);
+			};
+			static_assert(!mt::JobFunc::stores_inline<decltype(func)>());
+			job.func = GAIA_MOV(func);
+		}
+
+		// The dependent runs only after the auto-deleted job is done, so it must already see the captures destroyed.
+		mt::Job dependent;
+		dependent.flags = mt::JobCreationFlags::ManualDelete;
+		dependent.func = [&]() {
+			dtorsSeenByDependent.store(dtors.load(std::memory_order_relaxed), std::memory_order_relaxed);
+		};
+
+		const auto handle = tp.add(GAIA_MOV(job));
+		const auto dependentHandle = tp.add(GAIA_MOV(dependent));
+		tp.dep(handle, dependentHandle);
+		tp.submit(dependentHandle);
+		tp.submit(handle);
+		tp.wait(dependentHandle);
+
+		CHECK(ran.load(std::memory_order_relaxed) == 1);
+		CHECK(dtorsSeenByDependent.load(std::memory_order_relaxed) == 1);
+		CHECK(dtors.load(std::memory_order_relaxed) == 1);
+		tp.del(dependentHandle);
+	}
+}
+
+TEST_CASE("Multithreading - ManualDelete job keeps its callable until deleted") {
+	auto& tp = mt::ThreadPool::get();
+	tp.set_max_workers(2, 2);
+
+	std::atomic_uint32_t dtors = 0;
+	std::atomic_uint32_t runs = 0;
+
+	mt::Job job;
+	job.flags = mt::JobCreationFlags::ManualDelete;
+	job.func = [probe = JobCaptureProbe(dtors), &runs]() {
+		runs.fetch_add(1, std::memory_order_relaxed);
+	};
+
+	const auto handle = tp.add(GAIA_MOV(job));
+	tp.submit(handle);
+	tp.wait(handle);
+	CHECK(runs.load(std::memory_order_relaxed) == 1);
+	CHECK(dtors.load(std::memory_order_relaxed) == 0);
+
+	// A reset job runs its callable again.
+	tp.reset(handle);
+	tp.submit(handle);
+	tp.wait(handle);
+	CHECK(runs.load(std::memory_order_relaxed) == 2);
+	CHECK(dtors.load(std::memory_order_relaxed) == 0);
+
+	tp.del(handle);
+	CHECK(dtors.load(std::memory_order_relaxed) == 1);
+}
+
+TEST_CASE("Multithreading - Deleting a job that never ran destroys its callable") {
+	auto& tp = mt::ThreadPool::get();
+	tp.set_max_workers(2, 2);
+
+	for (uint32_t manual = 0; manual < 2; ++manual) {
+		CAPTURE(manual);
+
+		std::atomic_uint32_t dtors = 0;
+		bool ran = false;
+
+		mt::Job job;
+		if (manual != 0)
+			job.flags = mt::JobCreationFlags::ManualDelete;
+		job.func = [probe = JobCaptureProbe(dtors), &ran]() {
+			ran = true;
+		};
+
+		const auto handle = tp.add(GAIA_MOV(job));
+		CHECK(dtors.load(std::memory_order_relaxed) == 0);
+		tp.del(handle);
+		CHECK(dtors.load(std::memory_order_relaxed) == 1);
+		CHECK_FALSE(ran);
+	}
+}
+
+TEST_CASE("Multithreading - Job callable destructor may use the thread pool") {
+	auto& tp = mt::ThreadPool::get();
+	tp.set_max_workers(2, 2);
+
+	std::atomic_uint32_t otherDtors = 0;
+	mt::Job other;
+	other.func = [probe = JobCaptureProbe(otherDtors)]() {};
+	const auto otherHandle = tp.add(GAIA_MOV(other));
+
+	// Deleting the job destroys its callable, whose destructor deletes the other job. That must not deadlock on
+	// the lock that serializes job allocation.
+	mt::Job job;
+	job.flags = mt::JobCreationFlags::ManualDelete;
+	job.func = [capture = JobDeletingCapture(otherHandle)]() {};
+	const auto handle = tp.add(GAIA_MOV(job));
+	tp.submit(handle);
+	tp.wait(handle);
+	CHECK(otherDtors.load(std::memory_order_relaxed) == 0);
+
+	tp.del(handle);
+	CHECK(otherDtors.load(std::memory_order_relaxed) == 1);
+}
+
+TEST_CASE("Multithreading - Parallel job callbacks are destroyed before the job is done") {
+	auto& tp = mt::ThreadPool::get();
+	const auto threads = tp.hw_thread_cnt();
+	tp.set_max_workers(threads, threads);
+
+	struct Case {
+		uint32_t items;
+		uint32_t groupSize;
+	};
+	// One group job, then many.
+	const Case cases[] = {{1, 0}, {4096, 16}};
+	for (const auto& c: cases) {
+		CAPTURE(c.items);
+
+		std::atomic_uint32_t dtors = 0;
+		std::atomic_uint32_t items = 0;
+
+		mt::JobParallel job;
+		job.func = [probe = JobCaptureProbe(dtors), &items](const mt::JobArgs& args) {
+			items.fetch_add(args.idxEnd - args.idxStart, std::memory_order_relaxed);
+		};
+
+		const auto handle = tp.sched_par(GAIA_MOV(job), c.items, c.groupSize);
+		tp.wait(handle);
+
+		CHECK(items.load(std::memory_order_relaxed) == c.items);
+		CHECK(dtors.load(std::memory_order_relaxed) == 1);
+	}
+}
+
+TEST_CASE("Multithreading - Jobs leave no SmallBlockAllocator allocations behind") {
+	auto& tp = mt::ThreadPool::get();
+	const auto threads = tp.hw_thread_cnt();
+	tp.set_max_workers(threads, threads);
+
+	auto& alloc = mem::SmallBlockAllocator::get();
+	alloc.flush(true);
+	const auto before = alloc.stats();
+
+	std::atomic_uint32_t sum = 0;
+	{
+		// Single jobs, inline and heap-stored.
+		mt::Job small;
+		small.func = [&sum]() {
+			sum.fetch_add(1, std::memory_order_relaxed);
+		};
+		mt::Job large;
+		large.func = [payload = JobLargeCapture{}, &sum]() {
+			sum.fetch_add(1U + (uint32_t)payload.bytes[0], std::memory_order_relaxed);
+		};
+		const auto smallHandle = tp.add(GAIA_MOV(small));
+		const auto largeHandle = tp.add(GAIA_MOV(large));
+		tp.submit(smallHandle);
+		tp.submit(largeHandle);
+		tp.wait(smallHandle);
+		tp.wait(largeHandle);
+
+		// Owning and non-owning parallel jobs, with one group job and with many.
+		JobParallelRefProbe refProbe;
+		mt::JobParallelRef jobRef;
+		jobRef.pCtx = &refProbe;
+		jobRef.invoke = &JobParallelRefProbe::invoke;
+		const uint32_t itemCounts[] = {1, 4096};
+		for (const auto items: itemCounts) {
+			mt::JobParallel job;
+			job.func = [payload = JobLargeCapture{}, &sum](const mt::JobArgs& args) {
+				sum.fetch_add(args.idxEnd - args.idxStart + (uint32_t)payload.bytes[0], std::memory_order_relaxed);
+			};
+			tp.wait(tp.sched_par(GAIA_MOV(job), items, items == 1 ? 0 : 16));
+			tp.wait(tp.sched_par(jobRef, items, items == 1 ? 0 : 16));
+		}
+		CHECK(refProbe.items.load(std::memory_order_relaxed) == 1 + 4096);
+
+		// A parallel query job goes through the ECS scheduler.
+		TestWorld twld;
+		GAIA_FOR(1000) {
+			auto e = wld.add();
+			wld.add<Position>(e, {1, 0, 0});
+		}
+		auto q = wld.query().all<Position&>();
+		auto queryJob = q.job(
+				[](ecs::Iter& it) {
+					auto pos = it.view_mut<Position>(0);
+					GAIA_FOR_(it.size(), i) pos[i].x += 1.0f;
+				},
+				ecs::QueryExecType::Parallel);
+		queryJob.submit();
+		queryJob.wait();
+		queryJob.del();
+	}
+	CHECK(sum.load(std::memory_order_relaxed) == 2 + 1 + 4096);
+
+	alloc.flush(true);
+	const auto after = alloc.stats();
+	GAIA_FOR(mem::SmallBlockSizeTypeCount) {
+		CAPTURE(i);
+		CHECK(after.stats[i].num_pages == before.stats[i].num_pages);
+		CHECK(after.stats[i].mem_used == before.stats[i].mem_used);
+	}
+}

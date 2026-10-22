@@ -10,9 +10,14 @@
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/mt/event.h"
 #include "gaia/mt/jobqueue.h"
-#include "gaia/util/small_func.h"
 
 namespace gaia {
+	namespace util {
+		class SmallFunc;
+		template <typename Signature>
+		class MoveFunc;
+	} // namespace util
+
 	namespace mt {
 		//! Scheduling priority assigned to a job.
 		enum class JobPriority : uint8_t {
@@ -42,16 +47,6 @@ namespace gaia {
 			JobPriority priority;
 		};
 
-		//! Callable and scheduling options for a single job.
-		struct Job {
-			//! Callable executed by the worker.
-			util::SmallFunc func;
-			//! Queue priority used to schedule the callable.
-			JobPriority priority = JobPriority::High;
-			//! Creation and lifetime options.
-			JobCreationFlags flags = JobCreationFlags::Default;
-		};
-
 		//! Half-open item range passed to a parallel job callback.
 		struct JobArgs {
 			//! First item index processed by this invocation.
@@ -60,15 +55,71 @@ namespace gaia {
 			uint32_t idxEnd;
 		};
 
-		//! Move-only callback wrapper specialized for parallel job ranges.
-		class JobArgsFunc {
-			static constexpr uint32_t BufferSize = 24;
+		//! \cond INTERNAL
+		namespace detail {
+			template <typename T>
+			struct is_move_func: std::false_type {};
+			template <typename Signature>
+			struct is_move_func<util::MoveFunc<Signature>>: std::true_type {};
+		} // namespace detail
+		//! \endcond
 
-			enum class Op : uint8_t { Invoke, Destroy, Move };
-			using OpFn = void (*)(Op op, JobArgsFunc* dst, JobArgsFunc* src, const JobArgs* pArgs);
+		//! Move-only type-erased callable owned by a job.
+		//! Callables of up to InlineSize bytes are stored inline. Larger ones are allocated with mem::AllocHelper.
+		//! The storage never comes from the process-wide arena allocators (mem::SmallBlockAllocator and friends),
+		//! so a job callable can be destroyed on whichever thread finishes with the job.
+		//! \tparam TArg Type passed by const reference to the callable, or void for a callable taking no arguments.
+		template <typename TArg>
+		class JobCallable {
+		public:
+			//! Size in bytes of the inline callable storage.
+			static constexpr uint32_t InlineSize = 24;
+
+		private:
+			enum class Op : uint8_t { Invoke, Finish, Destroy, Move };
+			using OpFn = void (*)(Op op, JobCallable* dst, JobCallable* src, const void* pArg);
 
 			OpFn m_func = nullptr;
-			alignas(std::max_align_t) uint8_t m_storage[BufferSize];
+			alignas(std::max_align_t) uint8_t m_storage[InlineSize];
+
+			//! Operations on heap storage whose callable finish() already destroyed. Only the storage is left.
+			static void op_storage(Op op, JobCallable* dst, JobCallable* src, [[maybe_unused]] const void* pArg) {
+				auto*& pStorage = *reinterpret_cast<void**>(dst->m_storage);
+				switch (op) {
+					case Op::Invoke:
+						GAIA_ASSERT(false && "The callable was already destroyed by finish()");
+						break;
+					case Op::Finish:
+						break;
+					case Op::Destroy:
+						mem::AllocHelper::free(pStorage);
+						break;
+					case Op::Move:
+						GAIA_ASSERT(src != nullptr);
+						pStorage = *reinterpret_cast<void**>(src->m_storage);
+						dst->m_func = src->m_func;
+						src->m_func = nullptr;
+						break;
+				}
+			}
+
+			template <typename Fn>
+			static constexpr bool invocable() {
+				if constexpr (std::is_void_v<TArg>)
+					return std::is_invocable_r_v<void, Fn&>;
+				else
+					return std::is_invocable_r_v<void, Fn&, const TArg&>;
+			}
+
+			template <typename Fn>
+			static void invoke(Fn& fn, [[maybe_unused]] const void* pArg) {
+				if constexpr (std::is_void_v<TArg>)
+					fn();
+				else {
+					GAIA_ASSERT(pArg != nullptr);
+					fn(*static_cast<const TArg*>(pArg));
+				}
+			}
 
 			void destroy() {
 				if (m_func != nullptr) {
@@ -77,23 +128,38 @@ namespace gaia {
 				}
 			}
 
+			void exec_inter(const void* pArg) const {
+				GAIA_ASSERT(m_func != nullptr);
+				m_func(Op::Invoke, const_cast<JobCallable*>(this), nullptr, pArg);
+			}
+
 			template <typename F>
 			void init(F&& f) {
 				using Fn = std::decay_t<F>;
-				static_assert(std::is_invocable_r_v<void, Fn&, const JobArgs&>, "JobArgsFunc requires a compatible callable");
+				static_assert(
+						!std::is_same_v<Fn, util::SmallFunc> && !detail::is_move_func<Fn>::value,
+						"Pass the callable itself. SmallFunc and MoveFunc may keep it in SmallBlockAllocator, which job "
+						"threads must not free from");
+				static_assert(invocable<Fn>(), "JobCallable requires a callable compatible with its signature");
 				static_assert(std::is_move_constructible_v<Fn>, "Callable must be move-constructible");
 				static_assert(
-						alignof(Fn) <= alignof(std::max_align_t), "Over-aligned callables are not supported for JobArgsFunc");
+						alignof(Fn) <= alignof(std::max_align_t), "Over-aligned callables are not supported for JobCallable");
 
-				if constexpr (sizeof(Fn) <= BufferSize) {
+				if constexpr (stores_inline<Fn>()) {
 					new (m_storage) Fn(GAIA_FWD(f));
 
-					m_func = [](Op op, JobArgsFunc* dst, JobArgsFunc* src, const JobArgs* pArgs) {
+					m_func = [](Op op, JobCallable* dst, JobCallable* src, const void* pArg) {
 						auto* pFn = reinterpret_cast<Fn*>(dst->m_storage);
 						switch (op) {
 							case Op::Invoke:
-								GAIA_ASSERT(pArgs != nullptr);
-								(*pFn)(*pArgs);
+								invoke(*pFn, pArg);
+								break;
+							case Op::Finish:
+								// A trivially destructible callable has nothing to end and is left untouched.
+								if constexpr (!std::is_trivially_destructible_v<Fn>) {
+									pFn->~Fn();
+									dst->m_func = nullptr;
+								}
 								break;
 							case Op::Destroy:
 								if constexpr (!std::is_trivially_destructible_v<Fn>)
@@ -117,20 +183,26 @@ namespace gaia {
 					auto* pFunc = new (pStorage) Fn(GAIA_FWD(f));
 					*reinterpret_cast<Fn**>(m_storage) = pFunc;
 
-					m_func = [](Op op, JobArgsFunc* dst, JobArgsFunc* src, const JobArgs* pArgs) {
+					m_func = [](Op op, JobCallable* dst, JobCallable* src, const void* pArg) {
 						auto*& pFn = *reinterpret_cast<Fn**>(dst->m_storage);
 						switch (op) {
 							case Op::Invoke:
-								GAIA_ASSERT(pArgs != nullptr);
 								GAIA_ASSERT(pFn != nullptr);
-								(*pFn)(*pArgs);
+								invoke(*pFn, pArg);
+								break;
+							case Op::Finish:
+								// A trivially destructible callable has nothing to end and is left untouched.
+								if constexpr (!std::is_trivially_destructible_v<Fn>) {
+									GAIA_ASSERT(pFn != nullptr);
+									pFn->~Fn();
+									dst->m_func = &op_storage;
+								}
 								break;
 							case Op::Destroy:
 								GAIA_ASSERT(pFn != nullptr);
 								if constexpr (!std::is_trivially_destructible_v<Fn>)
 									pFn->~Fn();
 								mem::AllocHelper::free(pFn);
-								pFn = nullptr;
 								break;
 							case Op::Move:
 								GAIA_ASSERT(src != nullptr);
@@ -145,20 +217,35 @@ namespace gaia {
 			}
 
 		public:
-			JobArgsFunc() = default;
-			~JobArgsFunc() {
-				destroy();
+			//! Checks whether a callable of type \a F is stored inline, without a heap allocation.
+			//! \tparam F Callable type.
+			//! \return True when \a F fits the inline storage.
+			template <typename F>
+			GAIA_NODISCARD static constexpr bool stores_inline() {
+				using Fn = std::decay_t<F>;
+				return sizeof(Fn) <= InlineSize && alignof(Fn) <= alignof(std::max_align_t);
 			}
 
-			JobArgsFunc(const JobArgsFunc&) = delete;
-			JobArgsFunc& operator=(const JobArgsFunc&) = delete;
+			JobCallable() = default;
+			~JobCallable() {
+				if (m_func != nullptr)
+					m_func(Op::Destroy, this, nullptr, nullptr);
+			}
 
-			JobArgsFunc(JobArgsFunc&& other) noexcept {
+			JobCallable(const JobCallable&) = delete;
+			JobCallable& operator=(const JobCallable&) = delete;
+
+			//! Takes over the callable of \a other, leaving it empty.
+			//! \param other Wrapper to move from.
+			JobCallable(JobCallable&& other) noexcept {
 				if (other.m_func != nullptr)
 					other.m_func(Op::Move, this, &other, nullptr);
 			}
 
-			JobArgsFunc& operator=(JobArgsFunc&& other) noexcept {
+			//! Destroys the stored callable and takes over the callable of \a other, leaving it empty.
+			//! \param other Wrapper to move from.
+			//! \return This wrapper.
+			JobCallable& operator=(JobCallable&& other) noexcept {
 				if (this != &other) {
 					destroy();
 					if (other.m_func != nullptr)
@@ -167,41 +254,100 @@ namespace gaia {
 				return *this;
 			}
 
-			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, JobArgsFunc>>>
-			JobArgsFunc(F&& f) {
+			//! Wraps the callable \a f.
+			//! \tparam F Callable type.
+			//! \param f Callable object.
+			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, JobCallable>>>
+			JobCallable(F&& f) {
 				init(GAIA_FWD(f));
 			}
 
-			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, JobArgsFunc>>>
-			JobArgsFunc& operator=(F&& f) {
+			//! Destroys the stored callable and wraps the callable \a f.
+			//! \tparam F Callable type.
+			//! \param f Callable object.
+			//! \return This wrapper.
+			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, JobCallable>>>
+			JobCallable& operator=(F&& f) {
 				destroy();
 				init(GAIA_FWD(f));
 				return *this;
 			}
 
+			//! Creates a wrapper for the callable \a f.
+			//! \tparam F Callable type.
+			//! \param f Callable object.
+			//! \return New wrapper.
 			template <typename F>
-			static JobArgsFunc create(F&& f) {
-				JobArgsFunc func;
+			static JobCallable create(F&& f) {
+				JobCallable func;
 				func.init(GAIA_FWD(f));
 				return func;
 			}
 
-			void exec(const JobArgs& args) const {
-				GAIA_ASSERT(m_func != nullptr);
-				m_func(Op::Invoke, const_cast<JobArgsFunc*>(this), nullptr, &args);
+			//! Invokes the stored callable.
+			template <typename T = TArg, typename = std::enable_if_t<std::is_void_v<T>>>
+			void exec() const {
+				exec_inter(nullptr);
 			}
 
-			void operator()(const JobArgs& args) const {
-				exec(args);
+			//! Invokes the stored callable with \a arg.
+			//! \param arg Argument forwarded to the callable.
+			template <typename T = TArg, typename = std::enable_if_t<!std::is_void_v<T>>>
+			void exec(const T& arg) const {
+				exec_inter(&arg);
 			}
 
+			//! Invokes the stored callable.
+			template <typename T = TArg, typename = std::enable_if_t<std::is_void_v<T>>>
+			void operator()() const {
+				exec_inter(nullptr);
+			}
+
+			//! Invokes the stored callable with \a arg.
+			//! \param arg Argument forwarded to the callable.
+			template <typename T = TArg, typename = std::enable_if_t<!std::is_void_v<T>>>
+			void operator()(const T& arg) const {
+				exec_inter(&arg);
+			}
+
+			//! Destroys the stored callable and everything it captured, and releases its storage.
 			void reset() {
 				destroy();
 			}
 
+			//! Ends the lifetime of the stored callable and everything it captured, but keeps any heap storage until
+			//! reset() or the destructor releases it. A trivially destructible callable has nothing to end, so it is left
+			//! untouched and this does not write to the wrapper at all.
+			//! \warning The callable must not be invoked afterwards.
+			void finish() {
+				if (m_func != nullptr)
+					m_func(Op::Finish, this, nullptr, nullptr);
+			}
+
+			//! Checks whether the wrapper holds a callable, or the heap storage of one ended by finish().
+			//! \return True when a callable or its storage is held.
 			explicit operator bool() const {
 				return m_func != nullptr;
 			}
+		};
+
+		//! Callable of a single job.
+		using JobFunc = JobCallable<void>;
+		//! Callable of a parallel job, invoked once for each scheduled item range.
+		using JobArgsFunc = JobCallable<JobArgs>;
+
+		//! Callable and scheduling options for a single job.
+		struct Job {
+			//! Callable executed by the worker. The job owns it until the job is deleted. An automatically deleted job
+			//! ends the callable's lifetime, and that of everything it captured, on the executing thread right after it
+			//! runs and before the job is reported done; heap storage of a callable larger than JobFunc::InlineSize is
+			//! released with the job slot right after that. A JobCreationFlags::ManualDelete job keeps its callable, so
+			//! it can be reset and run again, until ThreadPool::del() destroys it.
+			JobFunc func;
+			//! Queue priority used to schedule the callable.
+			JobPriority priority = JobPriority::High;
+			//! Creation and lifetime options.
+			JobCreationFlags flags = JobCreationFlags::Default;
 		};
 
 		//! Callable and priority for a range-partitioned parallel job.

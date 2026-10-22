@@ -28914,6 +28914,12 @@ namespace gaia {
 GAIA_MSVC_WARNING_POP()
 
 namespace gaia {
+	namespace util {
+		class SmallFunc;
+		template <typename Signature>
+		class MoveFunc;
+	} // namespace util
+
 	namespace mt {
 		//! Scheduling priority assigned to a job.
 		enum class JobPriority : uint8_t {
@@ -28943,16 +28949,6 @@ namespace gaia {
 			JobPriority priority;
 		};
 
-		//! Callable and scheduling options for a single job.
-		struct Job {
-			//! Callable executed by the worker.
-			util::SmallFunc func;
-			//! Queue priority used to schedule the callable.
-			JobPriority priority = JobPriority::High;
-			//! Creation and lifetime options.
-			JobCreationFlags flags = JobCreationFlags::Default;
-		};
-
 		//! Half-open item range passed to a parallel job callback.
 		struct JobArgs {
 			//! First item index processed by this invocation.
@@ -28961,15 +28957,71 @@ namespace gaia {
 			uint32_t idxEnd;
 		};
 
-		//! Move-only callback wrapper specialized for parallel job ranges.
-		class JobArgsFunc {
-			static constexpr uint32_t BufferSize = 24;
+		//! \cond INTERNAL
+		namespace detail {
+			template <typename T>
+			struct is_move_func: std::false_type {};
+			template <typename Signature>
+			struct is_move_func<util::MoveFunc<Signature>>: std::true_type {};
+		} // namespace detail
+		//! \endcond
 
-			enum class Op : uint8_t { Invoke, Destroy, Move };
-			using OpFn = void (*)(Op op, JobArgsFunc* dst, JobArgsFunc* src, const JobArgs* pArgs);
+		//! Move-only type-erased callable owned by a job.
+		//! Callables of up to InlineSize bytes are stored inline. Larger ones are allocated with mem::AllocHelper.
+		//! The storage never comes from the process-wide arena allocators (mem::SmallBlockAllocator and friends),
+		//! so a job callable can be destroyed on whichever thread finishes with the job.
+		//! \tparam TArg Type passed by const reference to the callable, or void for a callable taking no arguments.
+		template <typename TArg>
+		class JobCallable {
+		public:
+			//! Size in bytes of the inline callable storage.
+			static constexpr uint32_t InlineSize = 24;
+
+		private:
+			enum class Op : uint8_t { Invoke, Finish, Destroy, Move };
+			using OpFn = void (*)(Op op, JobCallable* dst, JobCallable* src, const void* pArg);
 
 			OpFn m_func = nullptr;
-			alignas(std::max_align_t) uint8_t m_storage[BufferSize];
+			alignas(std::max_align_t) uint8_t m_storage[InlineSize];
+
+			//! Operations on heap storage whose callable finish() already destroyed. Only the storage is left.
+			static void op_storage(Op op, JobCallable* dst, JobCallable* src, [[maybe_unused]] const void* pArg) {
+				auto*& pStorage = *reinterpret_cast<void**>(dst->m_storage);
+				switch (op) {
+					case Op::Invoke:
+						GAIA_ASSERT(false && "The callable was already destroyed by finish()");
+						break;
+					case Op::Finish:
+						break;
+					case Op::Destroy:
+						mem::AllocHelper::free(pStorage);
+						break;
+					case Op::Move:
+						GAIA_ASSERT(src != nullptr);
+						pStorage = *reinterpret_cast<void**>(src->m_storage);
+						dst->m_func = src->m_func;
+						src->m_func = nullptr;
+						break;
+				}
+			}
+
+			template <typename Fn>
+			static constexpr bool invocable() {
+				if constexpr (std::is_void_v<TArg>)
+					return std::is_invocable_r_v<void, Fn&>;
+				else
+					return std::is_invocable_r_v<void, Fn&, const TArg&>;
+			}
+
+			template <typename Fn>
+			static void invoke(Fn& fn, [[maybe_unused]] const void* pArg) {
+				if constexpr (std::is_void_v<TArg>)
+					fn();
+				else {
+					GAIA_ASSERT(pArg != nullptr);
+					fn(*static_cast<const TArg*>(pArg));
+				}
+			}
 
 			void destroy() {
 				if (m_func != nullptr) {
@@ -28978,23 +29030,38 @@ namespace gaia {
 				}
 			}
 
+			void exec_inter(const void* pArg) const {
+				GAIA_ASSERT(m_func != nullptr);
+				m_func(Op::Invoke, const_cast<JobCallable*>(this), nullptr, pArg);
+			}
+
 			template <typename F>
 			void init(F&& f) {
 				using Fn = std::decay_t<F>;
-				static_assert(std::is_invocable_r_v<void, Fn&, const JobArgs&>, "JobArgsFunc requires a compatible callable");
+				static_assert(
+						!std::is_same_v<Fn, util::SmallFunc> && !detail::is_move_func<Fn>::value,
+						"Pass the callable itself. SmallFunc and MoveFunc may keep it in SmallBlockAllocator, which job "
+						"threads must not free from");
+				static_assert(invocable<Fn>(), "JobCallable requires a callable compatible with its signature");
 				static_assert(std::is_move_constructible_v<Fn>, "Callable must be move-constructible");
 				static_assert(
-						alignof(Fn) <= alignof(std::max_align_t), "Over-aligned callables are not supported for JobArgsFunc");
+						alignof(Fn) <= alignof(std::max_align_t), "Over-aligned callables are not supported for JobCallable");
 
-				if constexpr (sizeof(Fn) <= BufferSize) {
+				if constexpr (stores_inline<Fn>()) {
 					new (m_storage) Fn(GAIA_FWD(f));
 
-					m_func = [](Op op, JobArgsFunc* dst, JobArgsFunc* src, const JobArgs* pArgs) {
+					m_func = [](Op op, JobCallable* dst, JobCallable* src, const void* pArg) {
 						auto* pFn = reinterpret_cast<Fn*>(dst->m_storage);
 						switch (op) {
 							case Op::Invoke:
-								GAIA_ASSERT(pArgs != nullptr);
-								(*pFn)(*pArgs);
+								invoke(*pFn, pArg);
+								break;
+							case Op::Finish:
+								// A trivially destructible callable has nothing to end and is left untouched.
+								if constexpr (!std::is_trivially_destructible_v<Fn>) {
+									pFn->~Fn();
+									dst->m_func = nullptr;
+								}
 								break;
 							case Op::Destroy:
 								if constexpr (!std::is_trivially_destructible_v<Fn>)
@@ -29018,20 +29085,26 @@ namespace gaia {
 					auto* pFunc = new (pStorage) Fn(GAIA_FWD(f));
 					*reinterpret_cast<Fn**>(m_storage) = pFunc;
 
-					m_func = [](Op op, JobArgsFunc* dst, JobArgsFunc* src, const JobArgs* pArgs) {
+					m_func = [](Op op, JobCallable* dst, JobCallable* src, const void* pArg) {
 						auto*& pFn = *reinterpret_cast<Fn**>(dst->m_storage);
 						switch (op) {
 							case Op::Invoke:
-								GAIA_ASSERT(pArgs != nullptr);
 								GAIA_ASSERT(pFn != nullptr);
-								(*pFn)(*pArgs);
+								invoke(*pFn, pArg);
+								break;
+							case Op::Finish:
+								// A trivially destructible callable has nothing to end and is left untouched.
+								if constexpr (!std::is_trivially_destructible_v<Fn>) {
+									GAIA_ASSERT(pFn != nullptr);
+									pFn->~Fn();
+									dst->m_func = &op_storage;
+								}
 								break;
 							case Op::Destroy:
 								GAIA_ASSERT(pFn != nullptr);
 								if constexpr (!std::is_trivially_destructible_v<Fn>)
 									pFn->~Fn();
 								mem::AllocHelper::free(pFn);
-								pFn = nullptr;
 								break;
 							case Op::Move:
 								GAIA_ASSERT(src != nullptr);
@@ -29046,20 +29119,35 @@ namespace gaia {
 			}
 
 		public:
-			JobArgsFunc() = default;
-			~JobArgsFunc() {
-				destroy();
+			//! Checks whether a callable of type \a F is stored inline, without a heap allocation.
+			//! \tparam F Callable type.
+			//! \return True when \a F fits the inline storage.
+			template <typename F>
+			GAIA_NODISCARD static constexpr bool stores_inline() {
+				using Fn = std::decay_t<F>;
+				return sizeof(Fn) <= InlineSize && alignof(Fn) <= alignof(std::max_align_t);
 			}
 
-			JobArgsFunc(const JobArgsFunc&) = delete;
-			JobArgsFunc& operator=(const JobArgsFunc&) = delete;
+			JobCallable() = default;
+			~JobCallable() {
+				if (m_func != nullptr)
+					m_func(Op::Destroy, this, nullptr, nullptr);
+			}
 
-			JobArgsFunc(JobArgsFunc&& other) noexcept {
+			JobCallable(const JobCallable&) = delete;
+			JobCallable& operator=(const JobCallable&) = delete;
+
+			//! Takes over the callable of \a other, leaving it empty.
+			//! \param other Wrapper to move from.
+			JobCallable(JobCallable&& other) noexcept {
 				if (other.m_func != nullptr)
 					other.m_func(Op::Move, this, &other, nullptr);
 			}
 
-			JobArgsFunc& operator=(JobArgsFunc&& other) noexcept {
+			//! Destroys the stored callable and takes over the callable of \a other, leaving it empty.
+			//! \param other Wrapper to move from.
+			//! \return This wrapper.
+			JobCallable& operator=(JobCallable&& other) noexcept {
 				if (this != &other) {
 					destroy();
 					if (other.m_func != nullptr)
@@ -29068,41 +29156,100 @@ namespace gaia {
 				return *this;
 			}
 
-			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, JobArgsFunc>>>
-			JobArgsFunc(F&& f) {
+			//! Wraps the callable \a f.
+			//! \tparam F Callable type.
+			//! \param f Callable object.
+			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, JobCallable>>>
+			JobCallable(F&& f) {
 				init(GAIA_FWD(f));
 			}
 
-			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, JobArgsFunc>>>
-			JobArgsFunc& operator=(F&& f) {
+			//! Destroys the stored callable and wraps the callable \a f.
+			//! \tparam F Callable type.
+			//! \param f Callable object.
+			//! \return This wrapper.
+			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, JobCallable>>>
+			JobCallable& operator=(F&& f) {
 				destroy();
 				init(GAIA_FWD(f));
 				return *this;
 			}
 
+			//! Creates a wrapper for the callable \a f.
+			//! \tparam F Callable type.
+			//! \param f Callable object.
+			//! \return New wrapper.
 			template <typename F>
-			static JobArgsFunc create(F&& f) {
-				JobArgsFunc func;
+			static JobCallable create(F&& f) {
+				JobCallable func;
 				func.init(GAIA_FWD(f));
 				return func;
 			}
 
-			void exec(const JobArgs& args) const {
-				GAIA_ASSERT(m_func != nullptr);
-				m_func(Op::Invoke, const_cast<JobArgsFunc*>(this), nullptr, &args);
+			//! Invokes the stored callable.
+			template <typename T = TArg, typename = std::enable_if_t<std::is_void_v<T>>>
+			void exec() const {
+				exec_inter(nullptr);
 			}
 
-			void operator()(const JobArgs& args) const {
-				exec(args);
+			//! Invokes the stored callable with \a arg.
+			//! \param arg Argument forwarded to the callable.
+			template <typename T = TArg, typename = std::enable_if_t<!std::is_void_v<T>>>
+			void exec(const T& arg) const {
+				exec_inter(&arg);
 			}
 
+			//! Invokes the stored callable.
+			template <typename T = TArg, typename = std::enable_if_t<std::is_void_v<T>>>
+			void operator()() const {
+				exec_inter(nullptr);
+			}
+
+			//! Invokes the stored callable with \a arg.
+			//! \param arg Argument forwarded to the callable.
+			template <typename T = TArg, typename = std::enable_if_t<!std::is_void_v<T>>>
+			void operator()(const T& arg) const {
+				exec_inter(&arg);
+			}
+
+			//! Destroys the stored callable and everything it captured, and releases its storage.
 			void reset() {
 				destroy();
 			}
 
+			//! Ends the lifetime of the stored callable and everything it captured, but keeps any heap storage until
+			//! reset() or the destructor releases it. A trivially destructible callable has nothing to end, so it is left
+			//! untouched and this does not write to the wrapper at all.
+			//! \warning The callable must not be invoked afterwards.
+			void finish() {
+				if (m_func != nullptr)
+					m_func(Op::Finish, this, nullptr, nullptr);
+			}
+
+			//! Checks whether the wrapper holds a callable, or the heap storage of one ended by finish().
+			//! \return True when a callable or its storage is held.
 			explicit operator bool() const {
 				return m_func != nullptr;
 			}
+		};
+
+		//! Callable of a single job.
+		using JobFunc = JobCallable<void>;
+		//! Callable of a parallel job, invoked once for each scheduled item range.
+		using JobArgsFunc = JobCallable<JobArgs>;
+
+		//! Callable and scheduling options for a single job.
+		struct Job {
+			//! Callable executed by the worker. The job owns it until the job is deleted. An automatically deleted job
+			//! ends the callable's lifetime, and that of everything it captured, on the executing thread right after it
+			//! runs and before the job is reported done; heap storage of a callable larger than JobFunc::InlineSize is
+			//! released with the job slot right after that. A JobCreationFlags::ManualDelete job keeps its callable, so
+			//! it can be reset and run again, until ThreadPool::del() destroys it.
+			JobFunc func;
+			//! Queue priority used to schedule the callable.
+			JobPriority priority = JobPriority::High;
+			//! Creation and lifetime options.
+			JobCreationFlags flags = JobCreationFlags::Default;
 		};
 
 		//! Callable and priority for a range-partitioned parallel job.
@@ -29235,8 +29382,8 @@ namespace gaia {
 			JobCreationFlags flags;
 			//! Dependency graph
 			JobEdges edges;
-			//! Function to execute when running the job
-			util::SmallFunc func;
+			//! Function to execute when running the job. See Job::func for when it is destroyed.
+			JobFunc func;
 
 			JobContainer() = default;
 			~JobContainer() = default;
@@ -29297,7 +29444,8 @@ namespace gaia {
 
 		//! Handle identifying a shared callback used by parallel jobs.
 		struct ParallelCallbackHandle {
-			static constexpr uint32_t IdMask = uint32_t(-1);
+			//! Every live callback is referenced by at least one live job, so callbacks never outnumber jobs.
+			static constexpr uint32_t IdMask = JobHandle::IdMask;
 
 			uint32_t m_id = IdMask;
 			uint32_t m_gen = 0;
@@ -29382,12 +29530,16 @@ namespace gaia {
 		class JobManager {
 			using JobDataLayout = cnt::paged_ilist<JobContainer, JobHandle>;
 			static constexpr uint32_t JobDataPageCount = JobDataLayout::page_count_for_capacity(JobHandle::IdMask);
+			using ParallelCallbackLayout = cnt::paged_ilist<ParallelCallbackRecord, ParallelCallbackHandle>;
+			static constexpr uint32_t ParallelCallbackPageCount =
+					ParallelCallbackLayout::page_count_for_capacity(ParallelCallbackHandle::IdMask);
 
 			//! Paged implicit list of jobs with a fixed page table.
 			//! Payload pages are still allocated lazily, but the page table never moves while background jobs are running.
 			cnt::paged_ilist<JobContainer, JobHandle, JobDataPageCount> m_jobData;
-			//! Shared callback records for parallel jobs.
-			cnt::ilist<ParallelCallbackRecord, ParallelCallbackHandle> m_parallelCallbacks;
+			//! Shared callback records for parallel jobs, paged with a fixed page table for the same reason as m_jobData:
+			//! workers invoke and release records without the job allocation lock while new records are allocated.
+			cnt::paged_ilist<ParallelCallbackRecord, ParallelCallbackHandle, ParallelCallbackPageCount> m_parallelCallbacks;
 
 		public:
 			//! Checks whether \a jobHandle identifies its current live job.
@@ -29442,23 +29594,30 @@ namespace gaia {
 			//! Invalidates \a jobHandle by resetting its index in the job pool.
 			//! Every time a job is deallocated its generation is increased by one.
 			//! \param jobHandle Job handle.
+			//! \return The job's callable, moved out of the slot. Destroy it after releasing the lock that serializes
+			//!         job-pool access so its destructor never runs under that lock.
 			//! \warning Caller must serialize job-pool allocation/free access.
-			void free_job(JobHandle jobHandle) {
+			GAIA_NODISCARD JobFunc free_job(JobHandle jobHandle) {
 				auto& jobData = m_jobData.payload_unsafe(jobHandle.id());
 				GAIA_ASSERT(is_clear(jobData) || done(jobData));
+				JobFunc func = GAIA_MOV(jobData.func);
 				free_edges(jobData);
 				jobData.state.store(JobState::Released, std::memory_order_release);
 				jobData.data.gen = (jobHandle.gen() + 1) & JobHandle::GenMask;
 				m_jobData.free_keep_live(jobHandle);
+				return func;
 			}
 
 			//! Releases a shared callback record.
 			//! \param handle Handle of the callback record to free.
-			void free_parallel_callback(ParallelCallbackHandle handle) {
+			//! \return The record's callback, moved out. Destroy it after releasing the lock that serializes
+			//!         job-pool access so its destructor never runs under that lock.
+			GAIA_NODISCARD JobArgsFunc free_parallel_callback(ParallelCallbackHandle handle) {
 				auto& record = m_parallelCallbacks[handle.id()];
-				record.callback.reset();
+				JobArgsFunc callback = GAIA_MOV(record.callback);
 				record.refs.store(0, std::memory_order_relaxed);
 				m_parallelCallbacks.free(handle);
+				return callback;
 			}
 
 			//! Resets the job pool.
@@ -30352,43 +30511,92 @@ namespace gaia {
 				if (!m_jobManager.release_parallel_callback_ref(handle))
 					return;
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
-				core::lock_scope lock(mtx);
-				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+				// Destroyed once the lock is released so the callback's destructor may use the thread pool.
+				JobArgsFunc callback;
+				{
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
+					core::lock_scope lock(mtx);
+					GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
 
-				m_jobManager.free_parallel_callback(handle);
+					callback = m_jobManager.free_parallel_callback(handle);
+				}
 			}
 
 			void release_job(JobHandle jobHandle) {
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
-				core::lock_scope lock(mtx);
-				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+				// run() already ended the callable's lifetime. What is left, a trivially destructible callable or heap
+				// storage, is released once the lock is released.
+				JobFunc func;
+				{
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
+					core::lock_scope lock(mtx);
+					GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
 
-				m_jobManager.free_job(jobHandle);
+					func = m_jobManager.free_job(jobHandle);
+				}
+			}
+
+			//! Creates the job callable that runs items [\a idxStart, \a idxEnd) of the shared parallel callback
+			//! \a callbackHandle and then drops this job's reference to it.
+			//! \param callbackHandle Shared callback of the parallel job.
+			//! \param idxStart First item index processed by the job.
+			//! \param idxEnd One-past-the-last item index processed by the job.
+			//! \return Callable stored inline in the job.
+			GAIA_NODISCARD JobFunc
+			parallel_group_func(ParallelCallbackHandle callbackHandle, uint32_t idxStart, uint32_t idxEnd) {
+				auto func = [this, callbackHandle, idxStart, idxEnd]() {
+					JobArgs args;
+					args.idxStart = idxStart;
+					args.idxEnd = idxEnd;
+					m_jobManager.invoke_parallel_callback(callbackHandle, args);
+					release_parallel_callback(callbackHandle);
+				};
+				static_assert(JobFunc::stores_inline<decltype(func)>(), "Parallel group jobs must not allocate");
+				return JobFunc(GAIA_MOV(func));
+			}
+
+			//! Creates the job callable that runs items [\a idxStart, \a idxEnd) of the non-owning parallel job \a job.
+			//! \param job Non-owning parallel job descriptor.
+			//! \param idxStart First item index processed by the job.
+			//! \param idxEnd One-past-the-last item index processed by the job.
+			//! \return Callable stored inline in the job.
+			GAIA_NODISCARD static JobFunc parallel_group_func(const JobParallelRef& job, uint32_t idxStart, uint32_t idxEnd) {
+				auto func = [pCtx = job.pCtx, invoke = job.invoke, idxStart, idxEnd]() {
+					JobArgs args;
+					args.idxStart = idxStart;
+					args.idxEnd = idxEnd;
+					invoke(pCtx, args);
+				};
+				static_assert(JobFunc::stores_inline<decltype(func)>(), "Parallel group jobs must not allocate");
+				return JobFunc(GAIA_MOV(func));
 			}
 
 		public:
 			//! Deletes a job handle \a jobHandle from the threadpool.
+			//! The job's callable, and everything it captured, is destroyed on the calling thread.
 			//! \param jobHandle Completed or clear job to delete.
 			//! \warning Job handle must not be used by any worker thread and can not be used
 			//!          by any active job handles as a dependency.
 			void del([[maybe_unused]] JobHandle jobHandle) {
 				GAIA_ASSERT(jobHandle != (JobHandle)JobNull_t{});
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
-				core::lock_scope lock(mtx);
-				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
-				if (!m_jobManager.valid(jobHandle))
-					return;
+				// Destroyed once the lock is released so the callable's destructor may use the thread pool.
+				JobFunc func;
+				{
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
+					core::lock_scope lock(mtx);
+					GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+					if (!m_jobManager.valid(jobHandle))
+						return;
 
 #if GAIA_ASSERT_ENABLED
-				{
-					const auto& jobData = m_jobManager.data(jobHandle);
-					GAIA_ASSERT(jobData.state == 0 || m_jobManager.done(jobData));
-				}
+					{
+						const auto& jobData = m_jobManager.data(jobHandle);
+						GAIA_ASSERT(jobData.state == 0 || m_jobManager.done(jobData));
+					}
 #endif
 
-				m_jobManager.free_job(jobHandle);
+					func = m_jobManager.free_job(jobHandle);
+				}
 			}
 
 			//! Pushes \a jobHandles into the internal queue so worker threads
@@ -30591,22 +30799,25 @@ namespace gaia {
 				// the reason for that is so let's stay silent.
 				if (jobs == 1) {
 					const uint32_t groupJobIdxEnd = groupSize < itemsToProcess ? groupSize : itemsToProcess;
-					auto groupFunc = GAIA_MOV(job.func);
-					auto groupJobFunc = [func = GAIA_MOV(groupFunc), groupJobIdxEnd]() mutable {
+					// The only job owns the callback directly. The closure is larger than JobFunc::InlineSize, so it is
+					// allocated on the general heap and destroyed by the worker once the job ran. That is cheaper than a
+					// shared callback record, which would take the job allocation lock twice.
+					auto groupJobFunc = [func = GAIA_MOV(job.func), groupJobIdxEnd]() {
 						JobArgs args;
 						args.idxStart = 0;
 						args.idxEnd = groupJobIdxEnd;
 						func(args);
 					};
-
 					auto handle = add(Job{GAIA_MOV(groupJobFunc), prio, JobCreationFlags::Default});
 					submit(handle);
 					return handle;
 				}
 
-				// Multiple jobs need to be parallelized.
-				// Create a sync job and assign it as their dependency.
+				// Multiple jobs need to be parallelized. They share the callback through the callback pool. The last job
+				// to finish with it destroys it, before that job is reported done. Each job stores only an inline callable.
 				auto callbackHandle = add_parallel_callback(GAIA_MOV(job.func), jobs);
+
+				// Create a sync job and assign it as their dependency.
 
 				auto* pHandles = (JobHandle*)alloca(sizeof(JobHandle) * (jobs + 1));
 				std::span<JobHandle> handles(pHandles, jobs + 1);
@@ -30624,16 +30835,8 @@ namespace gaia {
 					const uint32_t groupJobIdxEnd =
 							core::get_min(groupSize, itemsToProcess - groupJobIdxStart) + groupJobIdxStart;
 
-					auto groupJobFunc = [this, callbackHandle, groupJobIdxStart, groupJobIdxEnd]() {
-						JobArgs args;
-						args.idxStart = groupJobIdxStart;
-						args.idxEnd = groupJobIdxEnd;
-						m_jobManager.invoke_parallel_callback(callbackHandle, args);
-						release_parallel_callback(callbackHandle);
-					};
-
 					auto& jobData = m_jobManager.data(pHandles[jobIndex]);
-					jobData.func = util::SmallFunc::create(GAIA_MOV(groupJobFunc));
+					jobData.func = parallel_group_func(callbackHandle, groupJobIdxStart, groupJobIdxEnd);
 					jobData.prio = prio;
 				}
 				// Sync job
@@ -30686,16 +30889,7 @@ namespace gaia {
 
 				if (jobs == 1) {
 					const uint32_t groupJobIdxEnd = groupSize < itemsToProcess ? groupSize : itemsToProcess;
-					auto* pCtx = job.pCtx;
-					auto invoke = job.invoke;
-					auto groupJobFunc = [pCtx, invoke, groupJobIdxEnd]() {
-						JobArgs args;
-						args.idxStart = 0;
-						args.idxEnd = groupJobIdxEnd;
-						invoke(pCtx, args);
-					};
-
-					auto handle = add(Job{GAIA_MOV(groupJobFunc), prio, JobCreationFlags::Default});
+					auto handle = add(Job{parallel_group_func(job, 0, groupJobIdxEnd), prio, JobCreationFlags::Default});
 					submit(handle);
 					return handle;
 				}
@@ -30715,17 +30909,8 @@ namespace gaia {
 					const uint32_t groupJobIdxEnd =
 							core::get_min(groupSize, itemsToProcess - groupJobIdxStart) + groupJobIdxStart;
 
-					auto* pCtx = job.pCtx;
-					auto invoke = job.invoke;
-					auto groupJobFunc = [pCtx, invoke, groupJobIdxStart, groupJobIdxEnd]() {
-						JobArgs args;
-						args.idxStart = groupJobIdxStart;
-						args.idxEnd = groupJobIdxEnd;
-						invoke(pCtx, args);
-					};
-
 					auto& jobData = m_jobManager.data(pHandles[jobIndex]);
-					jobData.func = util::SmallFunc::create(GAIA_MOV(groupJobFunc));
+					jobData.func = parallel_group_func(job, groupJobIdxStart, groupJobIdxEnd);
 					jobData.prio = prio;
 				}
 				{
@@ -31588,6 +31773,13 @@ namespace gaia {
 
 				// Run the functor associated with the job
 				m_jobManager.run(jobData);
+
+				// An automatically deleted job can never run again. End its callable's lifetime, and that of everything it
+				// captured, now on this thread, so nobody can see the job done while its captures are still alive. Only a
+				// callable with a non-trivial destructor has anything to end. Its storage is released with the job slot,
+				// after Done, which keeps the work between the job body and Done to a minimum.
+				if (!manualDelete)
+					jobData.func.finish();
 
 				if (jobData.edges.depCnt == 0) {
 					test_before_finalize(jobHandle);
@@ -55482,12 +55674,15 @@ namespace gaia {
 				pData->kind = SchedTokenKind::Single;
 				pData->handles.resize(1);
 
+				auto func = [pCtx = pDesc->pCtx, invoke = pDesc->invoke]() {
+					invoke(pCtx);
+				};
+				static_assert(mt::JobFunc::stores_inline<decltype(func)>(), "Scheduler jobs must not allocate");
+
 				mt::Job job;
 				job.priority = exec_prio(pDesc->execType);
 				job.flags = job_creation_flags(pDesc->flags);
-				job.func = [pCtx = pDesc->pCtx, invoke = pDesc->invoke]() {
-					invoke(pCtx);
-				};
+				job.func = GAIA_MOV(func);
 
 				pData->handles[0] = mt::ThreadPool::get().add(GAIA_MOV(job));
 				return make_sched_token(pData);
@@ -55532,12 +55727,15 @@ namespace gaia {
 					const uint32_t idxStart = jobIndex * groupSize;
 					const uint32_t idxEnd = core::get_min(idxStart + groupSize, pDesc->itemCount);
 
+					auto func = [pCtx = pDesc->pCtx, invoke = pDesc->invoke, idxStart, idxEnd]() {
+						invoke(pCtx, idxStart, idxEnd);
+					};
+					static_assert(mt::JobFunc::stores_inline<decltype(func)>(), "Scheduler jobs must not allocate");
+
 					mt::Job job;
 					job.priority = prio;
 					job.flags = job_creation_flags(pDesc->flags);
-					job.func = [desc = *pDesc, idxStart, idxEnd]() {
-						desc.invoke(desc.pCtx, idxStart, idxEnd);
-					};
+					job.func = GAIA_MOV(func);
 					pData->handles[jobIndex] = tp.add(GAIA_MOV(job));
 				}
 				{
@@ -84916,10 +85114,13 @@ namespace gaia {
 			GAIA_NODISCARD mt::JobHandle job_handle(World& world) {
 				if (jobHandle == (mt::JobHandle)mt::JobNull_t{}) {
 					auto& tp = mt::ThreadPool::get();
-					mt::Job syncJob;
-					syncJob.func = [this, &world]() {
+					auto func = [this, &world]() {
 						exec(world);
 					};
+					static_assert(mt::JobFunc::stores_inline<decltype(func)>(), "System jobs must not allocate");
+
+					mt::Job syncJob;
+					syncJob.func = GAIA_MOV(func);
 					syncJob.flags = mt::JobCreationFlags::ManualDelete;
 					jobHandle = tp.add(GAIA_MOV(syncJob));
 				}
