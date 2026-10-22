@@ -9,5 +9,6 @@ var dir_3d11827bf6dce8bbf51d10c8946402b9 =
     [ "semaphore.h", "semaphore_8h_source.html", null ],
     [ "semaphore_fast.h", "semaphore__fast_8h_source.html", null ],
     [ "spinlock.h", "spinlock_8h_source.html", null ],
-    [ "threadpool.h", "threadpool_8h_source.html", null ]
+    [ "threadpool.h", "threadpool_8h_source.html", null ],
+    [ "win32.h", "win32_8h_source.html", null ]
 ];

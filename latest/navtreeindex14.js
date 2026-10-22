@@ -218,6 +218,7 @@ var NAVTREEINDEX14 =
 "utility_8h_source.html":[10,0,0,0,2,8],
 "version_8h_source.html":[10,0,0,0,1,4],
 "vm_8h_source.html":[10,0,0,0,3,47],
+"win32_8h_source.html":[10,0,0,0,6,10],
 "world_8h_source.html":[10,0,0,0,3,48],
 "world__json_8h_source.html":[10,0,0,0,3,0,0],
 "world__json__patch_8h_source.html":[10,0,0,0,3,0,1],
