@@ -544,23 +544,11 @@ namespace gaia {
 			//! \tparam TriggerSetEffects Triggers set side effects if true.
 			//! \param entity Entity or exact pair record being modified.
 			//! \param ec Current storage record for \a entity.
-			template <
-					typename T
-#if GAIA_ENABLE_HOOKS
-					,
-					bool TriggerSetEffects
-#endif
-					>
+			template <typename T, bool TriggerSetEffects>
 			void modify_table_inter(Entity entity, EntityContainer& ec) {
 				(void)entity;
 
-				ec.pChunk->template modify<
-						T
-#if GAIA_ENABLE_HOOKS
-						,
-						TriggerSetEffects
-#endif
-						>();
+				ec.pChunk->template modify<T, TriggerSetEffects>();
 
 #if GAIA_OBSERVERS_ENABLED
 				if constexpr (TriggerSetEffects) {
@@ -5247,8 +5235,6 @@ namespace gaia {
 	#endif
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
 				const bool inspectHookTerms = m_compCache.hooks_accessed();
-	#else
-				constexpr bool inspectHookTerms = false;
 	#endif
 				cnt::darray_ext<Entity, 32> observerTerms;
 				cnt::darray_ext<Entity, 32> hookTerms;
@@ -6169,7 +6155,7 @@ namespace gaia {
 			//! \return Spawned instance.
 			GAIA_NODISCARD Entity instantiate_prefab_node_inter(
 					Entity prefabEntity, Archetype* pDstArchetype, Entity parentInstance, EntitySpan copiedSparseIds,
-					EntitySpan addedIds, EntitySpan addHookIds) {
+					EntitySpan addedIds, [[maybe_unused]] EntitySpan addHookIds) {
 				GAIA_ASSERT(valid(prefabEntity));
 				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
 				GAIA_ASSERT(pDstArchetype != nullptr);
@@ -6931,13 +6917,7 @@ namespace gaia {
 			//! \tparam T Component type
 			//! \tparam TriggerSetEffects Triggers set side effects if true
 			//! \param entity Entity or exact pair record whose component version is updated.
-			template <
-					typename T
-#if GAIA_ENABLE_HOOKS
-					,
-					bool TriggerSetEffects
-#endif
-					>
+			template <typename T, bool TriggerSetEffects>
 			void modify(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
@@ -6961,13 +6941,7 @@ namespace gaia {
 				}
 
 				auto& ec = cont(entity);
-				modify_table_inter<
-						T
-#if GAIA_ENABLE_HOOKS
-						,
-						TriggerSetEffects
-#endif
-						>(entity, ec);
+				modify_table_inter<T, TriggerSetEffects>(entity, ec);
 			}
 
 			//! Marks component type `T` as modified on an exact pair record.
@@ -6975,34 +6949,16 @@ namespace gaia {
 			//! \tparam T Component type.
 			//! \tparam TriggerSetEffects Triggers set side effects if true.
 			//! \param entity Pair record whose component version is updated.
-			template <
-					typename T
-#if GAIA_ENABLE_HOOKS
-					,
-					bool TriggerSetEffects
-#endif
-					>
+			template <typename T, bool TriggerSetEffects>
 			void modify(Pair entity) {
 				const auto source = (Entity)entity;
 				GAIA_ASSERT(valid(source));
 
 				if constexpr (uses_ct_sparse_storage<T>()) {
-					modify<
-							T
-#if GAIA_ENABLE_HOOKS
-							,
-							TriggerSetEffects
-#endif
-							>(source);
+					modify<T, TriggerSetEffects>(source);
 				} else {
 					auto& ec = fetch(source);
-					modify_table_inter<
-							T
-#if GAIA_ENABLE_HOOKS
-							,
-							TriggerSetEffects
-#endif
-							>(source, ec);
+					modify_table_inter<T, TriggerSetEffects>(source, ec);
 				}
 			}
 
@@ -7015,13 +6971,7 @@ namespace gaia {
 			//! \tparam TriggerSetEffects Triggers set side effects if true
 			//! \param entity Entity or exact pair record whose component version is updated.
 			//! \param object Component entity associated with \p T.
-			template <
-					typename T
-#if GAIA_ENABLE_HOOKS
-					,
-					bool TriggerSetEffects
-#endif
-					>
+			template <typename T, bool TriggerSetEffects>
 			void modify(Entity entity, Entity object) {
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(valid(object));
@@ -7055,13 +7005,7 @@ namespace gaia {
 			//! \tparam TriggerSetEffects Triggers set side effects if true.
 			//! \param entity Pair record whose component version is updated.
 			//! \param object Component entity associated with \p T.
-			template <
-					typename T
-#if GAIA_ENABLE_HOOKS
-					,
-					bool TriggerSetEffects
-#endif
-					>
+			template <typename T, bool TriggerSetEffects>
 			void modify(Pair entity, Entity object) {
 				const auto source = (Entity)entity;
 				GAIA_ASSERT(valid(source));
@@ -7070,13 +7014,7 @@ namespace gaia {
 				using FT = typename component_type_t<T>::TypeFull;
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (can_use_sparse_component_storage<FT>(object)) {
-						modify<
-								T
-#if GAIA_ENABLE_HOOKS
-								,
-								TriggerSetEffects
-#endif
-								>(source, object);
+						modify<T, TriggerSetEffects>(source, object);
 						return;
 					}
 				}

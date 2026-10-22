@@ -692,13 +692,7 @@ namespace gaia {
 			//! Marks the component \a T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
 			//! If \a TriggerSetHooks is true, also triggers the component's set hooks.
-			template <
-					typename T
-#if GAIA_ENABLE_HOOKS
-					,
-					bool TriggerSetHooks
-#endif
-					>
+			template <typename T, bool TriggerSetHooks>
 			GAIA_FORCEINLINE void modify() {
 				static_assert(!std::is_same_v<core::raw_t<T>, Entity>, "mod can't be used to modify Entity");
 

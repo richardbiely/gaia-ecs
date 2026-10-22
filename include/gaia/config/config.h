@@ -75,7 +75,7 @@
 	#define GAIA_ENABLE_ADD_DEL_HOOKS (GAIA_ENABLE_HOOKS && 1)
 #else
 // If GAIA_ENABLE_ADD_DEL_HOOKS is defined and GAIA_ENABLE_HOOKS is not, unset it
-	#ifndef GAIA_ENABLE_HOOKS
+	#if !GAIA_ENABLE_HOOKS
 		#undef GAIA_ENABLE_ADD_DEL_HOOKS
 		#define GAIA_ENABLE_ADD_DEL_HOOKS 0
 	#endif
@@ -84,7 +84,7 @@
 	#define GAIA_ENABLE_SET_HOOKS (GAIA_ENABLE_HOOKS && 1)
 #else
 // If GAIA_ENABLE_SET_HOOKS is defined and GAIA_ENABLE_HOOKS is not, unset it
-	#ifndef GAIA_ENABLE_HOOKS
+	#if !GAIA_ENABLE_HOOKS
 		#undef GAIA_ENABLE_SET_HOOKS
 		#define GAIA_ENABLE_SET_HOOKS 0
 	#endif
