@@ -168,7 +168,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>make_main_thread</b> 
 <tr class="memdesc:a0a807d32b413152b466f4ea38b5673f2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a threadpool job from <em>job</em>.  <br /></td></tr>
 <tr class="separator:a0a807d32b413152b466f4ea38b5673f2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac9a9c7911546ff9424636d4ea04762a3" id="r_ac9a9c7911546ff9424636d4ea04762a3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#ac9a9c7911546ff9424636d4ea04762a3">del</a> (<a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobHandle)</td></tr>
-<tr class="memdesc:ac9a9c7911546ff9424636d4ea04762a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Deletes a job handle <em>jobHandle</em> from the threadpool.  <br /></td></tr>
+<tr class="memdesc:ac9a9c7911546ff9424636d4ea04762a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Deletes a job handle <em>jobHandle</em> from the threadpool. The job's callable, and everything it captured, is destroyed on the calling thread.  <br /></td></tr>
 <tr class="separator:ac9a9c7911546ff9424636d4ea04762a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9b18aa30cea5e815c01c0bc59682baba" id="r_a9b18aa30cea5e815c01c0bc59682baba"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a9b18aa30cea5e815c01c0bc59682baba">submit</a> (std::span&lt; <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> &gt; jobHandles)</td></tr>
 <tr class="memdesc:a9b18aa30cea5e815c01c0bc59682baba"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pushes <em>jobHandles</em> into the internal queue so worker threads can pick them up and execute them. If there are more jobs than the queue can handle it puts the calling thread to sleep until workers consume enough jobs.  <br /></td></tr>
@@ -330,7 +330,7 @@ Frame jobs should be created before frame work is submitted. It is valid to crea
 </table>
 </div><div class="memdoc">
 
-<p>Deletes a job handle <em>jobHandle</em> from the threadpool. </p>
+<p>Deletes a job handle <em>jobHandle</em> from the threadpool. The job's callable, and everything it captured, is destroyed on the calling thread. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">jobHandle</td><td>Completed or clear job to delete. </td></tr>

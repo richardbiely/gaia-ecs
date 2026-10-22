@@ -248,7 +248,7 @@ var annotated_dup =
         [ "Job", "structgaia_1_1mt_1_1Job.html", "structgaia_1_1mt_1_1Job" ],
         [ "JobAllocCtx", "structgaia_1_1mt_1_1JobAllocCtx.html", "structgaia_1_1mt_1_1JobAllocCtx" ],
         [ "JobArgs", "structgaia_1_1mt_1_1JobArgs.html", "structgaia_1_1mt_1_1JobArgs" ],
-        [ "JobArgsFunc", "classgaia_1_1mt_1_1JobArgsFunc.html", null ],
+        [ "JobCallable", "classgaia_1_1mt_1_1JobCallable.html", "classgaia_1_1mt_1_1JobCallable" ],
         [ "JobHandle", "structgaia_1_1mt_1_1JobHandle.html", "structgaia_1_1mt_1_1JobHandle" ],
         [ "JobNull_t", "structgaia_1_1mt_1_1JobNull__t.html", "structgaia_1_1mt_1_1JobNull__t" ],
         [ "JobParallel", "structgaia_1_1mt_1_1JobParallel.html", "structgaia_1_1mt_1_1JobParallel" ],

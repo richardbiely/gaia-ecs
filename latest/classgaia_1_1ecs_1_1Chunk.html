@@ -208,11 +208,11 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>update_versions</b> (
 <tr class="memitem:a50437edcc5650d3b8e234b3a5313b024"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a50437edcc5650d3b8e234b3a5313b024">sview_mut</a> ()</td></tr>
 <tr class="memdesc:a50437edcc5650d3b8e234b3a5313b024"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable entity or component view without query-version updates.  <br /></td></tr>
 <tr class="separator:a50437edcc5650d3b8e234b3a5313b024"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afff622cc9aeffbf952549b676593547c" id="r_afff622cc9aeffbf952549b676593547c"><td class="memTemplParams" colspan="2"><a id="afff622cc9aeffbf952549b676593547c" name="afff622cc9aeffbf952549b676593547c"></a>
-template&lt;typename T &gt; </td></tr>
-<tr class="memitem:afff622cc9aeffbf952549b676593547c"><td class="memTemplItemLeft" align="right" valign="top">GAIA_FORCEINLINE void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>modify</b> ()</td></tr>
-<tr class="memdesc:afff622cc9aeffbf952549b676593547c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the component <em>T</em> as modified. Best used with sview to manually trigger an update at user's whim. If <em>TriggerSetHooks</em> is true, also triggers the component's set hooks. <br /></td></tr>
-<tr class="separator:afff622cc9aeffbf952549b676593547c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1d8684292f7bd431f21b3d44abfbe454" id="r_a1d8684292f7bd431f21b3d44abfbe454"><td class="memTemplParams" colspan="2"><a id="a1d8684292f7bd431f21b3d44abfbe454" name="a1d8684292f7bd431f21b3d44abfbe454"></a>
+template&lt;typename T , bool TriggerSetHooks&gt; </td></tr>
+<tr class="memitem:a1d8684292f7bd431f21b3d44abfbe454"><td class="memTemplItemLeft" align="right" valign="top">GAIA_FORCEINLINE void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>modify</b> ()</td></tr>
+<tr class="memdesc:a1d8684292f7bd431f21b3d44abfbe454"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the component <em>T</em> as modified. Best used with sview to manually trigger an update at user's whim. If <em>TriggerSetHooks</em> is true, also triggers the component's set hooks. <br /></td></tr>
+<tr class="separator:a1d8684292f7bd431f21b3d44abfbe454"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a62c7d2f4005ddcaf13096e63ae8f514e" id="r_a62c7d2f4005ddcaf13096e63ae8f514e"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a62c7d2f4005ddcaf13096e63ae8f514e"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a62c7d2f4005ddcaf13096e63ae8f514e">view_auto</a> (uint16_t from, uint16_t to)</td></tr>
 <tr class="memdesc:a62c7d2f4005ddcaf13096e63ae8f514e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns either a mutable or immutable entity/component view based on the requested type. Value and const types are considered immutable. Anything else is mutable.  <br /></td></tr>

@@ -56,7 +56,7 @@ var classgaia_1_1ecs_1_1Chunk =
     [ "idx", "classgaia_1_1ecs_1_1Chunk.html#a3dea74ff911f1680ab2802d0a0e51628", null ],
     [ "is_semi", "classgaia_1_1ecs_1_1Chunk.html#a56188531a8fb9de52eb0caa990d3ca3c", null ],
     [ "load", "classgaia_1_1ecs_1_1Chunk.html#a6e73f19f8e802563c347dc7a371315c9", null ],
-    [ "modify", "classgaia_1_1ecs_1_1Chunk.html#afff622cc9aeffbf952549b676593547c", null ],
+    [ "modify", "classgaia_1_1ecs_1_1Chunk.html#a1d8684292f7bd431f21b3d44abfbe454", null ],
     [ "move_entity_data", "classgaia_1_1ecs_1_1Chunk.html#a77bded20a2e6d485b80e390dc5a174c3", null ],
     [ "move_foreign_entity_data", "classgaia_1_1ecs_1_1Chunk.html#aae015999228e5fac59a2c27a17e87b15", null ],
     [ "progress_death", "classgaia_1_1ecs_1_1Chunk.html#a24a0d4552f65ce59af691ed489b24013", null ],

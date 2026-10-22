@@ -121,10 +121,10 @@ $(document).ready(function(){initNavTree('structgaia_1_1mt_1_1Job.html',''); ini
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
-<tr class="memitem:afabb8816c08f76d56447a55bb9ebc2ae" id="r_afabb8816c08f76d56447a55bb9ebc2ae"><td class="memItemLeft" align="right" valign="top"><a id="afabb8816c08f76d56447a55bb9ebc2ae" name="afabb8816c08f76d56447a55bb9ebc2ae"></a>
-<a class="el" href="classgaia_1_1util_1_1SmallFunc.html">util::SmallFunc</a>&#160;</td><td class="memItemRight" valign="bottom"><b>func</b></td></tr>
-<tr class="memdesc:afabb8816c08f76d56447a55bb9ebc2ae"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callable executed by the worker. <br /></td></tr>
-<tr class="separator:afabb8816c08f76d56447a55bb9ebc2ae"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a00d718224d9192712c72753f34c00916" id="r_a00d718224d9192712c72753f34c00916"><td class="memItemLeft" align="right" valign="top"><a id="a00d718224d9192712c72753f34c00916" name="a00d718224d9192712c72753f34c00916"></a>
+<a class="el" href="classgaia_1_1mt_1_1JobCallable.html">JobFunc</a>&#160;</td><td class="memItemRight" valign="bottom"><b>func</b></td></tr>
+<tr class="memdesc:a00d718224d9192712c72753f34c00916"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callable executed by the worker. The job owns it until the job is deleted. An automatically deleted job ends the callable's lifetime, and that of everything it captured, on the executing thread right after it runs and before the job is reported done; heap storage of a callable larger than <a class="el" href="classgaia_1_1mt_1_1JobCallable.html#a1f068e6da2aee7f3f0fbdd325b00d2e4" title="Size in bytes of the inline callable storage.">JobFunc::InlineSize</a> is released with the job slot right after that. A JobCreationFlags::ManualDelete job keeps its callable, so it can be reset and run again, until <a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#ac9a9c7911546ff9424636d4ea04762a3" title="Deletes a job handle jobHandle from the threadpool. The job&#39;s callable, and everything it captured,...">ThreadPool::del()</a> destroys it. <br /></td></tr>
+<tr class="separator:a00d718224d9192712c72753f34c00916"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aef197bd713a2b7c38a825a5c9e116152" id="r_aef197bd713a2b7c38a825a5c9e116152"><td class="memItemLeft" align="right" valign="top"><a id="aef197bd713a2b7c38a825a5c9e116152" name="aef197bd713a2b7c38a825a5c9e116152"></a>
 JobPriority&#160;</td><td class="memItemRight" valign="bottom"><b>priority</b> = JobPriority::High</td></tr>
 <tr class="memdesc:aef197bd713a2b7c38a825a5c9e116152"><td class="mdescLeft">&#160;</td><td class="mdescRight">Queue priority used to schedule the callable. <br /></td></tr>

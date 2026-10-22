@@ -3802,7 +3802,8 @@ Job behavior</h3>
 <div class="line">tp.wait(handle);</div>
 <div class="line"><span class="comment">// We release the job handle ourselves</span></div>
 <div class="line">tp.del(handle);</div>
-</div><!-- fragment --><h3><a class="anchor" id="background-jobs"></a>
+</div><!-- fragment --><p>A job owns its callable until the job is deleted. A default job destroys the callable, and everything it captured, on the thread that ran it before the job is reported done, so captures must be safe to destroy there. A <code>ManualDelete</code> job keeps its callable for reuse until <code>ThreadPool::del()</code>. Callables larger than <code>mt::JobFunc::InlineSize</code> bytes are allocated on the heap.</p>
+<h3><a class="anchor" id="background-jobs"></a>
 Background jobs</h3>
 <p>Frame jobs are expected to finish within the frame that owns them. Work that can legitimately span multiple frames, such as asset streaming, cache building, or other engine-side background tasks, can be routed to background workers instead.</p>
 <p>Background jobs are scheduled with <code>ThreadPool::sched_background</code>. They use a separate queue and are not drained by <code>ThreadPool::update</code>, so the main thread does not accidentally consume multi-frame work while helping the current frame finish. If no background workers are configured, <code>ThreadPool::wait</code> is the explicit fallback path that can execute queued background work on the calling thread.</p>

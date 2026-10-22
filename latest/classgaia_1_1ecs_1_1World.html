@@ -552,22 +552,22 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memitem:affcc3be3aa368ccad922db0131ece550" id="r_affcc3be3aa368ccad922db0131ece550"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#affcc3be3aa368ccad922db0131ece550">is_parent</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentEntity) const</td></tr>
 <tr class="memdesc:affcc3be3aa368ccad922db0131ece550"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether <em>entity</em> has a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>.  <br /></td></tr>
 <tr class="separator:affcc3be3aa368ccad922db0131ece550"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a52c22a2481cc0139287fadd2b9baa57e" id="r_a52c22a2481cc0139287fadd2b9baa57e"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a52c22a2481cc0139287fadd2b9baa57e"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a52c22a2481cc0139287fadd2b9baa57e">modify</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
-<tr class="memdesc:a52c22a2481cc0139287fadd2b9baa57e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the component type <code>T</code> as modified. Best used with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae5686e2e275daafb210921672546dd3c" title="Starts a bulk set operation on entity.">acc_mut()</a>.<a class="el" href="classgaia_1_1ecs_1_1World.html#a48e2c009944e302c23fc92899e39f1fa" title="Returns silent mutable access to component type T on entity. This is a silent write and does not trig...">sset()</a> or <a class="el" href="classgaia_1_1ecs_1_1World.html#ab9a2b4c5fb90fb3c16f9b1777d05420b" title="Returns a write-back proxy for the component T on entity. The proxy copies the current value,...">set()</a> to manually trigger an update at user's whim. If <code>TriggerSetEffects</code> is true, also triggers the component's set side effects: set hooks and <code>OnSet</code> observers.  <br /></td></tr>
-<tr class="separator:a52c22a2481cc0139287fadd2b9baa57e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5e597296bd0753958700c3ffcdd5b9a1" id="r_a5e597296bd0753958700c3ffcdd5b9a1"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a5e597296bd0753958700c3ffcdd5b9a1"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a5e597296bd0753958700c3ffcdd5b9a1">modify</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity)</td></tr>
-<tr class="memdesc:a5e597296bd0753958700c3ffcdd5b9a1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks component type <code>T</code> as modified on an exact pair record. If <code>TriggerSetEffects</code> is true, also triggers set hooks and <code>OnSet</code> observers.  <br /></td></tr>
-<tr class="separator:a5e597296bd0753958700c3ffcdd5b9a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a862f63bf6f1d02dd12097766f49c3a2c" id="r_a862f63bf6f1d02dd12097766f49c3a2c"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a862f63bf6f1d02dd12097766f49c3a2c"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a862f63bf6f1d02dd12097766f49c3a2c">modify</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
-<tr class="memdesc:a862f63bf6f1d02dd12097766f49c3a2c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the component associated with <code>object</code> as modified on <code>entity</code>. Best used with <code>mut&lt;T&gt;(entity, object)</code> or <code>sset&lt;T&gt;(entity, object)</code> to manually trigger an update at user's whim. If <code>TriggerSetEffects</code> is true, also triggers the component's set side effects: set hooks and <code>OnSet</code> observers.  <br /></td></tr>
-<tr class="separator:a862f63bf6f1d02dd12097766f49c3a2c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acab2a05d1886f57193c77f751a947a70" id="r_acab2a05d1886f57193c77f751a947a70"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:acab2a05d1886f57193c77f751a947a70"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#acab2a05d1886f57193c77f751a947a70">modify</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
-<tr class="memdesc:acab2a05d1886f57193c77f751a947a70"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks a component selected by <code>object</code> as modified on an exact pair record. If <code>TriggerSetEffects</code> is true, also triggers set hooks and <code>OnSet</code> observers.  <br /></td></tr>
-<tr class="separator:acab2a05d1886f57193c77f751a947a70"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae9aa4e06efc09032b2a9b7febb1a4ebb" id="r_ae9aa4e06efc09032b2a9b7febb1a4ebb"><td class="memTemplParams" colspan="2">template&lt;typename T , bool TriggerSetEffects&gt; </td></tr>
+<tr class="memitem:ae9aa4e06efc09032b2a9b7febb1a4ebb"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae9aa4e06efc09032b2a9b7febb1a4ebb">modify</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:ae9aa4e06efc09032b2a9b7febb1a4ebb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the component type <code>T</code> as modified. Best used with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae5686e2e275daafb210921672546dd3c" title="Starts a bulk set operation on entity.">acc_mut()</a>.<a class="el" href="classgaia_1_1ecs_1_1World.html#a48e2c009944e302c23fc92899e39f1fa" title="Returns silent mutable access to component type T on entity. This is a silent write and does not trig...">sset()</a> or <a class="el" href="classgaia_1_1ecs_1_1World.html#ab9a2b4c5fb90fb3c16f9b1777d05420b" title="Returns a write-back proxy for the component T on entity. The proxy copies the current value,...">set()</a> to manually trigger an update at user's whim. If <code>TriggerSetEffects</code> is true, also triggers the component's set side effects: set hooks and <code>OnSet</code> observers.  <br /></td></tr>
+<tr class="separator:ae9aa4e06efc09032b2a9b7febb1a4ebb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a826fd776de4f7437a7a2e4192c8448ac" id="r_a826fd776de4f7437a7a2e4192c8448ac"><td class="memTemplParams" colspan="2">template&lt;typename T , bool TriggerSetEffects&gt; </td></tr>
+<tr class="memitem:a826fd776de4f7437a7a2e4192c8448ac"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a826fd776de4f7437a7a2e4192c8448ac">modify</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity)</td></tr>
+<tr class="memdesc:a826fd776de4f7437a7a2e4192c8448ac"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks component type <code>T</code> as modified on an exact pair record. If <code>TriggerSetEffects</code> is true, also triggers set hooks and <code>OnSet</code> observers.  <br /></td></tr>
+<tr class="separator:a826fd776de4f7437a7a2e4192c8448ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a165915a783231dfe69ab12c140e3d76c" id="r_a165915a783231dfe69ab12c140e3d76c"><td class="memTemplParams" colspan="2">template&lt;typename T , bool TriggerSetEffects&gt; </td></tr>
+<tr class="memitem:a165915a783231dfe69ab12c140e3d76c"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a165915a783231dfe69ab12c140e3d76c">modify</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
+<tr class="memdesc:a165915a783231dfe69ab12c140e3d76c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the component associated with <code>object</code> as modified on <code>entity</code>. Best used with <code>mut&lt;T&gt;(entity, object)</code> or <code>sset&lt;T&gt;(entity, object)</code> to manually trigger an update at user's whim. If <code>TriggerSetEffects</code> is true, also triggers the component's set side effects: set hooks and <code>OnSet</code> observers.  <br /></td></tr>
+<tr class="separator:a165915a783231dfe69ab12c140e3d76c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaf9ef8ffc822db1b038a3fe9828fe512" id="r_aaf9ef8ffc822db1b038a3fe9828fe512"><td class="memTemplParams" colspan="2">template&lt;typename T , bool TriggerSetEffects&gt; </td></tr>
+<tr class="memitem:aaf9ef8ffc822db1b038a3fe9828fe512"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aaf9ef8ffc822db1b038a3fe9828fe512">modify</a> (<a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
+<tr class="memdesc:aaf9ef8ffc822db1b038a3fe9828fe512"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks a component selected by <code>object</code> as modified on an exact pair record. If <code>TriggerSetEffects</code> is true, also triggers set hooks and <code>OnSet</code> observers.  <br /></td></tr>
+<tr class="separator:aaf9ef8ffc822db1b038a3fe9828fe512"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae5686e2e275daafb210921672546dd3c" id="r_ae5686e2e275daafb210921672546dd3c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html">ComponentSetter</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae5686e2e275daafb210921672546dd3c">acc_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:ae5686e2e275daafb210921672546dd3c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Starts a bulk set operation on <em>entity</em>.  <br /></td></tr>
 <tr class="separator:ae5686e2e275daafb210921672546dd3c"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -6949,13 +6949,13 @@ template&lt;typename TSerializer &gt; </div>
 
 </div>
 </div>
-<a id="a52c22a2481cc0139287fadd2b9baa57e" name="a52c22a2481cc0139287fadd2b9baa57e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a52c22a2481cc0139287fadd2b9baa57e">&#9670;&#160;</a></span>modify() <span class="overload">[1/4]</span></h2>
+<a id="ae9aa4e06efc09032b2a9b7febb1a4ebb" name="ae9aa4e06efc09032b2a9b7febb1a4ebb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae9aa4e06efc09032b2a9b7febb1a4ebb">&#9670;&#160;</a></span>modify() <span class="overload">[1/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename T &gt; </div>
+template&lt;typename T , bool TriggerSetEffects&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
@@ -6992,13 +6992,13 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="a862f63bf6f1d02dd12097766f49c3a2c" name="a862f63bf6f1d02dd12097766f49c3a2c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a862f63bf6f1d02dd12097766f49c3a2c">&#9670;&#160;</a></span>modify() <span class="overload">[2/4]</span></h2>
+<a id="a165915a783231dfe69ab12c140e3d76c" name="a165915a783231dfe69ab12c140e3d76c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a165915a783231dfe69ab12c140e3d76c">&#9670;&#160;</a></span>modify() <span class="overload">[2/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename T &gt; </div>
+template&lt;typename T , bool TriggerSetEffects&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
@@ -7046,13 +7046,13 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="a5e597296bd0753958700c3ffcdd5b9a1" name="a5e597296bd0753958700c3ffcdd5b9a1"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a5e597296bd0753958700c3ffcdd5b9a1">&#9670;&#160;</a></span>modify() <span class="overload">[3/4]</span></h2>
+<a id="a826fd776de4f7437a7a2e4192c8448ac" name="a826fd776de4f7437a7a2e4192c8448ac"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a826fd776de4f7437a7a2e4192c8448ac">&#9670;&#160;</a></span>modify() <span class="overload">[3/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename T &gt; </div>
+template&lt;typename T , bool TriggerSetEffects&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
@@ -7089,13 +7089,13 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="acab2a05d1886f57193c77f751a947a70" name="acab2a05d1886f57193c77f751a947a70"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#acab2a05d1886f57193c77f751a947a70">&#9670;&#160;</a></span>modify() <span class="overload">[4/4]</span></h2>
+<a id="aaf9ef8ffc822db1b038a3fe9828fe512" name="aaf9ef8ffc822db1b038a3fe9828fe512"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aaf9ef8ffc822db1b038a3fe9828fe512">&#9670;&#160;</a></span>modify() <span class="overload">[4/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename T &gt; </div>
+template&lt;typename T , bool TriggerSetEffects&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
