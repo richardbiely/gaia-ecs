@@ -346,6 +346,36 @@ namespace gaia {
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, const uint8_t* pData,
 					uint32_t valueSize, ser::ser_json& writer, const ser::RuntimeJsonPolicy& policy, uint32_t depth);
 
+			//! Writes the value of one field whose layout is already resolved and checked.
+			//! \param pCache Optional component metadata cache.
+			//! \param field Registered field metadata.
+			//! \param layout The field's resolved element type, size, and count.
+			//! \param pFieldData Field value storage, `layout.elemSize * layout.elemCount` bytes.
+			//! \param writer JSON writer receiving the field value.
+			//! \param policy Runtime enum and bitmask presentation policy.
+			//! \param depth Current recursive type depth.
+			//! \return True when the field was serialized completely.
+			inline bool write_runtime_json_field_data(
+					const ComponentCache* pCache, const RuntimeFieldDesc& field, const RuntimeJsonFieldLayout& layout,
+					const uint8_t* pFieldData, ser::ser_json& writer, const ser::RuntimeJsonPolicy& policy, uint32_t depth) {
+				if (layout.elemCount == 1 || field.jsonEncoding == RuntimeJsonEncoding::Utf8String ||
+						runtime_json_is_char8_type(layout.pType, layout.type))
+					return write_runtime_json_value(
+							pCache, layout.pType, layout.type, pFieldData, layout.elemSize * layout.elemCount, writer, policy,
+							depth + 1);
+
+				bool ok = true;
+				writer.begin_array();
+				GAIA_FOR(layout.elemCount) {
+					const auto* pElemData = pFieldData + (uintptr_t)layout.elemSize * i;
+					ok = write_runtime_json_value(
+									 pCache, layout.pType, layout.type, pElemData, layout.elemSize, writer, policy, depth + 1) &&
+							 ok;
+				}
+				writer.end_array();
+				return ok;
+			}
+
 			//! Writes one field from a reflected struct value.
 			//! \param pCache Optional component metadata cache.
 			//! \param owner Registered struct metadata.
@@ -371,22 +401,7 @@ namespace gaia {
 					return false;
 				}
 
-				const auto* pFieldData = pBase + field.offset;
-				if (layout.elemCount == 1 || field.jsonEncoding == RuntimeJsonEncoding::Utf8String ||
-						runtime_json_is_char8_type(layout.pType, layout.type))
-					return write_runtime_json_value(
-							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, writer, policy, depth + 1);
-
-				bool ok = true;
-				writer.begin_array();
-				GAIA_FOR(layout.elemCount) {
-					const auto* pElemData = pFieldData + (uintptr_t)layout.elemSize * i;
-					ok = write_runtime_json_value(
-									 pCache, layout.pType, layout.type, pElemData, layout.elemSize, writer, policy, depth + 1) &&
-							 ok;
-				}
-				writer.end_array();
-				return ok;
+				return write_runtime_json_field_data(pCache, field, layout, pBase + field.offset, writer, policy, depth);
 			}
 
 			//! Writes a reflected struct as a keyed JSON object.

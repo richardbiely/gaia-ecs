@@ -3840,6 +3840,109 @@ TEST_CASE("Serialization - validated runtime component patch") {
 	CHECK(wld.get<RuntimePatchComponent>(entity).x == doctest::Approx(4.5f));
 }
 
+TEST_CASE("Serialization - runtime json pointer read") {
+	TestWorld twld;
+	const ecs::RuntimeFieldInit nestedFields[] = {
+			{util::str_view("value"), ecs::F32, offsetof(RuntimePatchNested, value), 0}};
+	ecs::RuntimeTypeDesc nestedSchema{};
+	nestedSchema.fields = nestedFields;
+	nestedSchema.fieldCount = 1;
+	const auto& nestedType = wld.add<RuntimePatchNested>(nestedSchema);
+
+	ecs::RuntimeFieldInit fields[] = {
+			{util::str_view("x"), ecs::F32, offsetof(RuntimePatchComponent, x), 0},
+			{util::str_view("locked"), ecs::F32, offsetof(RuntimePatchComponent, locked), 0},
+			{util::str_view("hidden"), ecs::F32, offsetof(RuntimePatchComponent, hidden), 0},
+			{util::str_view("nested"), nestedType.entity, offsetof(RuntimePatchComponent, nested), 0},
+			{util::str_view("values"), ecs::F32, offsetof(RuntimePatchComponent, values), 2},
+			{util::str_view("name"), ecs::Char8, offsetof(RuntimePatchComponent, name), 8}};
+	fields[1].flags = ecs::RuntimeFieldFlag_ReadOnly;
+	fields[2].flags = ecs::RuntimeFieldFlag_Hidden;
+	fields[5].jsonEncoding = ecs::RuntimeJsonEncoding::Utf8String;
+	ecs::RuntimeTypeDesc schema{};
+	schema.fields = fields;
+	schema.fieldCount = (uint32_t)(sizeof(fields) / sizeof(fields[0]));
+	const auto& component = wld.add<RuntimePatchComponent>(schema);
+
+	RuntimePatchComponent value{};
+	value.x = 1.5f;
+	value.locked = 2.0f;
+	value.hidden = 9.0f;
+	value.nested.value = 3.25f;
+	value.values[0] = 4.5f;
+	value.values[1] = 5.5f;
+	memcpy(value.name, "gaia", 5);
+
+	ser::JsonDiagnostics diagnostics;
+	const auto reads = [&](util::str_view pointer, util::str_view expected) {
+		ser::ser_json writer;
+		return ecs::component_to_json_at(component, &value, pointer, writer, diagnostics) && writer.str() == expected;
+	};
+
+	CHECK(reads("/x", "1.5"));
+	CHECK(reads("/nested/value", "3.25"));
+	CHECK(reads("/nested", "{\"value\":3.25}"));
+	CHECK(reads("/values", "[4.5,5.5]"));
+	CHECK(reads("/values/1", "5.5"));
+	CHECK(reads("/name", "\"gaia\""));
+	CHECK(reads("/name/1", "\"a\""));
+	// Reading leaves what a patch may not change visible.
+	CHECK(reads("/locked", "2"));
+	CHECK(reads("/hidden", "9"));
+	CHECK_FALSE(diagnostics.has_issues());
+
+	// The whole component, as component_to_json writes it.
+	ser::ser_json whole;
+	CHECK(ecs::component_to_json(component, &value, whole));
+	ser::ser_json root;
+	CHECK(ecs::component_to_json_at(component, &value, "", root, diagnostics));
+	CHECK(root.str() == whole.str());
+
+	const auto refuses = [&](util::str_view pointer, ser::JsonDiagReason reason) {
+		diagnostics.clear();
+		ser::ser_json writer;
+		return !ecs::component_to_json_at(component, &value, pointer, writer, diagnostics) && writer.str().empty() &&
+					 diagnostics.hasErrors && diagnostics.items.back().reason == reason;
+	};
+	CHECK(refuses("/missing", ser::JsonDiagReason::InvalidPatchPath));
+	CHECK(refuses("/values/2", ser::JsonDiagReason::InvalidPatchPath));
+	CHECK(refuses("/x/0", ser::JsonDiagReason::InvalidPatchPath));
+	CHECK(refuses("/~2", ser::JsonDiagReason::InvalidPatchPath));
+	CHECK(refuses("/nested/", ser::JsonDiagReason::InvalidPatchPath));
+	CHECK(refuses("x", ser::JsonDiagReason::InvalidPatchPath));
+
+	SUBCASE("escaped symbolic enum field") {
+		const ecs::RuntimeConstantInit constants[] = {{util::str_view("Idle"), 0}, {util::str_view("Running"), 1}};
+		ecs::ComponentDesc enumDesc{};
+		enumDesc.name = util::str_view("Runtime_Read_Mode");
+		enumDesc.size = sizeof(uint32_t);
+		enumDesc.alig = alignof(uint32_t);
+		enumDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Enum;
+		enumDesc.runtimeType.underlyingType = ecs::U32;
+		enumDesc.runtimeType.constants = constants;
+		enumDesc.runtimeType.constantCount = 2;
+		const auto& mode = wld.add(enumDesc);
+		const ecs::RuntimeFieldInit modeFields[] = {{util::str_view("mode/value"), mode.entity, 0, 0}};
+		ecs::ComponentDesc componentDesc{};
+		componentDesc.name = util::str_view("Runtime_Read_Enum_Component");
+		componentDesc.size = sizeof(uint32_t);
+		componentDesc.alig = alignof(uint32_t);
+		componentDesc.runtimeType.fields = modeFields;
+		componentDesc.runtimeType.fieldCount = 1;
+		const auto& modeComponent = wld.add(componentDesc);
+
+		const uint32_t running = 1;
+		ser::RuntimeJsonPolicy policy{};
+		policy.symbolicEnums = true;
+		ser::ser_json symbolic;
+		CHECK(ecs::component_to_json_at(modeComponent, &running, "/mode~1value", symbolic, diagnostics, policy));
+		CHECK(symbolic.str() == "\"Running\"");
+		ser::ser_json numeric;
+		CHECK(ecs::component_to_json_at(modeComponent, &running, "/mode~1value", numeric, diagnostics));
+		CHECK(numeric.str() == "1");
+	}
+}
+
 TEST_CASE("Serialization - validated runtime patch storage paths") {
 	SUBCASE("SoA field") {
 		TestWorld twld;

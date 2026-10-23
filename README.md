@@ -3694,6 +3694,7 @@ Recommended JSON API surface:
 - `ecs::World::save_json` / `ecs::World::load_json` for full world snapshots
 - `ecs::World::save_runtime_schema_json` to export the world-level runtime schema manifest for tools
 - `ecs::World::patch_comp_json` to apply one validated JSON value to a component field or element
+- `ecs::component_to_json_at` to write one field or element of a component value, selected by JSON Pointer
 
 For structured semantic load feedback, use diagnostics overloads:
 - `ecs::json_to_component(..., ser::JsonDiagnostics&, componentPath)`
@@ -4092,6 +4093,17 @@ const bool changed = w.patch_comp_json(
 A successful call writes the value and emits the component's normal `OnSet` notification. A failed call leaves the component unchanged and reports the reason through `JsonDiagnostics`. Edits fail for stale schema hashes, invalid paths or JSON, incompatible types, hidden or read-only fields, and values outside the field's declared range.
 
 To replace a complete struct, array, vector, or opaque value, use the normal typed, raw, or cursor write APIs instead.
+
+`component_to_json_at(...)` reads with the same pointers. It writes only the selected value, exactly as `component_to_json(...)` writes that value inside the whole component. The selection can be a field, a nested struct, a whole array, or one element. An empty pointer selects the whole component. Read-only and hidden fields can be read. The value can live outside any world, because the call takes a registered type and a pointer to one value.
+
+```cpp
+ser::ser_json writer;
+ser::JsonDiagnostics diagnostics;
+const bool found = ecs::component_to_json_at(positionCI, &position, "/x", writer, diagnostics);
+// writer.str() == "12.5"
+```
+
+A pointer that selects nothing writes nothing. The call returns `false` and reports `InvalidPatchPath` through the diagnostics.
 
 ### Nested structs and fixed arrays
 

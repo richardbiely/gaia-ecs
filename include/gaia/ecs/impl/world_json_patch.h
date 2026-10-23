@@ -61,8 +61,139 @@ namespace gaia {
 				return true;
 			}
 
+			//! The value a JSON Pointer selects inside a component value.
+			struct RuntimeJsonPointerTarget final {
+				//! Registered type of the selected value.
+				const ComponentCacheItem* pType = nullptr;
+				//! The last field the pointer names, or nullptr when it names none.
+				const RuntimeFieldDesc* pField = nullptr;
+				//! True when the last token names \a pField itself rather than an element inside it.
+				bool endsAtField = false;
+				//! Why the pointer selects nothing.
+				ser::JsonDiagReason reason = ser::JsonDiagReason::None;
+				//! Human-readable explanation of \a reason.
+				const char* message = nullptr;
+			};
+
+			//! Moves a cursor along an RFC 6901 JSON Pointer through reflected fields and sequence elements.
+			//! \param cache Component metadata cache.
+			//! \param root Registered type of the value at the cursor.
+			//! \param cursor Cursor at the root value. Left at the selected value.
+			//! \param pointer JSON Pointer relative to the root value. Empty selects the root.
+			//! \param forWrite True to refuse read-only and hidden fields on the way.
+			//! \param target Receives the selected value, or the reason the pointer selects nothing.
+			//! \return True when the pointer selects a value.
+			inline bool walk_runtime_json_pointer(
+					const ComponentCache& cache, const ComponentCacheItem& root, ComponentCursor& cursor,
+					ser::json_str_view pointer, bool forWrite, RuntimeJsonPointerTarget& target) {
+				auto fail = [&](ser::JsonDiagReason reason, const char* message) {
+					target.reason = reason;
+					target.message = message;
+					return false;
+				};
+
+				if (!pointer.empty() && pointer.data()[0] != '/')
+					return fail(ser::JsonDiagReason::InvalidPatchPath, "Component path must be an RFC 6901 JSON Pointer.");
+				if (!pointer.empty() && (pointer.size() == 1 || pointer.data()[pointer.size() - 1] == '/'))
+					return fail(ser::JsonDiagReason::InvalidPatchPath, "Component path contains an empty token.");
+
+				target.pType = &root;
+				uint32_t pos = pointer.empty() ? pointer.size() : 1;
+				while (pos < pointer.size()) {
+					uint32_t end = pos;
+					while (end < pointer.size() && pointer.data()[end] != '/')
+						++end;
+
+					util::str token;
+					if (!runtime_patch_decode_token(ser::json_str_view(pointer.data() + pos, end - pos), token) || token.empty())
+						return fail(ser::JsonDiagReason::InvalidPatchPath, "Component path contains an invalid token.");
+
+					const ComponentCacheItem* pFieldOwner = target.pType;
+					if (pFieldOwner != nullptr && pFieldOwner->typeKind == RuntimeTypeKind::Opaque)
+						pFieldOwner = cache.find(pFieldOwner->opaque_as_type());
+
+					if (pFieldOwner != nullptr && pFieldOwner->typeKind == RuntimeTypeKind::Struct) {
+						const auto* pField = pFieldOwner->field(util::str_view(token.data(), token.size()));
+						if (pField == nullptr)
+							return fail(ser::JsonDiagReason::InvalidPatchPath, "Component path field does not exist.");
+						if (forWrite && (pField->flags & RuntimeFieldFlag_ReadOnly) != 0)
+							return fail(ser::JsonDiagReason::ReadOnlyField, "Component path field is read-only.");
+						if (forWrite && (pField->flags & RuntimeFieldFlag_Hidden) != 0)
+							return fail(ser::JsonDiagReason::HiddenField, "Component path field is hidden.");
+						if (!cursor.field(util::str_view(token.data(), token.size())))
+							return fail(ser::JsonDiagReason::InvalidPatchPath, "Component path field cannot be traversed.");
+
+						target.pField = pField;
+						target.endsAtField = true;
+						target.pType = cache.find(pField->type);
+					} else {
+						uint32_t index = 0;
+						if (!runtime_patch_parse_index(util::str_view(token.data(), token.size()), index) || !cursor.elem(index))
+							return fail(ser::JsonDiagReason::InvalidPatchPath, "Component path sequence index is invalid.");
+
+						target.endsAtField = false;
+						target.pType = cache.find(cursor.type());
+					}
+
+					pos = end + 1;
+				}
+
+				return true;
+			}
+
 		} // namespace detail
 		//! \endcond
+
+		//! Serializes the value an RFC 6901 JSON Pointer selects inside one component value: a field, a nested
+		//! field, or one element of an array or vector. The value is written as component_to_json() writes it
+		//! within the whole component. Read-only and hidden fields can be read.
+		//! \param item Component metadata and runtime fields.
+		//! \param pComponentData Pointer to one component value.
+		//! \param pointer JSON Pointer relative to the component, for example `/nested/value` or `/values/1`.
+		//!                An empty pointer selects the whole component.
+		//! \param writer JSON writer receiving the selected value. Untouched when the pointer selects nothing.
+		//! \param diagnostics Receives the reason when the pointer selects nothing or the value cannot be written.
+		//! \param policy Runtime enum and bitmask presentation policy.
+		//! \return True when the selected value was written completely.
+		inline bool component_to_json_at(
+				const ComponentCacheItem& item, const void* pComponentData, ser::json_str_view pointer, ser::ser_json& writer,
+				ser::JsonDiagnostics& diagnostics, const ser::RuntimeJsonPolicy& policy = {}) {
+			auto error = [&](ser::JsonDiagReason reason, const char* message) {
+				diagnostics.add(ser::JsonDiagSeverity::Error, reason, pointer, message);
+				return false;
+			};
+
+			const auto* pCache = item.owner_cache();
+			if (pComponentData == nullptr || pCache == nullptr || item.comp.size() == 0)
+				return error(ser::JsonDiagReason::MissingComponentStorage, "Component value is unavailable.");
+
+			auto cursor = ComponentCursor::from_raw(
+					*pCache, item.entity, ComponentRawView{pComponentData, item.comp.size(), ComponentRawViewFlag_Valid});
+			detail::RuntimeJsonPointerTarget target;
+			if (!detail::walk_runtime_json_pointer(*pCache, item, cursor, pointer, false, target))
+				return error(target.reason, target.message);
+
+			// The cursor resolves sequence elements and opaque values as a patch sees them.
+			const auto* pData = (const uint8_t*)cursor.ptr();
+			const auto size = cursor.size();
+			if (pData == nullptr || size == 0)
+				return error(ser::JsonDiagReason::UnsupportedPatchValue, "Component path endpoint cannot be read.");
+
+			bool ok = false;
+			if (target.endsAtField) {
+				// A field keeps its own layout: element count and string encoding.
+				detail::RuntimeJsonFieldLayout layout{};
+				if (!detail::resolve_runtime_json_field_layout(pCache, *target.pField, layout) ||
+						(uint64_t)layout.elemSize * layout.elemCount != size)
+					return error(ser::JsonDiagReason::UnsupportedPatchValue, "Component path field layout is invalid.");
+				ok = detail::write_runtime_json_field_data(pCache, *target.pField, layout, pData, writer, policy, 0);
+			} else {
+				ok = detail::write_runtime_json_value(pCache, target.pType, cursor.type(), pData, size, writer, policy, 0);
+			}
+			if (!ok)
+				return error(ser::JsonDiagReason::UnsupportedPatchValue, "Component path endpoint cannot be written as JSON.");
+			return true;
+		}
 
 		inline bool World::patch_comp_json(
 				Entity entity, Entity component, ser::json_str_view pointer, ser::json_str_view value,
@@ -82,52 +213,13 @@ namespace gaia {
 			auto cursor = cursor_mut(entity, component);
 			if (!cursor.valid() || cursor.size() == 0)
 				return error(ser::JsonDiagReason::MissingComponentStorage, "Component patch payload is unavailable.");
-			if (!pointer.empty() && pointer.data()[0] != '/')
-				return error(ser::JsonDiagReason::InvalidPatchPath, "Component patch path must be an RFC 6901 JSON Pointer.");
-			if (!pointer.empty() && (pointer.size() == 1 || pointer.data()[pointer.size() - 1] == '/'))
-				return error(ser::JsonDiagReason::InvalidPatchPath, "Component patch path contains an empty token.");
 
-			const ComponentCacheItem* pCurrent = pRoot;
-			const RuntimeFieldDesc* pSelectedField = nullptr;
-			uint32_t pos = pointer.empty() ? pointer.size() : 1;
-			while (pos < pointer.size()) {
-				uint32_t end = pos;
-				while (end < pointer.size() && pointer.data()[end] != '/')
-					++end;
+			detail::RuntimeJsonPointerTarget target;
+			if (!detail::walk_runtime_json_pointer(m_compCache, *pRoot, cursor, pointer, true, target))
+				return error(target.reason, target.message);
 
-				util::str token;
-				if (!detail::runtime_patch_decode_token(ser::json_str_view(pointer.data() + pos, end - pos), token) ||
-						token.empty())
-					return error(ser::JsonDiagReason::InvalidPatchPath, "Component patch path contains an invalid token.");
-
-				const ComponentCacheItem* pFieldOwner = pCurrent;
-				if (pFieldOwner != nullptr && pFieldOwner->typeKind == RuntimeTypeKind::Opaque)
-					pFieldOwner = m_compCache.find(pFieldOwner->opaque_as_type());
-
-				if (pFieldOwner != nullptr && pFieldOwner->typeKind == RuntimeTypeKind::Struct) {
-					const auto* pField = pFieldOwner->field(util::str_view(token.data(), token.size()));
-					if (pField == nullptr)
-						return error(ser::JsonDiagReason::InvalidPatchPath, "Component patch field does not exist.");
-					if ((pField->flags & RuntimeFieldFlag_ReadOnly) != 0)
-						return error(ser::JsonDiagReason::ReadOnlyField, "Component patch field is read-only.");
-					if ((pField->flags & RuntimeFieldFlag_Hidden) != 0)
-						return error(ser::JsonDiagReason::HiddenField, "Component patch field is hidden.");
-					if (!cursor.field(util::str_view(token.data(), token.size())))
-						return error(ser::JsonDiagReason::InvalidPatchPath, "Component patch field cannot be traversed.");
-
-					pSelectedField = pField;
-					pCurrent = m_compCache.find(pField->type);
-				} else {
-					uint32_t index = 0;
-					if (!detail::runtime_patch_parse_index(util::str_view(token.data(), token.size()), index) ||
-							!cursor.elem(index))
-						return error(ser::JsonDiagReason::InvalidPatchPath, "Component patch sequence index is invalid.");
-
-					pCurrent = m_compCache.find(cursor.type());
-				}
-
-				pos = end + 1;
-			}
+			const ComponentCacheItem* pCurrent = target.pType;
+			const RuntimeFieldDesc* pSelectedField = target.pField;
 
 			const auto count = cursor.count();
 			const bool charBuffer = pSelectedField != nullptr && cursor.type() == Char8 && count.ok() && count.value > 1;
