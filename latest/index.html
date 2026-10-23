@@ -3073,6 +3073,7 @@ Serialization</h2>
 <li><code>ecs::World::save_json</code> / <code>ecs::World::load_json</code> for full world snapshots</li>
 <li><code>ecs::World::save_runtime_schema_json</code> to export the world-level runtime schema manifest for tools</li>
 <li><code>ecs::World::patch_comp_json</code> to apply one validated JSON value to a component field or element</li>
+<li><code>ecs::component_to_json_at</code> to write one field or element of a component value, selected by JSON Pointer</li>
 </ul>
 <p>For structured semantic load feedback, use diagnostics overloads:</p><ul>
 <li><code>ecs::json_to_component(..., ser::JsonDiagnostics&amp;, componentPath)</code></li>
@@ -3381,6 +3382,12 @@ Schema manifests and validated edits</h3>
 <div class="line">    entity, positionCI.entity, <span class="stringliteral">&quot;/x&quot;</span>, <span class="stringliteral">&quot;12.5&quot;</span>, diagnostics, {}, expectedRuntimeSchema);</div>
 </div><!-- fragment --><p>A successful call writes the value and emits the component's normal <code>OnSet</code> notification. A failed call leaves the component unchanged and reports the reason through <code>JsonDiagnostics</code>. Edits fail for stale schema hashes, invalid paths or JSON, incompatible types, hidden or read-only fields, and values outside the field's declared range.</p>
 <p>To replace a complete struct, array, vector, or opaque value, use the normal typed, raw, or cursor write APIs instead.</p>
+<p><code>component_to_json_at(...)</code> reads with the same pointers. It writes only the selected value, exactly as <code>component_to_json(...)</code> writes that value inside the whole component. The selection can be a field, a nested struct, a whole array, or one element. An empty pointer selects the whole component. Read-only and hidden fields can be read. The value can live outside any world, because the call takes a registered type and a pointer to one value.</p>
+<div class="fragment"><div class="line">ser::ser_json writer;</div>
+<div class="line">ser::JsonDiagnostics diagnostics;</div>
+<div class="line"><span class="keyword">const</span> <span class="keywordtype">bool</span> found = ecs::component_to_json_at(positionCI, &amp;position, <span class="stringliteral">&quot;/x&quot;</span>, writer, diagnostics);</div>
+<div class="line"><span class="comment">// writer.str() == &quot;12.5&quot;</span></div>
+</div><!-- fragment --><p>A pointer that selects nothing writes nothing. The call returns <code>false</code> and reports <code>InvalidPatchPath</code> through the diagnostics.</p>
 <h3><a class="anchor" id="nested-structs-and-fixed-arrays"></a>
 Nested structs and fixed arrays</h3>
 <p>Fields can reference runtime struct types. Register the nested type first, then use its component entity as the field type in the outer descriptor. Cursors use that type metadata to keep walking into nested fields.</p>
@@ -3598,6 +3605,7 @@ Enum and bitmask metadata</h3>
 </div><!-- fragment --><p>Known enum values are written as strings such as <code>"Run"</code>. Bitmasks composed entirely from registered one-bit constants are written as arrays such as <code>["Static","Trigger"]</code>. Direct runtime enum and bitmask components use the same representation as reflected fields. Values that cannot be represented without losing bits stay numeric, including the full signed and unsigned 64-bit integer range. Import accepts numeric values in either mode, preserves exact integral exponent forms, reports truncated fractional values, and rejects malformed JSON number grammar before mutation. An unknown symbolic name adds an <code>UnknownRuntimeConstant</code> warning and leaves that value unchanged. Symbolic bitmask input accepts each registered one-bit name at most once; zero, composite, repeated, or overlapping flags add an <code>InvalidRuntimeConstant</code> warning and leave the bitmask unchanged.</p>
 <p>The same policy can be passed to <code>World::save_json(...)</code> and <code>World::load_json(...)</code>. Use <code>ser::JsonSaveFlags::RawFallback</code> without <code>BinarySnapshot</code> when the symbolic semantic document will be edited and loaded again; a binary snapshot takes precedence over semantic component values during load.</p>
 <p>Data that must be complete, such as configuration files, can opt into a strict import. <code>policy.requireAllFields</code> reports each struct field the JSON leaves out, nested ones included, as a <code>MissingField</code> error. <code>policy.enforceRanges</code> reports a value outside its field's authored minimum or maximum as a <code>RangeViolation</code> error and leaves the field unchanged. Both are off by default: an absent field then keeps its value, and only validated patches check ranges.</p>
+<p>A value of the wrong JSON kind, such as a number for a <code>bool</code> field or a string for a number, stops the import. <code>json_to_component(...)</code> returns <code>false</code> and adds an <code>InvalidJson</code> error at that field's path, so the author can see which field to fix.</p>
 <h3><a class="anchor" id="raw-access-and-cursors"></a>
 Raw access and cursors</h3>
 <p>Once the component is registered, you can add and edit it without a C++ component type:</p>
