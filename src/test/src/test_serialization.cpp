@@ -3625,6 +3625,36 @@ TEST_CASE("Serialization - strict runtime json import") {
 	CHECK(value.b == 100);
 }
 
+TEST_CASE("Serialization - runtime json value of the wrong kind names its field") {
+	TestWorld twld;
+	const ecs::RuntimeFieldInit innerFields[] = {
+			{util::str_view("x"), ecs::U32, (uint32_t)offsetof(RuntimeStrictInner, x), 0},
+			{util::str_view("y"), ecs::U32, (uint32_t)offsetof(RuntimeStrictInner, y), 0}};
+	ecs::RuntimeTypeDesc innerSchema{};
+	innerSchema.fields = innerFields;
+	innerSchema.fieldCount = 2;
+	const auto& innerCI = wld.add<RuntimeStrictInner>(innerSchema);
+	const ecs::RuntimeFieldInit outerFields[] = {
+			{util::str_view("a"), ecs::U32, (uint32_t)offsetof(RuntimeStrictOuter, a), 0},
+			{util::str_view("b"), ecs::U32, (uint32_t)offsetof(RuntimeStrictOuter, b), 0},
+			{util::str_view("inner"), innerCI.entity, (uint32_t)offsetof(RuntimeStrictOuter, inner), 0}};
+	ecs::RuntimeTypeDesc outerSchema{};
+	outerSchema.fields = outerFields;
+	outerSchema.fieldCount = 3;
+	const auto& outerCI = wld.add<RuntimeStrictOuter>(outerSchema);
+
+	const auto failsAt = [&](const char* json, util::str_view path) {
+		RuntimeStrictOuter value{};
+		ser::ser_json reader(json, (uint32_t)strlen(json));
+		ser::JsonDiagnostics diagnostics;
+		return !ecs::json_to_component(outerCI, &value, reader, diagnostics) && diagnostics.items.size() == 1 &&
+					 diagnostics.items[0].reason == ser::JsonDiagReason::InvalidJson && diagnostics.items[0].path == path;
+	};
+
+	CHECK(failsAt("{\"a\":\"seven\",\"b\":1,\"inner\":{\"x\":5,\"y\":6}}", "a"));
+	CHECK(failsAt("{\"a\":7,\"b\":1,\"inner\":{\"x\":true,\"y\":6}}", "inner.x"));
+}
+
 TEST_CASE("Serialization - runtime UTF-8 semantic string") {
 	TestWorld twld;
 	const auto stringSemantic = wld.add();

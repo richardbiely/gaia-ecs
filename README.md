@@ -4368,6 +4368,8 @@ The same policy can be passed to `World::save_json(...)` and `World::load_json(.
 
 Data that must be complete, such as configuration files, can opt into a strict import. `policy.requireAllFields` reports each struct field the JSON leaves out, nested ones included, as a `MissingField` error. `policy.enforceRanges` reports a value outside its field's authored minimum or maximum as a `RangeViolation` error and leaves the field unchanged. Both are off by default: an absent field then keeps its value, and only validated patches check ranges.
 
+A value of the wrong JSON kind, such as a number for a `bool` field or a string for a number, stops the import. `json_to_component(...)` returns `false` and adds an `InvalidJson` error at that field's path, so the author can see which field to fix.
+
 ### Raw access and cursors
 
 Once the component is registered, you can add and edit it without a C++ component type:

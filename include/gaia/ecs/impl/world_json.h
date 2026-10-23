@@ -1276,8 +1276,13 @@ namespace gaia {
 
 				// Valid JSON can still lose data when it is converted to the field's type.
 				bool fieldOk = true;
-				if (!ser::detail::read_runtime_field_json(ctx.reader, pData, type, valueSize, fieldOk))
+				if (!ser::detail::read_runtime_field_json(ctx.reader, pData, type, valueSize, fieldOk)) {
+					// The import stops here, so name the field the author has to fix.
+					fail_runtime_json(
+							ctx.diagnostics, ser::JsonDiagReason::InvalidJson, path,
+							"Runtime field value is not the JSON kind its type needs.");
 					return false;
+				}
 
 				if (!fieldOk) {
 					ctx.ok = false;
