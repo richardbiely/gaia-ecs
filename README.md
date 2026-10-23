@@ -4043,6 +4043,8 @@ The remaining field metadata is optional. Set `semantic` to an application-defin
 
 Set `jsonEncoding` to `ecs::RuntimeJsonEncoding::Utf8String` when a `Char8` sequence should be represented as one JSON string. Field flags can prevent validated edits, hide fields from the default tool presentation, or suggest multiline text input. Fields can also provide a unit, an accepted minimum and maximum, and a preferred input step.
 
+Fields, enum and bitmask constants, and the type itself can carry a `description`: a short explanation of what the value means, for tools to show beside it. `ComponentCacheItem::field_description(...)`, `constant_description(...)` and `type_description()` read it back, and the schema manifest writes it only when it is set, so schemas without descriptions keep their manifest and hash. A description is shorter than `ecs::RuntimeDescriptionMaxLength`.
+
 ### Typed runtime schemas
 
 Use `World::add<T>(const RuntimeTypeDesc&)` when an existing C++ component should also be available to generic tools, cursors, and JSON serialization. Register the schema before the component's first use. This does not change normal typed access or the component's storage behavior.

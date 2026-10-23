@@ -49,6 +49,9 @@ namespace gaia {
 		};
 #endif
 
+		//! Maximum runtime type, field or constant description length, including the null terminator.
+		inline constexpr uint32_t RuntimeDescriptionMaxLength = 1024;
+
 		//! Storage type used for runtime field presentation flags.
 		using RuntimeFieldFlagsType = uint16_t;
 		//! Presentation and validation flags attached to a reflected runtime field.
@@ -123,6 +126,9 @@ namespace gaia {
 			double maximum = 0.0;
 			//! Preferred input step when RuntimeFieldFlag_HasStep is set.
 			double step = 0.0;
+			//! Optional human-readable explanation of the field, or its interned identifier.
+			//! Shorter than RuntimeDescriptionMaxLength. Tools show it next to the field.
+			StringType description{};
 		};
 
 		//! User-authored runtime field initializer with borrowed string views.
@@ -139,6 +145,9 @@ namespace gaia {
 			StringType name{};
 			//! Constant value.
 			int64_t value = 0;
+			//! Optional human-readable explanation of the constant, or its interned identifier.
+			//! Shorter than RuntimeDescriptionMaxLength.
+			StringType description{};
 		};
 
 		//! User-authored symbolic runtime constant initializer with a borrowed symbol view.
@@ -255,6 +264,9 @@ namespace gaia {
 			const RuntimeSequenceAdapter* sequenceAdapter = nullptr;
 			//! Optional adapter for opaque semantic projections. The callback table must outlive the registration.
 			const RuntimeOpaqueAdapter* opaqueAdapter = nullptr;
+			//! Optional human-readable explanation of the type, copied during registration.
+			//! Shorter than RuntimeDescriptionMaxLength.
+			util::str_view description{};
 		};
 
 		//! Plain component registration descriptor shared by typed and runtime component paths.

@@ -3477,6 +3477,56 @@ TEST_CASE("Serialization - runtime schema manifest") {
 	CHECK(scopedOrdered.runtime_schema_hash() == scopedReversed.runtime_schema_hash());
 }
 
+TEST_CASE("Serialization - runtime schema descriptions") {
+	TestWorld twld;
+	ecs::RuntimeFieldInit fields[] = {
+			{util::str_view("x"), ecs::F32, (uint32_t)offsetof(RuntimeSchemaPosition, x), 0},
+			{util::str_view("y"), ecs::F32, (uint32_t)offsetof(RuntimeSchemaPosition, y), 0},
+			{util::str_view("z"), ecs::F32, (uint32_t)offsetof(RuntimeSchemaPosition, z), 0}};
+	fields[0].description = util::str_view("Distance east of the origin.");
+	ecs::RuntimeTypeDesc schema{};
+	schema.fields = fields;
+	schema.fieldCount = 3;
+	schema.description = util::str_view("A point in the world.");
+	const auto& positionCI = wld.add<RuntimeSchemaPosition>(schema);
+	CHECK(positionCI.type_description() == util::str_view("A point in the world."));
+	CHECK(positionCI.field_description(*positionCI.field("x")) == util::str_view("Distance east of the origin."));
+	CHECK(positionCI.field_description(*positionCI.field("y")).empty());
+
+	const ecs::RuntimeConstantInit constants[] = {
+			{util::str_view("Idle"), 0, util::str_view("Standing still.")}, {util::str_view("Running"), 1}};
+	ecs::ComponentDesc enumDesc{};
+	enumDesc.name = util::str_view("RuntimeDescribedMode");
+	enumDesc.size = sizeof(uint32_t);
+	enumDesc.alig = alignof(uint32_t);
+	enumDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Enum;
+	enumDesc.runtimeType.underlyingType = ecs::U32;
+	enumDesc.runtimeType.constants = constants;
+	enumDesc.runtimeType.constantCount = 2;
+	const auto& modeCI = wld.add(enumDesc);
+	CHECK(modeCI.type_description().empty());
+	CHECK(modeCI.constant_description(*modeCI.constant("Idle")) == util::str_view("Standing still."));
+	CHECK(modeCI.constant_description(*modeCI.constant("Running")).empty());
+
+	const auto json = wld.save_runtime_schema_json();
+	CHECK(json.find("\"description\":\"A point in the world.\"") != BadIndex);
+	CHECK(json.find("\"description\":\"Distance east of the origin.\"") != BadIndex);
+	CHECK(json.find("{\"name\":\"Idle\",\"value\":0,\"description\":\"Standing still.\"}") != BadIndex);
+	CHECK(json.find("{\"name\":\"Running\",\"value\":1}") != BadIndex);
+
+	// A schema without descriptions writes no description keys, so its manifest and hash stay as they were.
+	const ecs::RuntimeFieldInit plainFields[] = {{util::str_view("seconds"), ecs::F32, 0, 0}};
+	ecs::ComponentDesc plainDesc{};
+	plainDesc.name = util::str_view("RuntimeUndescribed");
+	plainDesc.size = sizeof(float);
+	plainDesc.alig = alignof(float);
+	plainDesc.runtimeType.fields = plainFields;
+	plainDesc.runtimeType.fieldCount = 1;
+	ecs::World plainWorld;
+	(void)plainWorld.add(plainDesc);
+	CHECK(plainWorld.save_runtime_schema_json().find("\"description\"") == BadIndex);
+}
+
 TEST_CASE("Serialization - runtime UTF-8 semantic string") {
 	TestWorld twld;
 	const auto stringSemantic = wld.add();

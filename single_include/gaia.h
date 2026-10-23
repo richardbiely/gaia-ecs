@@ -34521,6 +34521,9 @@ namespace gaia {
 		};
 #endif
 
+		//! Maximum runtime type, field or constant description length, including the null terminator.
+		inline constexpr uint32_t RuntimeDescriptionMaxLength = 1024;
+
 		//! Storage type used for runtime field presentation flags.
 		using RuntimeFieldFlagsType = uint16_t;
 		//! Presentation and validation flags attached to a reflected runtime field.
@@ -34595,6 +34598,9 @@ namespace gaia {
 			double maximum = 0.0;
 			//! Preferred input step when RuntimeFieldFlag_HasStep is set.
 			double step = 0.0;
+			//! Optional human-readable explanation of the field, or its interned identifier.
+			//! Shorter than RuntimeDescriptionMaxLength. Tools show it next to the field.
+			StringType description{};
 		};
 
 		//! User-authored runtime field initializer with borrowed string views.
@@ -34611,6 +34617,9 @@ namespace gaia {
 			StringType name{};
 			//! Constant value.
 			int64_t value = 0;
+			//! Optional human-readable explanation of the constant, or its interned identifier.
+			//! Shorter than RuntimeDescriptionMaxLength.
+			StringType description{};
 		};
 
 		//! User-authored symbolic runtime constant initializer with a borrowed symbol view.
@@ -34727,6 +34736,9 @@ namespace gaia {
 			const RuntimeSequenceAdapter* sequenceAdapter = nullptr;
 			//! Optional adapter for opaque semantic projections. The callback table must outlive the registration.
 			const RuntimeOpaqueAdapter* opaqueAdapter = nullptr;
+			//! Optional human-readable explanation of the type, copied during registration.
+			//! Shorter than RuntimeDescriptionMaxLength.
+			util::str_view description{};
 		};
 
 		//! Plain component registration descriptor shared by typed and runtime component paths.
@@ -35245,6 +35257,8 @@ namespace gaia {
 
 			//! Interned registered component symbol.
 			SymbolId name;
+			//! Interned human-readable explanation of this type; invalid when none was authored.
+			SymbolId description;
 			//! User-facing scoped component path, e.g. "Gameplay.Device".
 			util::str path;
 			//! Construction callback for this component type.
@@ -35652,6 +35666,19 @@ namespace gaia {
 				return m_symbols != nullptr ? m_symbols->view(field.unit) : util::str_view{};
 			}
 
+			//! Resolves a stored runtime field description.
+			//! \param field Stored field metadata.
+			//! \return Interned description, or an empty view when none was authored.
+			GAIA_NODISCARD util::str_view field_description(const RuntimeFieldDesc& field) const noexcept {
+				return m_symbols != nullptr ? m_symbols->view(field.description) : util::str_view{};
+			}
+
+			//! Resolves this type's description.
+			//! \return Interned description, or an empty view when none was authored.
+			GAIA_NODISCARD util::str_view type_description() const noexcept {
+				return m_symbols != nullptr ? m_symbols->view(description) : util::str_view{};
+			}
+
 			//! \return Number of runtime fields registered on this component.
 			GAIA_NODISCARD uint32_t field_count() const noexcept {
 				return (uint32_t)m_fields.size();
@@ -35732,6 +35759,13 @@ namespace gaia {
 			//! \return Interned constant name.
 			GAIA_NODISCARD util::str_view constant_name(const RuntimeConstantDesc& constant) const noexcept {
 				return m_symbols != nullptr ? m_symbols->view(constant.name) : util::str_view{};
+			}
+
+			//! Resolves a stored runtime constant description.
+			//! \param constant Stored constant metadata.
+			//! \return Interned description, or an empty view when none was authored.
+			GAIA_NODISCARD util::str_view constant_description(const RuntimeConstantDesc& constant) const noexcept {
+				return m_symbols != nullptr ? m_symbols->view(constant.description) : util::str_view{};
 			}
 
 			//! Looks up runtime enum/bitmask constant metadata by exact value.
@@ -35860,10 +35894,11 @@ namespace gaia {
 
 			//! Copies one runtime field initializer into immutable component metadata.
 			//! \param desc Field initializer to copy.
-			//! \return True when copied, false when the field name is invalid.
+			//! \return True when copied, false when the field name, unit or description is invalid.
 			GAIA_NODISCARD bool copy_runtime_field(const RuntimeFieldInit& desc) {
 				if (m_symbols == nullptr || desc.name.empty() || desc.name.size() >= MaxNameLength ||
-						desc.unit.size() >= RuntimeFieldDesc::MaxUnitLength)
+						desc.unit.size() >= RuntimeFieldDesc::MaxUnitLength ||
+						desc.description.size() >= RuntimeDescriptionMaxLength)
 					return false;
 
 				RuntimeFieldDesc field{};
@@ -35880,20 +35915,23 @@ namespace gaia {
 				field.minimum = desc.minimum;
 				field.maximum = desc.maximum;
 				field.step = desc.step;
+				field.description = m_symbols->intern(desc.description);
 				m_fields.push_back(field);
 				return true;
 			}
 
 			//! Copies one runtime constant initializer into immutable component metadata.
 			//! \param desc Constant initializer to copy.
-			//! \return True when copied, false when the constant name is invalid.
+			//! \return True when copied, false when the constant name or description is invalid.
 			GAIA_NODISCARD bool copy_runtime_constant(const RuntimeConstantInit& desc) {
-				if (m_symbols == nullptr || desc.name.empty() || desc.name.size() >= MaxNameLength)
+				if (m_symbols == nullptr || desc.name.empty() || desc.name.size() >= MaxNameLength ||
+						desc.description.size() >= RuntimeDescriptionMaxLength)
 					return false;
 
 				RuntimeConstantDesc constant{};
 				constant.name = m_symbols->intern(desc.name);
 				constant.value = desc.value;
+				constant.description = m_symbols->intern(desc.description);
 				m_constants.push_back(constant);
 				return true;
 			}
@@ -36029,6 +36067,9 @@ namespace gaia {
 				cci->func_load = desc.funcLoad;
 
 				const auto& runtimeType = desc.runtimeType;
+				GAIA_ASSERT(runtimeType.description.size() < RuntimeDescriptionMaxLength);
+				if (runtimeType.description.size() < RuntimeDescriptionMaxLength)
+					cci->description = symbols.intern(runtimeType.description);
 				cci->typeKind = runtimeType.typeKind;
 				cci->semantic = runtimeType.semantic;
 #if GAIA_JSON_ENABLED
@@ -88858,6 +88899,11 @@ namespace gaia {
 					writer.key("unit");
 					writer.value_string(unit.data(), unit.size());
 				}
+				const auto fieldDescription = item.field_description(field);
+				if (!fieldDescription.empty()) {
+					writer.key("description");
+					writer.value_string(fieldDescription.data(), fieldDescription.size());
+				}
 				if ((field.flags & RuntimeFieldFlag_HasMinimum) != 0) {
 					writer.key("minimum");
 					writer.value_float(field.minimum);
@@ -88912,6 +88958,11 @@ namespace gaia {
 				writer.value_string(stableId);
 				writer.key("kind");
 				writer.value_string(runtime_schema_kind_name(item.typeKind));
+				const auto typeDescription = item.type_description();
+				if (!typeDescription.empty()) {
+					writer.key("description");
+					writer.value_string(typeDescription.data(), typeDescription.size());
+				}
 				writer.key("semantic");
 				runtime_schema_write_semantic_ref(writer, world, item.semantic);
 				writer.key("jsonEncoding");
@@ -88979,6 +89030,11 @@ namespace gaia {
 						writer.value_string(constantName.data(), constantName.size());
 						writer.key("value");
 						writer.value_int(constant.value);
+						const auto constantDescription = item.constant_description(constant);
+						if (!constantDescription.empty()) {
+							writer.key("description");
+							writer.value_string(constantDescription.data(), constantDescription.size());
+						}
 						writer.end_object();
 					}
 					writer.end_array();

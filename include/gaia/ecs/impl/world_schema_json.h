@@ -224,6 +224,11 @@ namespace gaia {
 					writer.key("unit");
 					writer.value_string(unit.data(), unit.size());
 				}
+				const auto fieldDescription = item.field_description(field);
+				if (!fieldDescription.empty()) {
+					writer.key("description");
+					writer.value_string(fieldDescription.data(), fieldDescription.size());
+				}
 				if ((field.flags & RuntimeFieldFlag_HasMinimum) != 0) {
 					writer.key("minimum");
 					writer.value_float(field.minimum);
@@ -278,6 +283,11 @@ namespace gaia {
 				writer.value_string(stableId);
 				writer.key("kind");
 				writer.value_string(runtime_schema_kind_name(item.typeKind));
+				const auto typeDescription = item.type_description();
+				if (!typeDescription.empty()) {
+					writer.key("description");
+					writer.value_string(typeDescription.data(), typeDescription.size());
+				}
 				writer.key("semantic");
 				runtime_schema_write_semantic_ref(writer, world, item.semantic);
 				writer.key("jsonEncoding");
@@ -345,6 +355,11 @@ namespace gaia {
 						writer.value_string(constantName.data(), constantName.size());
 						writer.key("value");
 						writer.value_int(constant.value);
+						const auto constantDescription = item.constant_description(constant);
+						if (!constantDescription.empty()) {
+							writer.key("description");
+							writer.value_string(constantDescription.data(), constantDescription.size());
+						}
 						writer.end_object();
 					}
 					writer.end_array();

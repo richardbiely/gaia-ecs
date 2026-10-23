@@ -142,6 +142,8 @@ namespace gaia {
 
 			//! Interned registered component symbol.
 			SymbolId name;
+			//! Interned human-readable explanation of this type; invalid when none was authored.
+			SymbolId description;
 			//! User-facing scoped component path, e.g. "Gameplay.Device".
 			util::str path;
 			//! Construction callback for this component type.
@@ -549,6 +551,19 @@ namespace gaia {
 				return m_symbols != nullptr ? m_symbols->view(field.unit) : util::str_view{};
 			}
 
+			//! Resolves a stored runtime field description.
+			//! \param field Stored field metadata.
+			//! \return Interned description, or an empty view when none was authored.
+			GAIA_NODISCARD util::str_view field_description(const RuntimeFieldDesc& field) const noexcept {
+				return m_symbols != nullptr ? m_symbols->view(field.description) : util::str_view{};
+			}
+
+			//! Resolves this type's description.
+			//! \return Interned description, or an empty view when none was authored.
+			GAIA_NODISCARD util::str_view type_description() const noexcept {
+				return m_symbols != nullptr ? m_symbols->view(description) : util::str_view{};
+			}
+
 			//! \return Number of runtime fields registered on this component.
 			GAIA_NODISCARD uint32_t field_count() const noexcept {
 				return (uint32_t)m_fields.size();
@@ -629,6 +644,13 @@ namespace gaia {
 			//! \return Interned constant name.
 			GAIA_NODISCARD util::str_view constant_name(const RuntimeConstantDesc& constant) const noexcept {
 				return m_symbols != nullptr ? m_symbols->view(constant.name) : util::str_view{};
+			}
+
+			//! Resolves a stored runtime constant description.
+			//! \param constant Stored constant metadata.
+			//! \return Interned description, or an empty view when none was authored.
+			GAIA_NODISCARD util::str_view constant_description(const RuntimeConstantDesc& constant) const noexcept {
+				return m_symbols != nullptr ? m_symbols->view(constant.description) : util::str_view{};
 			}
 
 			//! Looks up runtime enum/bitmask constant metadata by exact value.
@@ -757,10 +779,11 @@ namespace gaia {
 
 			//! Copies one runtime field initializer into immutable component metadata.
 			//! \param desc Field initializer to copy.
-			//! \return True when copied, false when the field name is invalid.
+			//! \return True when copied, false when the field name, unit or description is invalid.
 			GAIA_NODISCARD bool copy_runtime_field(const RuntimeFieldInit& desc) {
 				if (m_symbols == nullptr || desc.name.empty() || desc.name.size() >= MaxNameLength ||
-						desc.unit.size() >= RuntimeFieldDesc::MaxUnitLength)
+						desc.unit.size() >= RuntimeFieldDesc::MaxUnitLength ||
+						desc.description.size() >= RuntimeDescriptionMaxLength)
 					return false;
 
 				RuntimeFieldDesc field{};
@@ -777,20 +800,23 @@ namespace gaia {
 				field.minimum = desc.minimum;
 				field.maximum = desc.maximum;
 				field.step = desc.step;
+				field.description = m_symbols->intern(desc.description);
 				m_fields.push_back(field);
 				return true;
 			}
 
 			//! Copies one runtime constant initializer into immutable component metadata.
 			//! \param desc Constant initializer to copy.
-			//! \return True when copied, false when the constant name is invalid.
+			//! \return True when copied, false when the constant name or description is invalid.
 			GAIA_NODISCARD bool copy_runtime_constant(const RuntimeConstantInit& desc) {
-				if (m_symbols == nullptr || desc.name.empty() || desc.name.size() >= MaxNameLength)
+				if (m_symbols == nullptr || desc.name.empty() || desc.name.size() >= MaxNameLength ||
+						desc.description.size() >= RuntimeDescriptionMaxLength)
 					return false;
 
 				RuntimeConstantDesc constant{};
 				constant.name = m_symbols->intern(desc.name);
 				constant.value = desc.value;
+				constant.description = m_symbols->intern(desc.description);
 				m_constants.push_back(constant);
 				return true;
 			}
@@ -926,6 +952,9 @@ namespace gaia {
 				cci->func_load = desc.funcLoad;
 
 				const auto& runtimeType = desc.runtimeType;
+				GAIA_ASSERT(runtimeType.description.size() < RuntimeDescriptionMaxLength);
+				if (runtimeType.description.size() < RuntimeDescriptionMaxLength)
+					cci->description = symbols.intern(runtimeType.description);
 				cci->typeKind = runtimeType.typeKind;
 				cci->semantic = runtimeType.semantic;
 #if GAIA_JSON_ENABLED
