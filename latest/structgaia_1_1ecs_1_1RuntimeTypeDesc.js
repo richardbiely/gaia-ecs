@@ -2,6 +2,7 @@ var structgaia_1_1ecs_1_1RuntimeTypeDesc =
 [
     [ "constantCount", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a7c984c8f92734a145b47e5838922eebd", null ],
     [ "constants", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a39b8bbcbe3a0f1efdd5cfd02b3d6fc27", null ],
+    [ "description", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#ab59f9b96ac095667c35bb0821caa78dc", null ],
     [ "elementCount", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#af566801e8d977e5a135d3655e3314e08", null ],
     [ "elementType", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a7e77ce3c4b1c0ec1992b7605dbf330b7", null ],
     [ "fieldCount", "structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a784baec47b5f9ebb0572834400f49c40", null ],

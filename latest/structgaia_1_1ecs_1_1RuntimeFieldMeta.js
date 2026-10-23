@@ -1,6 +1,7 @@
 var structgaia_1_1ecs_1_1RuntimeFieldMeta =
 [
     [ "count", "structgaia_1_1ecs_1_1RuntimeFieldMeta.html#a6379ca9ac8b6f2f3ce11b67d22fa7a77", null ],
+    [ "description", "structgaia_1_1ecs_1_1RuntimeFieldMeta.html#af5843fcd625de2b318d60455f2fa6b99", null ],
     [ "flags", "structgaia_1_1ecs_1_1RuntimeFieldMeta.html#ae051fe6eb9af3cd72d0825603d69b31c", null ],
     [ "maximum", "structgaia_1_1ecs_1_1RuntimeFieldMeta.html#a29a49a65aa4905c072486927345dd3bf", null ],
     [ "MaxUnitLength", "structgaia_1_1ecs_1_1RuntimeFieldMeta.html#a55d30c514444c0b027a8e0f10571aa4c", null ],
