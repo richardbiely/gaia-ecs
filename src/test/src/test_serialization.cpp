@@ -105,6 +105,17 @@ struct RuntimePatchComponent {
 	char name[8];
 };
 
+struct RuntimeStrictInner {
+	uint32_t x;
+	uint32_t y;
+};
+
+struct RuntimeStrictOuter {
+	uint32_t a;
+	uint32_t b;
+	RuntimeStrictInner inner;
+};
+
 struct RuntimeRejectingOpaque {
 	float value;
 };
@@ -3525,6 +3536,93 @@ TEST_CASE("Serialization - runtime schema descriptions") {
 	ecs::World plainWorld;
 	(void)plainWorld.add(plainDesc);
 	CHECK(plainWorld.save_runtime_schema_json().find("\"description\"") == BadIndex);
+}
+
+TEST_CASE("Serialization - strict runtime json import") {
+	TestWorld twld;
+	const ecs::RuntimeFieldInit innerFields[] = {
+			{util::str_view("x"), ecs::U32, (uint32_t)offsetof(RuntimeStrictInner, x), 0},
+			{util::str_view("y"), ecs::U32, (uint32_t)offsetof(RuntimeStrictInner, y), 0}};
+	ecs::RuntimeTypeDesc innerSchema{};
+	innerSchema.fields = innerFields;
+	innerSchema.fieldCount = 2;
+	const auto& innerCI = wld.add<RuntimeStrictInner>(innerSchema);
+
+	ecs::RuntimeFieldInit outerFields[] = {
+			{util::str_view("a"), ecs::U32, (uint32_t)offsetof(RuntimeStrictOuter, a), 0},
+			{util::str_view("b"), ecs::U32, (uint32_t)offsetof(RuntimeStrictOuter, b), 0},
+			{util::str_view("inner"), innerCI.entity, (uint32_t)offsetof(RuntimeStrictOuter, inner), 0}};
+	outerFields[1].flags = ecs::RuntimeFieldFlag_HasMinimum | ecs::RuntimeFieldFlag_HasMaximum;
+	outerFields[1].minimum = 10.0;
+	outerFields[1].maximum = 100.0;
+	ecs::RuntimeTypeDesc outerSchema{};
+	outerSchema.fields = outerFields;
+	outerSchema.fieldCount = 3;
+	const auto& outerCI = wld.add<RuntimeStrictOuter>(outerSchema);
+
+	auto load = [&](const char* json, RuntimeStrictOuter& value, ser::JsonDiagnostics& diagnostics,
+									const ser::RuntimeJsonPolicy& policy) {
+		ser::ser_json reader(json, (uint32_t)strlen(json));
+		diagnostics.clear();
+		return ecs::json_to_component(outerCI, &value, reader, diagnostics, policy);
+	};
+
+	const ser::RuntimeJsonPolicy lenient{};
+	ser::RuntimeJsonPolicy strict{};
+	strict.requireAllFields = true;
+	strict.enforceRanges = true;
+	ser::JsonDiagnostics diagnostics;
+
+	// By default an absent field keeps its value and an out-of-range value loads.
+	RuntimeStrictOuter value{1, 50, {2, 3}};
+	CHECK(load("{\"a\":7,\"b\":999}", value, diagnostics, lenient));
+	CHECK_FALSE(diagnostics.has_issues());
+	CHECK(value.a == 7);
+	CHECK(value.b == 999);
+	CHECK(value.inner.x == 2);
+
+	// A strict import names every absent field, nested ones included.
+	value = {1, 50, {2, 3}};
+	CHECK(load("{\"a\":7,\"inner\":{\"y\":4}}", value, diagnostics, strict));
+	CHECK(diagnostics.hasErrors);
+	CHECK(diagnostics.items.size() == 2);
+	bool missingB = false;
+	bool missingInnerX = false;
+	for (const auto& diag: diagnostics.items) {
+		CHECK(diag.reason == ser::JsonDiagReason::MissingField);
+		missingB = missingB || diag.path == "b";
+		missingInnerX = missingInnerX || diag.path == "inner.x";
+	}
+	CHECK(missingB);
+	CHECK(missingInnerX);
+	CHECK(value.a == 7);
+	CHECK(value.inner.y == 4);
+
+	// An empty object is missing every field.
+	CHECK(load("{}", value, diagnostics, strict));
+	uint32_t missing = 0;
+	for (const auto& diag: diagnostics.items)
+		missing += diag.reason == ser::JsonDiagReason::MissingField ? 1U : 0U;
+	CHECK(missing == 3);
+
+	// A strict import refuses a value outside the authored range and leaves the field as it was.
+	value = {1, 50, {2, 3}};
+	CHECK(load("{\"a\":7,\"b\":999,\"inner\":{\"x\":5,\"y\":6}}", value, diagnostics, strict));
+	CHECK(diagnostics.hasErrors);
+	CHECK(diagnostics.items.size() == 1);
+	CHECK(diagnostics.items[0].reason == ser::JsonDiagReason::RangeViolation);
+	CHECK(diagnostics.items[0].path == "b");
+	CHECK(value.b == 50);
+	CHECK(value.inner.x == 5);
+
+	CHECK(load("{\"a\":7,\"b\":9,\"inner\":{\"x\":5,\"y\":6}}", value, diagnostics, strict));
+	CHECK(diagnostics.items.size() == 1);
+	CHECK(value.b == 50);
+
+	// A complete document within range loads without a diagnostic.
+	CHECK(load("{\"a\":7,\"b\":100,\"inner\":{\"x\":5,\"y\":6}}", value, diagnostics, strict));
+	CHECK_FALSE(diagnostics.has_issues());
+	CHECK(value.b == 100);
 }
 
 TEST_CASE("Serialization - runtime UTF-8 semantic string") {

@@ -43,6 +43,12 @@ namespace gaia {
 			bool symbolicEnums = false;
 			//! Emits bitmask values as arrays of flag names and accepts those arrays during import.
 			bool symbolicBitmasks = false;
+			//! Reports each reflected struct field a JSON object leaves out as a MissingField error.
+			//! Off by default: an absent field keeps its current value.
+			bool requireAllFields = false;
+			//! Reports a value outside its field's authored minimum or maximum as a RangeViolation error and
+			//! leaves the field unchanged. Off by default: only validated patches check ranges.
+			bool enforceRanges = false;
 		};
 
 		//! Severity assigned to a JSON diagnostic.
@@ -103,7 +109,9 @@ namespace gaia {
 			//! Patch value violates an authored numeric range.
 			RangeViolation,
 			//! Patch was prepared against a stale schema manifest.
-			StaleSchema
+			StaleSchema,
+			//! A reflected struct field is absent from the input.
+			MissingField
 		};
 
 		//! One structured issue produced while reading or writing JSON.

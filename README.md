@@ -4354,6 +4354,8 @@ Known enum values are written as strings such as `"Run"`. Bitmasks composed enti
 
 The same policy can be passed to `World::save_json(...)` and `World::load_json(...)`. Use `ser::JsonSaveFlags::RawFallback` without `BinarySnapshot` when the symbolic semantic document will be edited and loaded again; a binary snapshot takes precedence over semantic component values during load.
 
+Data that must be complete, such as configuration files, can opt into a strict import. `policy.requireAllFields` reports each struct field the JSON leaves out, nested ones included, as a `MissingField` error. `policy.enforceRanges` reports a value outside its field's authored minimum or maximum as a `RangeViolation` error and leaves the field unchanged. Both are off by default: an absent field then keeps its value, and only validated patches check ranges.
+
 ### Raw access and cursors
 
 Once the component is registered, you can add and edit it without a C++ component type:

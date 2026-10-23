@@ -26994,6 +26994,12 @@ namespace gaia {
 			bool symbolicEnums = false;
 			//! Emits bitmask values as arrays of flag names and accepts those arrays during import.
 			bool symbolicBitmasks = false;
+			//! Reports each reflected struct field a JSON object leaves out as a MissingField error.
+			//! Off by default: an absent field keeps its current value.
+			bool requireAllFields = false;
+			//! Reports a value outside its field's authored minimum or maximum as a RangeViolation error and
+			//! leaves the field unchanged. Off by default: only validated patches check ranges.
+			bool enforceRanges = false;
 		};
 
 		//! Severity assigned to a JSON diagnostic.
@@ -27054,7 +27060,9 @@ namespace gaia {
 			//! Patch value violates an authored numeric range.
 			RangeViolation,
 			//! Patch was prepared against a stale schema manifest.
-			StaleSchema
+			StaleSchema,
+			//! A reflected struct field is absent from the input.
+			MissingField
 		};
 
 		//! One structured issue produced while reading or writing JSON.
@@ -87027,6 +87035,61 @@ namespace gaia {
 				return reader.expect(']');
 			}
 
+			//! Reads one numeric value when its reflected type and storage size match \a T.
+			//! \tparam T Numeric storage type.
+			//! \param type Reflected type of the value.
+			//! \param expectedType Reflected type required for \a T.
+			//! \param data Value storage.
+			//! \param size Size of \a data in bytes.
+			//! \param value Receives the value converted to double.
+			//! \return True when the type and storage size match.
+			template <typename T>
+			inline bool
+			runtime_patch_numeric_value_as(Entity type, Entity expectedType, const void* data, uint32_t size, double& value) {
+				if (type != expectedType || data == nullptr || size != sizeof(T))
+					return false;
+
+				T result{};
+				memcpy(&result, data, sizeof(result));
+				value = (double)result;
+				return true;
+			}
+
+			//! Reads a supported primitive, enum, or bitmask value as a double for range validation.
+			//! \param pType Optional registered type metadata.
+			//! \param type Reflected value type.
+			//! \param data Value storage.
+			//! \param size Size of \a data in bytes.
+			//! \param value Receives the converted value.
+			//! \return True when the value uses a supported numeric type.
+			inline bool runtime_patch_numeric_value(
+					const ComponentCacheItem* pType, Entity type, const void* data, uint32_t size, double& value) {
+				if (pType != nullptr &&
+						(pType->typeKind == RuntimeTypeKind::Enum || pType->typeKind == RuntimeTypeKind::Bitmask))
+					type = pType->underlyingType;
+
+				return runtime_patch_numeric_value_as<int8_t>(type, S8, data, size, value) ||
+							 runtime_patch_numeric_value_as<uint8_t>(type, U8, data, size, value) ||
+							 runtime_patch_numeric_value_as<int16_t>(type, S16, data, size, value) ||
+							 runtime_patch_numeric_value_as<uint16_t>(type, U16, data, size, value) ||
+							 runtime_patch_numeric_value_as<int32_t>(type, S32, data, size, value) ||
+							 runtime_patch_numeric_value_as<uint32_t>(type, U32, data, size, value) ||
+							 runtime_patch_numeric_value_as<int64_t>(type, S64, data, size, value) ||
+							 runtime_patch_numeric_value_as<uint64_t>(type, U64, data, size, value) ||
+							 runtime_patch_numeric_value_as<float>(type, F32, data, size, value) ||
+							 runtime_patch_numeric_value_as<double>(type, F64, data, size, value);
+			}
+
+			//! Adds one runtime JSON error to diagnostics.
+			//! \param diagnostics Diagnostic collection receiving the error.
+			//! \param reason Machine-readable error reason.
+			//! \param path Logical value path.
+			//! \param message Human-readable error message.
+			inline void fail_runtime_json(
+					ser::JsonDiagnostics& diagnostics, ser::JsonDiagReason reason, ser::json_str_view path, const char* message) {
+				diagnostics.add(ser::JsonDiagSeverity::Error, reason, path, message);
+			}
+
 			//! Adds one runtime JSON warning to diagnostics.
 			//! \param diagnostics Diagnostic collection receiving the warning.
 			//! \param reason Machine-readable warning reason.
@@ -87071,14 +87134,67 @@ namespace gaia {
 				}
 
 				auto* pFieldData = pBase + field.offset;
+				const bool ranged = ctx.policy.enforceRanges &&
+														(field.flags & (RuntimeFieldFlag_HasMinimum | RuntimeFieldFlag_HasMaximum)) != 0;
+				// A ranged field is read into a copy first, so a value out of range never reaches storage.
+				cnt::darray_ext<uint8_t, 64> staged;
+				auto* pTarget = pFieldData;
+				if (ranged) {
+					staged.resize((uint32_t)fieldSize64);
+					memcpy(staged.data(), pFieldData, (size_t)fieldSize64);
+					pTarget = staged.data();
+				}
 
-				if (layout.elemCount == 1 || field.jsonEncoding == RuntimeJsonEncoding::Utf8String ||
-						runtime_json_is_char8_type(layout.pType, layout.type))
-					return read_runtime_json_value(
-							ctx, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, path, depth + 1);
+				const bool parsed =
+						layout.elemCount == 1 || field.jsonEncoding == RuntimeJsonEncoding::Utf8String ||
+										runtime_json_is_char8_type(layout.pType, layout.type)
+								? read_runtime_json_value(
+											ctx, layout.pType, layout.type, pTarget, (uint32_t)fieldSize64, path, depth + 1)
+								: read_runtime_json_elements(
+											ctx, layout.pType, layout.type, pTarget, layout.elemSize, layout.elemCount, path, depth + 1);
+				if (!parsed || !ranged)
+					return parsed;
 
-				return read_runtime_json_elements(
-						ctx, layout.pType, layout.type, pFieldData, layout.elemSize, layout.elemCount, path, depth + 1);
+				GAIA_FOR(layout.elemCount) {
+					double number = 0.0;
+					if (!runtime_patch_numeric_value(
+									layout.pType, layout.type, pTarget + (uintptr_t)layout.elemSize * i, layout.elemSize, number)) {
+						ctx.ok = false;
+						fail_runtime_json(
+								ctx.diagnostics, ser::JsonDiagReason::UnsupportedPatchValue, path,
+								"Runtime field range applies to a non-numeric field.");
+						return true;
+					}
+					if (((field.flags & RuntimeFieldFlag_HasMinimum) != 0 && number < field.minimum) ||
+							((field.flags & RuntimeFieldFlag_HasMaximum) != 0 && number > field.maximum)) {
+						ctx.ok = false;
+						fail_runtime_json(
+								ctx.diagnostics, ser::JsonDiagReason::RangeViolation, path,
+								"Runtime field value is outside the authored field range.");
+						return true;
+					}
+				}
+				memcpy(pFieldData, pTarget, (size_t)fieldSize64);
+				return true;
+			}
+
+			//! Reports every field of \a item that the struct JSON just read left out.
+			//! \param ctx Shared import state.
+			//! \param item Registered struct metadata.
+			//! \param seen One flag per field of \a item, set for the fields the JSON named.
+			//! \param path Logical object path used in diagnostics.
+			inline void report_missing_runtime_json_fields(
+					RuntimeJsonReadContext& ctx, const ComponentCacheItem& item, const cnt::darray_ext<uint8_t, 64>& seen,
+					ser::json_str_view path) {
+				GAIA_FOR(item.field_count()) {
+					if (seen[i] != 0)
+						continue;
+					const auto fieldName = item.field_name(*item.field(i));
+					const auto fieldPath =
+							make_runtime_json_child_path(path, ser::json_str_view(fieldName.data(), fieldName.size()));
+					ctx.ok = false;
+					fail_runtime_json(ctx.diagnostics, ser::JsonDiagReason::MissingField, fieldPath, "Runtime field is missing.");
+				}
 			}
 
 			//! Reads a keyed JSON object into a reflected struct value.
@@ -87110,9 +87226,17 @@ namespace gaia {
 				if (!reader.expect('{'))
 					return false;
 
+				// Only a strict import pays for tracking which fields the object names.
+				cnt::darray_ext<uint8_t, 64> seen;
+				if (ctx.policy.requireAllFields)
+					seen.resize(item.field_count(), 0);
+
 				reader.ws();
-				if (reader.consume('}'))
+				if (reader.consume('}')) {
+					if (ctx.policy.requireAllFields)
+						report_missing_runtime_json_fields(ctx, item, seen, path);
 					return true;
+				}
 
 				while (true) {
 					ser::json_str_view key;
@@ -87138,8 +87262,12 @@ namespace gaia {
 						warn_runtime_json(ctx.diagnostics, ser::JsonDiagReason::UnknownField, fieldPath, "Unknown runtime field.");
 						if (!reader.skip_value())
 							return false;
-					} else if (!read_runtime_json_field(ctx, item, *pField, pData, fieldPath, depth + 1))
-						return false;
+					} else {
+						if (ctx.policy.requireAllFields)
+							seen[(uint32_t)(pField - item.field(0))] = 1;
+						if (!read_runtime_json_field(ctx, item, *pField, pData, fieldPath, depth + 1))
+							return false;
+					}
 
 					reader.ws();
 					if (reader.consume(','))
@@ -87149,6 +87277,8 @@ namespace gaia {
 					return false;
 				}
 
+				if (ctx.policy.requireAllFields)
+					report_missing_runtime_json_fields(ctx, item, seen, path);
 				return true;
 			}
 
@@ -87624,11 +87754,19 @@ namespace gaia {
 			if (!reader.expect('{'))
 				return false;
 
+			// Only a strict import pays for tracking which fields the object names.
+			const bool requireAllFields = policy.requireAllFields && item.field_count() != 0 && item.comp.soa() == 0;
+			cnt::darray_ext<uint8_t, 64> seen;
+			if (requireAllFields)
+				seen.resize(item.field_count(), 0);
+
 			reader.ws();
 			if (reader.consume('}')) {
 				detail::warn_runtime_json(
 						diagnostics, ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, componentPath,
 						"Component object is empty and contains no runtime fields or $raw payload.");
+				if (requireAllFields)
+					detail::report_missing_runtime_json_fields(ctx, item, seen, componentPath);
 				return true;
 			}
 
@@ -87664,6 +87802,8 @@ namespace gaia {
 							return false;
 					} else {
 						fieldFound = true;
+						if (requireAllFields)
+							seen[(uint32_t)(pField - item.field(0))] = 1;
 						if (!detail::read_runtime_json_field(ctx, item, *pField, pBase, fieldPath, 0))
 							return false;
 					}
@@ -87703,6 +87843,9 @@ namespace gaia {
 				detail::warn_runtime_json(
 						diagnostics, ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, componentPath,
 						"Component payload contains neither recognized runtime fields nor $raw data.");
+			// A $raw payload sets every byte, so it leaves no field missing.
+			if (requireAllFields && !rawFound)
+				detail::report_missing_runtime_json_fields(ctx, item, seen, componentPath);
 
 			return true;
 		}
@@ -88492,50 +88635,6 @@ namespace gaia {
 				return true;
 			}
 
-			//! Reads one numeric value when its reflected type and storage size match \a T.
-			//! \tparam T Numeric storage type.
-			//! \param type Reflected type of the value.
-			//! \param expectedType Reflected type required for \a T.
-			//! \param data Value storage.
-			//! \param size Size of \a data in bytes.
-			//! \param value Receives the value converted to double.
-			//! \return True when the type and storage size match.
-			template <typename T>
-			inline bool
-			runtime_patch_numeric_value_as(Entity type, Entity expectedType, const void* data, uint32_t size, double& value) {
-				if (type != expectedType || data == nullptr || size != sizeof(T))
-					return false;
-
-				T result{};
-				memcpy(&result, data, sizeof(result));
-				value = (double)result;
-				return true;
-			}
-
-			//! Reads a supported primitive, enum, or bitmask value as a double for range validation.
-			//! \param pType Optional registered type metadata.
-			//! \param type Reflected value type.
-			//! \param data Value storage.
-			//! \param size Size of \a data in bytes.
-			//! \param value Receives the converted value.
-			//! \return True when the value uses a supported numeric type.
-			inline bool runtime_patch_numeric_value(
-					const ComponentCacheItem* pType, Entity type, const void* data, uint32_t size, double& value) {
-				if (pType != nullptr &&
-						(pType->typeKind == RuntimeTypeKind::Enum || pType->typeKind == RuntimeTypeKind::Bitmask))
-					type = pType->underlyingType;
-
-				return runtime_patch_numeric_value_as<int8_t>(type, S8, data, size, value) ||
-							 runtime_patch_numeric_value_as<uint8_t>(type, U8, data, size, value) ||
-							 runtime_patch_numeric_value_as<int16_t>(type, S16, data, size, value) ||
-							 runtime_patch_numeric_value_as<uint16_t>(type, U16, data, size, value) ||
-							 runtime_patch_numeric_value_as<int32_t>(type, S32, data, size, value) ||
-							 runtime_patch_numeric_value_as<uint32_t>(type, U32, data, size, value) ||
-							 runtime_patch_numeric_value_as<int64_t>(type, S64, data, size, value) ||
-							 runtime_patch_numeric_value_as<uint64_t>(type, U64, data, size, value) ||
-							 runtime_patch_numeric_value_as<float>(type, F32, data, size, value) ||
-							 runtime_patch_numeric_value_as<double>(type, F64, data, size, value);
-			}
 		} // namespace detail
 		//! \endcond
 

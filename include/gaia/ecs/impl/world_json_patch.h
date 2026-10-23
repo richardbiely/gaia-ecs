@@ -61,50 +61,6 @@ namespace gaia {
 				return true;
 			}
 
-			//! Reads one numeric value when its reflected type and storage size match \a T.
-			//! \tparam T Numeric storage type.
-			//! \param type Reflected type of the value.
-			//! \param expectedType Reflected type required for \a T.
-			//! \param data Value storage.
-			//! \param size Size of \a data in bytes.
-			//! \param value Receives the value converted to double.
-			//! \return True when the type and storage size match.
-			template <typename T>
-			inline bool
-			runtime_patch_numeric_value_as(Entity type, Entity expectedType, const void* data, uint32_t size, double& value) {
-				if (type != expectedType || data == nullptr || size != sizeof(T))
-					return false;
-
-				T result{};
-				memcpy(&result, data, sizeof(result));
-				value = (double)result;
-				return true;
-			}
-
-			//! Reads a supported primitive, enum, or bitmask value as a double for range validation.
-			//! \param pType Optional registered type metadata.
-			//! \param type Reflected value type.
-			//! \param data Value storage.
-			//! \param size Size of \a data in bytes.
-			//! \param value Receives the converted value.
-			//! \return True when the value uses a supported numeric type.
-			inline bool runtime_patch_numeric_value(
-					const ComponentCacheItem* pType, Entity type, const void* data, uint32_t size, double& value) {
-				if (pType != nullptr &&
-						(pType->typeKind == RuntimeTypeKind::Enum || pType->typeKind == RuntimeTypeKind::Bitmask))
-					type = pType->underlyingType;
-
-				return runtime_patch_numeric_value_as<int8_t>(type, S8, data, size, value) ||
-							 runtime_patch_numeric_value_as<uint8_t>(type, U8, data, size, value) ||
-							 runtime_patch_numeric_value_as<int16_t>(type, S16, data, size, value) ||
-							 runtime_patch_numeric_value_as<uint16_t>(type, U16, data, size, value) ||
-							 runtime_patch_numeric_value_as<int32_t>(type, S32, data, size, value) ||
-							 runtime_patch_numeric_value_as<uint32_t>(type, U32, data, size, value) ||
-							 runtime_patch_numeric_value_as<int64_t>(type, S64, data, size, value) ||
-							 runtime_patch_numeric_value_as<uint64_t>(type, U64, data, size, value) ||
-							 runtime_patch_numeric_value_as<float>(type, F32, data, size, value) ||
-							 runtime_patch_numeric_value_as<double>(type, F64, data, size, value);
-			}
 		} // namespace detail
 		//! \endcond
 
