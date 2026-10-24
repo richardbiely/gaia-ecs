@@ -1076,9 +1076,7 @@ namespace gaia {
 								cursor.children.push_back(next);
 							});
 
-							core::sort(cursor.children, [](Entity left, Entity right) {
-								return left.id() < right.id();
-							});
+							core::sort(cursor.children, SortEntityIdCond{});
 
 							if (!cursor.children.empty()) {
 								loadedChildren = true;

@@ -3888,6 +3888,102 @@ TEST_CASE("Sort avoids quadratic ordered and duplicate-heavy inputs") {
 	}
 }
 
+TEST_CASE("Sort networks sort every 0-1 input") {
+	// 0-1 principle: a comparator network sorts every input if and only if it sorts every input of zeros and ones.
+	// core::sort runs a network for these lengths, so this checks every network exhaustively, for both overloads.
+	constexpr uint32_t MaxN = core::detail::SortNetworkMaxN;
+	for (uint32_t n = 2; n <= MaxN; ++n) {
+		CAPTURE(n);
+		uint32_t failures = 0;
+		for (uint32_t mask = 0; mask < (1U << n); ++mask) {
+			uint8_t inPlace[MaxN];
+			uint8_t swapped[MaxN];
+			GAIA_FOR(n) {
+				inPlace[i] = (uint8_t)((mask >> i) & 1U);
+				swapped[i] = inPlace[i];
+			}
+
+			core::sort(inPlace, inPlace + n, core::is_smaller<uint8_t>{});
+			core::sort(swapped, swapped + n, core::is_smaller<uint8_t>{}, [&swapped](uint32_t lhs, uint32_t rhs) {
+				core::swap(swapped[lhs], swapped[rhs]);
+			});
+
+			for (uint32_t i = 1; i < n; ++i) {
+				if (inPlace[i] < inPlace[i - 1] || swapped[i] < swapped[i - 1]) {
+					++failures;
+					break;
+				}
+			}
+		}
+		CHECK(failures == 0);
+	}
+}
+
+namespace {
+	//! Wider than a machine word, so core::sort uses insertion sort instead of a network for small ranges.
+	struct SortWideValue {
+		uint64_t key;
+		uint64_t payload[3];
+	};
+
+	//! Reference sort used to check core::sort results.
+	template <typename T, typename TCmpFunc>
+	void sort_reference(T* values, uint32_t n, TCmpFunc cmpFunc) {
+		for (uint32_t i = 1; i < n; ++i) {
+			for (uint32_t j = i; j > 0 && cmpFunc(values[j], values[j - 1]); --j)
+				core::swap(values[j], values[j - 1]);
+		}
+	}
+} // namespace
+
+TEST_CASE("Sort random ranges around the small-range limits") {
+	// Random values with many duplicates, every length from empty to past the limit where introsort takes over.
+	// Words take the network path, SortWideValue the insertion path, and the callback overload its own network.
+	constexpr uint32_t MaxN = 40;
+	uint32_t rng = 0x9E3779B9U;
+	auto next = [&rng]() {
+		rng ^= rng << 13U;
+		rng ^= rng >> 17U;
+		rng ^= rng << 5U;
+		return rng;
+	};
+	auto byKey = [](const SortWideValue& lhs, const SortWideValue& rhs) {
+		return lhs.key < rhs.key;
+	};
+
+	for (uint32_t n = 0; n <= MaxN; ++n) {
+		CAPTURE(n);
+		uint32_t failures = 0;
+		for (uint32_t trial = 0; trial < 500; ++trial) {
+			uint32_t words[MaxN];
+			uint32_t swapped[MaxN];
+			uint32_t expected[MaxN];
+			SortWideValue wide[MaxN];
+			GAIA_FOR(n) {
+				words[i] = next() % 8U;
+				swapped[i] = words[i];
+				expected[i] = words[i];
+				wide[i] = {words[i], {i, 0, 0}};
+			}
+			sort_reference(expected, n, core::is_smaller<uint32_t>{});
+
+			core::sort(words, words + n, core::is_smaller<uint32_t>{});
+			core::sort(swapped, swapped + n, core::is_smaller<uint32_t>{}, [&swapped](uint32_t lhs, uint32_t rhs) {
+				core::swap(swapped[lhs], swapped[rhs]);
+			});
+			core::sort(wide, wide + n, byKey);
+
+			GAIA_FOR(n) {
+				if (words[i] != expected[i] || swapped[i] != expected[i] || wide[i].key != expected[i]) {
+					++failures;
+					break;
+				}
+			}
+		}
+		CHECK(failures == 0);
+	}
+}
+
 //-----------------------------------------------------------------
 
 namespace {

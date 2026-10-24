@@ -7085,15 +7085,11 @@ namespace gaia {
 					walkData.cachedInput = entities;
 					ordered.clear();
 					if (!::gaia::ecs::valid(world, relation)) {
-						core::sort(entities, [](Entity left, Entity right) {
-							return left.id() < right.id();
-						});
+						core::sort(entities, SortEntityIdCond{});
 						ordered = entities;
 					} else {
 						// Keep execution deterministic regardless of archetype iteration order.
-						core::sort(entities, [](Entity left, Entity right) {
-							return left.id() < right.id();
-						});
+						core::sort(entities, SortEntityIdCond{});
 
 						const auto cnt = (uint32_t)entities.size();
 

@@ -13,9 +13,7 @@ namespace gaia {
 			obs.query.collect_entities_enabled(out);
 
 			// The later comparison walks two ordered lists instead of searching one list for every entity.
-			core::sort(out, [](Entity left, Entity right) {
-				return left.value() < right.value();
-			});
+			core::sort(out, core::is_smaller<Entity>{});
 		}
 
 		inline void ObserverRegistry::DiffDispatcher::collect_query_target_matches(
@@ -78,9 +76,7 @@ namespace gaia {
 				return;
 
 			// Sorting places duplicates next to each other and gives the diff pass a deterministic order.
-			core::sort(targets, [](Entity left, Entity right) {
-				return left.value() < right.value();
-			});
+			core::sort(targets, core::is_smaller<Entity>{});
 
 			uint32_t outIdx = 0;
 			for (uint32_t i = 0; i < targets.size(); ++i) {

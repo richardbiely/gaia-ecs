@@ -3507,9 +3507,7 @@ namespace gaia {
 						pairs.push_back(Pair(relation, target));
 					}
 
-					core::sort(pairs.begin(), pairs.end(), [](Entity left, Entity right) {
-						return left < right;
-					});
+					core::sort(pairs.begin(), pairs.end(), core::is_smaller<Entity>{});
 					for (auto pair: pairs) {
 						if (can_del(pair))
 							handle_del_nonfragmenting_relation(pair);
@@ -5647,9 +5645,7 @@ namespace gaia {
 						out.push_back(Pair(relKey.entity(), target));
 				}
 
-				core::sort(out.begin(), out.end(), [](Entity left, Entity right) {
-					return left < right;
-				});
+				core::sort(out.begin(), out.end(), core::is_smaller<Entity>{});
 			}
 
 			//! Copies directly owned non-fragmenting relation pairs without dispatching add notifications.
@@ -6709,9 +6705,7 @@ namespace gaia {
 					sources(Parent, queue[i], collectChild);
 					sources(ChildOf, queue[i], collectChild);
 
-					core::sort(children, [](Entity left, Entity right) {
-						return left.id() < right.id();
-					});
+					core::sort(children, SortEntityIdCond{});
 
 					for (const auto child: children) {
 						if (has_direct(child, isPair)) {
@@ -7839,9 +7833,7 @@ namespace gaia {
 								extra.push_back(Pair(relKey.entity(), target));
 						}
 					}
-					core::sort(extra.begin(), extra.end(), [](Entity left, Entity right) {
-						return left < right;
-					});
+					core::sort(extra.begin(), extra.end(), core::is_smaller<Entity>{});
 					for (const auto id: extra) {
 						if (!onId(id))
 							return false;
@@ -7869,9 +7861,7 @@ namespace gaia {
 						return true;
 					});
 				}
-				core::sort(inheritedIds.begin(), inheritedIds.end(), [](Entity left, Entity right) {
-					return left < right;
-				});
+				core::sort(inheritedIds.begin(), inheritedIds.end(), core::is_smaller<Entity>{});
 				for (const auto id: inheritedIds) {
 					if (!func(id))
 						return false;
@@ -8701,9 +8691,7 @@ namespace gaia {
 						children.push_back(source);
 					});
 
-					core::sort(children, [](Entity left, Entity right) {
-						return left.id() < right.id();
-					});
+					core::sort(children, SortEntityIdCond{});
 
 					for (auto child: children) {
 						cache.push_back(child);
@@ -9483,9 +9471,7 @@ namespace gaia {
 						children.push_back(source);
 					});
 
-					core::sort(children, [](Entity left, Entity right) {
-						return left.id() < right.id();
-					});
+					core::sort(children, SortEntityIdCond{});
 
 					for (auto child: children) {
 						if (!enabled(child))
@@ -9538,9 +9524,7 @@ namespace gaia {
 						children.push_back(source);
 					});
 
-					core::sort(children, [](Entity left, Entity right) {
-						return left.id() < right.id();
-					});
+					core::sort(children, SortEntityIdCond{});
 
 					for (auto child: children) {
 						if (!enabled(child))
@@ -10565,9 +10549,7 @@ namespace gaia {
 					if (store.func_count(store.pStore) != 0)
 						components.push_back(compKey.entity());
 				}
-				core::sort(components, [](Entity left, Entity right) {
-					return left.value() < right.value();
-				});
+				core::sort(components, core::is_smaller<Entity>{});
 
 				s.save((uint32_t)components.size());
 				for (auto component: components) {
@@ -10580,9 +10562,7 @@ namespace gaia {
 
 					cnt::darray<Entity> owners;
 					store.func_collect_entities(store.pStore, owners);
-					core::sort(owners, [](Entity left, Entity right) {
-						return left.value() < right.value();
-					});
+					core::sort(owners, core::is_smaller<Entity>{});
 
 					s.save(component);
 					s.save((uint32_t)owners.size());

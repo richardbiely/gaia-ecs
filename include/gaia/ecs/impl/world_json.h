@@ -1592,9 +1592,7 @@ namespace gaia {
 			}
 			for (auto& [owner, components]: nonFragmentingSparseByOwner) {
 				(void)owner;
-				core::sort(components, [](Entity left, Entity right) {
-					return left.value() < right.value();
-				});
+				core::sort(components, core::is_smaller<Entity>{});
 			}
 
 			ser::bin_stream binarySnapshot;

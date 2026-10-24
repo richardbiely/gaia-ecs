@@ -363,6 +363,18 @@ namespace gaia {
 
 		inline static const Entity EntityBad = Entity(IdentifierBad);
 
+		//! Orders entities by id only, ignoring the generation and the other packed bits.
+		//! Sorts that need this order share the type, so each translation unit instantiates the sort once.
+		//! Use core::is_smaller<Entity> to order by the full value instead.
+		struct SortEntityIdCond {
+			//! \param lhs Left entity.
+			//! \param rhs Right entity.
+			//! \return True when \a lhs has a smaller id than \a rhs.
+			GAIA_NODISCARD constexpr bool operator()(Entity lhs, Entity rhs) const noexcept {
+				return lhs.id() < rhs.id();
+			}
+		};
+
 		//! \cond INTERNAL
 		namespace detail {
 			struct EntityLoadRemapState {

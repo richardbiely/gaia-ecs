@@ -145,9 +145,7 @@ namespace gaia {
 					for (const auto& pair: pairSrcToTgt)
 						out.push_back(pair.first.entity());
 
-					core::sort(out.begin() + first, out.end(), [](Entity left, Entity right) {
-						return left.value() < right.value();
-					});
+					core::sort(out.begin() + first, out.end(), core::is_smaller<Entity>{});
 				}
 
 				//! Removes \a source from the source bucket for \a target.

@@ -1971,6 +1971,36 @@ namespace gaia {
 				m_state.exec.inheritedDataPending = false;
 			}
 
+			//! Reorders the archetype cache so position i holds the entry whose initial cache index is stored in the low
+			//! 32 bits of \a sortedKeys[i]. Moves every entry at most once, with one swap_archetype_cache_entry() each.
+			//! \param sortedKeys Sorted keys. Their low 32 bits are distinct initial cache indices.
+			void apply_archetype_cache_order(std::span<const uint64_t> sortedKeys) {
+				const auto cnt = (uint32_t)sortedKeys.size();
+				// pos[e] is where the entry with initial index e is now. at[p] is the initial index of the entry at p.
+				cnt::darray_ext<uint32_t, 32> pos;
+				cnt::darray_ext<uint32_t, 32> at;
+				pos.resize(cnt);
+				at.resize(cnt);
+				GAIA_FOR(cnt) {
+					pos[i] = i;
+					at[i] = i;
+				}
+
+				GAIA_FOR(cnt) {
+					const auto want = (uint32_t)sortedKeys[i];
+					const auto cur = pos[want];
+					if (cur == i)
+						continue;
+
+					swap_archetype_cache_entry(i, cur);
+					const auto displaced = at[i];
+					at[cur] = displaced;
+					pos[displaced] = cur;
+					at[i] = want;
+					pos[want] = i;
+				}
+			}
+
 			//! Rebuilds grouped archetype ranges when a caller needs ordered group data.
 			//! \param orderGroups True to order archetypes by group id even when the query was not explicitly ordered.
 			//! \note Plain grouped iteration passes false so group_by(...) does not sort the cache by itself.
@@ -1989,18 +2019,10 @@ namespace gaia {
 					sortKeys[i] = ((uint64_t)m_state.grouped.archetypeGroupIds[i] << 32U) | i;
 				}
 
-				struct sort_cond {
-					bool operator()(uint64_t a, uint64_t b) const {
-						return a < b;
-					}
-				};
-
-				core::sort(sortKeys, sort_cond{}, [&](uint32_t left, uint32_t right) {
-					const auto tmp = sortKeys[left];
-					sortKeys[left] = sortKeys[right];
-					sortKeys[right] = tmp;
-					swap_archetype_cache_entry(left, right);
-				});
+				// The keys are unique, so sort them alone and then move each cache entry once. Dragging the cache entries
+				// through every swap of the sort would cost more swaps and inline the heavy swap into the sorting networks.
+				core::sort(sortKeys, core::is_smaller<uint64_t>{});
+				apply_archetype_cache_order(sortKeys);
 
 				m_state.grouped.archetypeGroupData.clear();
 				m_state.grouped.selectedGroupDataValid = false;
@@ -2095,8 +2117,8 @@ namespace gaia {
 						compIdx = core::get_index(pArchetype->ids_view(), queryId);
 					}
 
-					cacheData.indices[fieldIdx] = (compIdx != BadIndex && compIdx != ComponentIndexBad &&
-																				 compIdx < pArchetype->ids_view().size())
+					cacheData.indices[fieldIdx] =
+							(compIdx != BadIndex && compIdx != ComponentIndexBad && compIdx < pArchetype->ids_view().size())
 									? (uint8_t)compIdx
 									: (uint8_t)0xFF;
 				}

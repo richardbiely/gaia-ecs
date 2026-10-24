@@ -290,9 +290,7 @@ namespace gaia {
 					const auto firstPair = out.size();
 					for (const auto& item: pairData)
 						out.push_back(item.first.entity());
-					core::sort(out.begin() + firstPair, out.end(), [](Entity left, Entity right) {
-						return left.value() < right.value();
-					});
+					core::sort(out.begin() + firstPair, out.end(), core::is_smaller<Entity>{});
 				}
 
 				//! Visits every sparse payload owner in deterministic order.
@@ -312,9 +310,7 @@ namespace gaia {
 					pairEntities.reserve((uint32_t)pairData.size());
 					for (const auto& item: pairData)
 						pairEntities.push_back(item.first.entity());
-					core::sort(pairEntities.begin(), pairEntities.end(), [](Entity left, Entity right) {
-						return left.value() < right.value();
-					});
+					core::sort(pairEntities.begin(), pairEntities.end(), core::is_smaller<Entity>{});
 					for (auto entity: pairEntities) {
 						if (!func(ctx, entity))
 							return false;
@@ -464,9 +460,7 @@ namespace gaia {
 					const auto firstPair = out.size();
 					for (const auto& item: pairData)
 						out.push_back(item.first.entity());
-					core::sort(out.begin() + firstPair, out.end(), [](Entity left, Entity right) {
-						return left.value() < right.value();
-					});
+					core::sort(out.begin() + firstPair, out.end(), core::is_smaller<Entity>{});
 				}
 
 				//! Visits every sparse payload owner in deterministic order.
@@ -486,9 +480,7 @@ namespace gaia {
 					pairEntities.reserve((uint32_t)pairData.size());
 					for (const auto& item: pairData)
 						pairEntities.push_back(item.first.entity());
-					core::sort(pairEntities.begin(), pairEntities.end(), [](Entity left, Entity right) {
-						return left.value() < right.value();
-					});
+					core::sort(pairEntities.begin(), pairEntities.end(), core::is_smaller<Entity>{});
 					for (auto entity: pairEntities) {
 						if (!func(ctx, entity))
 							return false;
