@@ -23926,7 +23926,7 @@ namespace gaia {
 	//! Invokes a callable or a pointer to member using standard invocation semantics.
 	//! \note Unlike std::invoke, std::reference_wrapper objects are not unwrapped for pointers to members.
 	//!       Pass a pointer to the object instead (e.g. `invoke(&T::func, &obj)`).
-	//!       Support is left out on purpose so <functional> is not needed. Forward-declaring
+	//!       Support is left out on purpose so `<functional>` is not needed. Forward-declaring
 	//!       std::reference_wrapper is UB (and breaks with libc++'s inline namespace), and duck-typing
 	//!       it could silently unwrap user types. If a real need appears, add a small gaia-owned wrapper.
 	//!       Wrapped callables, such as `invoke(std::ref(lambda))`, still work through their operator().
