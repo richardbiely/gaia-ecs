@@ -191,6 +191,7 @@ var annotated_dup =
         [ "SchedTaskDesc", "structgaia_1_1ecs_1_1SchedTaskDesc.html", "structgaia_1_1ecs_1_1SchedTaskDesc" ],
         [ "SchedToken", "structgaia_1_1ecs_1_1SchedToken.html", "structgaia_1_1ecs_1_1SchedToken" ],
         [ "SingleArchetypeLookupItem", "structgaia_1_1ecs_1_1SingleArchetypeLookupItem.html", "structgaia_1_1ecs_1_1SingleArchetypeLookupItem" ],
+        [ "SortEntityIdCond", "structgaia_1_1ecs_1_1SortEntityIdCond.html", "structgaia_1_1ecs_1_1SortEntityIdCond" ],
         [ "Sparse_", "structgaia_1_1ecs_1_1Sparse__.html", null ],
         [ "SymbolId", "structgaia_1_1ecs_1_1SymbolId.html", "structgaia_1_1ecs_1_1SymbolId" ],
         [ "System_", "structgaia_1_1ecs_1_1System__.html", null ],

@@ -111,7 +111,7 @@ $(document).ready(function(){initNavTree('structgaia_1_1core_1_1fixed__capacity.
 </div><!--header-->
 <div class="contents">
 
-<p>Compile-time capacity of a container that can never grow. Zero for containers that can. Fixed-capacity containers specialize this so algorithms skip code for sizes they can never hold, e.g. sort() with a swap callback only instantiates sorting networks up to this capacity.  
+<p>Compile-time capacity of a container that can never grow. Zero for containers that can. Fixed-capacity containers specialize this so algorithms skip code for sizes they can never hold, e.g. sort() only instantiates the sorting networks and the introsort path this capacity can reach.  
  <a href="structgaia_1_1core_1_1fixed__capacity.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="utility_8h_source.html">utility.h</a>&gt;</code></p>
@@ -125,7 +125,7 @@ $(document).ready(function(){initNavTree('structgaia_1_1core_1_1fixed__capacity.
  </div></div>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><div class="compoundTemplParams">template&lt;typename C&gt;<br />
-struct gaia::core::fixed_capacity&lt; C &gt;</div><p>Compile-time capacity of a container that can never grow. Zero for containers that can. Fixed-capacity containers specialize this so algorithms skip code for sizes they can never hold, e.g. sort() with a swap callback only instantiates sorting networks up to this capacity. </p>
+struct gaia::core::fixed_capacity&lt; C &gt;</div><p>Compile-time capacity of a container that can never grow. Zero for containers that can. Fixed-capacity containers specialize this so algorithms skip code for sizes they can never hold, e.g. sort() only instantiates the sorting networks and the introsort path this capacity can reach. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">C</td><td>Container type. </td></tr>

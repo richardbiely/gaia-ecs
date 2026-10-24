@@ -356,6 +356,7 @@ var hierarchy =
     [ "gaia::mem::SmallBlockAllocatorPageStats", "structgaia_1_1mem_1_1SmallBlockAllocatorPageStats.html", null ],
     [ "gaia::mem::SmallBlockAllocatorStats", "structgaia_1_1mem_1_1SmallBlockAllocatorStats.html", null ],
     [ "gaia::util::SmallFunc", "classgaia_1_1util_1_1SmallFunc.html", null ],
+    [ "gaia::ecs::SortEntityIdCond", "structgaia_1_1ecs_1_1SortEntityIdCond.html", null ],
     [ "gaia::core::span< T, Extent >", "classgaia_1_1core_1_1span.html", null ],
     [ "gaia::ecs::Sparse_", "structgaia_1_1ecs_1_1Sparse__.html", null ],
     [ "gaia::cnt::sparse_iterator< T, PageCapacity, Allocator, typename >", "structgaia_1_1cnt_1_1sparse__iterator.html", null ],

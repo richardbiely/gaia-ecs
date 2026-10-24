@@ -18,6 +18,7 @@ var classgaia_1_1ecs_1_1QueryInfo =
     [ "add_archetype_to_transient_cache", "classgaia_1_1ecs_1_1QueryInfo.html#afc079fc1d768ccc06b63ce3651260303", null ],
     [ "add_new_archetype_to_immediate_caches", "classgaia_1_1ecs_1_1QueryInfo.html#a08935085964f20981e43a262f80937ed", null ],
     [ "add_ref", "classgaia_1_1ecs_1_1QueryInfo.html#a9968e5807d89168102d919a81c5a46b7", null ],
+    [ "apply_archetype_cache_order", "classgaia_1_1ecs_1_1QueryInfo.html#a0e9baa65fd6deb3ba9b76286da0b661a", null ],
     [ "barrier_may_prune", "classgaia_1_1ecs_1_1QueryInfo.html#a2dbea71a4eada5267f7f991d3e417944", null ],
     [ "barrier_passes", "classgaia_1_1ecs_1_1QueryInfo.html#a30842eb38a2f84250d6867158c651752", null ],
     [ "begin", "classgaia_1_1ecs_1_1QueryInfo.html#acf05f5b41308e6c619de9882ea921465", null ],

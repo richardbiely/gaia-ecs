@@ -1,5 +1,8 @@
 var NAVTREEINDEX14 =
 {
+"structgaia_1_1mem_1_1data__view__policy__aos__set.html#aeea484a069d46612991a792f664a41bb":[9,0,0,3,13,0],
+"structgaia_1_1mem_1_1data__view__policy__aos__set.html#aeedfa54c446f894b79593563491e8e74":[9,0,0,3,13,1],
+"structgaia_1_1mem_1_1data__view__policy__get.html":[9,0,0,3,14],
 "structgaia_1_1mem_1_1data__view__policy__get_3_01DataLayout_1_1AoS_00_01ValueType_01_4.html":[9,0,0,3,15],
 "structgaia_1_1mem_1_1data__view__policy__get_3_01DataLayout_1_1SoA16_00_01ValueType_01_4.html":[9,0,0,3,17],
 "structgaia_1_1mem_1_1data__view__policy__get_3_01DataLayout_1_1SoA8_00_01ValueType_01_4.html":[9,0,0,3,18],

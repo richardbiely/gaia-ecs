@@ -1,5 +1,6 @@
 var NAVTREEINDEX10 =
 {
+"structgaia_1_1cnt_1_1sringbuffer__iterator.html#a108d26e221b985d72502ca40f809aa3f":[9,0,0,0,35,9],
 "structgaia_1_1cnt_1_1sringbuffer__iterator.html#a250c26fcead96f372424ee41c723d94e":[9,0,0,0,35,23],
 "structgaia_1_1cnt_1_1sringbuffer__iterator.html#a26d38e358ad0ac3f5525bc042655fd88":[9,0,0,0,35,11],
 "structgaia_1_1cnt_1_1sringbuffer__iterator.html#a27ddeadb19282a8087e041be38ce91d5":[9,0,0,0,35,10],
@@ -248,6 +249,5 @@ var NAVTREEINDEX10 =
 "structgaia_1_1ecs_1_1ComponentSetter.html#a1067a5493d60d91fd1df03acad388103":[9,0,0,2,32,2],
 "structgaia_1_1ecs_1_1ComponentSetter.html#a15db43efd6c499598e32cc6c6a9566aa":[9,0,0,2,32,3],
 "structgaia_1_1ecs_1_1ComponentSetter.html#a1d90e4264d7d7dca8c9534c8832debbe":[9,0,0,2,32,11],
-"structgaia_1_1ecs_1_1ComponentSetter.html#a298ca25d1075f22d7abf6c1e65077778":[9,0,0,2,32,4],
-"structgaia_1_1ecs_1_1ComponentSetter.html#a437e9161b124b742f342394483877867":[9,0,0,2,32,5]
+"structgaia_1_1ecs_1_1ComponentSetter.html#a298ca25d1075f22d7abf6c1e65077778":[9,0,0,2,32,4]
 };
