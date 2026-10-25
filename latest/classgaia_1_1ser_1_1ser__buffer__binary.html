@@ -111,7 +111,7 @@ $(document).ready(function(){initNavTree('classgaia_1_1ser_1_1ser__buffer__binar
 </div><!--header-->
 <div class="contents">
 
-<p>Minimal in-memory binary serializer. It stores raw bytes only (no schema, versioning, or type metadata). Uses a growth-policy-backed container with fixed capacity increment.  
+<p>Minimal in-memory binary serializer. It stores raw bytes only (no schema, versioning, or type metadata). Small buffers stay in inline storage, larger ones grow geometrically on the heap.  
  <a href="classgaia_1_1ser_1_1ser__buffer__binary.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="ser__buffer__binary_8h_source.html">ser_buffer_binary.h</a>&gt;</code></p>
@@ -124,7 +124,7 @@ $(document).ready(function(){initNavTree('classgaia_1_1ser_1_1ser__buffer__binar
   <img src="classgaia_1_1ser_1_1ser__buffer__binary.png" alt=""/>
  </div></div>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>Minimal in-memory binary serializer. It stores raw bytes only (no schema, versioning, or type metadata). Uses a growth-policy-backed container with fixed capacity increment. </p>
+<div class="textblock"><p>Minimal in-memory binary serializer. It stores raw bytes only (no schema, versioning, or type metadata). Small buffers stay in inline storage, larger ones grow geometrically on the heap. </p>
 </div><hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ser/<a class="el" href="ser__buffer__binary_8h_source.html">ser_buffer_binary.h</a></li>
 </ul>

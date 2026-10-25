@@ -3064,7 +3064,7 @@ Serialization</h2>
 </ul>
 <p>Both modes share the same traversal behavior and customization points (<code>save/load</code> members or <code>tag_invoke</code>). These APIs are for binary serialization traversal, not for JSON document authoring/parsing.</p>
 <p>Quick overview of serializer types:</p><ul>
-<li><code>ser::ser_buffer_binary</code> / <code>ser::ser_buffer_binary_dyn</code>: in-memory raw byte streams (no schema/version/type metadata)</li>
+<li><code>ser::ser_buffer_binary</code> / <code>ser::ser_buffer_binary_dyn</code>: in-memory raw byte streams (no schema/version/type metadata). Their capacity grows by half again once outgrown, so writing N bytes relocates the buffer O(log N) times</li>
 <li><code>ser::serializer</code>: non-owning runtime serializer reference (type-erased)</li>
 <li><code>ser::bin_stream</code>: default owning in-memory binary backend for <code>ecs::World</code></li>
 </ul>
