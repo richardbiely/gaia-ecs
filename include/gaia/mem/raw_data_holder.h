@@ -13,7 +13,7 @@ namespace gaia {
 			struct raw_data_holder {
 				static_assert(Size > 0);
 
-				GAIA_ALIGNAS(Alignment) uint8_t data[Size];
+				alignas(Alignment) uint8_t data[Size];
 
 				constexpr operator uint8_t*() noexcept {
 					return &data[0];

@@ -27,8 +27,8 @@ namespace gaia {
 
 			static_assert(sizeof(std::atomic_uint32_t) == sizeof(JobHandle));
 			cnt::sarray<std::atomic_uint32_t, N> m_buffer;
-			GAIA_ALIGNAS(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom;
-			GAIA_ALIGNAS(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top;
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom;
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top;
 
 		public:
 			JobQueue() {
@@ -183,8 +183,8 @@ namespace gaia {
 			GAIA_MSVC_WARNING_DISABLE(4324)
 
 			mem::raw_data_holder<Node, allocated_bytes> m_data;
-			GAIA_ALIGNAS(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_pushPos;
-			GAIA_ALIGNAS(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_popPos;
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_pushPos;
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_popPos;
 
 			GAIA_MSVC_WARNING_POP()
 

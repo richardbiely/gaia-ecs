@@ -4958,7 +4958,7 @@ Compiler with a support of [C++17](https://en.cppreference.com/w/cpp/17) is requ
 The project is [continuously tested](https://github.com/richardbiely/gaia-ecs/actions/workflows/build.yml) and guaranteed to build warning-free on the following compilers:<br/>
 - [MSVC](https://visualstudio.microsoft.com/) 15 (Visual Studio 2017) or later<br/>
 - [Clang](https://clang.llvm.org/) 7 or later<br/>
-- [GCC](https://www.gnu.org/software/gcc/) 7 or later<br/>
+- [GCC](https://www.gnu.org/software/gcc/) 10 or later<br/>
 
 ## Dependencies
 [CMake](https://cmake.org) 3.14 or later is required to prepare the build. Other tools are officially not supported at the moment. However, nothing stops you from placing [gaia.h](#single-header) into your project.

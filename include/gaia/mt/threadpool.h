@@ -92,7 +92,7 @@ namespace gaia {
 			//! Array of worker threads
 			cnt::sarray_ext<GAIA_THREAD, MaxWorkers> m_workers;
 			//! Array of data associated with workers
-			GAIA_ALIGNAS(128) cnt::sarray_ext<ThreadCtx, MaxWorkers> m_workersCtx;
+			alignas(128) cnt::sarray_ext<ThreadCtx, MaxWorkers> m_workersCtx;
 			//! Global job queue
 			MpmcQueue<JobHandle, 1024> m_jobQueue[JobPriorityCnt];
 			//! Global queue for background jobs that may span multiple frames.

@@ -38,8 +38,6 @@
 	#error "To build Gaia-ECS a compiler capable of at least C++17 is necessary"
 #endif
 
-#define GAIA_SAFE_CONSTEXPR constexpr
-
 #define GAIA_USE_STD_SPAN (GAIA_CPP_VERSION(202002L) && __has_include(<span>))
 
 //------------------------------------------------------------------------------
@@ -84,13 +82,6 @@
 	#define GAIA_COMPILER_GCC 1
 	#undef GAIA_COMPILER_DETECTED
 	#define GAIA_COMPILER_DETECTED 1
-	#if __GNUC__ <= 7
-		// In some contexts, e.g. when evaluating PRETTY_FUNCTION, GCC has a bug
-		// where the string is not defined a constexpr and thus can't be evaluated
-		// in constexpr expressions.
-		#undef GAIA_SAFE_CONSTEXPR
-		#define GAIA_SAFE_CONSTEXPR const
-	#endif
 #endif
 #if !GAIA_COMPILER_DETECTED && (defined(_MSC_VER))
 	#undef GAIA_COMPILER_MSVC
@@ -274,17 +265,6 @@ namespace gaia {
 #endif
 #ifndef GAIA_FALLTHROUGH
 	#define GAIA_FALLTHROUGH
-#endif
-
-// GCC 7 and some later versions had a bug that would artificially restrict alignas for stack
-// variables to 16 bytes.
-// However, using the compiler custom attribute would still work. Therefore, because it is
-// more portable, we shall introduce the GAIA_ALIGNAS macro.
-// Read about the bug here: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=89357
-#if GAIA_COMPILER_GCC
-	#define GAIA_ALIGNAS(alignment) __attribute__((aligned(alignment)))
-#else
-	#define GAIA_ALIGNAS(alignment) alignas(alignment)
 #endif
 
 #ifndef GAIA_CACHELINE_SIZE

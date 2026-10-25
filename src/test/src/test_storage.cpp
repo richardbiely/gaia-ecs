@@ -145,13 +145,13 @@ namespace {
 	struct OverAlignedByte {
 		uint8_t value;
 	};
-	struct GAIA_ALIGNAS(16) OverAligned16 {
+	struct alignas(16) OverAligned16 {
 		float x, y, z, w;
 	};
-	struct GAIA_ALIGNAS(64) OverAligned64 {
+	struct alignas(64) OverAligned64 {
 		uint32_t value;
 	};
-	struct GAIA_ALIGNAS(alignof(std::max_align_t)) OverAlignedSparse {
+	struct alignas(std::max_align_t) OverAlignedSparse {
 		GAIA_STORAGE(Sparse);
 		uint32_t value;
 	};
