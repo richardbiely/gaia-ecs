@@ -141,6 +141,25 @@ namespace {
 		}
 	}
 
+	struct OverAlignedTag {};
+	struct OverAlignedByte {
+		uint8_t value;
+	};
+	struct GAIA_ALIGNAS(16) OverAligned16 {
+		float x, y, z, w;
+	};
+	struct GAIA_ALIGNAS(64) OverAligned64 {
+		uint32_t value;
+	};
+	struct GAIA_ALIGNAS(alignof(std::max_align_t)) OverAlignedSparse {
+		GAIA_STORAGE(Sparse);
+		uint32_t value;
+	};
+
+	bool is_aligned_to(const void* ptr, uintptr_t alig) {
+		return (uintptr_t)ptr % alig == 0;
+	}
+
 	void expect_unique_direct_ids(const ecs::World& world, ecs::Entity entity, const cnt::darray<ecs::Entity>& ids) {
 		expect_unique_ids(ids);
 		GAIA_FOR_((uint32_t)ids.size(), idx) {
@@ -2845,5 +2864,101 @@ TEST_CASE("World ids enumeration") {
 		CHECK(contains_id(ids, (ecs::Entity)ecs::Pair(ecs::Is, prefab)));
 		CHECK(wld.has(instance, position));
 		CHECK_FALSE(wld.has_direct(instance, position));
+	}
+}
+
+TEST_CASE("Component storage alignment matches alignof") {
+	// Natural alignment is kept as-is, small types are not padded to pointer size.
+	static_assert(mem::auto_view_policy<OverAlignedByte>::Alignment == 1);
+	static_assert(mem::auto_view_policy<uint16_t>::Alignment == alignof(uint16_t));
+	static_assert(mem::auto_view_policy<OverAligned16>::Alignment == 16);
+	static_assert(mem::auto_view_policy<OverAligned64>::Alignment == 64);
+	static_assert(mem::auto_view_policy<OverAlignedTag>::Alignment == 0);
+
+	TestWorld twld;
+	CHECK(wld.add<OverAligned16>().comp.alig() == 16);
+	CHECK(wld.add<OverAligned64>().comp.alig() == 64);
+}
+
+TEST_CASE("Over-aligned table components stay aligned across archetype moves") {
+	TestWorld twld;
+
+	// Each add moves the entity to a new archetype. The 1-byte column ahead of
+	// the over-aligned ones forces padding in every layout.
+	constexpr uint32_t N = 100;
+	cnt::darray<ecs::Entity> entities;
+	GAIA_FOR(N) {
+		const auto e = wld.add();
+		wld.add<OverAlignedByte>(e, {(uint8_t)i});
+		wld.add<OverAligned16>(e, {(float)i, 2.0f, 3.0f, 4.0f});
+		wld.add<OverAligned64>(e, {i});
+		wld.add<OverAlignedTag>(e);
+		entities.push_back(e);
+	}
+
+	GAIA_FOR(N) {
+		const auto e = entities[i];
+		const auto& v16 = wld.get<OverAligned16>(e);
+		const auto& v64 = wld.get<OverAligned64>(e);
+		CHECK(is_aligned_to(&v16, alignof(OverAligned16)));
+		CHECK(is_aligned_to(&v64, alignof(OverAligned64)));
+		CHECK(v16.x == doctest::Approx((float)i));
+		CHECK(v16.w == doctest::Approx(4.0f));
+		CHECK(v64.value == i);
+		CHECK(wld.get<OverAlignedByte>(e).value == (uint8_t)i);
+	}
+
+	// Moving back out of the over-aligned archetypes keeps the remaining data intact.
+	GAIA_FOR(N) {
+		const auto e = entities[i];
+		wld.del<OverAlignedByte>(e);
+		const auto& v64 = wld.get<OverAligned64>(e);
+		CHECK(is_aligned_to(&v64, alignof(OverAligned64)));
+		CHECK(v64.value == i);
+	}
+}
+
+TEST_CASE("Over-aligned sparse component is aligned") {
+	TestWorld twld;
+
+	cnt::darray<ecs::Entity> entities;
+	GAIA_FOR(100) {
+		const auto e = wld.add();
+		wld.add<OverAlignedByte>(e, {(uint8_t)i});
+		wld.add<OverAlignedSparse>(e, {i});
+		entities.push_back(e);
+	}
+
+	GAIA_FOR(100) {
+		const auto& value = wld.get<OverAlignedSparse>(entities[i]);
+		CHECK(is_aligned_to(&value, alignof(OverAlignedSparse)));
+		CHECK(value.value == i);
+	}
+}
+
+TEST_CASE("Over-aligned runtime table component stays aligned across archetype moves") {
+	TestWorld twld;
+
+	constexpr uint32_t Alig = 32;
+	const auto& item = add_runtime_component(wld, "Runtime_OverAligned32", Alig, ecs::DataStorageType::Table, Alig);
+	CHECK(item.comp.alig() == Alig);
+
+	cnt::darray<ecs::Entity> entities;
+	GAIA_FOR(100) {
+		const auto e = wld.add();
+		wld.add<OverAlignedByte>(e, {(uint8_t)i});
+		uint8_t payload[Alig]{};
+		payload[0] = (uint8_t)i;
+		CHECK(wld.add_raw(e, item.entity, payload, Alig));
+		entities.push_back(e);
+	}
+
+	GAIA_FOR(100) {
+		const auto view = wld.get_raw(entities[i], item.entity);
+		CHECK(view.valid());
+		if (!view.valid())
+			continue;
+		CHECK(is_aligned_to(view.data, Alig));
+		CHECK(((const uint8_t*)view.data)[0] == (uint8_t)i);
 	}
 }

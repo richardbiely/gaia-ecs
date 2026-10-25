@@ -357,17 +357,15 @@ namespace gaia {
 			}
 
 			//! Calculates offsets in memory at which important chunk data is going to be stored.
-			//! These offsets are use to setup the chunk data area layout.
-			//! \param memoryAddress Memory address used to calculate offsets
-			void update_data_offsets(uintptr_t memoryAddress) {
+			//! These offsets are use to setup the chunk data area layout. They are relative to the chunk data area
+			//! which is MemoryBlockAlignment-aligned.
+			void update_data_offsets() {
 				uintptr_t offset = 0;
 
 				// Versions
 				// We expect versions to fit in the first 256 bytes.
 				// With 32 components per archetype this gives us some headroom.
 				{
-					offset += mem::padding<alignof(ComponentVersion)>(memoryAddress);
-
 					const auto cnt = (uint32_t)m_shape.properties.cntEntities + 1U; // + 1 for entities
 					GAIA_ASSERT(offset < 256);
 					m_shape.dataOffsets.firstByte_Versions = (ChunkDataVersionOffset)offset;
@@ -453,6 +451,8 @@ namespace gaia {
 						ofs[compIdx] = {};
 					} else {
 						const auto alig = comp.alig();
+						// Offsets are relative to the chunk data area which is only MemoryBlockAlignment-aligned
+						GAIA_ASSERT(alig <= MemoryBlockAlignment);
 						currOff = mem::align(currOff, alig);
 						ofs[compIdx] = (ChunkDataOffset)currOff;
 
@@ -557,14 +557,7 @@ namespace gaia {
 				GAIA_FOR(cnt) compItems[i] = ids[i].pair() ? cc.find_pair_payload(ids[i]) : cc.find(ids[i]);
 
 				// Calculate offsets
-				static auto ChunkDataAreaOffset = Chunk::chunk_data_area_offset();
-				newArch->update_data_offsets(
-						// This is not a real memory address.
-						// Chunk memory is organized as header+data. The offsets we calculate here belong to
-						// the data area.
-						// Every allocated chunk is going to have the same relative offset from the header part
-						// which is why providing a fictional relative offset is enough.
-						ChunkDataAreaOffset);
+				newArch->update_data_offsets();
 				const auto& offs = newArch->m_shape.dataOffsets;
 				newArch->m_pPairIndex = PairIndexData::create(ids);
 

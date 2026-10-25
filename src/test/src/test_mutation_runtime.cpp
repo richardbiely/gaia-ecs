@@ -935,14 +935,14 @@ TEST_CASE("ChunkAllocator") {
 	}
 	#endif
 
-	SUBCASE("chunk data starts at the requested alignment") {
+	SUBCASE("allocated memory follows the block header of an aligned block") {
 		auto& alloc = ecs::ChunkAllocator::get();
 		alloc.flush(true);
 		alloc.verify();
 
+		// Chunk::chunk_header_size() relies on this placement to reserve the exact data area padding
 		void* pChunkMem = alloc.alloc(ecs::MinMemoryBlockSize);
-		const auto dataAddr = (uintptr_t)pChunkMem + ecs::Chunk::chunk_data_area_offset();
-		CHECK(dataAddr % ecs::MemoryBlockAlignment == 0);
+		CHECK((uintptr_t)pChunkMem % ecs::MemoryBlockAlignment == ecs::MemoryBlockUsableOffset);
 
 		alloc.free(pChunkMem);
 		alloc.verify();

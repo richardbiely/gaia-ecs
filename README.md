@@ -3670,7 +3670,9 @@ process_data(pz.data(), vz.data(), it.size());
 ...
 ```
 
-Different layouts use different memory alignments. **GAIA_LAYOUT(SoA)** and **GAIA_LAYOUT(AoS)** align data to 8-byte boundaries, while **GAIA_LAYOUT(SoA8)** and **GAIA_LAYOUT(SoA16)** align to 16 and 32 bytes respectively. This makes them a good candidate for AVX and AVX512 instruction sets (or their equivalent on different platforms, such as NEON on ARM).
+Different layouts use different memory alignments. **GAIA_LAYOUT(AoS)** keeps the natural alignment of the component (`alignof(T)`), so over-aligned types such as `struct alignas(16) Vec4` are stored at 16-byte boundaries. **GAIA_LAYOUT(SoA)**, **GAIA_LAYOUT(SoA8)** and **GAIA_LAYOUT(SoA16)** align each field array to 16, 32 and 64 bytes respectively. This makes them a good candidate for SSE, AVX and AVX512 instruction sets (or their equivalent on different platforms, such as NEON on ARM).
+
+Table storage supports component alignments up to 64 bytes because the chunk data area is 64-byte aligned. Typed sparse storage supports alignments up to `alignof(std::max_align_t)`. Typed components that exceed the limit of their storage fail to compile. Runtime table components aligned to more than 64 bytes trigger an assertion, and runtime sparse payloads can use any alignment.
 
 ## Serialization
 Any data structure can be serialized into the provided serialization buffer. Native types, compound types, arrays, or any types exposing size(), begin() and end() functions are supported out of the box. If a resize() function is available, it will be used automatically.

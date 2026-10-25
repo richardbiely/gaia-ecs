@@ -56,15 +56,13 @@ namespace gaia {
 			//!			4) Entities (identifiers)
 			//!			5) Entities (data)
 			//! Note, root archetypes store only entities, therefore it is fully occupied with entities.
+			//! The data itself starts at the first MemoryBlockAlignment boundary inside m_data, see create().
 			//! Use m_data[1], not something bigger, to avoid triggering sanitizers. They will understand this
 			//! is a flexible array.
 			uint8_t m_data[1];
 
 			GAIA_MSVC_WARNING_PUSH()
 			GAIA_MSVC_WARNING_DISABLE(26495)
-
-			// Hidden default constructor. Only use to calculate the relative offset of m_data
-			Chunk() = default;
 
 			Chunk(
 					const World& wld, const ComponentCache& cc, //
@@ -83,17 +81,19 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Caches pointers into the data area. Archetype offsets are relative to \a pDataArea.
+			//! \param pDataArea MemoryBlockAlignment-aligned start of the data area inside m_data.
 			void init(
-					uint32_t cntEntities, const Entity* ids, const ComponentCacheItem* const* pItems,
+					uint8_t* pDataArea, uint32_t cntEntities, const Entity* ids, const ComponentCacheItem* const* pItems,
 					const ChunkDataOffsets& headerOffsets, const ChunkDataOffset* compOffs) {
 				m_header.cntEntities = (uint8_t)cntEntities;
 
 				// Cache pointers to versions
-				m_records.pVersions = (ComponentVersion*)&data(headerOffsets.firstByte_Versions);
+				m_records.pVersions = (ComponentVersion*)(pDataArea + headerOffsets.firstByte_Versions);
 
 				// Cache entity ids
 				if (cntEntities > 0) {
-					auto* dst = m_records.pCompEntities = (Entity*)&data(headerOffsets.firstByte_CompEntities);
+					auto* dst = m_records.pCompEntities = (Entity*)(pDataArea + headerOffsets.firstByte_CompEntities);
 
 					// We treat the entity array as if were MAX_COMPONENTS long.
 					// Real size can be smaller.
@@ -106,17 +106,17 @@ namespace gaia {
 
 				// Cache component records
 				if (cntEntities > 0) {
-					auto* dst = m_records.pRecords = (ComponentRecord*)&data(headerOffsets.firstByte_Records);
+					auto* dst = m_records.pRecords = (ComponentRecord*)(pDataArea + headerOffsets.firstByte_Records);
 					GAIA_FOR_(cntEntities, j) {
 						dst[j].comp = pItems[j] == nullptr //
 															? Component(IdentifierIdBad, 0, 0, 0, DataStorageType::Table)
 															: archetype_component(ids[j], pItems[j]->comp);
-						dst[j].pData = &data(compOffs[j]);
+						dst[j].pData = pDataArea + compOffs[j];
 						dst[j].pItem = pItems[j];
 					}
 				}
 
-				m_records.pEntities = (Entity*)&data(headerOffsets.firstByte_EntityData);
+				m_records.pEntities = (Entity*)(pDataArea + headerOffsets.firstByte_EntityData);
 
 				// Now that records are set, we use the cached component descriptors to set ctor/dtor masks.
 				{
@@ -387,17 +387,23 @@ namespace gaia {
 			Chunk& operator=(Chunk&& chunk) = delete;
 			~Chunk() = default;
 
-			//! Size in bytes of the chunk header area reserved before entity and component data.
+			//! Size in bytes reserved in front of entity and component data, counted from the start of the chunk
+			//! allocation. It covers the allocator prefix, the chunk object and the padding create() adds to align
+			//! the data area.
 			//! \return Header size in bytes.
 			static constexpr uint16_t chunk_header_size() {
-				const auto dataAreaOffset =
-						// ChunkAllocator reserves the first few bytes for internal purposes
-						MemoryBlockUsableOffset +
-						// Chunk "header" area (before actual entity/component data starts)
-						sizeof(ChunkHeader) + sizeof(ChunkRecords);
-				static_assert(dataAreaOffset % MemoryBlockAlignment == 0);
-				static_assert(dataAreaOffset < UINT16_MAX);
-				return dataAreaOffset;
+				// Chunk "header" area (before actual entity/component data starts)
+				constexpr uint32_t chunkBytes = sizeof(ChunkHeader) + sizeof(ChunkRecords);
+#if GAIA_ECS_CHUNK_ALLOCATOR
+				// Blocks are MemoryBlockAlignment-aligned and the chunk follows the block header so the padding is known
+				static_assert(MemoryBlockUsableOffset % alignof(Chunk) == 0);
+				constexpr uint32_t headerBytes = mem::align<MemoryBlockAlignment>(MemoryBlockUsableOffset + chunkBytes);
+#else
+				// Heap memory has no MemoryBlockAlignment guarantee so reserve the largest possible padding
+				constexpr uint32_t headerBytes = chunkBytes + MemoryBlockAlignment - 1;
+#endif
+				static_assert(headerBytes < UINT16_MAX);
+				return (uint16_t)headerBytes;
 			}
 
 			//! Total chunk allocation size for a given usable data size.
@@ -412,17 +418,6 @@ namespace gaia {
 			//! \return Data area size in bytes.
 			static constexpr uint16_t chunk_data_bytes(uint16_t totalSize) {
 				return totalSize - chunk_header_size();
-			}
-
-			//! Returns the relative offset of m_data in Chunk
-			//! \return Byte offset of the chunk data area relative to the Chunk start.
-			static uintptr_t chunk_data_area_offset() {
-				// Note, offsetof is implementation-defined and conditionally-supported since C++17.
-				// Therefore, we instantiate the chunk and calculate the relative address ourselves.
-				Chunk chunk;
-				const auto chunk_offset = (uintptr_t)&chunk;
-				const auto data_offset = (uintptr_t)&chunk.m_data[0];
-				return data_offset - chunk_offset;
 			}
 
 			//! Allocates memory for a new chunk.
@@ -443,6 +438,7 @@ namespace gaia {
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
 				(void)new (pChunk) Chunk(wld, cc, chunkIndex, capacity, worldVersion);
+				[[maybe_unused]] const auto* pAllocEnd = (const uint8_t*)pChunk - MemoryBlockUsableOffset + totalBytes;
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto sizeType = mem_block_size_type(totalBytes);
@@ -450,9 +446,15 @@ namespace gaia {
 				auto* pChunkMem = mem::AllocHelper::alloc<uint8_t>(allocSize);
 				std::memset(pChunkMem, 0, allocSize);
 				auto* pChunk = new (pChunkMem) Chunk(wld, cc, chunkIndex, capacity, worldVersion);
+				[[maybe_unused]] const auto* pAllocEnd = pChunkMem + totalBytes;
 #endif
+				// The data area starts at the first MemoryBlockAlignment boundary inside m_data. It is computed only
+				// here, init() caches every pointer derived from it.
+				auto* pDataArea = (uint8_t*)mem::align<MemoryBlockAlignment>((uintptr_t)&pChunk->m_data[0]);
+				// The aligned data area has to fit the space chunk_header_size() reserved for it
+				GAIA_ASSERT(pDataArea + dataBytes <= pAllocEnd);
 
-				pChunk->init((uint32_t)cntEntities, ids, pItems, offsets, compOffs);
+				pChunk->init(pDataArea, (uint32_t)cntEntities, ids, pItems, offsets, compOffs);
 				return pChunk;
 			}
 
@@ -1370,20 +1372,6 @@ namespace gaia {
 				GAIA_ASSERT(m_header.count > 0);
 
 				return row >= (uint16_t)m_header.rowFirstEnabledEntity;
-			}
-
-			//! Returns a mutable pointer to chunk data.
-			//! \param offset Offset into chunk data
-			//! \return Pointer to chunk data.
-			uint8_t& data(uint32_t offset) {
-				return m_data[offset];
-			}
-
-			//! Returns an immutable pointer to chunk data.
-			//! \param offset Offset into chunk data
-			//! \return Pointer to chunk data.
-			const uint8_t& data(uint32_t offset) const {
-				return m_data[offset];
 			}
 
 			//----------------------------------------------------------------------

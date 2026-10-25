@@ -33,10 +33,8 @@ namespace gaia {
 				if constexpr (std::is_empty_v<T>)
 					// Always consider 0 for empty types
 					return 0U;
-				else {
-					// Use at least 4 (32-bit systems) or 8 (64-bit systems) bytes for alignment
-					return (uint32_t)core::get_min(sizeof(uintptr_t), alignof(T));
-				}
+				else
+					return (uint32_t)alignof(T);
 			}
 
 			//! Advances across one field array in SoA storage.
@@ -595,8 +593,8 @@ namespace gaia {
 
 		private:
 			template <size_t... Ids>
-			GAIA_NODISCARD constexpr static size_t
-			get_aligned_byte_offset_seq(uintptr_t address, [[maybe_unused]] size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
+			GAIA_NODISCARD constexpr static size_t get_aligned_byte_offset_seq(
+					uintptr_t address, [[maybe_unused]] size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
 				((address = detail::get_aligned_byte_offset(address, Alignment, sizeof(value_type<Ids>), cnt)), ...);
 				address += mem::padding(address, Alignment);
 				return address;

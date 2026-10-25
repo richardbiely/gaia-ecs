@@ -1,6 +1,7 @@
 #pragma once
 #include "gaia/config/config.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <tuple>
@@ -8,6 +9,7 @@
 
 #include "gaia/core/span.h"
 #include "gaia/core/utility.h"
+#include "gaia/ecs/chunk_allocator.h"
 #include "gaia/ecs/component.h"
 #include "gaia/mem/data_layout_policy.h"
 #include "gaia/mem/mem_utils.h"
@@ -368,10 +370,18 @@ namespace gaia {
 				}
 
 				//! Returns the payload alignment required by the component storage policy.
+				//! Table columns are aligned within the chunk data area, so their alignment can't exceed MemoryBlockAlignment.
+				//! Sparse payloads live in heap containers, which only guarantee alignof(std::max_align_t).
 				//! \return Component payload alignment in bytes.
 				static constexpr uint32_t alig() {
 					constexpr auto alig = mem::auto_view_policy<U>::Alignment;
 					static_assert(alig < Component::MaxAlignment, "Maximum supported alignment for a component is MaxAlignment");
+					static_assert(
+							storage_type() != DataStorageType::Table || alig <= MemoryBlockAlignment,
+							"Table component alignment can't exceed MemoryBlockAlignment");
+					static_assert(
+							storage_type() != DataStorageType::Sparse || alig <= alignof(std::max_align_t),
+							"Sparse component alignment can't exceed alignof(std::max_align_t)");
 					return alig;
 				}
 
