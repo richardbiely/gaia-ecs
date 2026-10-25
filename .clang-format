@@ -6,8 +6,7 @@ UseTab: Always
 ColumnLimit: 120
 ---
 Language: Cpp
-UseCRLF: true
-DeriveLineEnding: false
+LineEnding: LF
 DerivePointerAlignment: false
 PointerAlignment: Left
 AlignAfterOpenBracket: AlwaysBreak
