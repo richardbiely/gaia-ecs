@@ -5,6 +5,7 @@
 
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/darray_ext.h"
+#include "gaia/cnt/impl/array_utils.h"
 
 namespace gaia {
 	namespace ser {
@@ -18,7 +19,7 @@ namespace gaia {
 			//! In-memory binary read/write stream used by compile-time and runtime serializers.
 			class ser_buffer_binary_impl {
 			protected:
-				// Increase the capacity by multiples of CapacityIncreaseSize
+				//! Smallest capacity step. Capacity is rounded up to a multiple of it and grows geometrically beyond it.
 				static constexpr uint32_t CapacityIncreaseSize = SerializationBufferCapacityIncreaseSize;
 
 				//! Buffer holding raw data
@@ -48,16 +49,18 @@ namespace gaia {
 				}
 
 				//! Makes sure there is enough capacity in our data container to hold another \a size bytes of data.
-				//! \param size Minimum number of free bytes at the end of the buffer.
+				//! Once the capacity is outgrown, it grows by half again, or to the next multiple of
+				//! CapacityIncreaseSize above the required size when that is larger. Writing N bytes in small
+				//! pieces therefore relocates the buffer O(log N) times.
+				//! \param size Minimum number of bytes that must fit after the current position.
 				void reserve(uint32_t size) {
 					const auto nextSize = m_dataPos + size;
-					if (nextSize <= bytes())
+					const auto cap = (uint32_t)m_data.capacity();
+					if (nextSize <= cap)
 						return;
 
-					// Make sure there is enough capacity to hold our data
-					const auto newSize = bytes() + size;
-					const auto newCapacity = ((newSize / CapacityIncreaseSize) * CapacityIncreaseSize) + CapacityIncreaseSize;
-					m_data.reserve(newCapacity);
+					const auto minCap = ((nextSize / CapacityIncreaseSize) * CapacityIncreaseSize) + CapacityIncreaseSize;
+					m_data.reserve(cnt::detail::resize_capacity(cnt::ResizePolicy::Scale, cap, minCap));
 				}
 
 				//! Resizes the internal buffer to \a size bytes.
@@ -148,14 +151,14 @@ namespace gaia {
 			//! \endcond
 		} // namespace detail
 
-		//! Fixed-growth storage used by ser_buffer_binary.
+		//! Storage used by ser_buffer_binary. The first SerializationBufferCapacityIncreaseSize bytes live inline.
 		using ser_buffer_binary_storage = gaia::cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
 		//! Dynamic storage used by ser_buffer_binary_dyn.
 		using ser_buffer_binary_storage_dyn = gaia::cnt::darray<uint8_t>;
 
 		//! Minimal in-memory binary serializer.
 		//! It stores raw bytes only (no schema, versioning, or type metadata).
-		//! Uses a growth-policy-backed container with fixed capacity increment.
+		//! Small buffers stay in inline storage, larger ones grow geometrically on the heap.
 		class ser_buffer_binary: public detail::ser_buffer_binary_impl<ser_buffer_binary_storage> {};
 		//! Same API as ser_buffer_binary, but backed by fully dynamic storage.
 		class ser_buffer_binary_dyn: public detail::ser_buffer_binary_impl<ser_buffer_binary_storage_dyn> {};

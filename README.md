@@ -3686,7 +3686,7 @@ Both modes share the same traversal behavior and customization points (`save/loa
 These APIs are for binary serialization traversal, not for JSON document authoring/parsing.
 
 Quick overview of serializer types:
-- `ser::ser_buffer_binary` / `ser::ser_buffer_binary_dyn`: in-memory raw byte streams (no schema/version/type metadata)
+- `ser::ser_buffer_binary` / `ser::ser_buffer_binary_dyn`: in-memory raw byte streams (no schema/version/type metadata). Their capacity grows by half again once outgrown, so writing N bytes relocates the buffer O(log N) times
 - `ser::serializer`: non-owning runtime serializer reference (type-erased)
 - `ser::bin_stream`: default owning in-memory binary backend for `ecs::World`
 

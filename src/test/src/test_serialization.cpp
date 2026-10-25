@@ -260,6 +260,36 @@ TEST_CASE("Serialization - bytes") {
 	}
 }
 
+TEST_CASE_TEMPLATE(
+		"Serialization - binary buffer grows geometrically", Buffer, ser::ser_buffer_binary, ser::ser_buffer_binary_dyn,
+		ser::bin_stream) {
+	// 256 KiB written 4 bytes at a time. Growing by a fixed 128 bytes relocates the buffer ~2048 times,
+	// growing by half again from 128 bytes takes ~20.
+	constexpr uint32_t WriteCnt = 64 * 1024;
+
+	Buffer s;
+	const char* pData = (const char*)s.data();
+	uint32_t relocations = 0;
+	GAIA_FOR(WriteCnt) {
+		s.save_raw(&i, (uint32_t)sizeof(i), ser::serialization_type_id::u32);
+		if ((const char*)s.data() != pData) {
+			pData = (const char*)s.data();
+			++relocations;
+		}
+	}
+	CHECK(s.bytes() == WriteCnt * (uint32_t)sizeof(uint32_t));
+	CHECK(relocations <= 32);
+
+	s.seek(0);
+	uint32_t mismatches = 0;
+	GAIA_FOR(WriteCnt) {
+		uint32_t value = 0;
+		s.load_raw(&value, (uint32_t)sizeof(value), ser::serialization_type_id::u32);
+		mismatches += value != i;
+	}
+	CHECK(mismatches == 0);
+}
+
 TEST_CASE("Serialization - ser_json") {
 	SUBCASE("supports nested objects and arrays") {
 		ser::ser_json writer;
