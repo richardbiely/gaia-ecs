@@ -3053,7 +3053,8 @@ Data layouts</h2>
 <div class="line"><span class="comment">// Handle z coordinates</span></div>
 <div class="line">process_data(pz.data(), vz.data(), it.size());</div>
 <div class="line">...</div>
-</div><!-- fragment --><p>Different layouts use different memory alignments. <b>GAIA_LAYOUT(SoA)</b> and <b>GAIA_LAYOUT(AoS)</b> align data to 8-byte boundaries, while <b>GAIA_LAYOUT(SoA8)</b> and <b>GAIA_LAYOUT(SoA16)</b> align to 16 and 32 bytes respectively. This makes them a good candidate for AVX and AVX512 instruction sets (or their equivalent on different platforms, such as NEON on ARM).</p>
+</div><!-- fragment --><p>Different layouts use different memory alignments. <b>GAIA_LAYOUT(AoS)</b> keeps the natural alignment of the component (<code>alignof(T)</code>), so over-aligned types such as <code>struct alignas(16) Vec4</code> are stored at 16-byte boundaries. <b>GAIA_LAYOUT(SoA)</b>, <b>GAIA_LAYOUT(SoA8)</b> and <b>GAIA_LAYOUT(SoA16)</b> align each field array to 16, 32 and 64 bytes respectively. This makes them a good candidate for SSE, AVX and AVX512 instruction sets (or their equivalent on different platforms, such as NEON on ARM).</p>
+<p>Table storage supports component alignments up to 64 bytes because the chunk data area is 64-byte aligned. Typed sparse storage supports alignments up to <code>alignof(std::max_align_t)</code>. Typed components that exceed the limit of their storage fail to compile. Runtime table components aligned to more than 64 bytes trigger an assertion, and runtime sparse payloads can use any alignment.</p>
 <h2><a class="anchor" id="serialization"></a>
 Serialization</h2>
 <p>Any data structure can be serialized into the provided serialization buffer. Native types, compound types, arrays, or any types exposing size(), begin() and end() functions are supported out of the box. If a resize() function is available, it will be used automatically. In some cases, you may still need to provide specializations, though. Either because the default behavior does not match your expectations, or because the program will not compile otherwise.</p>
@@ -4052,7 +4053,7 @@ Compiler</h2>
 </li>
 <li><a href="https://clang.llvm.org/">Clang</a> 7 or later<br  />
 </li>
-<li><a href="https://www.gnu.org/software/gcc/">GCC</a> 7 or later<br  />
+<li><a href="https://www.gnu.org/software/gcc/">GCC</a> 10 or later<br  />
 </li>
 </ul>
 <h2><a class="anchor" id="dependencies"></a>

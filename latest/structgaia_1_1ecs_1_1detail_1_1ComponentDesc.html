@@ -147,7 +147,7 @@ Static Public Member Functions</h2></td></tr>
 <tr class="memdesc:a6ab728f59781dcd4188a4c370cc19e5e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the payload size stored in chunks.  <br /></td></tr>
 <tr class="separator:a6ab728f59781dcd4188a4c370cc19e5e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a41ac5530feaef8dddb64373eb6b01e34" id="r_a41ac5530feaef8dddb64373eb6b01e34"><td class="memItemLeft" align="right" valign="top">static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a41ac5530feaef8dddb64373eb6b01e34">alig</a> ()</td></tr>
-<tr class="memdesc:a41ac5530feaef8dddb64373eb6b01e34"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the payload alignment required by the component storage policy.  <br /></td></tr>
+<tr class="memdesc:a41ac5530feaef8dddb64373eb6b01e34"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the payload alignment required by the component storage policy. Table columns are aligned within the chunk data area, so their alignment can't exceed MemoryBlockAlignment. Sparse payloads live in heap containers, which only guarantee alignof(std::max_align_t).  <br /></td></tr>
 <tr class="separator:a41ac5530feaef8dddb64373eb6b01e34"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab04f2c89f27fd6f47c0cb948c5fe661a" id="r_ab04f2c89f27fd6f47c0cb948c5fe661a"><td class="memItemLeft" align="right" valign="top">static uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ab04f2c89f27fd6f47c0cb948c5fe661a">soa</a> (std::span&lt; uint8_t, meta::StructToTupleMaxTypes &gt; soaSizes)</td></tr>
 <tr class="memdesc:ab04f2c89f27fd6f47c0cb948c5fe661a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Populates SoA element sizes for SoA payloads.  <br /></td></tr>
@@ -224,7 +224,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Returns the payload alignment required by the component storage policy. </p>
+<p>Returns the payload alignment required by the component storage policy. Table columns are aligned within the chunk data area, so their alignment can't exceed MemoryBlockAlignment. Sparse payloads live in heap containers, which only guarantee alignof(std::max_align_t). </p>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html" title="Identifier of a registered component type. Packs the component id, size, alignment,...">Component</a> payload alignment in bytes. </dd></dl>
 
 </div>

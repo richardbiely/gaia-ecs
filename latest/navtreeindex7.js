@@ -1,8 +1,5 @@
 var NAVTREEINDEX7 =
 {
-"classgaia_1_1mt_1_1ThreadPool.html#a53ffd7b70b14397a14bd1f465bb1521d":[9,0,0,5,14,19],
-"classgaia_1_1mt_1_1ThreadPool.html#a684585cca8c1be78e730e8681db6b34e":[9,0,0,5,14,3],
-"classgaia_1_1mt_1_1ThreadPool.html#a6973cb5704fb43eee582498925ed3b4f":[9,0,0,5,14,22],
 "classgaia_1_1mt_1_1ThreadPool.html#a6bbd23bad12f565645b15dde47918efb":[9,0,0,5,14,27],
 "classgaia_1_1mt_1_1ThreadPool.html#a75c3bbac493834249de4be01ab6a142e":[9,0,0,5,14,21],
 "classgaia_1_1mt_1_1ThreadPool.html#a7ca40ef0d480aa0b72c97949d2d4aa50":[9,0,0,5,14,6],
@@ -153,8 +150,8 @@ var NAVTREEINDEX7 =
 "functions_enum.html":[9,3,4],
 "functions_eval.html":[9,3,5],
 "functions_f.html":[9,3,0,5],
-"functions_func.html":[9,3,1],
 "functions_func.html":[9,3,1,0],
+"functions_func.html":[9,3,1],
 "functions_func_b.html":[9,3,1,1],
 "functions_func_c.html":[9,3,1,2],
 "functions_func_d.html":[9,3,1,3],
@@ -211,8 +208,8 @@ var NAVTREEINDEX7 =
 "functions_type_v.html":[9,3,3,14],
 "functions_u.html":[9,3,0,20],
 "functions_v.html":[9,3,0,21],
-"functions_vars.html":[9,3,2],
 "functions_vars.html":[9,3,2,0],
+"functions_vars.html":[9,3,2],
 "functions_vars_b.html":[9,3,2,1],
 "functions_vars_c.html":[9,3,2,2],
 "functions_vars_d.html":[9,3,2,3],
@@ -249,5 +246,8 @@ var NAVTREEINDEX7 =
 "index.html#add-or-remove-component":[2,1,6],
 "index.html#archetype-lifespan":[2,1,15],
 "index.html#asserts":[4,0,1],
-"index.html#background-jobs":[2,11,5]
+"index.html#background-jobs":[2,11,5],
+"index.html#basic-operations":[2,1],
+"index.html#batched-creation":[2,1,13],
+"index.html#benchmarks":[5,1]
 };

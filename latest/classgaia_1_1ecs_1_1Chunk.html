@@ -277,12 +277,6 @@ template&lt;typename T , bool TriggerSetHooks&gt; </td></tr>
 <tr class="memitem:aa160a5a12843230e35563c421841c125" id="r_aa160a5a12843230e35563c421841c125"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#aa160a5a12843230e35563c421841c125">enabled</a> (uint16_t row) const</td></tr>
 <tr class="memdesc:aa160a5a12843230e35563c421841c125"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks if the entity is enabled.  <br /></td></tr>
 <tr class="separator:aa160a5a12843230e35563c421841c125"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3f4235342570ba3dfbed8b0d25f16710" id="r_a3f4235342570ba3dfbed8b0d25f16710"><td class="memItemLeft" align="right" valign="top">uint8_t &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a3f4235342570ba3dfbed8b0d25f16710">data</a> (uint32_t offset)</td></tr>
-<tr class="memdesc:a3f4235342570ba3dfbed8b0d25f16710"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable pointer to chunk data.  <br /></td></tr>
-<tr class="separator:a3f4235342570ba3dfbed8b0d25f16710"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0d24d1d9e43f1a9f4f183db09d028376" id="r_a0d24d1d9e43f1a9f4f183db09d028376"><td class="memItemLeft" align="right" valign="top">const uint8_t &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a0d24d1d9e43f1a9f4f183db09d028376">data</a> (uint32_t offset) const</td></tr>
-<tr class="memdesc:a0d24d1d9e43f1a9f4f183db09d028376"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns an immutable pointer to chunk data.  <br /></td></tr>
-<tr class="separator:a0d24d1d9e43f1a9f4f183db09d028376"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a86b5f4873ef794bfcd92a557292f82fc" id="r_a86b5f4873ef794bfcd92a557292f82fc"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a86b5f4873ef794bfcd92a557292f82fc">call_ctor</a> (uint32_t entIdx, uint32_t compIdx, const ComponentCacheItem &amp;item)</td></tr>
 <tr class="memdesc:a86b5f4873ef794bfcd92a557292f82fc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invokes the registered constructor for one component instance.  <br /></td></tr>
 <tr class="separator:a86b5f4873ef794bfcd92a557292f82fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -447,7 +441,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>diag</b> () const</td
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
 <tr class="memitem:a51829fa693ca397269c09b04e39e2d15" id="r_a51829fa693ca397269c09b04e39e2d15"><td class="memItemLeft" align="right" valign="top">static constexpr uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a51829fa693ca397269c09b04e39e2d15">chunk_header_size</a> ()</td></tr>
-<tr class="memdesc:a51829fa693ca397269c09b04e39e2d15"><td class="mdescLeft">&#160;</td><td class="mdescRight">Size in bytes of the chunk header area reserved before entity and component data.  <br /></td></tr>
+<tr class="memdesc:a51829fa693ca397269c09b04e39e2d15"><td class="mdescLeft">&#160;</td><td class="mdescRight">Size in bytes reserved in front of entity and component data, counted from the start of the chunk allocation. It covers the allocator prefix, the chunk object and the padding <a class="el" href="classgaia_1_1ecs_1_1Chunk.html#af6890d5de4340b60940d0da511ab842b" title="Allocates memory for a new chunk.">create()</a> adds to align the data area.  <br /></td></tr>
 <tr class="separator:a51829fa693ca397269c09b04e39e2d15"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a63599120da625a0d83c5c9457a1954d2" id="r_a63599120da625a0d83c5c9457a1954d2"><td class="memItemLeft" align="right" valign="top">static constexpr uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a63599120da625a0d83c5c9457a1954d2">chunk_total_bytes</a> (uint16_t dataSize)</td></tr>
 <tr class="memdesc:a63599120da625a0d83c5c9457a1954d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Total chunk allocation size for a given usable data size.  <br /></td></tr>
@@ -455,9 +449,6 @@ Static Public Member Functions</h2></td></tr>
 <tr class="memitem:a8d3153395a06da2a4cf6c85a509b45f0" id="r_a8d3153395a06da2a4cf6c85a509b45f0"><td class="memItemLeft" align="right" valign="top">static constexpr uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a8d3153395a06da2a4cf6c85a509b45f0">chunk_data_bytes</a> (uint16_t totalSize)</td></tr>
 <tr class="memdesc:a8d3153395a06da2a4cf6c85a509b45f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Usable data area size for a given total chunk allocation size.  <br /></td></tr>
 <tr class="separator:a8d3153395a06da2a4cf6c85a509b45f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6ff56672354d694dfb3718d469539a1a" id="r_a6ff56672354d694dfb3718d469539a1a"><td class="memItemLeft" align="right" valign="top">static uintptr_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a6ff56672354d694dfb3718d469539a1a">chunk_data_area_offset</a> ()</td></tr>
-<tr class="memdesc:a6ff56672354d694dfb3718d469539a1a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the relative offset of m_data in <a class="el" href="classgaia_1_1ecs_1_1Chunk.html" title="Fixed-capacity archetype storage unit holding entities and their component columns.">Chunk</a>.  <br /></td></tr>
-<tr class="separator:a6ff56672354d694dfb3718d469539a1a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af6890d5de4340b60940d0da511ab842b" id="r_af6890d5de4340b60940d0da511ab842b"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#af6890d5de4340b60940d0da511ab842b">create</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;wld, const ComponentCache &amp;cc, uint32_t chunkIndex, uint16_t <a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a07bdcfaadf6035a43fae85934213b4aa">capacity</a>, uint8_t cntEntities, uint16_t dataBytes, uint32_t &amp;worldVersion, const ChunkDataOffsets &amp;offsets, const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *ids, const ComponentCacheItem *const *pItems, const ChunkDataOffset *compOffs)</td></tr>
 <tr class="memdesc:af6890d5de4340b60940d0da511ab842b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates memory for a new chunk.  <br /></td></tr>
 <tr class="separator:af6890d5de4340b60940d0da511ab842b"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -727,34 +718,6 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a6ff56672354d694dfb3718d469539a1a" name="a6ff56672354d694dfb3718d469539a1a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6ff56672354d694dfb3718d469539a1a">&#9670;&#160;</a></span>chunk_data_area_offset()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">static uintptr_t gaia::ecs::Chunk::chunk_data_area_offset </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns the relative offset of m_data in <a class="el" href="classgaia_1_1ecs_1_1Chunk.html" title="Fixed-capacity archetype storage unit holding entities and their component columns.">Chunk</a>. </p>
-<dl class="section return"><dt>Returns</dt><dd>Byte offset of the chunk data area relative to the <a class="el" href="classgaia_1_1ecs_1_1Chunk.html" title="Fixed-capacity archetype storage unit holding entities and their component columns.">Chunk</a> start. </dd></dl>
-
-</div>
-</div>
 <a id="a8d3153395a06da2a4cf6c85a509b45f0" name="a8d3153395a06da2a4cf6c85a509b45f0"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a8d3153395a06da2a4cf6c85a509b45f0">&#9670;&#160;</a></span>chunk_data_bytes()</h2>
 
@@ -813,7 +776,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p>Size in bytes of the chunk header area reserved before entity and component data. </p>
+<p>Size in bytes reserved in front of entity and component data, counted from the start of the chunk allocation. It covers the allocator prefix, the chunk object and the padding <a class="el" href="classgaia_1_1ecs_1_1Chunk.html#af6890d5de4340b60940d0da511ab842b" title="Allocates memory for a new chunk.">create()</a> adds to align the data area. </p>
 <dl class="section return"><dt>Returns</dt><dd>Header size in bytes. </dd></dl>
 
 </div>
@@ -1550,76 +1513,6 @@ template&lt;bool WorldVersionUpdateWanted&gt; </div>
 
 <p>Allocates memory for a new chunk. </p>
 <dl class="section return"><dt>Returns</dt><dd>Newly allocated chunk </dd></dl>
-
-</div>
-</div>
-<a id="a3f4235342570ba3dfbed8b0d25f16710" name="a3f4235342570ba3dfbed8b0d25f16710"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3f4235342570ba3dfbed8b0d25f16710">&#9670;&#160;</a></span>data() <span class="overload">[1/2]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">uint8_t &amp; gaia::ecs::Chunk::data </td>
-          <td>(</td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>offset</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns a mutable pointer to chunk data. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">offset</td><td>Offset into chunk data </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>Pointer to chunk data. </dd></dl>
-
-</div>
-</div>
-<a id="a0d24d1d9e43f1a9f4f183db09d028376" name="a0d24d1d9e43f1a9f4f183db09d028376"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a0d24d1d9e43f1a9f4f183db09d028376">&#9670;&#160;</a></span>data() <span class="overload">[2/2]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">const uint8_t &amp; gaia::ecs::Chunk::data </td>
-          <td>(</td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>offset</em></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns an immutable pointer to chunk data. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">offset</td><td>Offset into chunk data </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>Pointer to chunk data. </dd></dl>
 
 </div>
 </div>
