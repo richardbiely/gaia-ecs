@@ -4579,7 +4579,7 @@ mt::JobHandle jobHandle = tp.sched_par(job, N, 1234);
 tp.wait(jobHandle);
 
 // Use the result
-GAIA_LOG("Sum: %u\n", sum);
+GAIA_LOG_N("Sum: %u\n", sum);
 ```
 
 ### Job dependencies
