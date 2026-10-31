@@ -800,8 +800,8 @@ namespace gaia {
 			//! Id assigned to the next created archetype
 			ArchetypeId m_nextArchetypeId = 0;
 
-			//! TODO: Use this empty space for something
-			uint32_t m_emptySpace1 = 0;
+			//! Lifespan a newly created archetype starts with, see set_default_max_lifespan()
+			uint32_t m_defaultMaxLifespan = Archetype::MAX_ARCHETYPE_LIFESPAN;
 
 			//! Entity records
 			EntityContainers m_recs;
@@ -10009,11 +10009,18 @@ namespace gaia {
 				m_srcEntityVersions.erase(EntityLookupKey(entity));
 			}
 
+			//! Resets maximal lifespan of an archetype \a entity belongs to to the world's default.
+			//! \param entity Entity
+			//! \see set_default_max_lifespan()
+			void set_max_lifespan(Entity entity) {
+				set_max_lifespan(entity, m_defaultMaxLifespan);
+			}
+
 			//! Sets maximal lifespan of an archetype \a entity belongs to.
 			//! \param entity Entity
 			//! \param lifespan How many world updates an empty archetype is kept.
-			//!                 If zero, the archetype it kept indefinitely.
-			void set_max_lifespan(Entity entity, uint32_t lifespan = Archetype::MAX_ARCHETYPE_LIFESPAN) {
+			//!                 If zero, the archetype is kept indefinitely.
+			void set_max_lifespan(Entity entity, uint32_t lifespan) {
 				auto* pEc = try_live_record(entity);
 				if (pEc == nullptr)
 					return;
@@ -10026,6 +10033,20 @@ namespace gaia {
 					// The archetype used to be immortal but not anymore
 					try_enqueue_archetype_for_deletion(*ec.pArchetype);
 				}
+			}
+
+			//! Sets the lifespan archetypes created from now on start with.
+			//! \param lifespan How many world updates an empty archetype is kept.
+			//!                 If zero, such archetypes are kept indefinitely.
+			void set_default_max_lifespan(uint32_t lifespan) {
+				GAIA_ASSERT(lifespan <= Archetype::MAX_ARCHETYPE_LIFESPAN);
+				m_defaultMaxLifespan = lifespan;
+			}
+
+			//! Returns the lifespan archetypes created from now on start with.
+			//! \return How many world updates an empty archetype is kept, zero when kept indefinitely.
+			GAIA_NODISCARD uint32_t default_max_lifespan() const {
+				return m_defaultMaxLifespan;
 			}
 
 			//----------------------------------------------------------------------
@@ -11974,6 +11995,7 @@ namespace gaia {
 			GAIA_NODISCARD Archetype* create_archetype(EntitySpan entities) {
 				GAIA_ASSERT(m_nextArchetypeId < (decltype(m_nextArchetypeId))-1);
 				auto* pArchetype = Archetype::create(*this, m_nextArchetypeId++, m_worldVersion, entities);
+				pArchetype->set_max_lifespan(m_defaultMaxLifespan);
 
 				const auto entityCnt = (uint32_t)entities.size();
 				GAIA_FOR(entityCnt) {
@@ -12818,6 +12840,14 @@ namespace gaia {
 				archetype.req_del();
 				update_version(m_archetypeDeleteVersion);
 				m_reqArchetypesToDel.insert(ArchetypeLookupKey(archetype.lookup_hash(), &archetype));
+
+				// A requested deletion outweighs the lifespan. An archetype kept indefinitely is never queued for
+				// deletion, so it becomes mortal: its last chunk queues it when it goes, or it is queued here when
+				// it holds no chunk.
+				if (archetype.max_lifespan() == 0) {
+					archetype.set_max_lifespan(1);
+					try_enqueue_archetype_for_deletion(archetype);
+				}
 
 				// The rows' own deletion rules move entities between archetypes. They run once the outermost
 				// request has marked every archetype it deletes, so no entity moves out of or into one.
@@ -13742,6 +13772,22 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 				m_observers.finish_diff(*this, GAIA_MOV(delDiffCtx));
 #endif
+				expire_emptied_archetypes(srcRecords);
+			}
+
+			//! Gives each archetype a deleted entity's removal left without rows a lifespan of one update.
+			//! Its ids name the deleted entity, so keeping it longer would only keep that dead id. It goes one
+			//! update after its last empty chunk does, unless re-adding a pair moves an entity back into it first.
+			//! \param records Reverse-index records of the archetypes the entity was removed from.
+			void expire_emptied_archetypes(const ComponentIndexEntryArray& records) {
+				for (const auto& record: records) {
+					auto* pArchetype = record.pArchetype;
+					if (pArchetype->is_req_del() || archetype_has_rows(*pArchetype))
+						continue;
+
+					pArchetype->set_max_lifespan(1);
+					try_enqueue_archetype_for_deletion(*pArchetype);
+				}
 			}
 
 			//! Removes \a entity from anything referencing it.
@@ -13880,6 +13926,7 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 				m_observers.finish_diff(*this, GAIA_MOV(delDiffCtx));
 #endif
+				expire_emptied_archetypes(srcRecords);
 			}
 
 			//! Deletes \a entity for a cleanup rule the way deleting it on its own would, with its rules and its pairs,

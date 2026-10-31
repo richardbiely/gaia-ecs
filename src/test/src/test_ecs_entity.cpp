@@ -1250,6 +1250,93 @@ TEST_CASE("Entity deletion - a pair leaves other pairs with its target alone") {
 	}
 }
 
+TEST_CASE("Entity deletion - a kept archetype goes with a deleted relation it names") {
+	// An archetype kept for good still names the relation of its pair once that relation is deleted.
+	// Nothing can use it again, and the relation's record has to outlive it, so it goes with the relation.
+	TestWorld twld;
+
+	const auto rel = wld.add();
+	const auto tgt = wld.add();
+	const auto src = wld.add();
+	wld.add<Position>(src, {1, 2, 3});
+	auto q = wld.query().all<Position&>();
+	CHECK(q.count() == 1);
+
+	wld.add(src, ecs::Pair(rel, tgt));
+	// The archetype of Position and (rel, tgt) is kept for good
+	wld.set_max_lifespan(src, 0);
+	CHECK(q.count() == 1);
+	auto& info = q.fetch();
+	CHECK(info.cache_archetype_view().size() == 2);
+
+	wld.del(rel);
+	twld.update();
+	// Only the archetype src moved to is left
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(wld.valid(src));
+
+	// Deleting the pair's former target reads no freed relation
+	wld.del(tgt);
+	twld.update();
+	CHECK(wld.valid(src));
+	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Entity deletion - an archetype already dying goes with a deleted relation it names") {
+	// An archetype emptied by a removal counts down its whole lifespan. Deleting the relation of its
+	// pair cuts that short.
+	TestWorld twld;
+
+	const auto rel = wld.add();
+	const auto tgt = wld.add();
+	const auto src = wld.add();
+	wld.add<Position>(src, {1, 2, 3});
+	auto q = wld.query().all<Position&>();
+	CHECK(q.count() == 1);
+	wld.add(src, ecs::Pair(rel, tgt));
+	CHECK(q.count() == 1);
+	auto& info = q.fetch();
+	CHECK(info.cache_archetype_view().size() == 2);
+
+	// Empty the archetype of Position and (rel, tgt), then let its chunk go and its countdown start
+	wld.del(src, ecs::Pair(rel, tgt));
+	GAIA_FOR(ecs::Archetype::MAX_ARCHETYPE_LIFESPAN / 4) wld.update();
+	CHECK(info.cache_archetype_view().size() == 2);
+
+	wld.del(rel);
+	twld.update();
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Entity deletion - a kept archetype goes when a cleanup rule deletes its rows") {
+	// A requested deletion outweighs the lifespan, even of an archetype kept for good.
+	TestWorld twld;
+
+	const auto tag = wld.add();
+	wld.add(tag, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	const auto other = wld.add();
+	wld.add<Position>(other, {0, 0, 0});
+	auto q = wld.query().all<Position&>();
+	CHECK(q.count() == 1);
+
+	const auto src = wld.add();
+	wld.add<Position>(src, {1, 2, 3});
+	wld.add(src, tag);
+	// The archetype of Position and tag is kept for good
+	wld.set_max_lifespan(src, 0);
+	CHECK(q.count() == 2);
+	auto& info = q.fetch();
+	CHECK(info.cache_archetype_view().size() == 2);
+
+	wld.del(tag);
+	twld.update();
+	CHECK_FALSE(wld.valid(src));
+	CHECK(wld.valid(other));
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(q.count() == 1);
+}
+
 TEST_CASE("Entity deletion - an id used as a relation and as an id is recycled") {
 	// Removing the entity's pairs visits archetypes it already emptied. They must not spawn new archetypes
 	// holding the deleted id, which would never be collected and would keep its id from being reused.

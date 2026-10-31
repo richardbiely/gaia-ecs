@@ -2686,6 +2686,104 @@ TEST_CASE("Query - cached structural query drops deleted archetypes after gc") {
 	CHECK(info.cache_archetype_view().empty());
 }
 
+namespace {
+	//! Updates allowed before an emptied archetype counts as kept.
+	constexpr uint32_t ArchetypeLifespanUpdateLimit = 4 * ecs::Archetype::MAX_ARCHETYPE_LIFESPAN;
+
+	//! Empties the archetype of an entity holding Position and Acceleration by removing Acceleration,
+	//! then counts the world updates until the archetype is deleted.
+	//! \param w World holding the entity.
+	//! \param e Entity holding Position and Acceleration, the only one in its archetype.
+	//! \return Updates run until the archetype was deleted, or ArchetypeLifespanUpdateLimit when it is
+	//!         still there after that many.
+	uint32_t updates_until_emptied_archetype_deleted(ecs::World& w, ecs::Entity e) {
+		auto q = w.query().all<Position&>().all<Acceleration&>();
+		CHECK(q.count() == 1);
+		auto& info = q.fetch();
+		CHECK(info.cache_archetype_view().size() == 1);
+
+		w.del<Acceleration>(e);
+		GAIA_FOR(ArchetypeLifespanUpdateLimit) {
+			w.update();
+			if (info.cache_archetype_view().empty())
+				return i + 1;
+		}
+		return ArchetypeLifespanUpdateLimit;
+	}
+
+	//! Adds an entity holding Position and Acceleration.
+	//! \param w World to add the entity to.
+	//! \return The new entity.
+	ecs::Entity add_position_acceleration(ecs::World& w) {
+		auto e = w.add();
+		w.add<Position>(e, {1, 2, 3});
+		w.add<Acceleration>(e, {4, 5, 6});
+		return e;
+	}
+
+	//! Counts the updates an emptied archetype set to live one update survives, the shortest lifespan.
+	//! \return Updates until that archetype is deleted.
+	uint32_t updates_until_shortest_lived_archetype_deleted() {
+		ecs::World w;
+		auto e = add_position_acceleration(w);
+		w.set_max_lifespan(e, 1);
+		return updates_until_emptied_archetype_deleted(w, e);
+	}
+} // namespace
+
+TEST_CASE("World - an emptied archetype stays for the documented default lifespan") {
+	const uint32_t shortest = updates_until_shortest_lived_archetype_deleted();
+	CHECK(shortest < ArchetypeLifespanUpdateLimit);
+
+	ecs::World w;
+	auto e = add_position_acceleration(w);
+	// Each lifespan tick beyond the first keeps the archetype one update longer.
+	CHECK(updates_until_emptied_archetype_deleted(w, e) == shortest + ecs::Archetype::MAX_ARCHETYPE_LIFESPAN - 1);
+}
+
+TEST_CASE("World - default archetype lifespan applies to archetypes created after it is set") {
+	const uint32_t shortest = updates_until_shortest_lived_archetype_deleted();
+
+	{
+		ecs::World w;
+		CHECK(w.default_max_lifespan() == ecs::Archetype::MAX_ARCHETYPE_LIFESPAN);
+		w.set_default_max_lifespan(5);
+		CHECK(w.default_max_lifespan() == 5);
+		auto e = add_position_acceleration(w);
+		CHECK(updates_until_emptied_archetype_deleted(w, e) == shortest + 4);
+	}
+	{
+		// Zero keeps an emptied archetype for good.
+		ecs::World w;
+		w.set_default_max_lifespan(0);
+		auto e = add_position_acceleration(w);
+		CHECK(updates_until_emptied_archetype_deleted(w, e) == ArchetypeLifespanUpdateLimit);
+	}
+	{
+		// An archetype keeps the lifespan it was created with.
+		ecs::World w;
+		auto e = add_position_acceleration(w);
+		w.set_default_max_lifespan(0);
+		CHECK(updates_until_emptied_archetype_deleted(w, e) == shortest + ecs::Archetype::MAX_ARCHETYPE_LIFESPAN - 1);
+	}
+	{
+		// Resetting an archetype's lifespan gives it the world's default.
+		ecs::World w;
+		w.set_default_max_lifespan(5);
+		auto e = add_position_acceleration(w);
+		w.set_max_lifespan(e, 0);
+		w.set_max_lifespan(e);
+		CHECK(updates_until_emptied_archetype_deleted(w, e) == shortest + 4);
+	}
+	{
+		// Clearing the world keeps the setting.
+		ecs::World w;
+		w.set_default_max_lifespan(7);
+		w.cleanup();
+		CHECK(w.default_max_lifespan() == 7);
+	}
+}
+
 TEST_CASE("Query - cached structural query matches uncached count across archetype reuse") {
 	struct CTransform {
 		float x = 0.0f;
@@ -2982,6 +3080,8 @@ TEST_CASE("Query - cached structural query across immediate add and gc") {
 	wld.add<Position>(e1, {2, 0, 0});
 	wld.add<Something>(e1, {true});
 	wld.add<Acceleration>(e1, {1, 0, 0});
+	// The archetype e1 leaves goes at the first gc after it empties
+	wld.set_max_lifespan(e1, 1);
 	CHECK(info.cache_archetype_view().size() == 2);
 	CHECK(q.count() == 2);
 	CHECK(info.cache_archetype_view().size() == 2);
@@ -3030,6 +3130,8 @@ TEST_CASE("Query - cached reverse index across repeated immediate add gc and des
 			wld.add<Position>(e1, {2, 0, 0});
 			wld.add<Something>(e1, {true});
 			wld.add<Acceleration>(e1, {1, 0, 0});
+			// The archetype e1 leaves goes at the first gc after it empties
+			wld.set_max_lifespan(e1, 1);
 
 			CHECK(info.cache_archetype_view().size() == 2);
 

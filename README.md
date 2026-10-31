@@ -1257,7 +1257,7 @@ w.add(player0, teamA);
 w.set_max_lifespan(player0, 0);
 // Archetype B is going to be deleted after 20 ticks of ecs::World::update.
 w.set_max_lifespan(player0, 20);
-// Reset maximum lifespan of the archetype B belongs to.
+// Reset maximum lifespan of the archetype B belongs to to the world's default.
 w.set_max_lifespan(player0);
 ```
 
@@ -1283,6 +1283,16 @@ EntityContainer& ec = w.fetch(player0);
 // Maximum lifespan of archetype the player0 entity belongs to changed to 50.
 ec.pArchetype->set_max_lifespan(50);
 ```
+
+New archetypes start with the world's default lifespan, 127 ticks unless you change it. Change it once when entities keep moving between a bounded set of archetypes, so that each one is created only once. Archetypes that already exist keep their lifespan, and `ecs::World::cleanup` keeps the setting.
+
+```cpp
+ecs::World w;
+// Archetypes created from now on stay, however often they empty.
+w.set_default_max_lifespan(0);
+```
+
+Deletion outweighs the lifespan. An archetype goes once its rows are deleted by a cleanup rule, or once it is left empty because an entity among its ids was deleted, even when it was meant to stay. Nothing can use it again.
 
 ## Data processing
 ### Query

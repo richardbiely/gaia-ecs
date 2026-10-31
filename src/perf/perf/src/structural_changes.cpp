@@ -95,6 +95,46 @@ void BM_World_ChunkDeleteQueue_GC(picobench::state& state) {
 	}
 }
 
+//! Benchmarks entities that keep coming back to archetypes left empty for a while.
+//! Every update moves each entity on to the next archetype of a ring of 32, so each archetype stays empty
+//! for 31 updates, longer than its empty chunk is kept. An archetype whose lifespan runs out before the
+//! ring comes back is created again, and the cached query matches it again.
+void BM_World_ArchetypeRing(picobench::state& state) {
+	const uint32_t n = bench_entities(state);
+	constexpr uint32_t RingSize = 32;
+
+	ecs::World w;
+	cnt::sarr<ecs::Entity, RingSize> tags;
+	for (auto& tag: tags)
+		tag = w.add();
+
+	cnt::darray<ecs::Entity> entities;
+	entities.reserve(n);
+	for (uint32_t i = 0; i < n; ++i) {
+		auto e = w.add();
+		w.add<Position>(e, {0.0f, 0.0f, 0.0f});
+		w.add(e, tags[0]);
+		entities.push_back(e);
+	}
+
+	auto q = w.query().all<Position&>();
+	uint32_t step = 0;
+	for (auto _: state) {
+		(void)_;
+
+		const auto from = tags[step % RingSize];
+		const auto to = tags[(step + 1) % RingSize];
+		++step;
+		for (auto e: entities) {
+			w.del(e, from);
+			w.add(e, to);
+		}
+
+		w.update();
+		dont_optimize(q.count());
+	}
+}
+
 void BM_World_As(picobench::state& state) {
 	const uint32_t n = bench_entities(state);
 	cnt::darray<ecs::Entity> entities;
@@ -160,6 +200,13 @@ void register_structural_changes(PerfRunMode mode) {
 					.PICO_SETTINGS_FOCUS()
 					.user_data(NEntitiesFew)
 					.label("chunk delete queue gc 10K");
+			// 256 updates go round the ring 8 times.
+			PICOBENCH_REG(BM_World_ArchetypeRing).iterations({256}).samples(3).user_data(64).label("archetype ring 64");
+			PICOBENCH_REG(BM_World_ArchetypeRing)
+					.iterations({256})
+					.samples(3)
+					.user_data(NEntitiesFew)
+					.label("archetype ring 10K");
 			PICOBENCH_REG(BM_World_As).PICO_SETTINGS().user_data(NEntitiesFew).label("as 10K");
 			PICOBENCH_REG(BM_World_Is).PICO_SETTINGS().user_data(NEntitiesFew).label("is 10K");
 			return;

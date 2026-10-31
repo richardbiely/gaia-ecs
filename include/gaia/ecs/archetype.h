@@ -1232,13 +1232,16 @@ namespace gaia {
 				return m_runtime.deleteReq;
 			}
 
-			//! Sets maximal lifespan of an archetype
+			//! Sets maximal lifespan of an archetype.
+			//! A dying archetype keeps no more of its countdown than the new lifespan allows.
 			//! \param lifespan How many world updates an empty archetype is kept.
-			//!                 If zero, the archetype it kept indefinitely.
+			//!                 If zero, the archetype is kept indefinitely.
 			void set_max_lifespan(uint32_t lifespan) {
 				GAIA_ASSERT(lifespan <= MAX_ARCHETYPE_LIFESPAN);
 
 				m_runtime.lifespanCountdownMax = lifespan;
+				if (lifespan != 0 && m_runtime.lifespanCountdown > lifespan)
+					m_runtime.lifespanCountdown = lifespan;
 			}
 
 			//! Returns the maximal lifespan of the archetype.
