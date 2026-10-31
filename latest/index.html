@@ -1123,7 +1123,7 @@ Archetype lifespan</h3>
 <div class="line">w.set_max_lifespan(player0, 0);</div>
 <div class="line"><span class="comment">// Archetype B is going to be deleted after 20 ticks of ecs::World::update.</span></div>
 <div class="line">w.set_max_lifespan(player0, 20);</div>
-<div class="line"><span class="comment">// Reset maximum lifespan of the archetype B belongs to.</span></div>
+<div class="line"><span class="comment">// Reset maximum lifespan of the archetype B belongs to to the world&#39;s default.</span></div>
 <div class="line">w.set_max_lifespan(player0);</div>
 </div><!-- fragment --><p>Note, if the entity that changed an archetype’s lifespan moves to a new archetype, the new archetype’s lifespan will not be updated.</p>
 <div class="fragment"><div class="line">ecs::World w;</div>
@@ -1140,7 +1140,12 @@ Archetype lifespan</h3>
 </div><!-- fragment --><p>In case you want to affect an archetype directly without abstracting it away you can retrieve it via the entity's container returned by World::fetch() function: </p><div class="fragment"><div class="line">EntityContainer&amp; ec = w.fetch(player0);</div>
 <div class="line"><span class="comment">// Maximum lifespan of archetype the player0 entity belongs to changed to 50.</span></div>
 <div class="line">ec.pArchetype-&gt;set_max_lifespan(50);</div>
-</div><!-- fragment --><h2><a class="anchor" id="data-processing"></a>
+</div><!-- fragment --><p>New archetypes start with the world's default lifespan, 127 ticks unless you change it. Change it once when entities keep moving between a bounded set of archetypes, so that each one is created only once. Archetypes that already exist keep their lifespan, and <code>ecs::World::cleanup</code> keeps the setting.</p>
+<div class="fragment"><div class="line">ecs::World w;</div>
+<div class="line"><span class="comment">// Archetypes created from now on stay, however often they empty.</span></div>
+<div class="line">w.set_default_max_lifespan(0);</div>
+</div><!-- fragment --><p>Deletion outweighs the lifespan. An archetype goes once its rows are deleted by a cleanup rule, or once it is left empty because an entity among its ids was deleted, even when it was meant to stay. Nothing can use it again.</p>
+<h2><a class="anchor" id="data-processing"></a>
 Data processing</h2>
 <h3><a class="anchor" id="query"></a>
 Query</h3>

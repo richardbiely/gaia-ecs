@@ -327,7 +327,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>req_del</b> ()</td></
 <tr class="memdesc:a918a1ce260c8e0980f1bf731dc7e01d1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true if this archetype is requested to be deleted.  <br /></td></tr>
 <tr class="separator:a918a1ce260c8e0980f1bf731dc7e01d1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a02f7b647f83354447952899f2e65f425" id="r_a02f7b647f83354447952899f2e65f425"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a02f7b647f83354447952899f2e65f425">set_max_lifespan</a> (uint32_t lifespan)</td></tr>
-<tr class="memdesc:a02f7b647f83354447952899f2e65f425"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets maximal lifespan of an archetype.  <br /></td></tr>
+<tr class="memdesc:a02f7b647f83354447952899f2e65f425"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets maximal lifespan of an archetype. A dying archetype keeps no more of its countdown than the new lifespan allows.  <br /></td></tr>
 <tr class="separator:a02f7b647f83354447952899f2e65f425"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af79924a02cce5881068dda184e129076" id="r_af79924a02cce5881068dda184e129076"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#af79924a02cce5881068dda184e129076">max_lifespan</a> () const</td></tr>
 <tr class="memdesc:af79924a02cce5881068dda184e129076"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the maximal lifespan of the archetype. If zero, the archetype it kept indefinitely.  <br /></td></tr>
@@ -2448,10 +2448,10 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Sets maximal lifespan of an archetype. </p>
+<p>Sets maximal lifespan of an archetype. A dying archetype keeps no more of its countdown than the new lifespan allows. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">lifespan</td><td>How many world updates an empty archetype is kept. If zero, the archetype it kept indefinitely. </td></tr>
+    <tr><td class="paramname">lifespan</td><td>How many world updates an empty archetype is kept. If zero, the archetype is kept indefinitely. </td></tr>
   </table>
   </dd>
 </dl>
