@@ -26308,6 +26308,8 @@ namespace gaia {
 			static constexpr uint32_t MaxImplicitKeyLength = 384;
 			static constexpr uint32_t MaxImplicitStringLength = 16u * 1024u * 1024u;
 			static constexpr uint32_t MaxLiteralLength = 256u;
+			//! Longest number token parse_number accepts, including the terminating null.
+			static constexpr uint32_t MaxNumberLength = 128u;
 
 			enum class CtxType : uint8_t { Object, Array };
 
@@ -26820,16 +26822,40 @@ namespace gaia {
 				return true;
 			}
 
+			//! Parses a number token that ends within the input.
+			//! The token runs up to the next whitespace, ',', ']' or '}' or the end of the input, and the whole token
+			//! must be a number. Bytes past the input length are never read, so the input need not be null-terminated.
+			//! \param value Receives the parsed number.
+			//! \return False when the token is empty, longer than 127 bytes, or not a whole number.
 			bool parse_number(double& value) {
 				ws();
 				if (m_it == nullptr || m_end == nullptr || m_it >= m_end)
 					return false;
 
-				char* pEnd = nullptr;
-				value = std::strtod(m_it, &pEnd);
-				if (pEnd == m_it)
+				// std::strtod reads until a byte that cannot continue the number and ignores m_end. Copy the token
+				// into a null-terminated buffer so it stops where the input does.
+				uint32_t len = 0;
+				while (m_it + len < m_end) {
+					const char ch = m_it[len];
+					if (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == ',' || ch == ']' || ch == '}')
+						break;
+					if (++len >= MaxNumberLength)
+						return false;
+				}
+				if (len == 0)
 					return false;
-				m_it = pEnd;
+
+				char token[MaxNumberLength];
+				memcpy(token, m_it, len);
+				token[len] = 0;
+
+				char* pEnd = nullptr;
+				const double parsed = std::strtod(token, &pEnd);
+				if (pEnd != token + len)
+					return false;
+
+				value = parsed;
+				m_it += len;
 				return true;
 			}
 

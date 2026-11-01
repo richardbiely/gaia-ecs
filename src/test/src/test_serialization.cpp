@@ -373,6 +373,48 @@ TEST_CASE("Serialization - ser_json") {
 		reader.ws();
 		CHECK(reader.eof());
 	}
+
+	SUBCASE("parses numbers only within the input length") {
+		// Each input is a prefix of a longer buffer that is not terminated at the given length.
+		auto parse_prefix = [](const char* buffer, uint32_t len, double& value) {
+			ser::ser_json reader(buffer, len);
+			if (!reader.parse_number(value))
+				return false;
+			reader.ws();
+			return reader.eof();
+		};
+
+		double value = 0.0;
+		CHECK(parse_prefix("6.0456789", 3, value));
+		CHECK(value == 6.0);
+		CHECK(parse_prefix("1234", 2, value));
+		CHECK(value == 12.0);
+		CHECK(parse_prefix("1e23", 3, value));
+		CHECK(value == 100.0);
+		CHECK(parse_prefix("-0.55", 4, value));
+		CHECK(value == -0.5);
+		CHECK(parse_prefix("2.5E+10", 6, value));
+		CHECK(value == 2.5e1);
+
+		// A token that is incomplete within the input fails instead of reading the bytes past it.
+		CHECK_FALSE(parse_prefix("1e5", 2, value));
+		CHECK_FALSE(parse_prefix("1e+5", 3, value));
+		CHECK_FALSE(parse_prefix("-5", 1, value));
+
+		// A number at the end of a nested view is followed by digits in memory.
+		const char* nested = "[7.2599]";
+		ser::ser_json reader(nested, 5);
+		CHECK(reader.expect('['));
+		CHECK(reader.parse_number(value));
+		CHECK(value == 7.25);
+		CHECK_FALSE(reader.expect(']'));
+
+		// A token longer than the parser's bound fails cleanly.
+		char longNumber[513];
+		memset(longNumber, '1', sizeof(longNumber) - 1);
+		longNumber[sizeof(longNumber) - 1] = 0;
+		CHECK_FALSE(parse_prefix(longNumber, (uint32_t)(sizeof(longNumber) - 1), value));
+	}
 }
 
 TEST_CASE("Serialization - json runtime fields") {
@@ -3830,6 +3872,20 @@ TEST_CASE("Serialization - validated runtime component patch") {
 	CHECK(wld.patch_comp_json(entity, component.entity, "/x", "4.5", diagnostics));
 	CHECK_FALSE(diagnostics.has_issues());
 	CHECK(wld.get<RuntimePatchComponent>(entity).x == doctest::Approx(4.5f));
+
+	// The value view ends before the rest of the buffer, which is not part of the patch.
+	diagnostics.clear();
+	CHECK(wld.patch_comp_json(entity, component.entity, "/x", util::str_view("6.0456789", 3), diagnostics));
+	CHECK_FALSE(diagnostics.has_issues());
+	CHECK(wld.get<RuntimePatchComponent>(entity).x == 6.0f);
+
+	diagnostics.clear();
+	CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "/x", util::str_view("1e0", 2), diagnostics));
+	CHECK(diagnostics.hasErrors);
+	CHECK(wld.get<RuntimePatchComponent>(entity).x == 6.0f);
+
+	diagnostics.clear();
+	CHECK(wld.patch_comp_json(entity, component.entity, "/x", "4.5", diagnostics));
 
 	diagnostics.clear();
 	CHECK(wld.patch_comp_json(entity, component.entity, "/nested/value", "6.5", diagnostics));
