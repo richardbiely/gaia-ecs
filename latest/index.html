@@ -3753,7 +3753,7 @@ Jobs</h3>
 <div class="line">tp.wait(jobHandle);</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Use the result</span></div>
-<div class="line">GAIA_LOG(<span class="stringliteral">&quot;Sum: %u\n&quot;</span>, sum);</div>
+<div class="line">GAIA_LOG_N(<span class="stringliteral">&quot;Sum: %u\n&quot;</span>, sum);</div>
 </div><!-- fragment --><h3><a class="anchor" id="job-dependencies"></a>
 Job dependencies</h3>
 <p>Sometimes we need to wait for the result of another operation before we can proceed. To achieve this we need to use low-level API and handle job registration and submitting jobs on our own. &gt;<b>NOTE:<br  />
