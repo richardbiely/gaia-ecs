@@ -2432,6 +2432,10 @@ TEST_CASE("Multithreading - A job is done before its dependents can complete") {
 	auto& tp = mt::ThreadPool::get();
 	const auto threads = tp.hw_thread_cnt();
 	tp.set_max_workers(threads, threads);
+	// The stalled child must run on a worker thread
+	CHECK(tp.workers() > 0);
+	if (tp.workers() == 0)
+		return;
 
 	constexpr uint32_t Children = 16;
 	mt::JobHandle handles[Children + 1];
@@ -2451,9 +2455,13 @@ TEST_CASE("Multithreading - A job is done before its dependents can complete") {
 	mt::ThreadPool::s_testBeforeFinalize = &FinalizeStall::hook;
 
 	tp.submit(std::span(handles, Children + 1));
+	// wait() lets the main thread run children too, and it could run all of them before any worker does.
+	// Only start waiting once a worker is stalled right before publishing a child's Done state.
+	while (!FinalizeStall::claimed)
+		std::this_thread::yield();
 	tp.wait(handles[Children]);
 	FinalizeStall::waitReturned = true;
-	while (FinalizeStall::claimed && !FinalizeStall::done)
+	while (!FinalizeStall::done)
 		std::this_thread::yield();
 
 	mt::ThreadPool::s_testBeforeFinalize = nullptr;
