@@ -865,7 +865,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00909" name="l00909"></a><span class="lineno">  909</span>        <span class="comment">// darray::resize() leaves trivial types uninitialized. Zero-fill new slots explicitly,</span></div>
 <div class="line"><a id="l00910" name="l00910"></a><span class="lineno">  910</span>        <span class="comment">// otherwise recycled heap memory may already hold the current stamp and the query gets skipped.</span></div>
 <div class="line"><a id="l00911" name="l00911"></a><span class="lineno">  911</span>        <span class="keywordflow">if</span> (handleId &gt;= m_createQueryHandleStampById.size())</div>
-<div class="line"><a id="l00912" name="l00912"></a><span class="lineno">  912</span>          m_createQueryHandleStampById.resize(handleId + 1, 0U);</div>
+<div class="line"><a id="l00912" name="l00912"></a><span class="lineno">  912</span>          m_createQueryHandleStampById.resize(handleId + 1, 0U, cnt::ResizePolicy::Scale);</div>
 <div class="line"><a id="l00913" name="l00913"></a><span class="lineno">  913</span> </div>
 <div class="line"><a id="l00914" name="l00914"></a><span class="lineno">  914</span>        <span class="keyword">auto</span>&amp; stamp = m_createQueryHandleStampById[handleId];</div>
 <div class="line"><a id="l00915" name="l00915"></a><span class="lineno">  915</span>        <span class="keywordflow">if</span> (stamp == m_createQueryHandleStamp)</div>

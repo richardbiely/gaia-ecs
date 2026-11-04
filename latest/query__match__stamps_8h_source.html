@@ -186,7 +186,7 @@ $(document).ready(function(){initNavTree('query__match__stamps_8h_source.html','
 <div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>    <span class="keyword">private</span>:</div>
 <div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>      GAIA_NODISCARD uint32_t* ensure_page(uint32_t pid) {</div>
 <div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>        <span class="keywordflow">if</span> (pid &gt;= pages.size())</div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>          pages.resize(pid + 1, <span class="keyword">nullptr</span>);</div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>          pages.resize(pid + 1, <span class="keyword">nullptr</span>, cnt::ResizePolicy::Scale);</div>
 <div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span> </div>
 <div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>        <span class="keyword">auto</span>*&amp; page = pages[pid];</div>
 <div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>        <span class="keywordflow">if</span> (page == <span class="keyword">nullptr</span>) {</div>

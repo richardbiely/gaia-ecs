@@ -199,8 +199,8 @@ $(document).ready(function(){initNavTree('threadpool_8h_source.html',''); initRe
 <div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>      std::thread::id m_mainThreadId;</div>
 <div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
 <div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>      std::atomic_bool m_stop{};</div>
-<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray_ext&lt;GAIA_THREAD, MaxWorkers&gt;</a> m_workers;</div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>      <span class="keyword">alignas</span>(128) <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray_ext&lt;ThreadCtx, MaxWorkers&gt;</a> m_workersCtx;</div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::sarray_ext&lt;GAIA_THREAD, MaxWorkers&gt;</a> m_workers;</div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>      <span class="keyword">alignas</span>(128) <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::sarray_ext&lt;ThreadCtx, MaxWorkers&gt;</a> m_workersCtx;</div>
 <div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>      MpmcQueue&lt;JobHandle, 1024&gt; m_jobQueue[JobPriorityCnt];</div>
 <div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>      MpmcQueue&lt;JobHandle, 1024&gt; m_jobQueueBackground;</div>
 <div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>      uint32_t m_frameWorkersCnt = 0;</div>
@@ -299,12 +299,12 @@ $(document).ready(function(){initNavTree('threadpool_8h_source.html',''); initRe
 <div class="line"><a id="l00217" name="l00217"></a><span class="lineno">  217</span>        <span class="comment">// background workers are appended after them.</span></div>
 <div class="line"><a id="l00218" name="l00218"></a><span class="lineno">  218</span>        m_workersCtx.resize(workersCnt + m_backgroundWorkersCnt);</div>
 <div class="line"><a id="l00219" name="l00219"></a><span class="lineno">  219</span>        <span class="comment">// We also have the main thread so there&#39;s always one less worker spawned</span></div>
-<div class="line"><a id="l00220" name="l00220"></a><span class="lineno">  220</span>        m_workers.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a1ab8190cf0fb45168fa4a84c056cac44">resize</a>(m_frameWorkersCnt + m_backgroundWorkersCnt);</div>
+<div class="line"><a id="l00220" name="l00220"></a><span class="lineno">  220</span>        m_workers.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ab65651d7e45de1924093c4db30758c63">resize</a>(m_frameWorkersCnt + m_backgroundWorkersCnt);</div>
 <div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span> </div>
 <div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span>        <span class="comment">// First worker is considered the main thread.</span></div>
 <div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span>        <span class="comment">// It is also assigned high priority but it doesn&#39;t really matter.</span></div>
 <div class="line"><a id="l00224" name="l00224"></a><span class="lineno">  224</span>        <span class="comment">// The main thread can steal any jobs, both low and high priority.</span></div>
-<div class="line"><a id="l00225" name="l00225"></a><span class="lineno">  225</span>        detail::tl_workerCtx = m_workersCtx.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#aecd14fa8022bda57c55d79344386c03a">data</a>();</div>
+<div class="line"><a id="l00225" name="l00225"></a><span class="lineno">  225</span>        detail::tl_workerCtx = m_workersCtx.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#af25718f1d439b9d7c4271ab74e24b951">data</a>();</div>
 <div class="line"><a id="l00226" name="l00226"></a><span class="lineno">  226</span>        m_workersCtx[0].tp = <span class="keyword">this</span>;</div>
 <div class="line"><a id="l00227" name="l00227"></a><span class="lineno">  227</span>        m_workersCtx[0].workerIdx = 0;</div>
 <div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span>        m_workersCtx[0].prio = JobPriority::High;</div>
@@ -392,9 +392,9 @@ $(document).ready(function(){initNavTree('threadpool_8h_source.html',''); initRe
 <div class="line"><a id="l00317" name="l00317"></a><span class="lineno">  317</span>          ctx.reset();</div>
 <div class="line"><a id="l00318" name="l00318"></a><span class="lineno">  318</span> </div>
 <div class="line"><a id="l00319" name="l00319"></a><span class="lineno">  319</span>        m_workersCtx.resize(m_frameWorkersCnt + 1 + m_backgroundWorkersCnt);</div>
-<div class="line"><a id="l00320" name="l00320"></a><span class="lineno">  320</span>        m_workers.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a1ab8190cf0fb45168fa4a84c056cac44">resize</a>(m_frameWorkersCnt + m_backgroundWorkersCnt);</div>
+<div class="line"><a id="l00320" name="l00320"></a><span class="lineno">  320</span>        m_workers.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ab65651d7e45de1924093c4db30758c63">resize</a>(m_frameWorkersCnt + m_backgroundWorkersCnt);</div>
 <div class="line"><a id="l00321" name="l00321"></a><span class="lineno">  321</span> </div>
-<div class="line"><a id="l00322" name="l00322"></a><span class="lineno">  322</span>        detail::tl_workerCtx = m_workersCtx.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#aecd14fa8022bda57c55d79344386c03a">data</a>();</div>
+<div class="line"><a id="l00322" name="l00322"></a><span class="lineno">  322</span>        detail::tl_workerCtx = m_workersCtx.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#af25718f1d439b9d7c4271ab74e24b951">data</a>();</div>
 <div class="line"><a id="l00323" name="l00323"></a><span class="lineno">  323</span>        m_workersCtx[0].tp = <span class="keyword">this</span>;</div>
 <div class="line"><a id="l00324" name="l00324"></a><span class="lineno">  324</span>        m_workersCtx[0].workerIdx = 0;</div>
 <div class="line"><a id="l00325" name="l00325"></a><span class="lineno">  325</span>        m_workersCtx[0].prio = JobPriority::High;</div>
@@ -1172,7 +1172,7 @@ $(document).ready(function(){initNavTree('threadpool_8h_source.html',''); initRe
 <div class="line"><a id="l01178" name="l01178"></a><span class="lineno"> 1178</span>      }</div>
 <div class="line"><a id="l01179" name="l01179"></a><span class="lineno"> 1179</span> </div>
 <div class="line"><a id="l01182" name="l01182"></a><span class="lineno"> 1182</span>      <span class="keywordtype">void</span> join_thread(uint32_t workerIdx) {</div>
-<div class="line"><a id="l01183" name="l01183"></a><span class="lineno"> 1183</span>        <span class="keywordflow">if</span> GAIA_UNLIKELY (workerIdx &gt; m_workers.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>())</div>
+<div class="line"><a id="l01183" name="l01183"></a><span class="lineno"> 1183</span>        <span class="keywordflow">if</span> GAIA_UNLIKELY (workerIdx &gt; m_workers.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>())</div>
 <div class="line"><a id="l01184" name="l01184"></a><span class="lineno"> 1184</span>          return;</div>
 <div class="line"><a id="l01185" name="l01185"></a><span class="lineno"> 1185</span> </div>
 <div class="line"><a id="l01186" name="l01186"></a><span class="lineno"> 1186</span><span class="preprocessor">#if GAIA_THREAD_PLATFORM == GAIA_THREAD_STD</span></div>
@@ -1455,7 +1455,7 @@ $(document).ready(function(){initNavTree('threadpool_8h_source.html',''); initRe
 <div class="line"><a id="l01497" name="l01497"></a><span class="lineno"> 1497</span>      }</div>
 <div class="line"><a id="l01498" name="l01498"></a><span class="lineno"> 1498</span> </div>
 <div class="line"><a id="l01500" name="l01500"></a><span class="lineno"> 1500</span>      <span class="keywordtype">void</span> reset() {</div>
-<div class="line"><a id="l01501" name="l01501"></a><span class="lineno"> 1501</span>        <span class="keywordflow">if</span> (m_workers.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#ad484d16336501853a8256c842ed77fb6">empty</a>())</div>
+<div class="line"><a id="l01501" name="l01501"></a><span class="lineno"> 1501</span>        <span class="keywordflow">if</span> (m_workers.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#af99589ac6b1e4e6ff20f89f6f8b2e3d2">empty</a>())</div>
 <div class="line"><a id="l01502" name="l01502"></a><span class="lineno"> 1502</span>          <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l01503" name="l01503"></a><span class="lineno"> 1503</span> </div>
 <div class="line"><a id="l01504" name="l01504"></a><span class="lineno"> 1504</span>        <span class="comment">// Request stopping</span></div>
@@ -1489,7 +1489,7 @@ $(document).ready(function(){initNavTree('threadpool_8h_source.html',''); initRe
 <div class="line"><a id="l01532" name="l01532"></a><span class="lineno"> 1532</span>        detail::tl_workerCtx = <span class="keyword">nullptr</span>;</div>
 <div class="line"><a id="l01533" name="l01533"></a><span class="lineno"> 1533</span> </div>
 <div class="line"><a id="l01534" name="l01534"></a><span class="lineno"> 1534</span>        <span class="comment">// Join threads with the main one</span></div>
-<div class="line"><a id="l01535" name="l01535"></a><span class="lineno"> 1535</span>        GAIA_FOR(m_workers.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">size</a>()) join_thread(i + 1);</div>
+<div class="line"><a id="l01535" name="l01535"></a><span class="lineno"> 1535</span>        GAIA_FOR(m_workers.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">size</a>()) join_thread(i + 1);</div>
 <div class="line"><a id="l01536" name="l01536"></a><span class="lineno"> 1536</span> </div>
 <div class="line"><a id="l01537" name="l01537"></a><span class="lineno"> 1537</span>        <span class="comment">// All threads have been stopped. Allow new threads to run if necessary.</span></div>
 <div class="line"><a id="l01538" name="l01538"></a><span class="lineno"> 1538</span>        m_stop.store(false);</div>
@@ -1692,11 +1692,11 @@ $(document).ready(function(){initNavTree('threadpool_8h_source.html',''); initRe
 <div class="line"><a id="l01750" name="l01750"></a><span class="lineno"> 1750</span>    GAIA_MSVC_WARNING_POP()</div>
 <div class="line"><a id="l01751" name="l01751"></a><span class="lineno"> 1751</span>  } <span class="comment">// namespace mt</span></div>
 <div class="line"><a id="l01752" name="l01752"></a><span class="lineno"> 1752</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:28</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_a1ab8190cf0fb45168fa4a84c056cac44"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#a1ab8190cf0fb45168fa4a84c056cac44">gaia::cnt::darr::resize</a></div><div class="ttdeci">void resize(size_type count, ResizePolicy policy=ResizePolicy::Exact)</div><div class="ttdoc">Changes the number of elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:226</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_a69f6838ce66038a9aac1cfe8a72a22e7"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#a69f6838ce66038a9aac1cfe8a72a22e7">gaia::cnt::darr::size</a></div><div class="ttdeci">GAIA_NODISCARD size_type size() const noexcept</div><div class="ttdoc">Returns the number of elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:492</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_ad484d16336501853a8256c842ed77fb6"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#ad484d16336501853a8256c842ed77fb6">gaia::cnt::darr::empty</a></div><div class="ttdeci">GAIA_NODISCARD bool empty() const noexcept</div><div class="ttdoc">Checks whether the container has no elements.</div><div class="ttdef"><b>Definition</b> darray_impl.h:498</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_aecd14fa8022bda57c55d79344386c03a"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#aecd14fa8022bda57c55d79344386c03a">gaia::cnt::darr::data</a></div><div class="ttdeci">GAIA_NODISCARD pointer data() noexcept</div><div class="ttdoc">Returns a pointer to the element storage.</div><div class="ttdef"><b>Definition</b> darray_impl.h:178</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html">gaia::cnt::darr_ext</a></div><div class="ttdoc">Array of elements of type.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:31</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_a0aad625ff8fb437840b8edf2ffa69c7b"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#a0aad625ff8fb437840b8edf2ffa69c7b">gaia::cnt::darr_ext::size</a></div><div class="ttdeci">GAIA_NODISCARD size_type size() const noexcept</div><div class="ttdoc">Returns the number of elements.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:561</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_ab65651d7e45de1924093c4db30758c63"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#ab65651d7e45de1924093c4db30758c63">gaia::cnt::darr_ext::resize</a></div><div class="ttdeci">void resize(size_type count, ResizePolicy policy=ResizePolicy::Exact)</div><div class="ttdoc">Changes the number of elements.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:289</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_af25718f1d439b9d7c4271ab74e24b951"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#af25718f1d439b9d7c4271ab74e24b951">gaia::cnt::darr_ext::data</a></div><div class="ttdeci">GAIA_NODISCARD pointer data() noexcept</div><div class="ttdoc">Returns a pointer to the element storage.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:236</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_af99589ac6b1e4e6ff20f89f6f8b2e3d2"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#af99589ac6b1e4e6ff20f89f6f8b2e3d2">gaia::cnt::darr_ext::empty</a></div><div class="ttdeci">GAIA_NODISCARD bool empty() const noexcept</div><div class="ttdoc">Checks whether the container has no elements.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:567</div></div>
 <div class="ttc" id="aclassgaia_1_1mt_1_1JobCallable_html"><div class="ttname"><a href="classgaia_1_1mt_1_1JobCallable.html">gaia::mt::JobCallable&lt; void &gt;</a></div></div>
 <div class="ttc" id="aclassgaia_1_1mt_1_1SemaphoreFast_html"><div class="ttname"><a href="classgaia_1_1mt_1_1SemaphoreFast.html">gaia::mt::SemaphoreFast</a></div><div class="ttdoc">An optimized version of Semaphore that avoids expensive system calls when the counter is greater than...</div><div class="ttdef"><b>Definition</b> semaphore_fast.h:12</div></div>
 <div class="ttc" id="aclassgaia_1_1mt_1_1SemaphoreFast_html_abb94ab1aee89f66576babcd62f698d7e"><div class="ttname"><a href="classgaia_1_1mt_1_1SemaphoreFast.html#abb94ab1aee89f66576babcd62f698d7e">gaia::mt::SemaphoreFast::wait</a></div><div class="ttdeci">bool wait()</div><div class="ttdoc">Decrements semaphore count by 1. If the count is already 0, it waits indefinitely until semaphore cou...</div><div class="ttdef"><b>Definition</b> semaphore_fast.h:43</div></div>
