@@ -87107,9 +87107,10 @@ namespace gaia {
 			const bool includeBinarySnapshot = (flags & ser::JsonSaveFlags::BinarySnapshot) != 0;
 			const bool allowRawFallback = (flags & ser::JsonSaveFlags::RawFallback) != 0;
 
-			auto write_component_key = [&](Entity component, const ComponentCacheItem& item) {
+			auto write_component_key = [&](Entity component, const ComponentCacheItem* pItem) {
 				if (!component.pair()) {
-					const auto componentName = comp_cache().symbol_name(item);
+					// A plain entity used as a tag has no component cache item, so it goes by its entity name
+					const auto componentName = pItem != nullptr ? comp_cache().symbol_name(*pItem) : name(component);
 					if (componentName.empty())
 						return false;
 					writer.key(componentName.data(), componentName.size());
@@ -87276,9 +87277,8 @@ namespace gaia {
 								{
 									GAIA_FOR_((uint32_t)recs.size(), j) {
 										const auto& rec = recs[j];
-										const auto& item = *rec.pItem;
 										const auto component = pChunk->ids_view()[j];
-										if (!write_component_key(component, item)) {
+										if (!write_component_key(component, rec.pItem)) {
 											writer.key("<unnamed>");
 											if (component.pair() && !includeBinarySnapshot)
 												ok = false;
@@ -87290,6 +87290,9 @@ namespace gaia {
 											continue;
 										}
 
+										// Components with a payload are always registered in the component cache
+										GAIA_ASSERT(rec.pItem != nullptr);
+										const auto& item = *rec.pItem;
 										if (gaia::ecs::component_uses_sparse_storage(rec.comp)) {
 											write_sparse_component_value(entity, component, item);
 											continue;
@@ -87317,7 +87320,7 @@ namespace gaia {
 											const auto* pItem =
 													component.pair() ? comp_cache().find_pair_payload(component) : comp_cache().find(component);
 											GAIA_ASSERT(pItem != nullptr);
-											if (pItem == nullptr || !write_component_key(component, *pItem)) {
+											if (pItem == nullptr || !write_component_key(component, pItem)) {
 												writer.key("<unnamed>");
 												ok = false;
 											}

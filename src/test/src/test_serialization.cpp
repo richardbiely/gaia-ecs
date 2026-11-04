@@ -2476,6 +2476,46 @@ TEST_CASE("Serialization - world json") {
 	CHECK(hasUnsupportedFormatError);
 }
 
+TEST_CASE("Serialization - world json with plain entities used as tags") {
+	TestWorld twld;
+	(void)wld.add<Position>();
+
+	// Plain entities used as tags have no component cache item
+	const auto marked = wld.add();
+	wld.name(marked, "Marked");
+	const auto unnamed = wld.add();
+
+	const auto e = wld.add();
+	wld.name(e, "Player");
+	wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+	wld.add(e, marked);
+	wld.add(e, unnamed);
+
+	ser::ser_json semanticWriter;
+	CHECK(wld.save_json(semanticWriter, ser::JsonSaveFlags::RawFallback));
+	const auto& semanticJson = semanticWriter.str();
+	CHECK(semanticJson.find("\"Marked\":true") != BadIndex);
+	CHECK(semanticJson.find("\"<unnamed>\":true") != BadIndex);
+	CHECK(semanticJson.find("\"Position\":{\"$raw\":[") != BadIndex);
+
+	// The binary snapshot restores the tags
+	ser::ser_json writer;
+	CHECK(wld.save_json(writer));
+
+	TestWorld twldOut;
+	(void)twldOut.m_w.add<Position>();
+	CHECK(twldOut.m_w.load_json(writer.str()));
+
+	const auto loaded = twldOut.m_w.get("Player");
+	const auto markedLoaded = twldOut.m_w.get("Marked");
+	CHECK(loaded != ecs::EntityBad);
+	CHECK(markedLoaded != ecs::EntityBad);
+	if (loaded == ecs::EntityBad || markedLoaded == ecs::EntityBad)
+		return;
+	CHECK(twldOut.m_w.has(loaded, markedLoaded));
+	CHECK(twldOut.m_w.get<Position>(loaded).y == 2.0f);
+}
+
 TEST_CASE("Serialization - semantic world json preserves sparse component payloads") {
 	SUBCASE("fragmenting sparse payload") {
 		ecs::World in;
