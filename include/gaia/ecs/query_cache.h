@@ -909,7 +909,7 @@ namespace gaia {
 				// darray::resize() leaves trivial types uninitialized. Zero-fill new slots explicitly,
 				// otherwise recycled heap memory may already hold the current stamp and the query gets skipped.
 				if (handleId >= m_createQueryHandleStampById.size())
-					m_createQueryHandleStampById.resize(handleId + 1, 0U);
+					m_createQueryHandleStampById.resize(handleId + 1, 0U, cnt::ResizePolicy::Scale);
 
 				auto& stamp = m_createQueryHandleStampById[handleId];
 				if (stamp == m_createQueryHandleStamp)

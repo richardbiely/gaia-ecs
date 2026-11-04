@@ -395,7 +395,7 @@ namespace gaia {
 				if (size == 0 || size > (uint32_t)-1 - oldSize)
 					return;
 
-				m_data.resize(oldSize + size);
+				m_data.resize(oldSize + size, cnt::ResizePolicy::Scale);
 				memcpy(m_data.data() + oldSize, data, size);
 			}
 

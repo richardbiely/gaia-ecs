@@ -6881,7 +6881,7 @@ namespace gaia {
 								const auto oldSize = out.size();
 								const auto entityCnt = (uint32_t)(to - from);
 								const auto entities = pChunk->entity_view();
-								out.resize(oldSize + entityCnt);
+								out.resize(oldSize + entityCnt, cnt::ResizePolicy::Scale);
 								GAIA_FOR(entityCnt) {
 									out[oldSize + i] = entities[from + i];
 								}

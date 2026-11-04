@@ -19152,7 +19152,7 @@ namespace gaia {
 			void try_grow(uint32_t pid) {
 				// The page array has to be able to take any page index
 				if (pid >= m_pages.size())
-					m_pages.resize(pid + 1);
+					m_pages.resize(pid + 1, ResizePolicy::Scale);
 
 				m_pages[pid].add();
 				++m_itemCnt;
@@ -22688,7 +22688,7 @@ namespace gaia {
 
 				// The sparse array has to be able to take any sparse index
 				if (pid >= m_pages.size())
-					m_pages.resize(pid + 1);
+					m_pages.resize(pid + 1, ResizePolicy::Scale);
 
 				m_pages[pid].add();
 			}
@@ -23075,7 +23075,7 @@ namespace gaia {
 
 				// The sparse array has to be able to take any sparse index
 				if (pid >= m_pages.size())
-					m_pages.resize(pid + 1);
+					m_pages.resize(pid + 1, ResizePolicy::Scale);
 
 				m_pages[pid].add();
 			}
@@ -25322,7 +25322,7 @@ namespace gaia {
 				if (size == 0 || size > (uint32_t)-1 - oldSize)
 					return;
 
-				m_data.resize(oldSize + size);
+				m_data.resize(oldSize + size, cnt::ResizePolicy::Scale);
 				memcpy(m_data.data() + oldSize, data, size);
 			}
 
@@ -46703,7 +46703,7 @@ namespace gaia {
 		private:
 			GAIA_NODISCARD uint32_t* ensure_page(uint32_t pid) {
 				if (pid >= pages.size())
-					pages.resize(pid + 1, nullptr);
+					pages.resize(pid + 1, nullptr, cnt::ResizePolicy::Scale);
 
 				auto*& page = pages[pid];
 				if (page == nullptr) {
@@ -54562,7 +54562,7 @@ namespace gaia {
 				// darray::resize() leaves trivial types uninitialized. Zero-fill new slots explicitly,
 				// otherwise recycled heap memory may already hold the current stamp and the query gets skipped.
 				if (handleId >= m_createQueryHandleStampById.size())
-					m_createQueryHandleStampById.resize(handleId + 1, 0U);
+					m_createQueryHandleStampById.resize(handleId + 1, 0U, cnt::ResizePolicy::Scale);
 
 				auto& stamp = m_createQueryHandleStampById[handleId];
 				if (stamp == m_createQueryHandleStamp)
@@ -62127,7 +62127,7 @@ namespace gaia {
 								const auto oldSize = out.size();
 								const auto entityCnt = (uint32_t)(to - from);
 								const auto entities = pChunk->entity_view();
-								out.resize(oldSize + entityCnt);
+								out.resize(oldSize + entityCnt, cnt::ResizePolicy::Scale);
 								GAIA_FOR(entityCnt) {
 									out[oldSize + i] = entities[from + i];
 								}
@@ -75885,7 +75885,7 @@ namespace gaia {
 			GAIA_NODISCARD bool try_mark_entity_visited(Entity entity, uint64_t stamp) const {
 				GAIA_ASSERT(!entity.pair());
 				if (entity.id() >= m_entityVisitStamps.size())
-					m_entityVisitStamps.resize(m_recs.entities.size(), 0);
+					m_entityVisitStamps.resize(m_recs.entities.size(), 0, cnt::ResizePolicy::Scale);
 
 				auto& slot = m_entityVisitStamps[entity.id()];
 				if (slot == stamp)
@@ -76079,7 +76079,6 @@ namespace gaia {
 
 					for (const auto* pChunk: pArchetype->chunks()) {
 						const auto entities = pChunk->entity_view();
-						out.reserve(out.size() + (uint32_t)entities.size());
 						GAIA_EACH(entities)
 						out.push_back(entities[i]);
 					}

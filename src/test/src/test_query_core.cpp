@@ -4031,6 +4031,126 @@ TEST_CASE("Relationship wildcard source traversal after change") {
 	CHECK(core::has(sources, c));
 }
 
+TEST_CASE("Relationship wildcard source traversal while new sources keep appearing") {
+	TestWorld twld;
+
+	auto rel0 = wld.add();
+	auto rel1 = wld.add();
+	auto target = wld.add();
+
+	constexpr uint32_t SourceCnt = 300;
+	cnt::darr<ecs::Entity> sources;
+	GAIA_FOR(SourceCnt) {
+		// Each new source has an id the visit stamp table has not covered yet
+		auto source = wld.add();
+		wld.add(source, {rel0, target});
+		// A source linked through two relations must still be reported once
+		if (i % 3 == 0)
+			wld.add(source, {rel1, target});
+
+		sources.clear();
+		wld.sources(ecs::All, target, [&sources](ecs::Entity entity) {
+			sources.push_back(entity);
+		});
+		CHECK(sources.size() == i + 1);
+		CHECK(core::has(sources, source));
+	}
+}
+
+TEST_CASE("Query - new archetypes reach many cached queries") {
+	TestWorld twld;
+
+	// Distinct query shapes get distinct handles. The no() queries all select Position, so every new
+	// archetype with Position is routed to each of them in a single pass.
+	constexpr uint32_t QueryCnt = 300;
+	cnt::darr<ecs::Entity> tags;
+	cnt::darr<ecs::Query> queriesAll;
+	cnt::darr<ecs::Query> queriesNo;
+	GAIA_FOR(QueryCnt) {
+		tags.push_back(wld.add());
+		queriesAll.push_back(wld.query().all<Position>().all(tags[i]));
+		queriesNo.push_back(wld.query().all<Position>().no(tags[i]));
+	}
+
+	// Build each query cache before the archetypes it has to pick up exist
+	GAIA_FOR(QueryCnt) {
+		CHECK(queriesAll[i].count() == 0);
+		CHECK(queriesNo[i].count() == 0);
+	}
+
+	uint32_t entityCnt = 0;
+	for (uint32_t i = 0; i < QueryCnt; i += 7) {
+		auto e = wld.add();
+		wld.add<Position>(e);
+		wld.add(e, tags[i]);
+		++entityCnt;
+	}
+
+	GAIA_FOR(QueryCnt) {
+		const uint32_t withTag = i % 7 == 0 ? 1U : 0U;
+		CHECK(queriesAll[i].count() == withTag);
+		CHECK(queriesNo[i].count() == entityCnt - withTag);
+	}
+}
+
+TEST_CASE("Query - entity collection appends across many chunks") {
+	TestWorld twld;
+
+	// Enough entities to fill several chunks, every tenth one disabled
+	constexpr uint32_t EntityCnt = 10000;
+	cnt::darr<ecs::Entity> entities;
+	GAIA_FOR(EntityCnt) {
+		auto e = wld.add();
+		wld.add<Position>(e, {(float)i, 0, 0});
+		entities.push_back(e);
+	}
+	for (uint32_t i = 0; i < EntityCnt; i += 10)
+		wld.enable(entities[i], false);
+
+	auto q = wld.query().all<Position>();
+	uint32_t chunkCnt = 0;
+	q.each([&chunkCnt](ecs::Iter&) {
+		++chunkCnt;
+	});
+	CHECK(chunkCnt > 2);
+
+	const auto sentinel = wld.add();
+
+	SUBCASE("enabled query matches") {
+		cnt::darr<ecs::Entity> out;
+		out.push_back(sentinel);
+		q.collect_entities_enabled(out);
+
+		CHECK(out.size() == 1 + EntityCnt - EntityCnt / 10);
+		CHECK(out[0] == sentinel);
+		cnt::darr<ecs::Entity> sorted;
+		for (uint32_t i = 1; i < out.size(); ++i)
+			sorted.push_back(out[i]);
+		core::sort(sorted, core::is_smaller<ecs::Entity>{});
+		uint32_t idx = 0;
+		GAIA_FOR(EntityCnt) {
+			if (i % 10 == 0)
+				continue;
+			CHECK(sorted[idx] == entities[i]);
+			++idx;
+		}
+	}
+
+	SUBCASE("direct term entities") {
+		cnt::darr<ecs::Entity> out;
+		out.push_back(sentinel);
+		wld.collect_direct_term_entities(wld.add<Position>().entity, out);
+
+		CHECK(out.size() == 1 + EntityCnt);
+		CHECK(out[0] == sentinel);
+		cnt::darr<ecs::Entity> sorted;
+		for (uint32_t i = 1; i < out.size(); ++i)
+			sorted.push_back(out[i]);
+		core::sort(sorted, core::is_smaller<ecs::Entity>{});
+		GAIA_FOR(EntityCnt) CHECK(sorted[i] == entities[i]);
+	}
+}
+
 TEST_CASE("Relationship wildcard target traversal") {
 	TestWorld twld;
 

@@ -76,7 +76,7 @@ namespace gaia {
 		private:
 			GAIA_NODISCARD uint32_t* ensure_page(uint32_t pid) {
 				if (pid >= pages.size())
-					pages.resize(pid + 1, nullptr);
+					pages.resize(pid + 1, nullptr, cnt::ResizePolicy::Scale);
 
 				auto*& page = pages[pid];
 				if (page == nullptr) {

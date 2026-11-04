@@ -9090,7 +9090,7 @@ namespace gaia {
 			GAIA_NODISCARD bool try_mark_entity_visited(Entity entity, uint64_t stamp) const {
 				GAIA_ASSERT(!entity.pair());
 				if (entity.id() >= m_entityVisitStamps.size())
-					m_entityVisitStamps.resize(m_recs.entities.size(), 0);
+					m_entityVisitStamps.resize(m_recs.entities.size(), 0, cnt::ResizePolicy::Scale);
 
 				auto& slot = m_entityVisitStamps[entity.id()];
 				if (slot == stamp)
@@ -9284,7 +9284,6 @@ namespace gaia {
 
 					for (const auto* pChunk: pArchetype->chunks()) {
 						const auto entities = pChunk->entity_view();
-						out.reserve(out.size() + (uint32_t)entities.size());
 						GAIA_EACH(entities)
 						out.push_back(entities[i]);
 					}

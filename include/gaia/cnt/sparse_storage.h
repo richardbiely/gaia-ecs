@@ -1256,7 +1256,7 @@ namespace gaia {
 
 				// The sparse array has to be able to take any sparse index
 				if (pid >= m_pages.size())
-					m_pages.resize(pid + 1);
+					m_pages.resize(pid + 1, ResizePolicy::Scale);
 
 				m_pages[pid].add();
 			}
@@ -1643,7 +1643,7 @@ namespace gaia {
 
 				// The sparse array has to be able to take any sparse index
 				if (pid >= m_pages.size())
-					m_pages.resize(pid + 1);
+					m_pages.resize(pid + 1, ResizePolicy::Scale);
 
 				m_pages[pid].add();
 			}

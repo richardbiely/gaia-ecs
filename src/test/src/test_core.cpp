@@ -410,6 +410,27 @@ TEST_CASE("util::str") {
 		CHECK(s == "abcdef");
 	}
 
+	SUBCASE("append grows the buffer geometrically") {
+		constexpr uint32_t AppendCount = 4096;
+		str s;
+
+		// Every relocation moves the data to a new block, so a changed data pointer counts one.
+		uint32_t relocations = 0;
+		const char* pLast = s.data();
+		GAIA_FOR(AppendCount) {
+			s.append("ab", 2);
+			if (s.data() != pLast) {
+				++relocations;
+				pLast = s.data();
+			}
+		}
+
+		CHECK(s.size() == AppendCount * 2);
+		CHECK(s.find("abab") == 0);
+		// Growing by half again relocates about log1.5(8192) = 23 times. Exact growth relocated on every append.
+		CHECK(relocations <= 32);
+	}
+
 	SUBCASE("find supports positional substring and character search") {
 		const str s("ababa_xyz_aba");
 
@@ -2412,6 +2433,152 @@ TEST_CASE("Containers - paged storage SoA iteration") {
 	verify(constArr);
 	CHECK(constArr.front() == first);
 	CHECK(constArr.back() == last);
+}
+
+namespace {
+	//! Number of ids page_table_growth_id() produces.
+	constexpr uint32_t PageTableGrowthIdCnt = 68;
+
+	//! Returns an id that drives a paged container's page table through every growth path.
+	//! The first 64 ids each open the next page, so the table repeatedly outgrows its capacity and also
+	//! grows inside the spare capacity left by earlier relocations. The next id jumps far past the capacity.
+	//! The one after it relocates the table again, the next one grows it inside the new spare capacity while
+	//! skipping pages, and the last one lands in a gap without growing it.
+	//! \param pageCapacity Number of items per page.
+	//! \param i Index of the id, smaller than PageTableGrowthIdCnt.
+	//! \return Id of the i-th item.
+	uint32_t page_table_growth_id(uint32_t pageCapacity, uint32_t i) {
+		if (i < 64)
+			return (i * pageCapacity) + (i % 7);
+		if (i == 64)
+			return (1000 * pageCapacity) + 3;
+		if (i == 65)
+			return (1001 * pageCapacity) + 5;
+		if (i == 66)
+			return (1400 * pageCapacity) + 2;
+		return (500 * pageCapacity) + 1;
+	}
+
+	//! Returns an id on a page page_table_growth_id() never touches, or past the last one.
+	//! \param pageCapacity Number of items per page.
+	//! \param i Index of the id, smaller than 4.
+	//! \return Id of the i-th unused page.
+	uint32_t page_table_growth_gap_id(uint32_t pageCapacity, uint32_t i) {
+		const uint32_t pages[] = {300, 1200, 1450, 2000};
+		return pages[i] * pageCapacity;
+	}
+} // namespace
+
+template <typename Container>
+void paged_page_table_growth_test(uint32_t pageCapacity) {
+	using Item = typename Container::value_type;
+
+	Container arr;
+	GAIA_FOR(PageTableGrowthIdCnt) {
+		arr.add(Item{page_table_growth_id(pageCapacity, i), i});
+
+		// Items added earlier must survive whatever growth this add caused
+		for (uint32_t j = 0; j <= i; ++j) {
+			const auto id = page_table_growth_id(pageCapacity, j);
+			CHECK(arr.has(id));
+			CHECK(arr[id].data == j);
+		}
+	}
+	CHECK(arr.size() == PageTableGrowthIdCnt);
+	GAIA_FOR(4) CHECK_FALSE(arr.has(page_table_growth_gap_id(pageCapacity, i)));
+
+	uint32_t cnt = 0;
+	for (const auto& item: arr) {
+		CHECK(arr[item.id].data == item.data);
+		++cnt;
+	}
+	CHECK(cnt == PageTableGrowthIdCnt);
+
+	const Container arrCopy(arr);
+	GAIA_FOR(PageTableGrowthIdCnt) CHECK(arrCopy[page_table_growth_id(pageCapacity, i)].data == i);
+
+	const auto farId = page_table_growth_id(pageCapacity, 66);
+	arr.del(farId);
+	CHECK_FALSE(arr.has(farId));
+	arr.add(Item{farId, 1234});
+	CHECK(arr[farId].data == 1234);
+	CHECK(arr.size() == PageTableGrowthIdCnt);
+}
+
+template <typename Container>
+void sparse_tag_page_table_growth_test(uint32_t pageCapacity) {
+	Container arr;
+	GAIA_FOR(PageTableGrowthIdCnt) {
+		arr.add(page_table_growth_id(pageCapacity, i));
+
+		// Ids added earlier must survive whatever growth this add caused
+		for (uint32_t j = 0; j <= i; ++j)
+			CHECK(arr.has(page_table_growth_id(pageCapacity, j)));
+	}
+	CHECK(arr.size() == PageTableGrowthIdCnt);
+	GAIA_FOR(4) CHECK_FALSE(arr.has(page_table_growth_gap_id(pageCapacity, i)));
+
+	const Container arrCopy(arr);
+	GAIA_FOR(PageTableGrowthIdCnt) CHECK(arrCopy.has(page_table_growth_id(pageCapacity, i)));
+
+	const auto farId = page_table_growth_id(pageCapacity, 66);
+	arr.del(farId);
+	CHECK_FALSE(arr.has(farId));
+	arr.add(farId);
+	CHECK(arr.has(farId));
+	CHECK(arr.size() == PageTableGrowthIdCnt);
+}
+
+TEST_CASE("Containers - page tables keep pages across growth") {
+	// sparse_storage uses its default page capacity
+	constexpr uint32_t SparsePageCapacity = 4096;
+
+	SUBCASE("sparse_storage trivial payload") {
+		paged_page_table_growth_test<cnt::sparse_storage<SparseTestItem>>(SparsePageCapacity);
+	}
+	SUBCASE("sparse_storage non-trivial payload") {
+		paged_page_table_growth_test<cnt::sparse_storage<SparseTestItem_NonTrivial>>(SparsePageCapacity);
+	}
+	SUBCASE("sparse_storage tag") {
+		sparse_tag_page_table_growth_test<cnt::sparse_storage<Empty>>(SparsePageCapacity);
+	}
+	SUBCASE("page_storage trivial payload") {
+		using Storage = cnt::page_storage<SparseTestItem>;
+		paged_page_table_growth_test<Storage>(Storage::PageCapacity);
+	}
+	SUBCASE("page_storage non-trivial payload") {
+		using Storage = cnt::page_storage<SparseTestItem_NonTrivial>;
+		paged_page_table_growth_test<Storage>(Storage::PageCapacity);
+	}
+	SUBCASE("archetype match stamps") {
+		using Stamps = ecs::ArchetypeMatchStamps;
+		Stamps stamps;
+		GAIA_FOR(PageTableGrowthIdCnt) {
+			stamps.set(page_table_growth_id(Stamps::PageSize, i), i + 1);
+
+			// Stamps set earlier must survive whatever growth this set caused
+			for (uint32_t j = 0; j <= i; ++j) {
+				const auto sid = page_table_growth_id(Stamps::PageSize, j);
+				CHECK(stamps.has(sid));
+				CHECK(stamps.get(sid) == j + 1);
+			}
+		}
+		// Pages exposed by growth but never set must read as missing, not as garbage
+		GAIA_FOR(4) CHECK_FALSE(stamps.has(page_table_growth_gap_id(Stamps::PageSize, i)));
+
+		// Clearing keeps the pages and only zeroes their stamps
+		stamps.clear();
+		GAIA_FOR(PageTableGrowthIdCnt) {
+			const auto sid = page_table_growth_id(Stamps::PageSize, i);
+			CHECK(stamps.has(sid));
+			CHECK(stamps.get(sid) == 0);
+		}
+
+		const auto farSid = page_table_growth_id(Stamps::PageSize, 66);
+		Stamps moved(GAIA_MOV(stamps));
+		CHECK(moved.has(farSid));
+		CHECK_FALSE(stamps.has(farSid));
+	}
 }
 
 TEST_CASE("Containers - alignment check") {
