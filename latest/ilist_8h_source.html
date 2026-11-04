@@ -924,7 +924,7 @@ $(document).ready(function(){initNavTree('ilist_8h_source.html',''); initResizab
 <div class="line"><a id="l00887" name="l00887"></a><span class="lineno">  887</span>          GAIA_ASSERT(pageCnt &lt;= MaxPages &amp;&amp; <span class="stringliteral">&quot;Trying to allocate too many paged_ilist pages!&quot;</span>);</div>
 <div class="line"><a id="l00888" name="l00888"></a><span class="lineno">  888</span>        } <span class="keywordflow">else</span> {</div>
 <div class="line"><a id="l00889" name="l00889"></a><span class="lineno">  889</span>          <span class="keywordflow">if</span> (pageCnt &gt; (<a class="code hl_typedef" href="structgaia_1_1cnt_1_1paged__ilist.html#a2261cda6d6933594543c3a126b578c55">size_type</a>)m_pages.size())</div>
-<div class="line"><a id="l00890" name="l00890"></a><span class="lineno">  890</span>            m_pages.resize(pageCnt, <span class="keyword">nullptr</span>);</div>
+<div class="line"><a id="l00890" name="l00890"></a><span class="lineno">  890</span>            m_pages.resize(pageCnt, <span class="keyword">nullptr</span>, ResizePolicy::Scale);</div>
 <div class="line"><a id="l00891" name="l00891"></a><span class="lineno">  891</span>        }</div>
 <div class="line"><a id="l00892" name="l00892"></a><span class="lineno">  892</span>      }</div>
 <div class="line"><a id="l00893" name="l00893"></a><span class="lineno">  893</span> </div>
