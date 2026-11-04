@@ -4124,7 +4124,7 @@ TEST_CASE("paged_ilist - page table grows geometrically") {
 	constexpr uint32_t PageCount = 1024;
 	const uint32_t itemCount = PageCount * list.page_capacity();
 
-	//! Count how often the page table relocates while items are allocated one by one.
+	// Count how often the page table relocates while items are allocated one by one.
 	uint32_t relocations = 0;
 	uint32_t lastCapacity = list.capacity();
 	GAIA_FOR(itemCount) {
@@ -4138,7 +4138,7 @@ TEST_CASE("paged_ilist - page table grows geometrically") {
 
 	CHECK(list.item_count() == itemCount);
 	CHECK(list.capacity() >= itemCount);
-	//! Growing by half again relocates about log1.5(1024) = 18 times; exact resize relocated once per page.
+	// Growing by half again relocates about log1.5(1024) = 18 times; exact resize relocated once per page.
 	CHECK(relocations <= 24);
 	list.validate();
 }
