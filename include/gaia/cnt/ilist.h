@@ -887,7 +887,7 @@ namespace gaia {
 					GAIA_ASSERT(pageCnt <= MaxPages && "Trying to allocate too many paged_ilist pages!");
 				} else {
 					if (pageCnt > (size_type)m_pages.size())
-						m_pages.resize(pageCnt, nullptr);
+						m_pages.resize(pageCnt, nullptr, ResizePolicy::Scale);
 				}
 			}
 
