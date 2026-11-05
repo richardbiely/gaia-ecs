@@ -20,6 +20,41 @@ TEST_CASE("StringLookupKey") {
 	CHECK(l0.hash() == l1.hash());
 }
 
+TEST_CASE("calculate_hash64 reads every byte as unsigned") {
+	// Byte 0 has its high bit set. Widened as a signed char it would fill the upper 56 bits of the
+	// word with ones and hide bytes 1-7, so these two words would share one hash.
+	constexpr char a[] = {'\x80', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07'};
+	constexpr char b[] = {'\x80', '\x7f', '\x7e', '\x7d', '\x7c', '\x7b', '\x7a', '\x79'};
+	static_assert(core::calculate_hash64(a, sizeof(a)) != core::calculate_hash64(b, sizeof(b)));
+	CHECK(core::calculate_hash64(a, sizeof(a)) != core::calculate_hash64(b, sizeof(b)));
+
+	// A char and the unsigned byte of the same bits hash alike, so the hash is the same wherever
+	// char is signed or not, and bytes past 0x7f never collapse.
+	char text[19];
+	uint8_t bytes[19];
+	for (uint32_t i = 0; i < 19; ++i) {
+		bytes[i] = (uint8_t)(0xf0U - i * 13U);
+		memcpy(&text[i], &bytes[i], 1);
+	}
+	for (uint32_t len = 0; len <= 19; ++len) {
+		const auto hash = core::calculate_hash64(text, len);
+		// Each prefix differs in its last byte from the same prefix with that byte cleared.
+		if (len > 0) {
+			char other[19];
+			memcpy(other, text, len);
+			other[len - 1] = 0;
+			CHECK(hash != core::calculate_hash64(other, len));
+		}
+#if GAIA_ECS_HASH == GAIA_ECS_HASH_MURMUR2A
+		// The compile-time MurmurHash64A agrees with the runtime one robin_hood hashes bytes with,
+		// which leaves out the final mix for its tables to apply.
+		uint64_t murmur = (uint64_t)robin_hood::hash_bytes(bytes, len) * 0xc6a4a7935bd1e995ULL;
+		murmur ^= murmur >> 47;
+		CHECK(hash == murmur);
+#endif
+	}
+}
+
 TEST_CASE("Span rejects temporary initializer-list storage") {
 	static_assert(!std::is_constructible_v<std::span<const uint32_t>, std::initializer_list<uint32_t>>);
 

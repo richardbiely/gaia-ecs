@@ -105,7 +105,7 @@ namespace gaia {
 
 			uint64_t i = 0;
 			while (str[i] != '\0') {
-				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+				hash = (hash ^ uint64_t(uint8_t(str[i]))) * detail::fnv1a::prime_64_const;
 				++i;
 			}
 
@@ -113,6 +113,7 @@ namespace gaia {
 		}
 
 		//! Calculates a 64-bit hash for an explicit character range.
+		//! Each character is read as an unsigned byte, so the hash is the same whether char is signed or not.
 		//! \param str Pointer to the first character to hash.
 		//! \param length Number of characters to hash.
 		//! \return The 64-bit range hash.
@@ -120,7 +121,7 @@ namespace gaia {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
 			for (uint64_t i = 0; i < length; ++i)
-				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+				hash = (hash ^ uint64_t(uint8_t(str[i]))) * detail::fnv1a::prime_64_const;
 
 			return hash;
 		}
@@ -140,9 +141,10 @@ namespace gaia {
 				constexpr uint64_t r = 47;
 
 				constexpr uint64_t Load8(const char* data) {
-					return (uint64_t(data[7]) << 56) | (uint64_t(data[6]) << 48) | (uint64_t(data[5]) << 40) |
-								 (uint64_t(data[4]) << 32) | (uint64_t(data[3]) << 24) | (uint64_t(data[2]) << 16) |
-								 (uint64_t(data[1]) << 8) | (uint64_t(data[0]) << 0);
+					return (uint64_t(uint8_t(data[7])) << 56) | (uint64_t(uint8_t(data[6])) << 48) |
+								 (uint64_t(uint8_t(data[5])) << 40) | (uint64_t(uint8_t(data[4])) << 32) |
+								 (uint64_t(uint8_t(data[3])) << 24) | (uint64_t(uint8_t(data[2])) << 16) |
+								 (uint64_t(uint8_t(data[1])) << 8) | (uint64_t(uint8_t(data[0])) << 0);
 				}
 
 				constexpr uint64_t StaticHashValueLast64(uint64_t h) {
@@ -154,31 +156,31 @@ namespace gaia {
 				}
 
 				constexpr uint64_t StaticHashValue64Tail1(uint64_t h, const char* data) {
-					return StaticHashValueLast64((h ^ uint64_t(data[0])));
+					return StaticHashValueLast64((h ^ uint64_t(uint8_t(data[0]))));
 				}
 
 				constexpr uint64_t StaticHashValue64Tail2(uint64_t h, const char* data) {
-					return StaticHashValue64Tail1((h ^ uint64_t(data[1]) << 8), data);
+					return StaticHashValue64Tail1((h ^ uint64_t(uint8_t(data[1])) << 8), data);
 				}
 
 				constexpr uint64_t StaticHashValue64Tail3(uint64_t h, const char* data) {
-					return StaticHashValue64Tail2((h ^ uint64_t(data[2]) << 16), data);
+					return StaticHashValue64Tail2((h ^ uint64_t(uint8_t(data[2])) << 16), data);
 				}
 
 				constexpr uint64_t StaticHashValue64Tail4(uint64_t h, const char* data) {
-					return StaticHashValue64Tail3((h ^ uint64_t(data[3]) << 24), data);
+					return StaticHashValue64Tail3((h ^ uint64_t(uint8_t(data[3])) << 24), data);
 				}
 
 				constexpr uint64_t StaticHashValue64Tail5(uint64_t h, const char* data) {
-					return StaticHashValue64Tail4((h ^ uint64_t(data[4]) << 32), data);
+					return StaticHashValue64Tail4((h ^ uint64_t(uint8_t(data[4])) << 32), data);
 				}
 
 				constexpr uint64_t StaticHashValue64Tail6(uint64_t h, const char* data) {
-					return StaticHashValue64Tail5((h ^ uint64_t(data[5]) << 40), data);
+					return StaticHashValue64Tail5((h ^ uint64_t(uint8_t(data[5])) << 40), data);
 				}
 
 				constexpr uint64_t StaticHashValue64Tail7(uint64_t h, const char* data) {
-					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
+					return StaticHashValue64Tail6((h ^ uint64_t(uint8_t(data[6])) << 48), data);
 				}
 
 				constexpr uint64_t StaticHashValueRest64(uint64_t h, uint64_t len, const char* data) {
@@ -231,6 +233,7 @@ namespace gaia {
 		}
 
 		//! Calculates a 64-bit hash for an explicit character range.
+		//! Each character is read as an unsigned byte, so the hash is the same whether char is signed or not.
 		//! \param str Pointer to the first character to hash.
 		//! \param length Number of characters to hash.
 		//! \return The 64-bit range hash.
