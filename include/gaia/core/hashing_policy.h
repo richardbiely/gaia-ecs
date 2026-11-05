@@ -86,6 +86,19 @@ namespace gaia {
 			return h;
 		}
 
+		//! Calculates a 64-bit hash for an integer value, whichever string hash the build uses.
+		//! \param value Integer value to hash.
+		//! \return The mixed 64-bit hash.
+		constexpr uint64_t calculate_hash64(uint64_t value) {
+			value ^= value >> 33U;
+			value *= 0xff51afd7ed558ccdULL;
+			value ^= value >> 33U;
+
+			value *= 0xc4ceb9fe1a85ec53ULL;
+			value ^= value >> 33U;
+			return value;
+		}
+
 #if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
 
 		//! \cond INTERNAL
@@ -207,19 +220,6 @@ namespace gaia {
 			} // namespace murmur2a
 		} // namespace detail
 		//! \endcond
-
-		//! Calculates a 64-bit hash for an integer value.
-		//! \param value Integer value to hash.
-		//! \return The mixed 64-bit hash.
-		constexpr uint64_t calculate_hash64(uint64_t value) {
-			value ^= value >> 33U;
-			value *= 0xff51afd7ed558ccdULL;
-			value ^= value >> 33U;
-
-			value *= 0xc4ceb9fe1a85ec53ULL;
-			value ^= value >> 33U;
-			return value;
-		}
 
 		//! Calculates a 64-bit hash for a null-terminated string.
 		//! \param str Null-terminated string to hash.

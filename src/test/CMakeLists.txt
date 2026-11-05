@@ -120,6 +120,21 @@ if(TARGET single_header)
 	add_dependencies(${PROJ_NAME_NO_JSON_SINGLE_HEADER} single_header)
 endif()
 
+set(PROJ_NAME_FNV1A "gaia_test_fnv1a")
+add_executable(${PROJ_NAME_FNV1A} src/test_fnv1a.cpp)
+target_link_libraries(${PROJ_NAME_FNV1A} PRIVATE Threads::Threads)
+target_include_directories(${PROJ_NAME_FNV1A} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_compile_definitions(${PROJ_NAME_FNV1A} PRIVATE GAIA_ECS_HASH=GAIA_ECS_HASH_FNV1A)
+
+set(PROJ_NAME_FNV1A_SINGLE_HEADER "gaia_test_fnv1a_single_header")
+add_executable(${PROJ_NAME_FNV1A_SINGLE_HEADER} src/test_fnv1a.cpp)
+target_link_libraries(${PROJ_NAME_FNV1A_SINGLE_HEADER} PRIVATE Threads::Threads)
+target_include_directories(${PROJ_NAME_FNV1A_SINGLE_HEADER} PRIVATE ${PROJECT_SOURCE_DIR}/single_include)
+target_compile_definitions(${PROJ_NAME_FNV1A_SINGLE_HEADER} PRIVATE GAIA_ECS_HASH=GAIA_ECS_HASH_FNV1A)
+if(TARGET single_header)
+	add_dependencies(${PROJ_NAME_FNV1A_SINGLE_HEADER} single_header)
+endif()
+
 add_test(NAME ${PROJ_NAME} COMMAND $<TARGET_FILE:${PROJ_NAME}>)
 add_test(
 	NAME ${PROJ_NAME_NO_AUTOREG}
@@ -133,6 +148,8 @@ add_test(NAME ${PROJ_NAME_NO_HOOKS} COMMAND $<TARGET_FILE:${PROJ_NAME_NO_HOOKS}>
 add_test(NAME ${PROJ_NAME_NO_HOOKS_SINGLE_HEADER} COMMAND $<TARGET_FILE:${PROJ_NAME_NO_HOOKS_SINGLE_HEADER}>)
 add_test(NAME ${PROJ_NAME_NO_JSON} COMMAND $<TARGET_FILE:${PROJ_NAME_NO_JSON}>)
 add_test(NAME ${PROJ_NAME_NO_JSON_SINGLE_HEADER} COMMAND $<TARGET_FILE:${PROJ_NAME_NO_JSON_SINGLE_HEADER}>)
+add_test(NAME ${PROJ_NAME_FNV1A} COMMAND $<TARGET_FILE:${PROJ_NAME_FNV1A}>)
+add_test(NAME ${PROJ_NAME_FNV1A_SINGLE_HEADER} COMMAND $<TARGET_FILE:${PROJ_NAME_FNV1A_SINGLE_HEADER}>)
 
 set(PROJ_NAME_ARENA_LOCK "gaia_test_arena_lock")
 add_executable(${PROJ_NAME_ARENA_LOCK} src/test_arena_lock.cpp)
