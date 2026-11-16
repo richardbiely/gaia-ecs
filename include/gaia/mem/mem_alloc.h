@@ -8,12 +8,7 @@
 #include <type_traits>
 #include <utility>
 
-#if GAIA_ALLOC_ARENA_LOCK || GAIA_ASSERT_ENABLED
-	#include <atomic>
-#endif
-#if !GAIA_ALLOC_ARENA_LOCK && GAIA_ASSERT_ENABLED
-	#include <thread>
-#endif
+#include <atomic>
 
 #if GAIA_PLATFORM_WINDOWS
 	#define GAIA_MEM_ALLC(size) ::malloc(size)
@@ -37,33 +32,64 @@
 namespace gaia {
 	namespace mem {
 		//! \cond INTERNAL
-		namespace detail {
-			//! Serializes or debug-checks mutating entry into a process-wide allocation arena.
+			namespace detail {
+			//! State identifying the thread that owns an allocation arena.
+			struct ArenaState final {
+				std::atomic_uint64_t owner{0};
+			};
+
+			//! Returns a process-unique identifier for the calling thread.
+			inline thread_local uint8_t arena_thread_token;
+
+			GAIA_NODISCARD inline uint64_t arena_thread_id() noexcept {
+				return (uint64_t)(uintptr_t)&arena_thread_token;
+			}
+
+			//! Holds one owner-scoped allocator instance per thread.
+			template <typename T>
+			class arena_singleton final {
+				T* m_obj = new T();
+
+				arena_singleton() = default;
+
+			public:
+				static T& get() noexcept {
+					thread_local arena_singleton<T> singleton;
+					return *singleton.m_obj;
+				}
+
+				arena_singleton(arena_singleton&&) = delete;
+				arena_singleton(const arena_singleton&) = delete;
+				arena_singleton& operator=(arena_singleton&&) = delete;
+				arena_singleton& operator=(const arena_singleton&) = delete;
+
+				~arena_singleton() {
+					get().done();
+				}
+			};
+
+			//! Optionally serializes mutating entry into an allocation arena and detects foreign entry.
 			//!
-			//! SmallBlockAllocator, ChunkAllocator and PagedAllocator are process-wide
-			//! dyn_singletons. Their page lists and block headers are not otherwise
-			//! synchronized. Construct this on the mutating path of alloc/free/flush, after
-			//! call-local argument checks. stats() and diag() stay unlocked so they cannot
-			//! deadlock against a mutating caller.
+			//! SmallBlockAllocator, ChunkAllocator and PagedAllocator are owner-scoped
+			//! arena_singletons. Their pages carry the ArenaState of the allocator that created
+			//! them. Construct this on the mutating path after decoding the page owner; stats()
+			//! and diag() stay unlocked so they cannot deadlock against a mutating caller.
 			//!
-			//! When GAIA_ALLOC_ARENA_LOCK is 1, this is a non-recursive spinlock so
-			//! independent Worlds may mutate concurrently. When it is 0 (the default),
-			//! Release pays nothing. Assert-enabled builds then record the owning thread
-			//! and abort if a second thread enters at the same time.
+			//! GAIA_ALLOC_ARENA_LOCK remains an opt-in compatibility switch; it serializes
+			//! otherwise independent arenas and is not needed for correctness. It does not
+			//! transfer arena ownership, so a foreign free still fails in assert builds.
 			class ArenaLock final {
 #if GAIA_ALLOC_ARENA_LOCK
 				inline static std::atomic_int32_t s_lock{0};
-#elif GAIA_ASSERT_ENABLED
-				inline static std::atomic_flag s_entered = ATOMIC_FLAG_INIT;
-				inline static std::atomic<std::thread::id> s_owner{};
-	#if GAIA_ECS_TEST_HOOKS
+#endif
+				bool m_owned = false;
+
+#if GAIA_ECS_TEST_HOOKS
 				inline static std::atomic_uint32_t s_testViolations = 0;
-	#endif
 #endif
 
-			public:
-				ArenaLock() noexcept {
 #if GAIA_ALLOC_ARENA_LOCK
+				static void lock_global() noexcept {
 					while (s_lock.exchange(1, std::memory_order_acquire) != 0) {
 						while (s_lock.load(std::memory_order_relaxed) != 0)
 	#if defined(__aarch64__)
@@ -72,47 +98,48 @@ namespace gaia {
 							;
 	#endif
 					}
-#elif GAIA_ASSERT_ENABLED
-					const auto me = std::this_thread::get_id();
-					if (s_entered.test_and_set(std::memory_order_acquire)) {
-						const auto other = s_owner.load(std::memory_order_relaxed);
-	#if GAIA_ECS_TEST_HOOKS
-						if (other != me)
-							++s_testViolations;
-	#else
-						// Same-thread re-entry is tolerated; a different thread means two Worlds
-						// are allocating or freeing concurrently through the same process-wide arena.
-						GAIA_ASSERT(
-								other == me && "Allocation arena entered concurrently from two "
-															 "threads. Define GAIA_ALLOC_ARENA_LOCK=1 to serialize the arenas, or "
-															 "keep one mutating World per process.");
-	#endif
-					} else {
-						s_owner.store(me, std::memory_order_relaxed);
-					}
+				}
 #endif
+
+			public:
+				explicit ArenaLock(ArenaState& state) noexcept {
+#if GAIA_ALLOC_ARENA_LOCK
+					lock_global();
+#endif
+					const auto me = arena_thread_id();
+					auto owner = state.owner.load(std::memory_order_acquire);
+					if (owner == 0)
+						state.owner.compare_exchange_strong(owner, me, std::memory_order_acq_rel);
+					m_owned = owner == 0 || owner == me;
+					if (!m_owned) {
+	#if GAIA_ECS_TEST_HOOKS
+						++s_testViolations;
+	#endif
+						GAIA_ASSERT(false && "Allocation arena entered from a non-owning thread");
+					}
 				}
 
 				~ArenaLock() noexcept {
 #if GAIA_ALLOC_ARENA_LOCK
 					s_lock.store(0, std::memory_order_release);
-#elif GAIA_ASSERT_ENABLED
-					s_entered.clear(std::memory_order_release);
 #endif
 				}
 
 				ArenaLock(const ArenaLock&) = delete;
 				ArenaLock& operator=(const ArenaLock&) = delete;
 
-				//! Returns concurrent-use violations observed since process start.
-				//! \return Detected overlaps. Meaningful only when the lock is off, asserts
-				//!         are on, and GAIA_ECS_TEST_HOOKS is enabled.
+				//! Returns foreign-arena entries observed since process start.
+				//! \return Detected entries. Assert builds abort at the first entry.
 				GAIA_NODISCARD static uint32_t test_violations() noexcept {
-#if !GAIA_ALLOC_ARENA_LOCK && GAIA_ASSERT_ENABLED && GAIA_ECS_TEST_HOOKS
+	#if GAIA_ECS_TEST_HOOKS
 					return s_testViolations.load(std::memory_order_relaxed);
-#else
+	#else
 					return 0;
-#endif
+	#endif
+				}
+
+				GAIA_NODISCARD bool owned() const noexcept {
+					return m_owned;
 				}
 			};
 		} // namespace detail

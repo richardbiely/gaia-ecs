@@ -1,5 +1,6 @@
 #include "test_common.h"
 
+#include <array>
 #include <chrono>
 #include <limits>
 #include <thread>
@@ -7,6 +8,96 @@
 //------------------------------------------------------------------------------
 // Multithreading
 //------------------------------------------------------------------------------
+
+struct ConcurrentArenaWorldProbe {
+	uint32_t value = 0;
+};
+
+struct CrossThreadPagedProbe {};
+
+TEST_CASE("ECS - Independent worlds do not share allocation arenas") {
+	constexpr uint32_t WorkerCount = 2;
+	constexpr uint32_t EntityCount = 2048;
+
+	const auto violationsBefore = mem::detail::ArenaLock::test_violations();
+	std::atomic_uint32_t ready = 0;
+	std::atomic_bool start = false;
+	std::array<uint32_t, WorkerCount> counts{};
+	std::array<std::thread, WorkerCount> workers;
+
+	for (uint32_t workerIdx = 0; workerIdx < WorkerCount; ++workerIdx) {
+		workers[workerIdx] = std::thread([&, workerIdx] {
+			ecs::World world;
+			world.add<ConcurrentArenaWorldProbe>();
+			ready.fetch_add(1, std::memory_order_release);
+			while (!start.load(std::memory_order_acquire))
+				std::this_thread::yield();
+
+			for (uint32_t i = 0; i < EntityCount; ++i) {
+				const auto entity = world.add();
+				world.add<ConcurrentArenaWorldProbe>(entity, {i});
+			}
+			counts[workerIdx] = world.query().all<ConcurrentArenaWorldProbe>().count();
+		});
+	}
+
+	while (ready.load(std::memory_order_acquire) != WorkerCount)
+		std::this_thread::yield();
+	start.store(true, std::memory_order_release);
+
+	for (auto& worker: workers)
+		worker.join();
+
+	CHECK(counts[0] == EntityCount);
+	CHECK(counts[1] == EntityCount);
+	CHECK(mem::detail::ArenaLock::test_violations() == violationsBefore);
+}
+
+TEST_CASE("Allocation arenas route cross-thread small-block frees to the owner") {
+	using PagedProbeAllocator = mem::PagedAllocator<CrossThreadPagedProbe, 64>;
+	std::atomic<void*> smallBlock = nullptr;
+	std::atomic<void*> pagedBlock = nullptr;
+	std::atomic<void*> chunkBlock = nullptr;
+	std::atomic_bool allocated = false;
+	std::atomic_bool release = false;
+
+	std::thread worker([&] {
+		smallBlock.store(mem::SmallBlockAllocator::get().alloc(64), std::memory_order_release);
+		pagedBlock.store(PagedProbeAllocator::get().alloc(0), std::memory_order_release);
+#if GAIA_ECS_CHUNK_ALLOCATOR
+		chunkBlock.store(ecs::ChunkAllocator::get().alloc(8192), std::memory_order_release);
+#endif
+		allocated.store(true, std::memory_order_release);
+		while (!release.load(std::memory_order_acquire))
+			std::this_thread::yield();
+		mem::SmallBlockAllocator::get().flush(true);
+		PagedProbeAllocator::get().flush();
+#if GAIA_ECS_CHUNK_ALLOCATOR
+		ecs::ChunkAllocator::get().flush(true);
+#endif
+	});
+
+	while (!allocated.load(std::memory_order_acquire))
+		std::this_thread::yield();
+	mem::SmallBlockAllocator::get().free(smallBlock.load(std::memory_order_acquire));
+	PagedProbeAllocator::get().free(pagedBlock.load(std::memory_order_acquire));
+#if GAIA_ECS_CHUNK_ALLOCATOR
+	ecs::ChunkAllocator::get().free(chunkBlock.load(std::memory_order_acquire));
+#endif
+	release.store(true, std::memory_order_release);
+	worker.join();
+
+	auto* localSmallBlock = mem::SmallBlockAllocator::get().alloc(64);
+	CHECK(localSmallBlock != nullptr);
+	mem::SmallBlockAllocator::get().free(localSmallBlock);
+	mem::SmallBlockAllocator::get().flush(true);
+	for (const auto& stats: mem::SmallBlockAllocator::get().stats().stats) {
+		CHECK(stats.num_pages == 0);
+		CHECK(stats.mem_used == 0);
+	}
+	CHECK(PagedProbeAllocator::get().alloc(0) != nullptr);
+	PagedProbeAllocator::get().flush();
+}
 
 struct JobParallelRefProbe {
 	std::atomic_uint32_t items = 0;

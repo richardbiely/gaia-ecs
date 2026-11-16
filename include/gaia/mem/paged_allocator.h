@@ -9,7 +9,6 @@
 #include "gaia/cnt/fwd_llist.h"
 #include "gaia/cnt/sarray.h"
 #include "gaia/core/bit_utils.h"
-#include "gaia/core/dyn_singleton.h"
 #include "gaia/core/utility.h"
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/meta/type_info.h"
@@ -30,10 +29,12 @@ namespace gaia {
 		struct GAIA_API MemoryPageHeader {
 			//! Pointer to data managed by page
 			void* m_data;
+			//! Owner state for the allocation arena that created this page
+			detail::ArenaState* m_arena;
 
 			//! Creates a page header for a backing allocation.
 			//! \param ptr Backing allocation address.
-			MemoryPageHeader(void* ptr): m_data(ptr) {}
+			MemoryPageHeader(void* ptr, detail::ArenaState* arena): m_data(ptr), m_arena(arena) {}
 		};
 
 		//! Fixed-capacity page of equal-sized blocks.
@@ -78,6 +79,8 @@ namespace gaia {
 
 			//! Implicit list of blocks
 			BlockArray m_blocks;
+			//! Frees issued by non-owning threads, drained by the owner.
+			std::atomic_uint64_t m_remoteFreeMask{0};
 
 			//! Number of blocks in the block array
 			uint32_t m_blockCnt : NBlocks_Bits;
@@ -92,10 +95,10 @@ namespace gaia {
 
 			//! Creates an empty page over a backing allocation.
 			//! \param ptr Backing allocation address.
-			MemoryPage(void* ptr):
-					MemoryPageHeader(ptr), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {
+			MemoryPage(void* ptr, detail::ArenaState* arena):
+					MemoryPageHeader(ptr, arena), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {
 				// One cacheline long on x86. The point is for this to be as small as possible
-				static_assert(sizeof(MemoryPage) <= 64);
+				static_assert(sizeof(MemoryPage) <= 88);
 			}
 
 			//! Writes one link in the packed recycled-block list.
@@ -193,6 +196,29 @@ namespace gaia {
 				--m_usedBlocks;
 			}
 
+			//! Queues a free issued by a thread that does not own this page.
+			void free_block_remote(void* pBlock) {
+				const auto* pMemoryBlock = (uint8_t*)pBlock - MemoryBlockUsableOffset;
+				const auto blckAddr = (uintptr_t)pMemoryBlock;
+				const auto dataAddr = (uintptr_t)m_data;
+				const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / MemoryBlockBytes);
+				GAIA_ASSERT(blockIdx < NBlocks);
+				const auto bit = uint64_t(1) << blockIdx;
+				const auto previous = m_remoteFreeMask.fetch_or(bit, std::memory_order_release);
+				GAIA_ASSERT((previous & bit) == 0 && "Double free or corrupted block state");
+			}
+
+			//! Applies frees queued by non-owning threads.
+			void drain_remote() {
+				const auto mask = m_remoteFreeMask.exchange(0, std::memory_order_acquire);
+				for (uint32_t blockIdx = 0; blockIdx < NBlocks; ++blockIdx) {
+					if ((mask & (uint64_t(1) << blockIdx)) == 0)
+						continue;
+					auto* pBlock = (uint8_t*)m_data + blockIdx * MemoryBlockBytes + MemoryBlockUsableOffset;
+					free_block(pBlock);
+				}
+			}
+
 			//! Returns the number of live blocks.
 			//! \return Number of allocated blocks.
 			GAIA_NODISCARD uint32_t used_blocks_cnt() const {
@@ -288,7 +314,7 @@ namespace gaia {
 		//! \tparam T Allocation category used for singleton separation and diagnostics.
 		//! \tparam RequestedBlockSize Requested bytes per block, or zero for the default.
 		template <typename T, uint32_t RequestedBlockSize = 0>
-		using PagedAllocator = core::dyn_singleton<detail::PagedAllocatorImpl<T, RequestedBlockSize>>;
+		using PagedAllocator = detail::arena_singleton<detail::PagedAllocatorImpl<T, RequestedBlockSize>>;
 
 		//! \cond INTERNAL
 		namespace detail {
@@ -297,29 +323,28 @@ namespace gaia {
 			class PagedAllocatorImpl {
 				friend ::gaia::mem::PagedAllocator<T, RequestedBlockSize>;
 
-				inline static char s_strPageData[256]{};
-				inline static char s_strMemPage[256]{};
-
 				using Page = MemoryPage<T, RequestedBlockSize>;
 				using PageContainer = MemoryPageContainer<T, RequestedBlockSize>;
 
 				//! Container for pages storing various-sized chunks
 				PageContainer m_pages;
+				detail::ArenaState m_arena;
 				//! When true, destruction has been requested
 				bool m_isDone = false;
+				char m_strPageData[256]{};
+				char m_strMemPage[256]{};
 
 			private:
 				PagedAllocatorImpl() {
-					// PagedAllocatorImpl is only used as a singleton so the constructor is going to be called just once.
-					// Therefore, the strings are only going to be set once.
+					// Each owner-scoped allocator keeps its diagnostic labels private.
 					auto ct_name = meta::type_info::name<T>();
 					const auto ct_name_len = (uint32_t)ct_name.size();
-					GAIA_STRCPY(s_strPageData, 256, "PageData_");
-					memcpy((void*)&s_strPageData[9], (const void*)ct_name.data(), ct_name_len);
-					s_strPageData[9 + ct_name_len] = 0;
-					GAIA_STRCPY(s_strMemPage, 256, "MemPage_");
-					memcpy((void*)&s_strMemPage[8], (const void*)ct_name.data(), ct_name_len);
-					s_strMemPage[8 + ct_name_len] = 0;
+					GAIA_STRCPY(m_strPageData, 256, "PageData_");
+					memcpy((void*)&m_strPageData[9], (const void*)ct_name.data(), ct_name_len);
+					m_strPageData[9 + ct_name_len] = 0;
+					GAIA_STRCPY(m_strMemPage, 256, "MemPage_");
+					memcpy((void*)&m_strMemPage[8], (const void*)ct_name.data(), ct_name_len);
+					m_strMemPage[8 + ct_name_len] = 0;
 				}
 
 				void on_delete() {
@@ -346,7 +371,8 @@ namespace gaia {
 
 				//! Allocates memory
 				void* alloc([[maybe_unused]] uint32_t dummy) {
-					const detail::ArenaLock arenaLock;
+					const detail::ArenaLock arenaLock{m_arena};
+					drain_remote_frees();
 					void* pBlock = nullptr;
 
 					// Find first page with available space
@@ -379,11 +405,18 @@ namespace gaia {
 
 				//! Releases memory allocated for pointer
 				void free(void* pBlock) {
-					const detail::ArenaLock arenaLock;
 					// Decode the page from the address
 					const auto pageAddr = *(uintptr_t*)((uint8_t*)pBlock - MemoryBlockUsableOffset);
 					GAIA_ASSERT(pageAddr % MemoryBlockAlignment == 0);
 					auto* pPage = (Page*)pageAddr;
+					if (pPage->m_arena != &m_arena) {
+						pPage->free_block_remote(pBlock);
+						return;
+					}
+					const detail::ArenaLock arenaLock{m_arena};
+					if (!arenaLock.owned())
+						return;
+					drain_remote_frees();
 					const bool wasFull = pPage->full();
 
 #if GAIA_ASSERT_ENABLED
@@ -439,7 +472,8 @@ namespace gaia {
 
 				//! Flushes unused memory
 				void flush() {
-					const detail::ArenaLock arenaLock;
+					const detail::ArenaLock arenaLock{m_arena};
+					drain_remote_frees();
 					for (auto it = m_pages.pagesFree.begin(); it != m_pages.pagesFree.end();) {
 						auto* pPage = &(*it);
 						++it;
@@ -486,19 +520,33 @@ namespace gaia {
 				}
 
 			private:
-				static Page* alloc_page() {
-					const uint32_t size = Page::NBlocks * Page::MemoryBlockBytes;
-					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>(&s_strPageData[0], MemoryBlockAlignment, size);
-					auto* pMemoryPage = mem::AllocHelper::alloc<Page>(&s_strMemPage[0]);
-					return new (pMemoryPage) Page(pPageData);
+				void drain_remote_frees() {
+					for (auto it = m_pages.pagesFull.begin(); it != m_pages.pagesFull.end();) {
+						auto* pPage = &(*it);
+						++it;
+						pPage->drain_remote();
+						if (!pPage->full()) {
+							m_pages.pagesFull.unlink(pPage);
+							m_pages.pagesFree.link(pPage);
+						}
+					}
+					for (auto it = m_pages.pagesFree.begin(); it != m_pages.pagesFree.end(); ++it)
+						it->drain_remote();
 				}
 
-				static void free_page(Page* pMemoryPage) {
+				Page* alloc_page() {
+					const uint32_t size = Page::NBlocks * Page::MemoryBlockBytes;
+					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>(&m_strPageData[0], MemoryBlockAlignment, size);
+					auto* pMemoryPage = mem::AllocHelper::alloc<Page>(&m_strMemPage[0]);
+					return new (pMemoryPage) Page(pPageData, &m_arena);
+				}
+
+				void free_page(Page* pMemoryPage) {
 					GAIA_ASSERT(pMemoryPage != nullptr);
 
-					mem::AllocHelper::free_alig(&s_strPageData[0], pMemoryPage->m_data);
+					mem::AllocHelper::free_alig(&m_strPageData[0], pMemoryPage->m_data);
 					pMemoryPage->~MemoryPage();
-					mem::AllocHelper::free(&s_strMemPage[0], pMemoryPage);
+					mem::AllocHelper::free(&m_strMemPage[0], pMemoryPage);
 				}
 
 				void done() {
