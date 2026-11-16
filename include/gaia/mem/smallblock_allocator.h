@@ -9,7 +9,6 @@
 #include "gaia/cnt/fwd_llist.h"
 #include "gaia/cnt/sarray.h"
 #include "gaia/core/bit_utils.h"
-#include "gaia/core/dyn_singleton.h"
 #include "gaia/core/utility.h"
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/util/logging.h"
@@ -108,6 +107,8 @@ namespace gaia {
 				using BitView = core::bit_view<NBlocks_Bits>;
 
 				void* m_data;
+				ArenaState* m_arena;
+				std::atomic_uint64_t m_remoteFreeMask{0};
 				BlockArray m_blocks;
 
 				uint32_t m_sizeType : SizeTypeBits;
@@ -123,8 +124,9 @@ namespace gaia {
 				//! Constructs a page for the given size class.
 				//! \param ptr Raw page data.
 				//! \param sizeType Size class index.
-				SmallBlockPage(void* ptr, uint8_t sizeType):
-						m_data(ptr), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
+				SmallBlockPage(void* ptr, uint8_t sizeType, ArenaState* arena):
+						m_data(ptr), m_arena(arena), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0),
+						m_freeBlocks(0) {}
 
 				//! Returns the stride of one block in this page.
 				GAIA_NODISCARD uint32_t block_stride() const {
@@ -245,6 +247,29 @@ namespace gaia {
 				--m_usedBlocks;
 			}
 
+			//! Queues a free issued by a thread that does not own this page.
+			void free_block_remote(void* pBlock) {
+				const auto* pMemoryBlock = (uint8_t*)pBlock - SmallBlockUsableOffset;
+				const auto blckAddr = (uintptr_t)pMemoryBlock;
+				const auto dataAddr = (uintptr_t)m_data;
+				const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / block_stride());
+				GAIA_ASSERT(blockIdx < NBlocks);
+				const auto bit = uint64_t(1) << blockIdx;
+				const auto previous = m_remoteFreeMask.fetch_or(bit, std::memory_order_release);
+				GAIA_ASSERT((previous & bit) == 0 && "Double free or corrupted block state");
+			}
+
+			//! Applies frees queued by non-owning threads.
+			void drain_remote() {
+				const auto mask = m_remoteFreeMask.exchange(0, std::memory_order_acquire);
+				for (uint32_t blockIdx = 0; blockIdx < NBlocks; ++blockIdx) {
+					if ((mask & (uint64_t(1) << blockIdx)) == 0)
+						continue;
+					auto* pBlock = (uint8_t*)m_data + blockIdx * block_stride() + SmallBlockUsableOffset;
+					free_block(pBlock);
+				}
+			}
+
 			//! Returns the number of live blocks.
 			GAIA_NODISCARD uint32_t used_blocks_cnt() const {
 				return m_usedBlocks;
@@ -357,7 +382,7 @@ namespace gaia {
 		//! \endcond
 
 	//! Shared allocator for variable-sized allocations up to SmallBlockMaxSize bytes.
-	using SmallBlockAllocator = core::dyn_singleton<detail::SmallBlockAllocatorImpl>;
+	using SmallBlockAllocator = detail::arena_singleton<detail::SmallBlockAllocatorImpl>;
 
 	//! \cond INTERNAL
 	namespace detail {
@@ -366,6 +391,7 @@ namespace gaia {
 			friend ::gaia::mem::SmallBlockAllocator;
 
 			SmallBlockPageContainer m_pages[SmallBlockSizeTypeCount];
+			ArenaState m_arena;
 			bool m_isDone = false;
 
 			SmallBlockAllocatorImpl() = default;
@@ -399,7 +425,8 @@ namespace gaia {
 				if (bytesWanted == 0 || bytesWanted > MAX_SIZE)
 					return nullptr;
 
-				const detail::ArenaLock arenaLock;
+				const detail::ArenaLock arenaLock{m_arena};
+				drain_remote_frees();
 				const auto sizeType = small_block_size_type(bytesWanted);
 				auto& container = m_pages[sizeType];
 
@@ -432,7 +459,6 @@ namespace gaia {
 				if (pBlock == nullptr)
 					return;
 
-				const detail::ArenaLock arenaLock;
 				const auto& header = *(const SmallBlockHeader*)(void*)((uint8_t*)pBlock - SmallBlockUsableOffset);
 				const auto pageAddr = header.m_pageAddr;
 				GAIA_ASSERT(pageAddr % sizeof(uintptr_t) == 0);
@@ -440,6 +466,15 @@ namespace gaia {
 				GAIA_ASSERT(header.m_requestedBytes > 0);
 #endif
 				auto* pPage = (SmallBlockPage*)pageAddr;
+				if (pPage->m_arena != &m_arena) {
+					GAIA_PROF_FREE(pBlock);
+					pPage->free_block_remote(pBlock);
+					return;
+				}
+				const detail::ArenaLock arenaLock{m_arena};
+				if (!arenaLock.owned())
+					return;
+				drain_remote_frees();
 				const auto prevState = state_for(*pPage);
 				auto& container = m_pages[pPage->m_sizeType];
 
@@ -461,7 +496,8 @@ namespace gaia {
 			//! Flushes unused pages.
 			//! \param releaseAll When true, all empty pages are released.
 			void flush(bool releaseAll = false) {
-				const detail::ArenaLock arenaLock;
+				const detail::ArenaLock arenaLock{m_arena};
+				drain_remote_frees();
 				for (uint32_t i = 0; i < SmallBlockSizeTypeCount; ++i)
 					flush_pages(m_pages[i], releaseAll);
 				verify();
@@ -514,14 +550,31 @@ namespace gaia {
 			}
 
 		private:
+			void drain_remote_frees() {
+				auto drain_pages = [&](SmallBlockPageContainer& container, auto& pages, SmallBlockPageState state) {
+					for (auto it = pages.begin(); it != pages.end();) {
+						auto* pPage = &(*it);
+						++it;
+						pPage->drain_remote();
+						move_page(container, pPage, state, state_for(*pPage));
+					}
+				};
+
+				for (auto& container: m_pages) {
+					drain_pages(container, container.pagesEmpty, SmallBlockPageState::Empty);
+					drain_pages(container, container.pagesPartial, SmallBlockPageState::Partial);
+					drain_pages(container, container.pagesFull, SmallBlockPageState::Full);
+				}
+			}
+
 			static constexpr const char* s_strSmallBlockData = "SmallBlockData";
 			static constexpr const char* s_strSmallBlockPage = "SmallBlockPage";
 
-			static SmallBlockPage* alloc_page(uint8_t sizeType) {
+			SmallBlockPage* alloc_page(uint8_t sizeType) {
 				const uint32_t size = small_block_stride(sizeType) * SmallBlockPage::NBlocks;
 				auto* pPageData = AllocHelper::alloc_alig<uint8_t>(s_strSmallBlockData, SmallBlockAlignment, size);
 				auto* pMemoryPage = AllocHelper::alloc<SmallBlockPage>(s_strSmallBlockPage);
-				return new (pMemoryPage) SmallBlockPage(pPageData, sizeType);
+				return new (pMemoryPage) SmallBlockPage(pPageData, sizeType, &m_arena);
 			}
 
 			static void free_page(SmallBlockPage* pPage) {

@@ -2096,8 +2096,8 @@ namespace gaia {
 			//! \tparam T Type to inspect.
 			//! \return `std::true_type` when the expression is valid.
 			template <typename T>
-			constexpr auto has_mfunc_equals_check(int)
-					-> decltype(std::declval<T>().operator==(std::declval<T>()), std::true_type{});
+			constexpr auto
+			has_mfunc_equals_check(int) -> decltype(std::declval<T>().operator==(std::declval<T>()), std::true_type{});
 			//! False overload selected when member `operator==` is unavailable.
 			//! \tparam T Type to inspect.
 			//! \tparam Args Unused fallback argument types.
@@ -2109,8 +2109,8 @@ namespace gaia {
 			//! \tparam T Type to inspect.
 			//! \return `std::true_type` when the expression is valid.
 			template <typename T>
-			constexpr auto has_ffunc_equals_check(int)
-					-> decltype(operator==(std::declval<T>(), std::declval<T>()), std::true_type{});
+			constexpr auto
+			has_ffunc_equals_check(int) -> decltype(operator==(std::declval<T>(), std::declval<T>()), std::true_type{});
 			//! False overload selected when free `operator==` is unavailable.
 			//! \tparam T Type to inspect.
 			//! \tparam Args Unused fallback argument types.
@@ -2193,11 +2193,10 @@ namespace gaia {
 			//! \param func Callable invoked once for each selected tuple element type.
 			template <auto FirstIdx, typename Tuple, typename Func, auto... Is>
 			void each_tuple_impl(Func func, std::integer_sequence<decltype(FirstIdx), Is...> /*no_name*/) {
-				if constexpr (
-						(std::is_invocable_v<
-								 Func&&, decltype(std::tuple_element_t<FirstIdx + Is, Tuple>{}),
-								 std::integral_constant<decltype(FirstIdx), Is>> &&
-						 ...))
+				if constexpr ((std::is_invocable_v<
+													 Func&&, decltype(std::tuple_element_t<FirstIdx + Is, Tuple>{}),
+													 std::integral_constant<decltype(FirstIdx), Is>> &&
+											 ...))
 					// func(Args&& arg, uint32_t idx)
 					(func(
 							 std::tuple_element_t<FirstIdx + Is, Tuple>{},
@@ -2217,10 +2216,10 @@ namespace gaia {
 			//! \param func Callable invoked once for each selected tuple element.
 			template <auto FirstIdx, typename Tuple, typename Func, auto... Is>
 			void each_tuple_impl(Tuple&& tuple, Func func, std::integer_sequence<decltype(FirstIdx), Is...> /*no_name*/) {
-				if constexpr (
-						(std::is_invocable_v<
-								 Func&&, decltype(std::get<FirstIdx + Is>(tuple)), std::integral_constant<decltype(FirstIdx), Is>> &&
-						 ...))
+				if constexpr ((std::is_invocable_v<
+													 Func&&, decltype(std::get<FirstIdx + Is>(tuple)),
+													 std::integral_constant<decltype(FirstIdx), Is>> &&
+											 ...))
 					// func(Args&& arg, uint32_t idx)
 					(func(std::get<FirstIdx + Is>(tuple), std::integral_constant<decltype(FirstIdx), FirstIdx + Is>{}), ...);
 				else
@@ -4781,8 +4780,7 @@ namespace gaia {
 			constexpr span() noexcept {}
 
 			//! Rejects temporary initializer-list storage because its backing array expires at the end of the full
-			//! expression.
-			//! \tparam U Initializer-list element type.
+			//! expression. \tparam U Initializer-list element type.
 			template <
 					typename U, typename std::enable_if<std::is_convertible<U (*)[], element_kind (*)[]>::value, int>::type = 0>
 			span(std::initializer_list<U>) = delete;
@@ -5468,83 +5466,76 @@ namespace gaia {
 
 			if constexpr (std::is_empty_v<type>) {
 				return std::make_tuple();
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4);
-			} else if constexpr (
-					detail::is_braces_constructible_t<type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3);
 			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
@@ -5571,71 +5562,64 @@ namespace gaia {
 
 			if constexpr (std::is_empty_v<type>) {
 				return 0;
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				return 15;
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				return 14;
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				return 13;
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
 				return 12;
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
 				return 11;
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				return 10;
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				return 9;
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				return 8;
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
 				return 7;
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
 				return 6;
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				return 5;
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				return 4;
-			} else if constexpr (
-					detail::is_braces_constructible_t<type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				return 3;
 			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
 				return 2;
@@ -5658,83 +5642,76 @@ namespace gaia {
 
 			if constexpr (std::is_empty_v<type>) {
 				visitor();
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = object;
 				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = object;
 				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = object;
 				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12] = object;
 				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = object;
 				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = object;
 				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9] = object;
 				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
 				return visitor(p1, p2, p3, p4, p5, p6, p7, p8);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
 				return visitor(p1, p2, p3, p4, p5, p6, p7);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-							detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6] = object;
 				return visitor(p1, p2, p3, p4, p5, p6);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5] = object;
 				return visitor(p1, p2, p3, p4, p5);
-			} else if constexpr (
-					detail::is_braces_constructible_t<
-							type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4] = object;
 				return visitor(p1, p2, p3, p4);
-			} else if constexpr (
-					detail::is_braces_constructible_t<type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3] = object;
 				return visitor(p1, p2, p3);
 			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
@@ -5851,12 +5828,7 @@ namespace gaia {
 #include <type_traits>
 #include <utility>
 
-#if GAIA_ALLOC_ARENA_LOCK || GAIA_ASSERT_ENABLED
-	#include <atomic>
-#endif
-#if !GAIA_ALLOC_ARENA_LOCK && GAIA_ASSERT_ENABLED
-	#include <thread>
-#endif
+#include <atomic>
 
 #if GAIA_PLATFORM_WINDOWS
 	#define GAIA_MEM_ALLC(size) ::malloc(size)
@@ -5881,32 +5853,63 @@ namespace gaia {
 	namespace mem {
 		//! \cond INTERNAL
 		namespace detail {
-			//! Serializes or debug-checks mutating entry into a process-wide allocation arena.
+			//! State identifying the thread that owns an allocation arena.
+			struct ArenaState final {
+				std::atomic_uint64_t owner{0};
+			};
+
+			//! Returns a process-unique identifier for the calling thread.
+			inline thread_local uint8_t arena_thread_token;
+
+			GAIA_NODISCARD inline uint64_t arena_thread_id() noexcept {
+				return (uint64_t)(uintptr_t)&arena_thread_token;
+			}
+
+			//! Holds one owner-scoped allocator instance per thread.
+			template <typename T>
+			class arena_singleton final {
+				T* m_obj = new T();
+
+				arena_singleton() = default;
+
+			public:
+				static T& get() noexcept {
+					thread_local arena_singleton<T> singleton;
+					return *singleton.m_obj;
+				}
+
+				arena_singleton(arena_singleton&&) = delete;
+				arena_singleton(const arena_singleton&) = delete;
+				arena_singleton& operator=(arena_singleton&&) = delete;
+				arena_singleton& operator=(const arena_singleton&) = delete;
+
+				~arena_singleton() {
+					get().done();
+				}
+			};
+
+			//! Optionally serializes mutating entry into an allocation arena and detects foreign entry.
 			//!
-			//! SmallBlockAllocator, ChunkAllocator and PagedAllocator are process-wide
-			//! dyn_singletons. Their page lists and block headers are not otherwise
-			//! synchronized. Construct this on the mutating path of alloc/free/flush, after
-			//! call-local argument checks. stats() and diag() stay unlocked so they cannot
-			//! deadlock against a mutating caller.
+			//! SmallBlockAllocator, ChunkAllocator and PagedAllocator are owner-scoped
+			//! arena_singletons. Their pages carry the ArenaState of the allocator that created
+			//! them. Construct this on the mutating path after decoding the page owner; stats()
+			//! and diag() stay unlocked so they cannot deadlock against a mutating caller.
 			//!
-			//! When GAIA_ALLOC_ARENA_LOCK is 1, this is a non-recursive spinlock so
-			//! independent Worlds may mutate concurrently. When it is 0 (the default),
-			//! Release pays nothing. Assert-enabled builds then record the owning thread
-			//! and abort if a second thread enters at the same time.
+			//! GAIA_ALLOC_ARENA_LOCK remains an opt-in compatibility switch; it serializes
+			//! otherwise independent arenas and is not needed for correctness. It does not
+			//! transfer arena ownership, so a foreign free still fails in assert builds.
 			class ArenaLock final {
 #if GAIA_ALLOC_ARENA_LOCK
 				inline static std::atomic_int32_t s_lock{0};
-#elif GAIA_ASSERT_ENABLED
-				inline static std::atomic_flag s_entered = ATOMIC_FLAG_INIT;
-				inline static std::atomic<std::thread::id> s_owner{};
-	#if GAIA_ECS_TEST_HOOKS
+#endif
+				bool m_owned = false;
+
+#if GAIA_ECS_TEST_HOOKS
 				inline static std::atomic_uint32_t s_testViolations = 0;
-	#endif
 #endif
 
-			public:
-				ArenaLock() noexcept {
 #if GAIA_ALLOC_ARENA_LOCK
+				static void lock_global() noexcept {
 					while (s_lock.exchange(1, std::memory_order_acquire) != 0) {
 						while (s_lock.load(std::memory_order_relaxed) != 0)
 	#if defined(__aarch64__)
@@ -5915,47 +5918,48 @@ namespace gaia {
 							;
 	#endif
 					}
-#elif GAIA_ASSERT_ENABLED
-					const auto me = std::this_thread::get_id();
-					if (s_entered.test_and_set(std::memory_order_acquire)) {
-						const auto other = s_owner.load(std::memory_order_relaxed);
-	#if GAIA_ECS_TEST_HOOKS
-						if (other != me)
-							++s_testViolations;
-	#else
-						// Same-thread re-entry is tolerated; a different thread means two Worlds
-						// are allocating or freeing concurrently through the same process-wide arena.
-						GAIA_ASSERT(
-								other == me && "Allocation arena entered concurrently from two "
-															 "threads. Define GAIA_ALLOC_ARENA_LOCK=1 to serialize the arenas, or "
-															 "keep one mutating World per process.");
-	#endif
-					} else {
-						s_owner.store(me, std::memory_order_relaxed);
-					}
+				}
 #endif
+
+			public:
+				explicit ArenaLock(ArenaState& state) noexcept {
+#if GAIA_ALLOC_ARENA_LOCK
+					lock_global();
+#endif
+					const auto me = arena_thread_id();
+					auto owner = state.owner.load(std::memory_order_acquire);
+					if (owner == 0)
+						state.owner.compare_exchange_strong(owner, me, std::memory_order_acq_rel);
+					m_owned = owner == 0 || owner == me;
+					if (!m_owned) {
+#if GAIA_ECS_TEST_HOOKS
+						++s_testViolations;
+#endif
+						GAIA_ASSERT(false && "Allocation arena entered from a non-owning thread");
+					}
 				}
 
 				~ArenaLock() noexcept {
 #if GAIA_ALLOC_ARENA_LOCK
 					s_lock.store(0, std::memory_order_release);
-#elif GAIA_ASSERT_ENABLED
-					s_entered.clear(std::memory_order_release);
 #endif
 				}
 
 				ArenaLock(const ArenaLock&) = delete;
 				ArenaLock& operator=(const ArenaLock&) = delete;
 
-				//! Returns concurrent-use violations observed since process start.
-				//! \return Detected overlaps. Meaningful only when the lock is off, asserts
-				//!         are on, and GAIA_ECS_TEST_HOOKS is enabled.
+				//! Returns foreign-arena entries observed since process start.
+				//! \return Detected entries. Assert builds abort at the first entry.
 				GAIA_NODISCARD static uint32_t test_violations() noexcept {
-#if !GAIA_ALLOC_ARENA_LOCK && GAIA_ASSERT_ENABLED && GAIA_ECS_TEST_HOOKS
+#if GAIA_ECS_TEST_HOOKS
 					return s_testViolations.load(std::memory_order_relaxed);
 #else
 					return 0;
 #endif
+				}
+
+				GAIA_NODISCARD bool owned() const noexcept {
+					return m_owned;
 				}
 			};
 		} // namespace detail
@@ -8553,57 +8557,6 @@ namespace gaia {
 	} // namespace cnt
 } // namespace gaia
 
-namespace gaia {
-	namespace core {
-		//! Gaia-ECS is a header-only library which means we want to avoid using global
-		//! static variables because they would get copied to each translation units.
-		//! At the same time the goal is for users to not see any memory allocation used
-		//! by the library. Therefore, the only solution is a static variable with local
-		//! scope.
-		//!
-		//! Being a static variable with local scope which means the singleton is guaranteed
-		//! to be younger than its caller. Because static variables are released in the reverse
-		//! order in which they are created, if used with a static World it would mean we first
-		//! release the singleton and only then proceed with the world itself. As a result, in
-		//! its destructor the world could access memory that has already been released.
-		//!
-		//! Instead, we let the singleton allocate the object on the heap and once singleton's
-		//! destructor is called we tell the internal object it should destroy itself. This way
-		//! there are no memory leaks or access-after-freed issues on app exit reported.
-		//!
-		//! \warning The instance is process-wide, not thread-local and not per-World. All callers
-		//!          on all threads share the same object. Allocation arenas built on dyn_singleton
-		//!          (SmallBlockAllocator, ChunkAllocator, PagedAllocator) are unsynchronized unless
-		//!          GAIA_ALLOC_ARENA_LOCK is 1, in which case alloc/free/flush take a process-wide
-		//!          spinlock so independent Worlds may mutate concurrently. The lock does not make
-		//!          structural mutation of one World thread-safe. When the lock is off, assert builds abort if two
-		//!          threads enter an arena at once.
-		template <typename T>
-		class dyn_singleton final {
-			T* m_obj = new T();
-
-			dyn_singleton() = default;
-
-		public:
-			//! Returns the process-wide singleton object.
-			//! \return Reference to the singleton instance.
-			static T& get() noexcept {
-				static dyn_singleton<T> singleton;
-				return *singleton.m_obj;
-			}
-
-			dyn_singleton(dyn_singleton&& world) = delete;
-			dyn_singleton(const dyn_singleton& world) = delete;
-			dyn_singleton& operator=(dyn_singleton&&) = delete;
-			dyn_singleton& operator=(const dyn_singleton&) = delete;
-
-			~dyn_singleton() {
-				get().done();
-			}
-		};
-	} // namespace core
-} // namespace gaia
-
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
@@ -9809,13 +9762,15 @@ namespace gaia {
 				using BitView = core::bit_view<NBlocks_Bits>;
 
 				void* m_data;
+				ArenaState* m_arena;
+				std::atomic_uint64_t m_remoteFreeMask{0};
 				BlockArray m_blocks;
 
-				uint32_t m_sizeType : SizeTypeBits;
-				uint32_t m_blockCnt : NBlocks_Bits;
-				uint32_t m_usedBlocks : NBlocks_Bits;
-				uint32_t m_nextFreeBlock : NBlocks_Bits;
-				uint32_t m_freeBlocks : NBlocks_Bits;
+				uint32_t m_sizeType: SizeTypeBits;
+				uint32_t m_blockCnt: NBlocks_Bits;
+				uint32_t m_usedBlocks: NBlocks_Bits;
+				uint32_t m_nextFreeBlock: NBlocks_Bits;
+				uint32_t m_freeBlocks: NBlocks_Bits;
 
 #if GAIA_ASSERT_ENABLED
 				uint64_t m_usedMask = 0;
@@ -9824,8 +9779,9 @@ namespace gaia {
 				//! Constructs a page for the given size class.
 				//! \param ptr Raw page data.
 				//! \param sizeType Size class index.
-				SmallBlockPage(void* ptr, uint8_t sizeType):
-						m_data(ptr), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
+				SmallBlockPage(void* ptr, uint8_t sizeType, ArenaState* arena):
+						m_data(ptr), m_arena(arena), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0),
+						m_freeBlocks(0) {}
 
 				//! Returns the stride of one block in this page.
 				GAIA_NODISCARD uint32_t block_stride() const {
@@ -9903,7 +9859,8 @@ namespace gaia {
 
 			//! Frees one block back to this page.
 			//! \param pBlock Pointer previously returned by alloc_block().
-			void free_block(void* pBlock) {
+			void
+			free_block(void* pBlock) {
 				GAIA_ASSERT(pBlock != nullptr);
 				GAIA_ASSERT(m_usedBlocks > 0);
 				GAIA_ASSERT(m_freeBlocks <= NBlocks);
@@ -9944,6 +9901,29 @@ namespace gaia {
 
 				++m_freeBlocks;
 				--m_usedBlocks;
+			}
+
+			//! Queues a free issued by a thread that does not own this page.
+			void free_block_remote(void* pBlock) {
+				const auto* pMemoryBlock = (uint8_t*)pBlock - SmallBlockUsableOffset;
+				const auto blckAddr = (uintptr_t)pMemoryBlock;
+				const auto dataAddr = (uintptr_t)m_data;
+				const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / block_stride());
+				GAIA_ASSERT(blockIdx < NBlocks);
+				const auto bit = uint64_t(1) << blockIdx;
+				const auto previous = m_remoteFreeMask.fetch_or(bit, std::memory_order_release);
+				GAIA_ASSERT((previous & bit) == 0 && "Double free or corrupted block state");
+			}
+
+			//! Applies frees queued by non-owning threads.
+			void drain_remote() {
+				const auto mask = m_remoteFreeMask.exchange(0, std::memory_order_acquire);
+				for (uint32_t blockIdx = 0; blockIdx < NBlocks; ++blockIdx) {
+					if ((mask & (uint64_t(1) << blockIdx)) == 0)
+						continue;
+					auto* pBlock = (uint8_t*)m_data + blockIdx * block_stride() + SmallBlockUsableOffset;
+					free_block(pBlock);
+				}
 			}
 
 			//! Returns the number of live blocks.
@@ -10058,7 +10038,7 @@ namespace gaia {
 		//! \endcond
 
 	//! Shared allocator for variable-sized allocations up to SmallBlockMaxSize bytes.
-	using SmallBlockAllocator = core::dyn_singleton<detail::SmallBlockAllocatorImpl>;
+	using SmallBlockAllocator = detail::arena_singleton<detail::SmallBlockAllocatorImpl>;
 
 	//! \cond INTERNAL
 	namespace detail {
@@ -10067,6 +10047,7 @@ namespace gaia {
 			friend ::gaia::mem::SmallBlockAllocator;
 
 			SmallBlockPageContainer m_pages[SmallBlockSizeTypeCount];
+			ArenaState m_arena;
 			bool m_isDone = false;
 
 			SmallBlockAllocatorImpl() = default;
@@ -10100,7 +10081,8 @@ namespace gaia {
 				if (bytesWanted == 0 || bytesWanted > MAX_SIZE)
 					return nullptr;
 
-				const detail::ArenaLock arenaLock;
+				const detail::ArenaLock arenaLock{m_arena};
+				drain_remote_frees();
 				const auto sizeType = small_block_size_type(bytesWanted);
 				auto& container = m_pages[sizeType];
 
@@ -10133,7 +10115,6 @@ namespace gaia {
 				if (pBlock == nullptr)
 					return;
 
-				const detail::ArenaLock arenaLock;
 				const auto& header = *(const SmallBlockHeader*)(void*)((uint8_t*)pBlock - SmallBlockUsableOffset);
 				const auto pageAddr = header.m_pageAddr;
 				GAIA_ASSERT(pageAddr % sizeof(uintptr_t) == 0);
@@ -10141,6 +10122,15 @@ namespace gaia {
 				GAIA_ASSERT(header.m_requestedBytes > 0);
 #endif
 				auto* pPage = (SmallBlockPage*)pageAddr;
+				if (pPage->m_arena != &m_arena) {
+					GAIA_PROF_FREE(pBlock);
+					pPage->free_block_remote(pBlock);
+					return;
+				}
+				const detail::ArenaLock arenaLock{m_arena};
+				if (!arenaLock.owned())
+					return;
+				drain_remote_frees();
 				const auto prevState = state_for(*pPage);
 				auto& container = m_pages[pPage->m_sizeType];
 
@@ -10162,7 +10152,8 @@ namespace gaia {
 			//! Flushes unused pages.
 			//! \param releaseAll When true, all empty pages are released.
 			void flush(bool releaseAll = false) {
-				const detail::ArenaLock arenaLock;
+				const detail::ArenaLock arenaLock{m_arena};
+				drain_remote_frees();
 				for (uint32_t i = 0; i < SmallBlockSizeTypeCount; ++i)
 					flush_pages(m_pages[i], releaseAll);
 				verify();
@@ -10215,14 +10206,31 @@ namespace gaia {
 			}
 
 		private:
+			void drain_remote_frees() {
+				auto drain_pages = [&](SmallBlockPageContainer& container, auto& pages, SmallBlockPageState state) {
+					for (auto it = pages.begin(); it != pages.end();) {
+						auto* pPage = &(*it);
+						++it;
+						pPage->drain_remote();
+						move_page(container, pPage, state, state_for(*pPage));
+					}
+				};
+
+				for (auto& container: m_pages) {
+					drain_pages(container, container.pagesEmpty, SmallBlockPageState::Empty);
+					drain_pages(container, container.pagesPartial, SmallBlockPageState::Partial);
+					drain_pages(container, container.pagesFull, SmallBlockPageState::Full);
+				}
+			}
+
 			static constexpr const char* s_strSmallBlockData = "SmallBlockData";
 			static constexpr const char* s_strSmallBlockPage = "SmallBlockPage";
 
-			static SmallBlockPage* alloc_page(uint8_t sizeType) {
+			SmallBlockPage* alloc_page(uint8_t sizeType) {
 				const uint32_t size = small_block_stride(sizeType) * SmallBlockPage::NBlocks;
 				auto* pPageData = AllocHelper::alloc_alig<uint8_t>(s_strSmallBlockData, SmallBlockAlignment, size);
 				auto* pMemoryPage = AllocHelper::alloc<SmallBlockPage>(s_strSmallBlockPage);
-				return new (pMemoryPage) SmallBlockPage(pPageData, sizeType);
+				return new (pMemoryPage) SmallBlockPage(pPageData, sizeType, &m_arena);
 			}
 
 			static void free_page(SmallBlockPage* pPage) {
@@ -15654,8 +15662,8 @@ namespace gaia {
 		using has_tag_save = decltype(has_tag_save_impl<S, T>(0));
 
 		template <typename S, typename T>
-		auto has_tag_load_impl(int)
-				-> decltype(tag_invoke(load_v, std::declval<S&>(), std::declval<T&>()), std::true_type{});
+		auto
+		has_tag_load_impl(int) -> decltype(tag_invoke(load_v, std::declval<S&>(), std::declval<T&>()), std::true_type{});
 		template <typename, typename>
 		std::false_type has_tag_load_impl(...);
 		template <typename S, typename T>
@@ -16010,12 +16018,14 @@ namespace robin_hood {
 		template <typename E, typename... Args>
 		[[noreturn]] GAIA_NOINLINE
 	#if ROBIN_HOOD(HAS_EXCEPTIONS)
-				void doThrow(Args&&... args) {
+				void
+				doThrow(Args&&... args) {
 			// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 			throw E(GAIA_FWD(args)...);
 		}
 	#else
-				void doThrow(Args&&... ROBIN_HOOD_UNUSED(args) /*unused*/) {
+				void
+				doThrow(Args&&... ROBIN_HOOD_UNUSED(args) /*unused*/) {
 			abort();
 		}
 	#endif
@@ -16065,7 +16075,7 @@ namespace robin_hood {
 
 			BulkPoolAllocator&
 			// NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-cpp)
-			operator=(const BulkPoolAllocator& ROBIN_HOOD_UNUSED(o) /*unused*/) noexcept {
+			operator=(const BulkPoolAllocator & ROBIN_HOOD_UNUSED(o) /*unused*/) noexcept {
 				// does not do anything
 				return *this;
 			}
@@ -18329,10 +18339,12 @@ namespace gaia {
 		struct GAIA_API MemoryPageHeader {
 			//! Pointer to data managed by page
 			void* m_data;
+			//! Owner state for the allocation arena that created this page
+			detail::ArenaState* m_arena;
 
 			//! Creates a page header for a backing allocation.
 			//! \param ptr Backing allocation address.
-			MemoryPageHeader(void* ptr): m_data(ptr) {}
+			MemoryPageHeader(void* ptr, detail::ArenaState* arena): m_data(ptr), m_arena(arena) {}
 		};
 
 		//! Fixed-capacity page of equal-sized blocks.
@@ -18377,24 +18389,26 @@ namespace gaia {
 
 			//! Implicit list of blocks
 			BlockArray m_blocks;
+			//! Frees issued by non-owning threads, drained by the owner.
+			std::atomic_uint64_t m_remoteFreeMask{0};
 
 			//! Number of blocks in the block array
-			uint32_t m_blockCnt : NBlocks_Bits;
+			uint32_t m_blockCnt: NBlocks_Bits;
 			//! Number of used blocks out of NBlocks
-			uint32_t m_usedBlocks : NBlocks_Bits;
+			uint32_t m_usedBlocks: NBlocks_Bits;
 			//! Index of the next block to recycle
-			uint32_t m_nextFreeBlock : NBlocks_Bits;
+			uint32_t m_nextFreeBlock: NBlocks_Bits;
 			//! Number of blocks to recycle
-			uint32_t m_freeBlocks : NBlocks_Bits;
+			uint32_t m_freeBlocks: NBlocks_Bits;
 			//! Free bits to use in the future
 			// uint32_t m_unused : 8;
 
 			//! Creates an empty page over a backing allocation.
 			//! \param ptr Backing allocation address.
-			MemoryPage(void* ptr):
-					MemoryPageHeader(ptr), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {
+			MemoryPage(void* ptr, detail::ArenaState* arena):
+					MemoryPageHeader(ptr, arena), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {
 				// One cacheline long on x86. The point is for this to be as small as possible
-				static_assert(sizeof(MemoryPage) <= 64);
+				static_assert(sizeof(MemoryPage) <= 88);
 			}
 
 			//! Writes one link in the packed recycled-block list.
@@ -18492,6 +18506,29 @@ namespace gaia {
 				--m_usedBlocks;
 			}
 
+			//! Queues a free issued by a thread that does not own this page.
+			void free_block_remote(void* pBlock) {
+				const auto* pMemoryBlock = (uint8_t*)pBlock - MemoryBlockUsableOffset;
+				const auto blckAddr = (uintptr_t)pMemoryBlock;
+				const auto dataAddr = (uintptr_t)m_data;
+				const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / MemoryBlockBytes);
+				GAIA_ASSERT(blockIdx < NBlocks);
+				const auto bit = uint64_t(1) << blockIdx;
+				const auto previous = m_remoteFreeMask.fetch_or(bit, std::memory_order_release);
+				GAIA_ASSERT((previous & bit) == 0 && "Double free or corrupted block state");
+			}
+
+			//! Applies frees queued by non-owning threads.
+			void drain_remote() {
+				const auto mask = m_remoteFreeMask.exchange(0, std::memory_order_acquire);
+				for (uint32_t blockIdx = 0; blockIdx < NBlocks; ++blockIdx) {
+					if ((mask & (uint64_t(1) << blockIdx)) == 0)
+						continue;
+					auto* pBlock = (uint8_t*)m_data + blockIdx * MemoryBlockBytes + MemoryBlockUsableOffset;
+					free_block(pBlock);
+				}
+			}
+
 			//! Returns the number of live blocks.
 			//! \return Number of allocated blocks.
 			GAIA_NODISCARD uint32_t used_blocks_cnt() const {
@@ -18587,7 +18624,7 @@ namespace gaia {
 		//! \tparam T Allocation category used for singleton separation and diagnostics.
 		//! \tparam RequestedBlockSize Requested bytes per block, or zero for the default.
 		template <typename T, uint32_t RequestedBlockSize = 0>
-		using PagedAllocator = core::dyn_singleton<detail::PagedAllocatorImpl<T, RequestedBlockSize>>;
+		using PagedAllocator = detail::arena_singleton<detail::PagedAllocatorImpl<T, RequestedBlockSize>>;
 
 		//! \cond INTERNAL
 		namespace detail {
@@ -18596,29 +18633,28 @@ namespace gaia {
 			class PagedAllocatorImpl {
 				friend ::gaia::mem::PagedAllocator<T, RequestedBlockSize>;
 
-				inline static char s_strPageData[256]{};
-				inline static char s_strMemPage[256]{};
-
 				using Page = MemoryPage<T, RequestedBlockSize>;
 				using PageContainer = MemoryPageContainer<T, RequestedBlockSize>;
 
 				//! Container for pages storing various-sized chunks
 				PageContainer m_pages;
+				detail::ArenaState m_arena;
 				//! When true, destruction has been requested
 				bool m_isDone = false;
+				char m_strPageData[256]{};
+				char m_strMemPage[256]{};
 
 			private:
 				PagedAllocatorImpl() {
-					// PagedAllocatorImpl is only used as a singleton so the constructor is going to be called just once.
-					// Therefore, the strings are only going to be set once.
+					// Each owner-scoped allocator keeps its diagnostic labels private.
 					auto ct_name = meta::type_info::name<T>();
 					const auto ct_name_len = (uint32_t)ct_name.size();
-					GAIA_STRCPY(s_strPageData, 256, "PageData_");
-					memcpy((void*)&s_strPageData[9], (const void*)ct_name.data(), ct_name_len);
-					s_strPageData[9 + ct_name_len] = 0;
-					GAIA_STRCPY(s_strMemPage, 256, "MemPage_");
-					memcpy((void*)&s_strMemPage[8], (const void*)ct_name.data(), ct_name_len);
-					s_strMemPage[8 + ct_name_len] = 0;
+					GAIA_STRCPY(m_strPageData, 256, "PageData_");
+					memcpy((void*)&m_strPageData[9], (const void*)ct_name.data(), ct_name_len);
+					m_strPageData[9 + ct_name_len] = 0;
+					GAIA_STRCPY(m_strMemPage, 256, "MemPage_");
+					memcpy((void*)&m_strMemPage[8], (const void*)ct_name.data(), ct_name_len);
+					m_strMemPage[8 + ct_name_len] = 0;
 				}
 
 				void on_delete() {
@@ -18645,7 +18681,8 @@ namespace gaia {
 
 				//! Allocates memory
 				void* alloc([[maybe_unused]] uint32_t dummy) {
-					const detail::ArenaLock arenaLock;
+					const detail::ArenaLock arenaLock{m_arena};
+					drain_remote_frees();
 					void* pBlock = nullptr;
 
 					// Find first page with available space
@@ -18678,11 +18715,18 @@ namespace gaia {
 
 				//! Releases memory allocated for pointer
 				void free(void* pBlock) {
-					const detail::ArenaLock arenaLock;
 					// Decode the page from the address
 					const auto pageAddr = *(uintptr_t*)((uint8_t*)pBlock - MemoryBlockUsableOffset);
 					GAIA_ASSERT(pageAddr % MemoryBlockAlignment == 0);
 					auto* pPage = (Page*)pageAddr;
+					if (pPage->m_arena != &m_arena) {
+						pPage->free_block_remote(pBlock);
+						return;
+					}
+					const detail::ArenaLock arenaLock{m_arena};
+					if (!arenaLock.owned())
+						return;
+					drain_remote_frees();
 					const bool wasFull = pPage->full();
 
 #if GAIA_ASSERT_ENABLED
@@ -18738,7 +18782,8 @@ namespace gaia {
 
 				//! Flushes unused memory
 				void flush() {
-					const detail::ArenaLock arenaLock;
+					const detail::ArenaLock arenaLock{m_arena};
+					drain_remote_frees();
 					for (auto it = m_pages.pagesFree.begin(); it != m_pages.pagesFree.end();) {
 						auto* pPage = &(*it);
 						++it;
@@ -18785,19 +18830,33 @@ namespace gaia {
 				}
 
 			private:
-				static Page* alloc_page() {
-					const uint32_t size = Page::NBlocks * Page::MemoryBlockBytes;
-					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>(&s_strPageData[0], MemoryBlockAlignment, size);
-					auto* pMemoryPage = mem::AllocHelper::alloc<Page>(&s_strMemPage[0]);
-					return new (pMemoryPage) Page(pPageData);
+				void drain_remote_frees() {
+					for (auto it = m_pages.pagesFull.begin(); it != m_pages.pagesFull.end();) {
+						auto* pPage = &(*it);
+						++it;
+						pPage->drain_remote();
+						if (!pPage->full()) {
+							m_pages.pagesFull.unlink(pPage);
+							m_pages.pagesFree.link(pPage);
+						}
+					}
+					for (auto it = m_pages.pagesFree.begin(); it != m_pages.pagesFree.end(); ++it)
+						it->drain_remote();
 				}
 
-				static void free_page(Page* pMemoryPage) {
+				Page* alloc_page() {
+					const uint32_t size = Page::NBlocks * Page::MemoryBlockBytes;
+					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>(&m_strPageData[0], MemoryBlockAlignment, size);
+					auto* pMemoryPage = mem::AllocHelper::alloc<Page>(&m_strMemPage[0]);
+					return new (pMemoryPage) Page(pPageData, &m_arena);
+				}
+
+				void free_page(Page* pMemoryPage) {
 					GAIA_ASSERT(pMemoryPage != nullptr);
 
-					mem::AllocHelper::free_alig(&s_strPageData[0], pMemoryPage->m_data);
+					mem::AllocHelper::free_alig(&m_strPageData[0], pMemoryPage->m_data);
 					pMemoryPage->~MemoryPage();
-					mem::AllocHelper::free(&s_strMemPage[0], pMemoryPage);
+					mem::AllocHelper::free(&m_strMemPage[0], pMemoryPage);
 				}
 
 				void done() {
@@ -24604,7 +24663,7 @@ namespace gaia {
 		struct is_reference_wrapper<std::reference_wrapper<U>>: std::true_type {};
 
 		template <class C, class Pointed, class Object, class... Args>
-		constexpr decltype(auto) invoke_memptr(Pointed C::* member, Object&& object, Args&&... args) {
+		constexpr decltype(auto) invoke_memptr(Pointed C::*member, Object&& object, Args&&... args) {
 			using object_t = std::decay_t<Object>;
 			constexpr bool is_member_function = std::is_function_v<Pointed>;
 			constexpr bool is_wrapped = is_reference_wrapper<object_t>::value;
@@ -28285,11 +28344,11 @@ namespace gaia {
 		private:
 			struct JobData {
 				//! Index in entity array
-				JobInternalType id : IdBits;
+				JobInternalType id: IdBits;
 				//! Generation index. Incremented every time an item is deleted
-				JobInternalType gen : GenBits;
+				JobInternalType gen: GenBits;
 				//! Encoded job priority bit.
-				JobInternalType prio : PrioBits;
+				JobInternalType prio: PrioBits;
 			};
 
 			union {
@@ -31799,13 +31858,13 @@ namespace gaia {
 				//! Component entity index
 				uint32_t id;
 				//! Component size
-				IdentifierData size : MaxComponentSize_Bits;
+				IdentifierData size: MaxComponentSize_Bits;
 				//! Component alignment
-				IdentifierData alig : MaxAlignment_Bits;
+				IdentifierData alig: MaxAlignment_Bits;
 				//! Component storage kind. 0 = table, 1 = sparse.
 				IdentifierData storage : 1;
 				//! Component is SoA
-				IdentifierData soa : meta::StructToTupleMaxTypes_Bits;
+				IdentifierData soa: meta::StructToTupleMaxTypes_Bits;
 				//! Unused part
 				IdentifierData unused : 1;
 			};
@@ -33150,7 +33209,7 @@ namespace gaia {
 			ChunkAllocatorPageStats stats[MemoryBlockSizeClasses];
 		};
 
-		using ChunkAllocator = core::dyn_singleton<detail::ChunkAllocatorImpl>;
+		using ChunkAllocator = ::gaia::mem::detail::arena_singleton<detail::ChunkAllocatorImpl>;
 
 		//! \cond INTERNAL
 		namespace detail {
@@ -33159,8 +33218,10 @@ namespace gaia {
 			struct MemoryPageHeader {
 				//! Pointer to data managed by page
 				void* m_data;
+				//! Owner state for the allocation arena that created this page
+				::gaia::mem::detail::ArenaState* m_arena;
 
-				MemoryPageHeader(void* ptr): m_data(ptr) {}
+				MemoryPageHeader(void* ptr, ::gaia::mem::detail::ArenaState* arena): m_data(ptr), m_arena(arena) {}
 			};
 
 			struct MemoryPage: MemoryPageHeader, cnt::fwd_llist_base<MemoryPage> {
@@ -33176,17 +33237,19 @@ namespace gaia {
 
 				//! Implicit list of blocks
 				BlockArray m_blocks;
+				//! Frees issued by non-owning threads, drained by the owner.
+				std::atomic_uint64_t m_remoteFreeMask{0};
 
 				//! Block size type, 0=8K, 1=16K, 2=32K, 3=64K-class blocks
 				uint32_t m_sizeType : 2;
 				//! Number of blocks in the block array
-				uint32_t m_blockCnt : NBlocks_Bits;
+				uint32_t m_blockCnt: NBlocks_Bits;
 				//! Number of used blocks out of NBlocks
-				uint32_t m_usedBlocks : NBlocks_Bits;
+				uint32_t m_usedBlocks: NBlocks_Bits;
 				//! Index of the next block to recycle
-				uint32_t m_nextFreeBlock : NBlocks_Bits;
+				uint32_t m_nextFreeBlock: NBlocks_Bits;
 				//! Number of blocks to recycle
-				uint32_t m_freeBlocks : NBlocks_Bits;
+				uint32_t m_freeBlocks: NBlocks_Bits;
 				//! Free bits to use in the future
 				// uint32_t m_unused : 6;
 
@@ -33194,13 +33257,13 @@ namespace gaia {
 				uint64_t m_usedMask = 0;
 	#endif
 
-				MemoryPage(void* ptr, uint8_t sizeType):
-						MemoryPageHeader(ptr), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0),
+				MemoryPage(void* ptr, uint8_t sizeType, ::gaia::mem::detail::ArenaState* arena):
+						MemoryPageHeader(ptr, arena), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0),
 						m_freeBlocks(0) {
 	#if GAIA_ASSERT_ENABLED
-					static_assert(sizeof(MemoryPage) <= 72);
+					static_assert(sizeof(MemoryPage) <= 96);
 	#else
-					static_assert(sizeof(MemoryPage) <= 64);
+					static_assert(sizeof(MemoryPage) <= 88);
 	#endif
 				}
 
@@ -33310,6 +33373,29 @@ namespace gaia {
 
 					++m_freeBlocks;
 					--m_usedBlocks;
+				}
+
+				//! Queues a free issued by a thread that does not own this page.
+				void free_block_remote(void* pBlock) {
+					const auto* pMemoryBlock = (uint8_t*)pBlock - MemoryBlockUsableOffset;
+					const auto blckAddr = (uintptr_t)pMemoryBlock;
+					const auto dataAddr = (uintptr_t)m_data;
+					const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / mem_block_size(m_sizeType));
+					GAIA_ASSERT(blockIdx < NBlocks);
+					const auto bit = uint64_t(1) << blockIdx;
+					const auto previous = m_remoteFreeMask.fetch_or(bit, std::memory_order_release);
+					GAIA_ASSERT((previous & bit) == 0 && "Double free or corrupted block state");
+				}
+
+				//! Applies frees queued by non-owning threads.
+				void drain_remote() {
+					const auto mask = m_remoteFreeMask.exchange(0, std::memory_order_acquire);
+					for (uint32_t blockIdx = 0; blockIdx < NBlocks; ++blockIdx) {
+						if ((mask & (uint64_t(1) << blockIdx)) == 0)
+							continue;
+						auto* pBlock = (uint8_t*)m_data + blockIdx * mem_block_size(m_sizeType) + MemoryBlockUsableOffset;
+						free_block(pBlock);
+					}
 				}
 
 				GAIA_NODISCARD uint32_t used_blocks_cnt() const {
@@ -33435,6 +33521,7 @@ namespace gaia {
 
 				//! Container for pages storing various-sized chunks
 				MemoryPageContainer m_pages[MemoryBlockSizeClasses];
+				::gaia::mem::detail::ArenaState m_arena;
 
 				//! When true, destruction has been requested
 				bool m_isDone = false;
@@ -33473,7 +33560,8 @@ namespace gaia {
 					if (bytesWanted == 0 || bytesWanted > MaxMemoryBlockSize)
 						return nullptr;
 
-					const ::gaia::mem::detail::ArenaLock arenaLock;
+					const ::gaia::mem::detail::ArenaLock arenaLock{m_arena};
+					drain_remote_frees();
 					const auto sizeType = mem_block_size_type(bytesWanted);
 					auto& container = m_pages[sizeType];
 
@@ -33510,7 +33598,6 @@ namespace gaia {
 					if (pBlock == nullptr)
 						return;
 
-					const ::gaia::mem::detail::ArenaLock arenaLock;
 					// Decode the page from the address
 					const auto& header = *(const MemoryBlockHeader*)((uint8_t*)pBlock - MemoryBlockUsableOffset);
 					const auto pageAddr = header.m_pageAddr;
@@ -33519,6 +33606,14 @@ namespace gaia {
 					GAIA_ASSERT(header.m_requestedBytes > 0);
 	#endif
 					auto* pPage = (MemoryPage*)pageAddr;
+					if (pPage->m_arena != &m_arena) {
+						pPage->free_block_remote(pBlock);
+						return;
+					}
+					const ::gaia::mem::detail::ArenaLock arenaLock{m_arena};
+					if (!arenaLock.owned())
+						return;
+					drain_remote_frees();
 					const auto prevState = state_for(*pPage);
 
 					auto& container = m_pages[pPage->m_sizeType];
@@ -33566,7 +33661,8 @@ namespace gaia {
 				//! Flushes unused memory.
 				//! Keeps a small, size-class-specific empty-page cache warm by default.
 				void flush(bool releaseAll = false) {
-					const ::gaia::mem::detail::ArenaLock arenaLock;
+					const ::gaia::mem::detail::ArenaLock arenaLock{m_arena};
+					drain_remote_frees();
 					uint32_t i = 0;
 					for (auto& page: m_pages)
 						flushPages(page, i++, releaseAll);
@@ -33609,17 +33705,37 @@ namespace gaia {
 				}
 
 			private:
+				void drain_remote_frees() {
+					for (auto& container: m_pages) {
+						for (auto it = container.pagesFull.begin(); it != container.pagesFull.end();) {
+							auto* pPage = &(*it);
+							++it;
+							pPage->drain_remote();
+							if (!pPage->full())
+								move_page(container, pPage, MemoryPageState::Full, state_for(*pPage));
+						}
+						for (auto it = container.pagesPartial.begin(); it != container.pagesPartial.end();) {
+							auto* pPage = &(*it);
+							++it;
+							pPage->drain_remote();
+							move_page(container, pPage, MemoryPageState::Partial, state_for(*pPage));
+						}
+						for (auto it = container.pagesEmpty.begin(); it != container.pagesEmpty.end(); ++it)
+							it->drain_remote();
+					}
+				}
+
 				static constexpr const char* s_strChunkAlloc_Chunk = "Chunk";
 				static constexpr const char* s_strChunkAlloc_MemPage = "MemoryPage";
 
-				static MemoryPage* alloc_page(uint8_t sizeType) {
+				MemoryPage* alloc_page(uint8_t sizeType) {
 					const uint32_t size = mem_block_size(sizeType) * MemoryPage::NBlocks;
 					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>(s_strChunkAlloc_Chunk, MemoryBlockAlignment, size);
 					auto* pMemoryPage = mem::AllocHelper::alloc<MemoryPage>(s_strChunkAlloc_MemPage);
-					return new (pMemoryPage) MemoryPage(pPageData, sizeType);
+					return new (pMemoryPage) MemoryPage(pPageData, sizeType, &m_arena);
 				}
 
-				static void free_page(MemoryPage* pMemoryPage) {
+				void free_page(MemoryPage* pMemoryPage) {
 					GAIA_ASSERT(pMemoryPage != nullptr);
 
 					mem::AllocHelper::free_alig(s_strChunkAlloc_Chunk, pMemoryPage->m_data);
@@ -33837,13 +33953,13 @@ namespace gaia {
 			uint16_t capacity;
 
 			//! Index of the first enabled entity in the chunk
-			uint16_t rowFirstEnabledEntity : MAX_CHUNK_ENTITIES_BITS;
+			uint16_t rowFirstEnabledEntity: MAX_CHUNK_ENTITIES_BITS;
 			//! True if there's any component that requires custom construction
 			uint16_t hasAnyCustomCtor : 1;
 			//! True if there's any component that requires custom destruction
 			uint16_t hasAnyCustomDtor : 1;
 			//! When it hits 0 the chunk is scheduled for deletion
-			uint16_t lifespanCountdown : CHUNK_LIFESPAN_BITS;
+			uint16_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
 			//! True if deleted, false otherwise
 			uint16_t dead : 1;
 			//! Empty space for future use
@@ -39153,9 +39269,9 @@ namespace gaia {
 				//! If set the archetype is to be deleted
 				uint32_t dead : 1;
 				//! Max lifespan of the archetype
-				uint32_t lifespanCountdownMax : ARCHETYPE_LIFESPAN_BITS;
+				uint32_t lifespanCountdownMax: ARCHETYPE_LIFESPAN_BITS;
 				//! Remaining lifespan of the archetype
-				uint32_t lifespanCountdown : ARCHETYPE_LIFESPAN_BITS;
+				uint32_t lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
 
 				RuntimeData(): deleteReq(0), dead(0), lifespanCountdownMax(1), lifespanCountdown(0) {}
 			};
@@ -52776,17 +52892,15 @@ namespace gaia {
 							entry.compIdx = compIdx;
 						return;
 					}
-					singleArchetypeLookup.push_back(
-							SingleArchetypeLookupItem{
-									keyLookup, ComponentIndexEntry{const_cast<Archetype*>(&archetype), compIdx, matchCount}});
+					singleArchetypeLookup.push_back(SingleArchetypeLookupItem{
+							keyLookup, ComponentIndexEntry{const_cast<Archetype*>(&archetype), compIdx, matchCount}});
 				};
 				auto archetypeIds = archetype.ids_view();
 				const auto cntIds = (uint32_t)archetypeIds.size();
 				GAIA_FOR(cntIds) {
 					const auto entity = archetypeIds[i];
-					singleArchetypeLookup.push_back(
-							SingleArchetypeLookupItem{
-									EntityLookupKey(entity), ComponentIndexEntry{const_cast<Archetype*>(&archetype), (uint16_t)i, 1}});
+					singleArchetypeLookup.push_back(SingleArchetypeLookupItem{
+							EntityLookupKey(entity), ComponentIndexEntry{const_cast<Archetype*>(&archetype), (uint16_t)i, 1}});
 
 					if (!entity.pair())
 						continue;
@@ -61753,7 +61867,7 @@ namespace gaia {
 						return *this;
 
 					const auto idx = query_var_idx(varEntity);
-					m_varBindingsMask &= (uint8_t)~(uint8_t(1) << idx);
+					m_varBindingsMask &= (uint8_t) ~(uint8_t(1) << idx);
 					return *this;
 				}
 				//! Clears all runtime variable bindings.
@@ -64913,10 +65027,9 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 				{
 					auto& queryInfo = fetch();
-					GAIA_ASSERT(
-							ChunkIterImpl::allows_term_access(
-									queryInfo.ctx().data, typed_query_arg_meta<typename Container::value_type>(*queryInfo.world()).termId,
-									false));
+					GAIA_ASSERT(ChunkIterImpl::allows_term_access(
+							queryInfo.ctx().data, typed_query_arg_meta<typename Container::value_type>(*queryInfo.world()).termId,
+							false));
 				}
 #endif
 				const auto entCnt = count(constraints);
